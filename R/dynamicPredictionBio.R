@@ -35,19 +35,30 @@
 #' at-risk patients; this approximates integrating out to infinity for the
 #' denominator that normalizes the predicted density. A wider follow-up range
 #' needs a larger \code{bandcount2} to keep the grid spacing comparable.
+#' Defaults to \code{"auto"} (see Details).
 #' @param bandcount3 The number of points in the candidate-biomarker-value
 #' grid (\code{Y_all}) used to build the predicted density
 #' (\code{Y_density}) and locate its mode (\code{Y_predict}). This controls
 #' the resolution of the density curve, not a time integral; increase it if
 #' the density looks jagged or \code{Y_predict} jumps erratically between
-#' nearby grid points.
+#' nearby grid points. Defaults to \code{"auto"} (see Details).
 #'
+#' @details
 #' There is no universal correct value for \code{bandcount2}/\code{bandcount3}:
 #' as a practical check, double both and confirm the results barely change;
-#' if they do, keep doubling. \code{checkBandcountConvergence()} automates
-#' exactly this check (one extra call, at a value you choose, instead of an
-#' open-ended search). See also \code{vignette("BJM-intro", package =
-#' "BJM")} for a worked example.
+#' if they do, keep doubling. By default (\code{bandcount2 = "auto"},
+#' \code{bandcount3 = "auto"}), this doubling check is done for you:
+#' starting from small built-in values, both are doubled together, and the
+#' result is compared to the previous round, until the largest relative
+#' change in \code{Y_predict} drops below 1%, or 2 doublings have been
+#' tried (so at most 3 calls' worth of work). If it still has not converged
+#' by then, a warning reports this and the result at the largest value
+#' tried is returned anyway (not an error), so this never silently loops
+#' for an unbounded amount of time. Pass an explicit number for either
+#' argument to skip auto-tuning it and use a fixed value instead (as in
+#' previous package versions), or call \code{checkBandcountConvergence()}
+#' directly for more control over the tolerance and doubling count. See
+#' also \code{vignette("BJM-intro", package = "BJM")} for a worked example.
 #' 
 #' @return An object of class \code{"dynamicPredictionBio.BJM"}, a named list with elements:
 #' \describe{
@@ -128,7 +139,7 @@
 dynamicPredictionBio = function(bio_i, data_predict_all, long_fit_all, survival_fit_all,
                                  prediction_time, horizon, time_variable,
                                  survival_variable_all, survival_trans_function,
-                                 bandcount2 = 40, bandcount3 = 300){
+                                 bandcount2 = "auto", bandcount3 = "auto"){
 
   assert_class(long_fit_all, "longitudinalSub.BJM", "long_fit_all", "longitudinalSub")
   assert_class(survival_fit_all, "survivalSub.BJM", "survival_fit_all", "survivalSub")
@@ -140,9 +151,20 @@ dynamicPredictionBio = function(bio_i, data_predict_all, long_fit_all, survival_
   assert_scalar_numeric(prediction_time, "prediction_time")
   assert_scalar_numeric(horizon, "horizon")
   assert_string(time_variable, "time_variable")
-  assert_scalar_numeric(bandcount2, "bandcount2", positive = TRUE)
-  assert_scalar_numeric(bandcount3, "bandcount3", positive = TRUE)
+  assert_bandcount(bandcount2, "bandcount2")
+  assert_bandcount(bandcount3, "bandcount3")
   assert_survival_trans(survival_variable_all, survival_trans_function, probe_value = prediction_time)
+
+  # bandcount2/bandcount3 = "auto" (the default): see dynamicPrediction()
+  # for the rationale; same doubling-until-stable check, applied here to
+  # Y_predict instead of the risk probabilities. `call_args` is captured
+  # before `auto_names` is computed, so it is not swept up into `call_args`
+  # too (see dynamicPrediction() for the same pattern).
+  call_args <- as.list(environment())
+  auto_names <- c("bandcount2", "bandcount3")[c(identical(bandcount2, "auto"), identical(bandcount3, "auto"))]
+  if (length(auto_names) > 0) {
+    return(auto_tune_bandcount(dynamicPredictionBio, call_args, auto_names)$result)
+  }
 
   coxph_fit = survival_fit_all$coxph_fit
   survival_variable = as.character(formula(coxph_fit)[[2]])[2] #survival_variable = "fuyrs"

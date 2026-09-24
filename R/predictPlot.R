@@ -28,21 +28,31 @@
 #' in the order of \code{survival_variable_all}.
 #' @param bandcount1 The number of grid points spanning the prediction window,
 #' from \code{prediction_time} to \code{prediction_time + horizon}. Larger
-#' values give a more accurate but slower estimate.
+#' values give a more accurate but slower estimate. Defaults to \code{"auto"},
+#' which resolves it once, before looping over \code{horizon} (using the
+#' largest requested horizon as a representative probe), by doubling from a
+#' built-in starting value until the predicted risk stabilizes; see
+#' \code{\link{dynamicPrediction}}'s \code{bandcount1} for details of that
+#' search. The resolved value is then reused, fixed, for every point in
+#' \code{horizon} -- it is not re-searched on every iteration.
 #' @param bandcount2 The number of grid points used to approximate
 #' integrating out to infinity when normalizing the predicted risk/density.
 #' A wider follow-up range needs a larger \code{bandcount2} to keep the
-#' grid spacing comparable.
+#' grid spacing comparable. Defaults to \code{"auto"}; resolved the same way
+#' as \code{bandcount1} (jointly with it, when both are \code{"auto"}).
 #' @param bandcount3 The number of points in the candidate-biomarker-value
 #' grid used to build the predicted density curve; controls the resolution
-#' of the density, not a time integral.
+#' of the density, not a time integral. Defaults to \code{"auto"}; resolved
+#' the same way, but only when \code{bio_pred} is non-\code{NULL} (it is
+#' unused otherwise).
 #'
-#' \code{checkBandcountConvergence()} (applied to \code{dynamicPrediction()}/
-#' \code{dynamicPredictionBio()} directly) automates checking these values.
-#' See also \code{vignette("BJM-intro", package = "BJM")} for guidance on
-#' choosing \code{bandcount1}/\code{bandcount2}/\code{bandcount3} via a
-#' convergence check.
-#' 
+#' Pass explicit numbers instead of \code{"auto"} for full manual control, or
+#' use \code{checkBandcountConvergence()} (applied to \code{dynamicPrediction()}/
+#' \code{dynamicPredictionBio()} directly) to inspect the convergence behavior
+#' yourself. See also \code{vignette("BJM-intro", package = "BJM")} for
+#' further guidance on choosing \code{bandcount1}/\code{bandcount2}/
+#' \code{bandcount3}.
+#'
 #' @param bio_his Which biomarker history will be plotted
 #' @param bio_pred Indicator, predict future biomarker or not, if NULL do not predict
 #' @param density Indicator, plot future biomarker density or not, if NULL do not plot
@@ -115,7 +125,7 @@
 predictPlot = function(data_predict_all_one, long_fit_all, survival_fit_all,
                     prediction_time = 4, horizon = seq(0.0, 3.0, 0.5), time_variable,
                     survival_variable_all, survival_trans_function,
-                    bandcount1 = 10, bandcount2 = 10, bandcount3 = 200,
+                    bandcount1 = "auto", bandcount2 = "auto", bandcount3 = "auto",
                     bio_his = 1, bio_pred = 1, density = 1){
 
   assert_class(long_fit_all, "longitudinalSub.BJM", "long_fit_all", "longitudinalSub")
@@ -127,9 +137,9 @@ predictPlot = function(data_predict_all_one, long_fit_all, survival_fit_all,
   }
   assert_scalar_numeric(prediction_time, "prediction_time")
   assert_string(time_variable, "time_variable")
-  assert_scalar_numeric(bandcount1, "bandcount1", positive = TRUE)
-  assert_scalar_numeric(bandcount2, "bandcount2", positive = TRUE)
-  assert_scalar_numeric(bandcount3, "bandcount3", positive = TRUE)
+  assert_bandcount(bandcount1, "bandcount1")
+  assert_bandcount(bandcount2, "bandcount2")
+  assert_bandcount(bandcount3, "bandcount3")
   assert_survival_trans(survival_variable_all, survival_trans_function, probe_value = prediction_time)
   for (i in seq_along(data_predict_all_one)) {
     assert_vars_in_data(time_variable, data_predict_all_one[[i]], "time_variable",
@@ -148,7 +158,42 @@ predictPlot = function(data_predict_all_one, long_fit_all, survival_fit_all,
                            longitudinal = unlist(data_predict_all_one[[bio_his]][bio_i_name]))
   
   DP_data_bio = DP_data_bio[DP_data_bio$time <= prediction_time, ]
-  
+
+  ### data before the prediction time -- this does not depend on
+  ### prediction.horizon, so it is built once here rather than inside the
+  ### loop below.
+  data_predict_all = list()
+  for(i in seq_len(length(long_fit_all$long_sub_fixed))){
+    data_predict_all[[i]] = data_predict_all_one[[i]][data_predict_all_one[[i]][time_variable] <= (prediction_time + 1e-8),]
+  }
+
+  ### bandcount1/bandcount2/bandcount3 = "auto" (the default): resolve them
+  ### once here, using the largest requested horizon as a representative
+  ### probe, rather than re-running the auto-tuning search on every horizon
+  ### in the loop below (see auto_tune_bandcount()).
+  auto_names_1_2 <- c("bandcount1", "bandcount2")[c(identical(bandcount1, "auto"), identical(bandcount2, "auto"))]
+  if (length(auto_names_1_2) > 0) {
+    probe_args <- list(data_predict_all = data_predict_all, long_fit_all = long_fit_all,
+                        survival_fit_all = survival_fit_all, prediction_time = prediction_time,
+                        horizon = max(horizon), time_variable = time_variable,
+                        survival_variable_all = survival_variable_all,
+                        survival_trans_function = survival_trans_function,
+                        bandcount1 = bandcount1, bandcount2 = bandcount2)
+    resolved_1_2 <- auto_tune_bandcount(dynamicPrediction, probe_args, auto_names_1_2)$bandcount
+    if (!is.null(resolved_1_2$bandcount1)) bandcount1 <- resolved_1_2$bandcount1
+    if (!is.null(resolved_1_2$bandcount2)) bandcount2 <- resolved_1_2$bandcount2
+  }
+  if (!is.null(bio_pred) && identical(bandcount3, "auto")) {
+    probe_args <- list(bio_i = bio_his, data_predict_all = data_predict_all, long_fit_all = long_fit_all,
+                        survival_fit_all = survival_fit_all, prediction_time = prediction_time,
+                        horizon = max(horizon), time_variable = time_variable,
+                        survival_variable_all = survival_variable_all,
+                        survival_trans_function = survival_trans_function,
+                        bandcount2 = bandcount2, bandcount3 = bandcount3)
+    resolved_3 <- auto_tune_bandcount(dynamicPredictionBio, probe_args, "bandcount3")$bandcount
+    bandcount3 <- resolved_3$bandcount3
+  }
+
   ### risk predicted probability
   risk.prob.1 = c(); risk.prob.2 = c()
   ### mode prediction
@@ -166,14 +211,8 @@ predictPlot = function(data_predict_all_one, long_fit_all, survival_fit_all,
   tt = 0
   for(prediction.horizon in horizon){
     tt = tt + 1
-    
-    ### data before the prediction time
-    data_predict_all = list()
-    for(i in seq_len(length(long_fit_all$long_sub_fixed))){
-      data_predict_all[[i]] = data_predict_all_one[[i]][data_predict_all_one[[i]][time_variable] <= (prediction_time + 1e-8),]
-    }
-    
-    risk.prob = dynamicPrediction(data_predict_all, long_fit_all, survival_fit_all, 
+
+    risk.prob = dynamicPrediction(data_predict_all, long_fit_all, survival_fit_all,
                                   prediction_time, 
                                   horizon = prediction.horizon, time_variable,
                                   survival_variable_all, survival_trans_function,

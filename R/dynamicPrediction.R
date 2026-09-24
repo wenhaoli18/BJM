@@ -31,20 +31,32 @@
 #' @param bandcount1 The number of grid points spanning the prediction window,
 #' from \code{prediction_time} to \code{prediction_time + horizon} (the
 #' numerator of the risk probability). Larger values give a more accurate but
-#' slower estimate.
+#' slower estimate. Defaults to \code{"auto"} (see Details).
 #' @param bandcount2 The number of grid points spanning
 #' \code{[prediction_time, upper_bound]}, where \code{upper_bound} is set
 #' internally to twice the longest observed survival/censoring time among
 #' at-risk patients; this approximates integrating out to infinity for the
 #' denominator that normalizes the risk probability. A wider follow-up range
 #' needs a larger \code{bandcount2} to keep the grid spacing comparable.
+#' Defaults to \code{"auto"} (see Details).
 #'
+#' @details
 #' There is no universal correct value for \code{bandcount1}/\code{bandcount2}:
 #' as a practical check, double both and confirm the resulting risk
-#' probabilities barely change; if they do, keep doubling.
-#' \code{checkBandcountConvergence()} automates exactly this check (one
-#' extra call, at a value you choose, instead of an open-ended search). See
-#' also \code{vignette("BJM-intro", package = "BJM")} for a worked example.
+#' probabilities barely change; if they do, keep doubling. By default
+#' (\code{bandcount1 = "auto"}, \code{bandcount2 = "auto"}), this doubling
+#' check is done for you: starting from small built-in values, both are
+#' doubled together, and the result is compared to the previous round,
+#' until the largest relative change in the risk probabilities drops below
+#' 1%, or 2 doublings have been tried (so at most 3 calls' worth of work).
+#' If it still has not converged by then, a warning reports this and the
+#' result at the largest value tried is returned anyway (not an error), so
+#' this never silently loops for an unbounded amount of time. Pass an
+#' explicit number for either argument to skip auto-tuning it and use a
+#' fixed value instead (as in previous package versions), or call
+#' \code{checkBandcountConvergence()} directly for more control over the
+#' tolerance and doubling count. See also \code{vignette("BJM-intro",
+#' package = "BJM")} for a worked example.
 #' 
 #' @return An object of class \code{"dynamicPrediction.BJM"}, a named list with elements:
 #' \describe{
@@ -127,7 +139,7 @@
 dynamicPrediction = function(data_predict_all, long_fit_all, survival_fit_all,
                              prediction_time, horizon, time_variable,
                              survival_variable_all, survival_trans_function,
-                             bandcount1 = 10, bandcount2 = 40){
+                             bandcount1 = "auto", bandcount2 = "auto"){
 
   assert_class(long_fit_all, "longitudinalSub.BJM", "long_fit_all", "longitudinalSub")
   assert_class(survival_fit_all, "survivalSub.BJM", "survival_fit_all", "survivalSub")
@@ -138,9 +150,23 @@ dynamicPrediction = function(data_predict_all, long_fit_all, survival_fit_all,
   assert_scalar_numeric(prediction_time, "prediction_time")
   assert_scalar_numeric(horizon, "horizon")
   assert_string(time_variable, "time_variable")
-  assert_scalar_numeric(bandcount1, "bandcount1", positive = TRUE)
-  assert_scalar_numeric(bandcount2, "bandcount2", positive = TRUE)
+  assert_bandcount(bandcount1, "bandcount1")
+  assert_bandcount(bandcount2, "bandcount2")
   assert_survival_trans(survival_variable_all, survival_trans_function, probe_value = prediction_time)
+
+  # bandcount1/bandcount2 = "auto" (the default): resolve them by doubling
+  # from their built-in starting values until the returned risk
+  # probabilities stabilize (see auto_tune_bandcount()), instead of
+  # requiring the caller to pick a value. `call_args` is captured here,
+  # right after validation and before any other local variables exist
+  # (other than `call_args` itself), so it is exactly this call's
+  # (possibly-defaulted) arguments -- `auto_names` is deliberately computed
+  # afterwards so it is not swept up into `call_args` too.
+  call_args <- as.list(environment())
+  auto_names <- c("bandcount1", "bandcount2")[c(identical(bandcount1, "auto"), identical(bandcount2, "auto"))]
+  if (length(auto_names) > 0) {
+    return(auto_tune_bandcount(dynamicPrediction, call_args, auto_names)$result)
+  }
 
   coxph_fit = survival_fit_all$coxph_fit
   survival_variable = as.character(formula(coxph_fit)[[2]])[2] #survival_variable = "fuyrs"

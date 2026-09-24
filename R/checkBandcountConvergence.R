@@ -130,28 +130,10 @@ checkBandcountConvergence <- function(predict_fun, ..., bandcount_args, multipli
   base_result <- do.call(predict_fun, c(extra_args, bandcount_args))
   scaled_result <- do.call(predict_fun, c(extra_args, scaled_bandcount_args))
 
-  # Only compare fields that are plain numeric vectors (no dim), and only
-  # when the two runs produced the same length for that field. This
-  # naturally skips fields whose *size* is itself controlled by the
-  # bandcount being scaled (e.g. dynamicPredictionBio()'s Y_density matrix
-  # and Y_all grid, whose resolution is exactly what bandcount3 sets),
-  # while still comparing the actual per-patient estimates derived from
-  # them (risk_prob_1/risk_prob_2, Y_predict).
-  is_comparable <- function(x) is.numeric(x) && is.null(dim(x))
-  common_fields <- intersect(
-    names(base_result)[vapply(base_result, is_comparable, logical(1))],
-    names(scaled_result)[vapply(scaled_result, is_comparable, logical(1))]
-  )
-
-  by_field <- c()
-  for (field in common_fields) {
-    b <- base_result[[field]]
-    s <- scaled_result[[field]]
-    if (length(b) == 0 || length(b) != length(s)) next
-    by_field[field] <- max(abs(b - s) / pmax(abs(b), 1e-8))
-  }
-
-  max_rel_diff <- if (length(by_field) == 0) NA_real_ else max(by_field)
+  # See max_relative_diff() for which fields are comparable and why.
+  comparison <- max_relative_diff(base_result, scaled_result)
+  by_field <- comparison$by_field
+  max_rel_diff <- comparison$max
   converged <- if (is.na(max_rel_diff)) NA else (max_rel_diff < tol)
 
   out <- list(

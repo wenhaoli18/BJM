@@ -124,7 +124,7 @@ test_that("dynamicPrediction rejects a non-positive bandcount1", {
                        prediction_time = 5, horizon = 1, time_variable = "year",
                        f$survival_variable_all, f$survival_trans_function,
                        bandcount1 = 0, bandcount2 = 20),
-    "`bandcount1` must be a positive number"
+    "`bandcount1` must be a single positive number, or the string .auto."
   )
 })
 

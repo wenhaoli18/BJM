@@ -14,8 +14,8 @@ riskPlot(
   time_variable,
   survival_variable_all,
   survival_trans_function,
-  bandcount1 = 10,
-  bandcount2 = 10
+  bandcount1 = "auto",
+  bandcount2 = "auto"
 )
 }
 \arguments{
@@ -52,17 +52,25 @@ in the order of \code{survival_variable_all}.}
 
 \item{bandcount1}{The number of grid points spanning the prediction window,
 from \code{prediction_time} to \code{prediction_time + horizon}. Larger
-values give a more accurate but slower estimate.}
+values give a more accurate but slower estimate. Defaults to \code{"auto"},
+which resolves it once, before looping over the landmark times, (using
+the first landmark time as a representative probe) by doubling from a
+built-in starting value until the predicted risk stabilizes; see
+\code{\link{dynamicPrediction}}'s \code{bandcount1} for details of that
+search. The resolved value is then reused, fixed, for every landmark
+time -- it is not re-searched on every iteration.}
 
 \item{bandcount2}{The number of grid points used to approximate
 integrating out to infinity when normalizing the predicted risk. A wider
 follow-up range needs a larger \code{bandcount2} to keep the grid
-spacing comparable.
+spacing comparable. Defaults to \code{"auto"}; resolved the same way as
+\code{bandcount1} (jointly with it, when both are \code{"auto"}).
 
-\code{checkBandcountConvergence()} (applied to \code{dynamicPrediction()}
-directly) automates checking these values. See also
-\code{vignette("BJM-intro", package = "BJM")} for guidance on choosing
-\code{bandcount1}/\code{bandcount2} via a convergence check.}
+Pass explicit numbers instead of \code{"auto"} for full manual control, or
+use \code{checkBandcountConvergence()} (applied to \code{dynamicPrediction()}
+directly) to inspect the convergence behavior yourself. See also
+\code{vignette("BJM-intro", package = "BJM")} for further guidance on
+choosing \code{bandcount1}/\code{bandcount2}.}
 }
 \value{
 Plot of risk using dynamic prediction.
