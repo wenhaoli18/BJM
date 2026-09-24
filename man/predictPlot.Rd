@@ -51,13 +51,22 @@ findings and variables derived from the analysis.}
 \item{survival_trans_function}{The transformation function used for time-to-event outcomes,
 in the order of \code{survival_variable_all}.}
 
-\item{bandcount1}{The number of points used to perform the numerical integral,
-from the prediction time to the prediction time plus the horizon.}
+\item{bandcount1}{The number of grid points spanning the prediction window,
+from \code{prediction_time} to \code{prediction_time + horizon}. Larger
+values give a more accurate but slower estimate.}
 
-\item{bandcount2}{The number of points used to perform the numerical integral,
-from the prediction time to infinity.}
+\item{bandcount2}{The number of grid points used to approximate
+integrating out to infinity when normalizing the predicted risk/density.
+A wider follow-up range needs a larger \code{bandcount2} to keep the
+grid spacing comparable.}
 
-\item{bandcount3}{The number of points used to calculate the probability density function.}
+\item{bandcount3}{The number of points in the candidate-biomarker-value
+grid used to build the predicted density curve; controls the resolution
+of the density, not a time integral.
+
+See \code{vignette("BJM-intro", package = "BJM")} for guidance on
+choosing \code{bandcount1}/\code{bandcount2}/\code{bandcount3} via a
+convergence check.}
 
 \item{bio_his}{Which biomarker history will be plotted}
 

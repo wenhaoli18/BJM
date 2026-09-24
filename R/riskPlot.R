@@ -15,11 +15,17 @@
 #' @param survival_variable_all The name of the transformed time-to-event outcomes variable.
 #' @param survival_trans_function The transformation function used for time-to-event outcomes, 
 #' in the order of \code{survival_variable_all}.
-#' @param bandcount1 The number of points used to perform the numerical integral, 
-#' from the prediction time to the prediction time plus the horizon.
-#' @param bandcount2 The number of points used to perform the numerical integral,
-#'  from the prediction time to infinity.
-#' 
+#' @param bandcount1 The number of grid points spanning the prediction window,
+#' from \code{prediction_time} to \code{prediction_time + horizon}. Larger
+#' values give a more accurate but slower estimate.
+#' @param bandcount2 The number of grid points used to approximate
+#' integrating out to infinity when normalizing the predicted risk. A wider
+#' follow-up range needs a larger \code{bandcount2} to keep the grid
+#' spacing comparable.
+#'
+#' See \code{vignette("BJM-intro", package = "BJM")} for guidance on
+#' choosing \code{bandcount1}/\code{bandcount2} via a convergence check.
+#'
 #' @return Plot of risk using dynamic prediction.
 #' @export
 riskPlot = function(data_predict_all_pre, long_fit_all, survival_fit_all,
