@@ -26,7 +26,21 @@
 #' 
 #' @export
 survivalSub = function(data_survival_fitting, form_marginal_surv, form_conditional_cr){
-  
+
+  assert_data_frame(data_survival_fitting, "data_survival_fitting")
+  if (!inherits(form_marginal_surv, "formula")) {
+    stop("`form_marginal_surv` must be a formula, e.g. Surv(time, status) ~ covariates.", call. = FALSE)
+  }
+  assert_vars_in_data(all.vars(form_marginal_surv), data_survival_fitting,
+                       "form_marginal_surv", "data_survival_fitting")
+  if (length(form_conditional_cr) != 0) {
+    if (!inherits(form_conditional_cr, "formula")) {
+      stop("`form_conditional_cr` must be a formula or NULL.", call. = FALSE)
+    }
+    assert_vars_in_data(all.vars(form_conditional_cr), data_survival_fitting,
+                         "form_conditional_cr", "data_survival_fitting")
+  }
+
   ### fit cox weibull model
   coxph_fit = coxph(form_marginal_surv, data = data_survival_fitting, ties = "breslow")
   ### censoring indicator name

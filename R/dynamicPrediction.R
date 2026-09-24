@@ -109,13 +109,31 @@
 #' }
 #' 
 #' @export
-dynamicPrediction = function(data_predict_all, long_fit_all, survival_fit_all, 
-                             prediction_time, horizon, time_variable, 
-                             survival_variable_all, survival_trans_function, 
+dynamicPrediction = function(data_predict_all, long_fit_all, survival_fit_all,
+                             prediction_time, horizon, time_variable,
+                             survival_variable_all, survival_trans_function,
                              bandcount1 = 10, bandcount2 = 40){
-  
+
+  assert_class(long_fit_all, "longitudinalSub.BJM", "long_fit_all", "longitudinalSub")
+  assert_class(survival_fit_all, "survivalSub.BJM", "survival_fit_all", "survivalSub")
+  assert_data_list(data_predict_all, "data_predict_all", length(long_fit_all$lfit))
+  assert_scalar_numeric(prediction_time, "prediction_time")
+  assert_scalar_numeric(horizon, "horizon")
+  assert_string(time_variable, "time_variable")
+  assert_scalar_numeric(bandcount1, "bandcount1", positive = TRUE)
+  assert_scalar_numeric(bandcount2, "bandcount2", positive = TRUE)
+  assert_survival_trans(survival_variable_all, survival_trans_function)
+
   coxph_fit = survival_fit_all$coxph_fit
   survival_variable = as.character(formula(coxph_fit)[[2]])[2] #survival_variable = "fuyrs"
+  for (i in seq_along(data_predict_all)) {
+    assert_vars_in_data(time_variable, data_predict_all[[i]],
+                         "time_variable", sprintf("data_predict_all[[%d]]", i))
+    assert_vars_in_data(survival_variable, data_predict_all[[i]],
+                         "the survival-time variable used to fit survival_fit_all",
+                         sprintf("data_predict_all[[%d]]", i))
+  }
+
   ## at risk sample
   data_predict_all = subset_at_risk(data_predict_all, survival_variable, prediction_time)
 
