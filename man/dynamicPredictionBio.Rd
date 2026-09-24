@@ -50,10 +50,24 @@ findings and variables derived from the analysis.}
 \item{survival_trans_function}{The transformation function used for time-to-event outcomes,
 in the order of \code{survival_variable_all}.}
 
-\item{bandcount2}{The number of points used to perform the numerical integral,
-from the prediction time to infinity.}
+\item{bandcount2}{The number of grid points spanning
+\code{[prediction_time, upper_bound]}, where \code{upper_bound} is set
+internally to twice the longest observed survival/censoring time among
+at-risk patients; this approximates integrating out to infinity for the
+denominator that normalizes the predicted density. A wider follow-up range
+needs a larger \code{bandcount2} to keep the grid spacing comparable.}
 
-\item{bandcount3}{The number of points used to calculate the probability density function.}
+\item{bandcount3}{The number of points in the candidate-biomarker-value
+grid (\code{Y_all}) used to build the predicted density
+(\code{Y_density}) and locate its mode (\code{Y_predict}). This controls
+the resolution of the density curve, not a time integral; increase it if
+the density looks jagged or \code{Y_predict} jumps erratically between
+nearby grid points.
+
+There is no universal correct value for \code{bandcount2}/\code{bandcount3}:
+as a practical check, double both and confirm the results barely change;
+if they do, keep doubling. See \code{vignette("BJM-intro", package =
+"BJM")} for a worked example.}
 }
 \value{
 An object of class \code{"dynamicPredictionBio.BJM"}, a named list with elements:

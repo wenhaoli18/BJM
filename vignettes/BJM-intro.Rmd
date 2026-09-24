@@ -1,0 +1,242 @@
+---
+title: "Getting Started with BJM"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Getting Started with BJM}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+## Overview
+
+BJM fits a *backward joint model* of multivariate longitudinal outcomes and
+time-to-event data, and uses it to make **dynamic predictions**: given a
+patient's longitudinal history up to some `prediction_time`, predict their
+risk of an event (and, if desired, their future biomarker values)
+conditional on survival to that point.
+
+Fitting and prediction is a four-step pipeline:
+
+1. `survivalSub()` fits the marginal survival sub-model (and, optionally, a
+   competing-risks sub-model).
+2. `longitudinalSub()` fits the longitudinal sub-model(s), one per
+   biomarker.
+3. `dynamicPrediction()` combines the two fits to predict a patient's event
+   risk over a future horizon.
+4. `dynamicPredictionBio()` additionally predicts a future value of one
+   specific biomarker.
+
+This vignette walks through all four steps on the `pbc3` data set that
+ships with the package, then covers two practical questions that come up
+once the mechanics are working: how to choose the `bandcount1`/
+`bandcount2`/`bandcount3` numerical-integration tuning parameters, and what
+happens when the pipeline functions are called with malformed inputs.
+
+```{r setup}
+library(BJM)
+data(pbc3)
+```
+
+`pbc3` is in long format: one row per longitudinal measurement, with
+baseline covariates (`age`, `sex`, ...) repeated on every row for a given
+patient, and event-time variables (`years`, `status3`, ...) that are also
+constant within patient.
+
+## Step 1: Fit the survival sub-model with `survivalSub()`
+
+`survivalSub()` needs one row per patient, so we first drop the repeated
+longitudinal rows. `form_marginal_surv` is a standard `survival::Surv()`
+formula for the overall event. `form_conditional_cr` is optional: supply it
+when there is more than one competing event type and you want to predict
+event-specific risk (here, `status4` distinguishes the two causes among
+patients who had *some* event).
+
+```{r survival-sub}
+data_survival_fitting <- pbc3[!duplicated(pbc3$id), ]
+
+survival_fit_all <- survivalSub(
+  data_survival_fitting,
+  form_marginal_surv = Surv(years, status3) ~ age + sex,
+  form_conditional_cr = status4 ~ years + age + sex
+)
+
+survival_fit_all
+```
+
+## Step 2: Fit the longitudinal sub-models with `longitudinalSub()`
+
+Each biomarker gets its own fixed-effects formula and random-effects
+formula, supplied as same-length, same-order lists. `data_fit_all` is a
+matching list of fitting data sets (one per biomarker) — or a single
+`data.frame` that is reused for every biomarker, if all biomarkers are fit
+on the same data. Here we fit two biomarkers, `serBilir` and `albumin`, on
+the complete-case subset.
+
+```{r longitudinal-sub}
+long_sub_fixed <- list(
+  "serBilir" = serBilir ~ year + age + sex + (years) + (years) * year,
+  "albumin"  = albumin  ~ year + age + sex + (years) + (years) * year
+)
+long_sub_random <- list(
+  "serBilir" = ~ year | id,
+  "albumin"  = ~ year | id
+)
+
+data_fit_all <- list(pbc3[pbc3$status3 == 1, ], pbc3[pbc3$status3 == 1, ])
+
+long_fit_all <- longitudinalSub(data_fit_all, long_sub_fixed, long_sub_random)
+
+long_fit_all
+```
+
+## Step 3: Predict event risk with `dynamicPrediction()`
+
+To predict for a specific patient, build a `data_predict_all` list (one
+`data.frame` per biomarker, mirroring `data_fit_all`) containing only that
+patient's measurements *up to* `prediction_time` — later measurements
+would not be available yet in a real prediction setting. Below we predict,
+for patient 2, the risk of each event type within one year of `year = 5`.
+
+`survival_variable_all`/`survival_trans_function` describe how the raw
+event-time variable is transformed for the integration grid; see
+`?dynamicPrediction` for details.
+
+```{r dynamic-prediction}
+survival_variable_all <- list("Tyears1", "Tyears2", "Tyears3", "Tyears4")
+survival_trans_function <- list(
+  fun1 = function(x) abs(x - 1),
+  fun2 = function(x) abs(x - 3),
+  fun3 = function(x) abs(x - 5),
+  fun4 = function(x) abs(x - 7)
+)
+
+data_raw_predict <- pbc3[pbc3$id == 2, ]
+data_predict_all <- list(data_raw_predict, data_raw_predict)
+
+risk <- dynamicPrediction(
+  data_predict_all, long_fit_all, survival_fit_all,
+  prediction_time = 5, horizon = 1, time_variable = "year",
+  survival_variable_all, survival_trans_function,
+  bandcount1 = 10, bandcount2 = 20
+)
+
+risk
+```
+
+`risk_prob_1` and `risk_prob_2` are the predicted probabilities of
+experiencing each of the two competing event types within the one-year
+horizon, conditional on the patient's longitudinal history and survival to
+`prediction_time`. (`risk_prob_2` is `NULL` whenever `survival_fit_all` was
+fit without `form_conditional_cr`.)
+
+## Step 4: Predict a future biomarker value with `dynamicPredictionBio()`
+
+`dynamicPredictionBio()` answers a different question: not *whether* an
+event happens, but what a specific biomarker's value is likely to be at
+`prediction_time + horizon`, conditional on survival. `bio_i` selects the
+biomarker by its position in `long_fit_all` (`1` = `serBilir` here).
+
+```{r dynamic-prediction-bio}
+bio_pred <- dynamicPredictionBio(
+  bio_i = 1, data_predict_all, long_fit_all, survival_fit_all,
+  prediction_time = 5, horizon = 1, time_variable = "year",
+  survival_variable_all, survival_trans_function,
+  bandcount2 = 20, bandcount3 = 50
+)
+
+bio_pred$Y_predict
+```
+
+`Y_predict` is the MAP (most likely) predicted value; `Y_density`/`Y_all`
+give the full predicted density over a grid of candidate values, which is
+what `predictPlot()` visualizes (see `?predictPlot`).
+
+## Choosing `bandcount1`, `bandcount2`, `bandcount3`
+
+`dynamicPrediction()` and `dynamicPredictionBio()` estimate their outputs
+by numerical integration over patient-specific time and biomarker grids.
+The `bandcount*` arguments control how fine those grids are:
+
+- **`bandcount1`** (`dynamicPrediction()` only) is the number of grid
+  points spanning the prediction window itself, from `prediction_time` to
+  `prediction_time + horizon`. This is the numerator of the risk
+  probability.
+- **`bandcount2`** is the number of grid points spanning
+  `[prediction_time, upper_bound]`, where `upper_bound` is set internally
+  to twice the longest observed survival/censoring time among at-risk
+  patients. This approximates "integrating out to infinity" for the
+  denominator that normalizes the risk probability. A wider follow-up
+  range needs a larger `bandcount2` to keep the grid spacing comparable.
+- **`bandcount3`** (`dynamicPredictionBio()` only) is the number of points
+  in the candidate-biomarker-value grid (`Y_all`) used to build the
+  predicted density and locate its mode (`Y_predict`). It controls the
+  resolution of the density curve, not a time integral.
+
+Larger values give more accurate, smoother results at the cost of more
+computation. There is no universal "correct" value because it depends on
+how quickly the underlying hazard and biomarker trajectories change and on
+the length of follow-up in your data — so the practical approach is a
+**convergence check**: run the prediction once with the defaults, once with
+every `bandcount*` doubled, and confirm the results barely move.
+
+```{r bandcount-convergence}
+risk_default <- dynamicPrediction(
+  data_predict_all, long_fit_all, survival_fit_all,
+  prediction_time = 5, horizon = 1, time_variable = "year",
+  survival_variable_all, survival_trans_function,
+  bandcount1 = 10, bandcount2 = 20
+)
+
+risk_doubled <- dynamicPrediction(
+  data_predict_all, long_fit_all, survival_fit_all,
+  prediction_time = 5, horizon = 1, time_variable = "year",
+  survival_variable_all, survival_trans_function,
+  bandcount1 = 20, bandcount2 = 40
+)
+
+abs(risk_default$risk_prob_1 - risk_doubled$risk_prob_1)
+abs(risk_default$risk_prob_2 - risk_doubled$risk_prob_2)
+```
+
+If doubling the `bandcount*` values changes the result by more than you can
+tolerate, keep doubling until it doesn't; if it barely changes anything (as
+above), the smaller, cheaper value is fine to use. The same check applies
+to `bandcount3` for `dynamicPredictionBio()`.
+
+## Friendly error messages
+
+The pipeline functions validate their arguments before doing any model
+fitting or numerical integration, so common mistakes fail fast with a
+message that names the offending argument — instead of a cryptic error
+from deep inside `model.matrix()` or list indexing. For example, passing a
+single `data.frame` instead of a list to `dynamicPrediction()`:
+
+```{r validation-example, error = TRUE}
+dynamicPrediction(
+  data_predict_all[[1]], long_fit_all, survival_fit_all,
+  prediction_time = 5, horizon = 1, time_variable = "year",
+  survival_variable_all, survival_trans_function,
+  bandcount1 = 10, bandcount2 = 20
+)
+```
+
+or a formula referencing a column that doesn't exist:
+
+```{r validation-example-2, error = TRUE}
+longitudinalSub(pbc3, serBilir ~ year + not_a_column, ~ year | id)
+```
+
+## Where to go next
+
+- `?predictPlot` and `?riskPlot` visualize the outputs of
+  `dynamicPredictionBio()`/`dynamicPrediction()` for a single patient.
+- `?cmtPlot` plots observed longitudinal trajectories stratified by
+  eventual outcome, useful for checking whether a biomarker looks
+  informative before fitting.
