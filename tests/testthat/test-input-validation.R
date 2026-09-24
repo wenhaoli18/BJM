@@ -140,6 +140,78 @@ test_that("dynamicPrediction rejects mismatched survival_variable_all/survival_t
   )
 })
 
+test_that("assert_survival_trans skips the probe when probe_value = NULL, for backward compatibility", {
+  expect_no_error(
+    assert_survival_trans(list("Tyears1"), list(function(x) stop("boom")), probe_value = NULL)
+  )
+})
+
+test_that("assert_survival_trans accepts a well-formed transform when probed", {
+  expect_no_error(
+    assert_survival_trans(list("Tyears1"), list(function(x) abs(x - 1)), probe_value = 5)
+  )
+})
+
+test_that("dynamicPrediction rejects a survival_trans_function that throws an error, instead of failing deep inside the per-patient prediction grid", {
+  f <- setup_dp_fixture()
+  bad_trans <- f$survival_trans_function
+  bad_trans[[2]] <- function(x) stop("boom")
+
+  expect_error(
+    dynamicPrediction(f$data_predict_all, f$long_fit_all, f$survival_fit_all,
+                       prediction_time = 5, horizon = 1, time_variable = "year",
+                       f$survival_variable_all, bad_trans,
+                       bandcount1 = 10, bandcount2 = 20),
+    "survival_trans_function\\[\\[2\\]\\].*failed"
+  )
+})
+
+test_that("dynamicPrediction rejects a survival_trans_function that returns a character value", {
+  f <- setup_dp_fixture()
+  bad_trans <- f$survival_trans_function
+  bad_trans[[1]] <- function(x) "not a number"
+
+  expect_error(
+    dynamicPrediction(f$data_predict_all, f$long_fit_all, f$survival_fit_all,
+                       prediction_time = 5, horizon = 1, time_variable = "year",
+                       f$survival_variable_all, bad_trans,
+                       bandcount1 = 10, bandcount2 = 20),
+    "survival_trans_function\\[\\[1\\]\\].*single, finite numeric value"
+  )
+})
+
+test_that("dynamicPrediction rejects a survival_trans_function that returns a length > 1 vector", {
+  f <- setup_dp_fixture()
+  bad_trans <- f$survival_trans_function
+  bad_trans[[3]] <- function(x) c(x, x + 1)
+
+  expect_error(
+    dynamicPrediction(f$data_predict_all, f$long_fit_all, f$survival_fit_all,
+                       prediction_time = 5, horizon = 1, time_variable = "year",
+                       f$survival_variable_all, bad_trans,
+                       bandcount1 = 10, bandcount2 = 20),
+    "survival_trans_function\\[\\[3\\]\\].*single, finite numeric value"
+  )
+})
+
+test_that("dynamicPrediction rejects a survival_trans_function that returns a non-finite value", {
+  f <- setup_dp_fixture()
+  bad_trans <- f$survival_trans_function
+  # log() of a negative number is NaN, not an error -- would otherwise
+  # silently propagate into model.matrix() at prediction time
+  bad_trans[[4]] <- function(x) log(x - 10)
+
+  expect_error(
+    suppressWarnings(
+      dynamicPrediction(f$data_predict_all, f$long_fit_all, f$survival_fit_all,
+                         prediction_time = 5, horizon = 1, time_variable = "year",
+                         f$survival_variable_all, bad_trans,
+                         bandcount1 = 10, bandcount2 = 20)
+    ),
+    "survival_trans_function\\[\\[4\\]\\].*single, finite numeric value"
+  )
+})
+
 test_that("dynamicPredictionBio rejects an out-of-range bio_i", {
   f <- setup_dp_fixture()
 

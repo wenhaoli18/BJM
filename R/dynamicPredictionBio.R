@@ -140,7 +140,7 @@ dynamicPredictionBio = function(bio_i, data_predict_all, long_fit_all, survival_
   assert_string(time_variable, "time_variable")
   assert_scalar_numeric(bandcount2, "bandcount2", positive = TRUE)
   assert_scalar_numeric(bandcount3, "bandcount3", positive = TRUE)
-  assert_survival_trans(survival_variable_all, survival_trans_function)
+  assert_survival_trans(survival_variable_all, survival_trans_function, probe_value = prediction_time)
 
   coxph_fit = survival_fit_all$coxph_fit
   survival_variable = as.character(formula(coxph_fit)[[2]])[2] #survival_variable = "fuyrs"

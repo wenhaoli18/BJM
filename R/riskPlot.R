@@ -56,7 +56,15 @@ riskPlot = function(data_predict_all_pre, long_fit_all, survival_fit_all,
   assert_scalar_numeric(horizon, "horizon")
   assert_scalar_numeric(bandcount1, "bandcount1", positive = TRUE)
   assert_scalar_numeric(bandcount2, "bandcount2", positive = TRUE)
-  assert_survival_trans(survival_variable_all, survival_trans_function)
+  # prediction_time may be NULL (landmark defaults to each patient's first
+  # observed time_variable value) or a vector of landmark times; probe with
+  # the first usable value, or skip the probe entirely if none is available yet.
+  survival_trans_probe <- if (is.numeric(prediction_time) && length(prediction_time) >= 1 && !anyNA(prediction_time[1])) {
+    prediction_time[1]
+  } else {
+    NULL
+  }
+  assert_survival_trans(survival_variable_all, survival_trans_function, probe_value = survival_trans_probe)
   for (i in seq_along(data_predict_all_pre)) {
     assert_vars_in_data(time_variable, data_predict_all_pre[[i]], "time_variable",
                          sprintf("data_predict_all_pre[[%d]]", i))
