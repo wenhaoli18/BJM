@@ -1,0 +1,42 @@
+url: ~
+
+template:
+  bootstrap: 5
+
+reference:
+- title: Fit sub-models
+  desc: Fit the survival and longitudinal sub-models that dynamic prediction is built on.
+  contents:
+  - survivalSub
+  - longitudinalSub
+
+- title: Dynamic prediction
+  desc: Predict event risk and future biomarker values from the fitted sub-models.
+  contents:
+  - dynamicPrediction
+  - dynamicPredictionBio
+
+- title: Plots
+  desc: Visualize predictions and observed longitudinal trajectories.
+  contents:
+  - predictPlot
+  - riskPlot
+  - cmtPlot
+
+- title: Print and summary methods
+  desc: S3 methods for inspecting fitted models and predictions.
+  contents:
+  - printBJM
+  - print.survivalSub.BJM
+  - print.longitudinalSub.BJM
+  - print.dynamicPrediction.BJM
+  - print.dynamicPredictionBio.BJM
+  - summary.survivalSub.BJM
+  - summary.longitudinalSub.BJM
+  - summary.dynamicPrediction.BJM
+  - summary.dynamicPredictionBio.BJM
+
+- title: Data
+  contents:
+  - pbc3
+  - pbc2
