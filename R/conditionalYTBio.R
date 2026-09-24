@@ -84,66 +84,17 @@ conditionalYTBio = function(Y_all, time_new, bio_i, data_predict_all,
     ### each rows represent intercept, slope, covariates numbers, time to event/l_i
     ### each columns represent different repeated measurements with different times.
 
-    # Initialize lists to store the results for each subject 'num_i'
-    # rep_num_i_list will store the repeated ones for each data frame.
-    # data_num_i_list will store the filtered data for each patient num_i.
-    rep_num_i_list <- list()
-    data_num_i_list <- list()
-    
-    # Iterate over each data frame for different biomarkers
-    for (i in 1:n_longitudinal) {
-      df <- data.long[[i]]
-      # Extract data for patient ID of 'num_i',  where 'num' equals 'num_i'
-      selected_data <- df[df[num] == num_i, ]
-      
-      # the biomarker used to predict,
-      if(i == bio_i){
-        selected_data <- rbind(selected_data, selected_data[nrow(selected_data), ])
-        #replace time variable with predict time
-        selected_data[time_variable][nrow(selected_data),] = time_new
-        #name of biomarker
-        bio_i_name = as.character(formula(long_fit_all$long_sub_fixed[[i]])[[2]]) 
-        Y_select_all = c() ### matrix for all Y_all for predicted biomarker
-        for(Y_new in Y_all){
-          selected_data[bio_i_name][nrow(selected_data),] = Y_new
-          Y_select_all = cbind(Y_select_all, unlist(selected_data[bio_i_name]))
-        }
-      }
-      # Store the row length of patient ID of 'num_i', in a vector of repeated 1, 
-      # Store in the list for different biomarkers
-      rep_num_i_list[[i]] <- rep(1, length(unlist(selected_data[time_variable])))
-      # Store the filtered patient ID of 'num_i' data with all variables in the list
-      data_num_i_list[[i]] <- selected_data
-    }
-    #if all biomarkers contained in one data frame
-    if(length(data.long) == 1){
-      for (i in 1:n_longitudinal) {#
-        rep_num_i_list[[i]] <- rep_num_i_list[[1]]
-        data_num_i_list[[i]] <- data_num_i_list[[1]]
-      }
-    }
-    
-    # Use lapply to check the length of each element, 
-    # and then use any to determine whether there is an element with a length of 0
-    if(any(sapply(data_num_i_list, nrow) == 0)) next
-    
-    ####Initialize longitudinal matrix for all biomarkers
-    longitudinal_all_matrix <- c() 
-    ####Constructing the longitudinal matrix for all biomarkers
-    ####Grid search for all Y_all
-    for(Y_i in 1 : length(Y_all)){
-      longitudinal_all_matrix_tran <- c() 
-      for (i in 1:n_longitudinal) {
-        longname = as.character(formula(lfit[[i]]))[2]
-        if(i == bio_i){
-          longitudinal_all_matrix_tran = c(longitudinal_all_matrix_tran, Y_select_all[,Y_i])
-        }else{
-          longitudinal_all_matrix_tran = c(longitudinal_all_matrix_tran, unlist(data_num_i_list[[i]][,longname]) )
-        }
-      }
-      longitudinal_all_matrix = rbind(longitudinal_all_matrix, longitudinal_all_matrix_tran)
-    }
-    
+    patient_data <- select_patient_longitudinal_data_bio(data.long, num, num_i, n_longitudinal, time_variable,
+                                                          bio_i, time_new, Y_all, long_fit_all)
+    if(is.null(patient_data)) next
+    rep_num_i_list <- patient_data$rep_num_i_list
+    data_num_i_list <- patient_data$data_num_i_list
+    Y_select_all <- patient_data$Y_select_all
+
+    ####Constructing the longitudinal matrix for all biomarkers, grid search for all Y_all
+    longitudinal_all_matrix <- build_longitudinal_matrix_bio(data_num_i_list, lfit, bio_i, Y_select_all,
+                                                              n_longitudinal, Y_all)
+
     #### MVN mean function
     Amean_list1 = list()
     #Amean_list0 = list()
