@@ -8,7 +8,7 @@ process_variance(
   num_i,
   time_new,
   bio_i,
-  data.predict.all,
+  data_predict_all,
   long_fit_all,
   time_variable
 )

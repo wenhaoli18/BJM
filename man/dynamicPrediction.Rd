@@ -5,23 +5,23 @@
 \title{Dynamic prediction function}
 \usage{
 dynamicPrediction(
-  data.predict.all,
+  data_predict_all,
   long_fit_all,
   survival_fit_all,
-  prediction.time,
+  prediction_time,
   horizon,
   time_variable,
-  survivalVariableAll,
-  survivalTransFunction,
+  survival_variable_all,
+  survival_trans_function,
   bandcount1 = 10,
   bandcount2 = 40
 )
 }
 \arguments{
-\item{data.predict.all}{This involves a collection of \code{data.frame} objects for
+\item{data_predict_all}{This involves a collection of \code{data.frame} objects for
 dynamic prediction, each corresponding to a distinct longitudinal outcome.
-These data frames should contain the variables specified in \code{LongSubFixed}
-and \code{LongSubRandom}. Utilizing a list structure
+These data frames should contain the variables specified in \code{long_sub_fixed}
+and \code{long_sub_random}. Utilizing a list structure
 allows for the incorporation of multiple longitudinal outcomes,
 each potentially following different measurement protocols.
 In instances where all longitudinal outcomes are recorded at identical
@@ -36,16 +36,16 @@ encompassing the results and parameters obtained from the analysis.}
 procedure, utilizing the \code{coxph} function. These outputs include the comprehensive
 findings and variables derived from the analysis.}
 
-\item{prediction.time}{Time used to make the prediction.}
+\item{prediction_time}{Time used to make the prediction.}
 
 \item{horizon}{Prediction horizon.}
 
 \item{time_variable}{The name of time variable in linear mixed model.}
 
-\item{survivalVariableAll}{The name of the transformed time-to-event outcomes variable.}
+\item{survival_variable_all}{The name of the transformed time-to-event outcomes variable.}
 
-\item{survivalTransFunction}{The transformation function used for time-to-event outcomes,
-in the order of \code{survivalVariableAll}.}
+\item{survival_trans_function}{The transformation function used for time-to-event outcomes,
+in the order of \code{survival_variable_all}.}
 
 \item{bandcount1}{The number of points used to perform the numerical integral,
 from the prediction time to the prediction time plus the horizon.}
@@ -54,14 +54,20 @@ from the prediction time to the prediction time plus the horizon.}
 from the prediction time to infinity.}
 }
 \value{
-A probability matrix, where the rows (l_i) correspond to specific time points
-and the columns to individual patients. Each element within the matrix signifies
-the probability of a future event occurring, as dynamically predicted for each
-patient at each time point.
+An object of class \code{"dynamicPrediction.BJM"}, a named list with elements:
+\describe{
+\item{risk_prob_1}{A vector of dynamically predicted probabilities, one per patient,
+of experiencing the (first) event within the prediction horizon. \code{0} when
+\code{horizon <= 0}.}
+\item{risk_prob_2}{When \code{survival_fit_all} was fit with competing risks, a vector
+of dynamically predicted probabilities, one per patient, of experiencing the competing
+event within the prediction horizon. \code{NULL} when there is no competing risk, or
+when \code{horizon <= 0}.}
+}
 }
 \description{
 The time values in the prediction data subset must be less than the
-specified \code{prediction.time} which is the prediction time. The time points for
+specified \code{prediction_time} which is the prediction time. The time points for
 longitudinal repeated measurements must not surpass the prediction time.
 }
 \examples{
@@ -69,15 +75,15 @@ longitudinal repeated measurements must not surpass the prediction time.
 \donttest{
 data(pbc3)
 
-data.survival.fitting =  pbc3[!duplicated(pbc3$id), ]
+data_survival_fitting =  pbc3[!duplicated(pbc3$id), ]
 
-formMarginalSurv = Surv(years, status3) ~ age + sex
-formConditionalCR = NULL
+form_marginal_surv = Surv(years, status3) ~ age + sex
+form_conditional_cr = NULL
 
-survival_fit_all = survivalSub(data.survival.fitting, formMarginalSurv, 
-                               formConditionalCR)
+survival_fit_all = survivalSub(data_survival_fitting, form_marginal_surv, 
+                               form_conditional_cr)
 
-LongSubFixed = list(
+long_sub_fixed = list(
   "long1" = serBilir ~ year + age + sex +  (years) + (years) * year,  
   "long2" = prothrombin ~ year + age + sex + (years) + (years) * year,  
   "long3" = albumin ~ year + age + age * year + sex + (years) + (years) * year,  
@@ -85,7 +91,7 @@ LongSubFixed = list(
   "long5" = SGOT ~ year + age + sex + (years) + (years) * year, 
   "long6" = platelets ~ year + age + sex + (years)  + (years) * year)
 
-LongSubRandom =list(
+long_sub_random =list(
   "long1" =  ~ year| id,   
   "long2" =  ~ year| id,    
   "long3" =  ~ year| id,    
@@ -93,11 +99,11 @@ LongSubRandom =list(
   "long5" =  ~ year| id,    
   "long6" =  ~ year| id)
 
-survivalVariableAll = list(
+survival_variable_all = list(
   "Tyears1",  "Tyears2", "Tyears3", "Tyears4"
 )
 
-survivalTransFunction = list(
+survival_trans_function = list(
   fun1 = function(x){abs(x - 1)}, 
   fun2 = function(x){abs(x - 3)}, 
   fun3 = function(x){abs(x - 5)}, 
@@ -105,27 +111,27 @@ survivalTransFunction = list(
 )
 
 # Complete case analysis
-data.fit.all = list()
-for(i in seq_len(length(LongSubFixed))){
-  data.fit.all[[i]] = pbc3[pbc3$status3 == 1, ]
+data_fit_all = list()
+for(i in seq_len(length(long_sub_fixed))){
+  data_fit_all[[i]] = pbc3[pbc3$status3 == 1, ]
 }
 
 # fitting longitudinal submodel
-long_fit_all = longitudinalSub(data.fit.all, LongSubFixed, LongSubRandom)
+long_fit_all = longitudinalSub(data_fit_all, long_sub_fixed, long_sub_random)
 
 i_PID = 2
 data.raw.predict.1 = pbc3[pbc3$id == i_PID, ]
 
-data.predict.all = list()
-for(i in seq_len(length(LongSubFixed))){
-  data.predict.all[[i]] = data.raw.predict.1[data.raw.predict.1$year <= 3,]
+data_predict_all = list()
+for(i in seq_len(length(long_sub_fixed))){
+  data_predict_all[[i]] = data.raw.predict.1[data.raw.predict.1$year <= 3,]
 }
 
 # predict risk probability
-risk.prob = dynamicPrediction(data.predict.all, long_fit_all, survival_fit_all, 
-                              prediction.time = 3, 
+risk.prob = dynamicPrediction(data_predict_all, long_fit_all, survival_fit_all, 
+                              prediction_time = 3, 
                               horizon = 3, time_variable = "year",
-                              survivalVariableAll, survivalTransFunction,
+                              survival_variable_all, survival_trans_function,
                               bandcount1 = 10, bandcount2 = 10)
 
 }

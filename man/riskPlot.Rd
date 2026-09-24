@@ -5,21 +5,21 @@
 \title{Plot of risk using dynamic prediction}
 \usage{
 riskPlot(
-  data.predict.all.pre,
+  data_predict_all_pre,
   long_fit_all,
   survival_fit_all,
-  prediction.time = NULL,
+  prediction_time = NULL,
   bio_i = NULL,
   horizon,
   time_variable,
-  survivalVariableAll,
-  survivalTransFunction,
+  survival_variable_all,
+  survival_trans_function,
   bandcount1 = 10,
   bandcount2 = 10
 )
 }
 \arguments{
-\item{data.predict.all.pre}{This involves a collection of \code{data.frame} objects for}
+\item{data_predict_all_pre}{This involves a collection of \code{data.frame} objects for}
 
 \item{long_fit_all}{Outputs from the model fitting process using the \code{nlme} package,
 encompassing the results and parameters obtained from the analysis.}
@@ -28,7 +28,7 @@ encompassing the results and parameters obtained from the analysis.}
 procedure, utilizing the \code{coxph} function. These outputs include the comprehensive
 findings and variables derived from the analysis.}
 
-\item{prediction.time}{Time used to make the prediction.}
+\item{prediction_time}{Time used to make the prediction.}
 
 \item{bio_i}{Biomarker used to do prediction.}
 
@@ -36,10 +36,10 @@ findings and variables derived from the analysis.}
 
 \item{time_variable}{The name of time variable in linear mixed model.}
 
-\item{survivalVariableAll}{The name of the transformed time-to-event outcomes variable.}
+\item{survival_variable_all}{The name of the transformed time-to-event outcomes variable.}
 
-\item{survivalTransFunction}{The transformation function used for time-to-event outcomes,
-in the order of \code{survivalVariableAll}.}
+\item{survival_trans_function}{The transformation function used for time-to-event outcomes,
+in the order of \code{survival_variable_all}.}
 
 \item{bandcount1}{The number of points used to perform the numerical integral,
 from the prediction time to the prediction time plus the horizon.}

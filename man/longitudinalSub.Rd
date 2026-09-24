@@ -10,40 +10,40 @@ groups or subjects. By fitting this model, one can assess the influence of
 predictor variables on several longitudinal outcomes while considering the inherent
 variability in the data due to random effects.}
 \usage{
-longitudinalSub(data.fit.all, LongSubFixed, LongSubRandom)
+longitudinalSub(data_fit_all, long_sub_fixed, long_sub_random)
 }
 \arguments{
-\item{data.fit.all}{This process requires a set of \code{data.frame} objects
+\item{data_fit_all}{This process requires a set of \code{data.frame} objects
 designated for model fitting, with each \code{data.frame} representing a
 separate longitudinal outcome. These \code{data.frame} objects must include the
-variables identified in \code{LongSubFixed} and \code{LongSubRandom}.
+variables identified in \code{long_sub_fixed} and \code{long_sub_random}.
 The use of a \code{list} arrangement facilitates the inclusion of
 various longitudinal outcomes, which may adhere to different measurement protocols.
 When all longitudinal outcomes are measured at the same time points for every patient,
 a single \code{data.frame} object can be in a list.
 It is assumed that every \code{data.frame} is organized in a long format.}
 
-\item{LongSubFixed}{This refers to a collection of formulas detailing the
+\item{long_sub_fixed}{This refers to a collection of formulas detailing the
 fixed effects portion for each longitudinal outcome. On the left side of each formula,
 the response variable is defined, while the right side outlines
 the fixed effect terms. Should only a single formula be provided - whether
 as a list with one item or as a standalone formula - it is inferred that
 a conventional univariate joint model is being constructed.}
 
-\item{LongSubRandom}{A list of one-sided formulas that define the model for the
+\item{long_sub_random}{A list of one-sided formulas that define the model for the
 random effects of each longitudinal outcome.
 The number of items in this \code{list} should match the length of \code{formLongFixed}.}
 }
 \value{
-This structure comprises a list with four components.
-The initial element, labeled \code{lfit}, consists of a collection of
-outcomes from fitting multiple univariate linear mixed models,
-where each entry within \code{lfit} corresponds to the results obtained
-through the application of the \code{lme} function from the \code{nlme} package.
-The second element is the estimated variance-covariance matrix derived from
-the random effects in a multivariate linear mixed model.
-The third and fourth elements, \code{LongSubFixed} and \code{LongSubRandom},
-respectively, mirror the inputs provided to the model.
+An object of class \code{"longitudinalSub.BJM"}, a named list with elements:
+\describe{
+\item{lfit}{A list of fitted univariate linear mixed models, one per longitudinal
+outcome, each obtained via \code{\link[nlme]{lme}}.}
+\item{Sigma_fit}{The estimated variance-covariance matrix of the random effects
+in the multivariate linear mixed model.}
+\item{long_sub_fixed}{The \code{long_sub_fixed} argument, as supplied.}
+\item{long_sub_random}{The \code{long_sub_random} argument, as supplied.}
+}
 }
 \description{
 The process involves estimating parameters for a multivariate linear mixed-effects
@@ -57,7 +57,7 @@ variability in the data due to random effects.
 \examples{
 \donttest{
 
-LongSubFixed = list(
+long_sub_fixed = list(
   "long1" = serBilir ~ year + age + sex +  (years) + (years) * year,  
   "long2" = prothrombin ~ year + age + sex + (years) + (years) * year,  
   "long3" = albumin ~ year + age + age * year + sex + (years) + (years) * year,  
@@ -65,7 +65,7 @@ LongSubFixed = list(
   "long5" = SGOT ~ year + age + sex + (years) + (years) * year, 
   "long6" = platelets ~ year + age + sex + (years)  + (years) * year)
 
-LongSubRandom =list(
+long_sub_random =list(
   "long1" =  ~ year| id,   
   "long2" =  ~ year| id,    
   "long3" =  ~ year| id,    
@@ -73,11 +73,11 @@ LongSubRandom =list(
   "long5" =  ~ year| id,    
   "long6" =  ~ year| id)
 
-survivalVariableAll = list(
+survival_variable_all = list(
   "Tyears1",  "Tyears2", "Tyears3", "Tyears4"
 )
 
-survivalTransFunction = list(
+survival_trans_function = list(
   fun1 = function(x){abs(x - 1)}, 
   fun2 = function(x){abs(x - 3)}, 
   fun3 = function(x){abs(x - 5)}, 
@@ -85,13 +85,13 @@ survivalTransFunction = list(
 )
 
 # Complete case analysis
-data.fit.all = list()
-for(i in seq_len(length(LongSubFixed))){
-  data.fit.all[[i]] = pbc3[pbc3$status3 == 1, ]
+data_fit_all = list()
+for(i in seq_len(length(long_sub_fixed))){
+  data_fit_all[[i]] = pbc3[pbc3$status3 == 1, ]
 }
 
 # fitting longitudinal submodel
-long_fit_all = longitudinalSub(data.fit.all, LongSubFixed, LongSubRandom)
+long_fit_all = longitudinalSub(data_fit_all, long_sub_fixed, long_sub_random)
 
 }
 

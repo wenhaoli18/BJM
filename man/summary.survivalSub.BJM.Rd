@@ -24,11 +24,11 @@ for the competing-risks GLM.
 }
 \examples{
 data(pbc3)
-data.survival.fitting <- pbc3[!duplicated(pbc3$id), ]
-formMarginalSurv  <- Surv(years, status3) ~ age + sex
-formConditionalCR <- status4 ~ years + age + sex
-survival_fit_all  <- survivalSub(data.survival.fitting,
-                                 formMarginalSurv, formConditionalCR)
+data_survival_fitting <- pbc3[!duplicated(pbc3$id), ]
+form_marginal_surv  <- Surv(years, status3) ~ age + sex
+form_conditional_cr <- status4 ~ years + age + sex
+survival_fit_all  <- survivalSub(data_survival_fitting,
+                                 form_marginal_surv, form_conditional_cr)
 summary(survival_fit_all)
 
 }
