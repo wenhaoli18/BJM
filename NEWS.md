@@ -44,6 +44,21 @@
   documented in each function's `@return` block, instead of anonymous
   positional lists. Existing code indexing results with `x[[1]]`,
   `x[[2]]`, etc. continues to work unchanged.
+* `survivalSub()`, `longitudinalSub()`, `dynamicPrediction()`, and
+  `dynamicPredictionBio()` now validate their arguments up front and
+  fail with a specific, actionable message (naming the offending
+  argument) instead of a cryptic error from deep inside model-fitting
+  or indexing code. `predictPlot()`, `riskPlot()`, and `cmtPlot()` got
+  the same treatment.
+* New `survivalTrans()` helper builds the `survival_variable_all`/
+  `survival_trans_function` pair directly from a vector of cut points
+  (e.g. `survivalTrans(c(1, 3, 5, 7))`), instead of requiring two
+  hand-written, easy-to-misalign parallel lists.
+* Every `data_*_all` argument across the pipeline (`data_fit_all`,
+  `data_predict_all`, and now also `data_predict_all_one` in
+  `predictPlot()` and `data_predict_all_pre` in `riskPlot()`) accepts a
+  single bare `data.frame`, reused for every biomarker, instead of a
+  repeated list, when all biomarkers share the same measurement data.
 
 ## Bug fixes
 
@@ -57,6 +72,16 @@
   never actually triggered, because `is.list()` is `TRUE` for
   data frames in R. Fixed the guard in all six places to also check
   `is.data.frame()`.
+* `cmtPlot()`'s `id_variable` argument was dead code: three internal
+  deduplication steps always looked up a literal column named
+  `"id_variable"` instead of the column named by the argument, so a
+  custom `id_variable` silently had no effect. Fixed to look up the
+  specified column.
+* `cmtPlot(condi_time2event = NULL)` crashed with `object 'plot_data'
+  not found`, because the fallback that picks the midpoint of
+  `time_variable` referenced an undefined variable instead of the
+  actual `data_plot_all` argument. Fixed, so `condi_time2event = NULL`
+  works as documented.
 
 ## Internal changes
 
