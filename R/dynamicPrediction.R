@@ -31,11 +31,17 @@
 #' @param bandcount2 The number of points used to perform the numerical integral,
 #'  from the prediction time to infinity.
 #' 
-#' @return A probability matrix, where the rows (l_i) correspond to specific time points 
-#' and the columns to individual patients. Each element within the matrix signifies 
-#' the probability of a future event occurring, as dynamically predicted for each 
-#' patient at each time point.
-#' 
+#' @return An object of class \code{"dynamicPrediction.BJM"}, a named list with elements:
+#' \describe{
+#'   \item{risk_prob_1}{A vector of dynamically predicted probabilities, one per patient,
+#'   of experiencing the (first) event within the prediction horizon. \code{0} when
+#'   \code{horizon <= 0}.}
+#'   \item{risk_prob_2}{When \code{survival_fit_all} was fit with competing risks, a vector
+#'   of dynamically predicted probabilities, one per patient, of experiencing the competing
+#'   event within the prediction horizon. \code{NULL} when there is no competing risk, or
+#'   when \code{horizon <= 0}.}
+#' }
+#'
 #' @examples 
 #' 
 #' \donttest{
@@ -108,7 +114,7 @@ dynamicPrediction = function(data.predict.all, long_fit_all, survival_fit_all,
                              survivalVariableAll, survivalTransFunction, 
                              bandcount1 = 10, bandcount2 = 40){
   
-  coxph_fit = survival_fit_all[[1]]
+  coxph_fit = survival_fit_all$coxph_fit
   survival_variable = as.character(formula(coxph_fit)[[2]])[2] #survival_variable = "fuyrs"
   ## at risk sample
   ## for loop number of biomarkers
@@ -121,7 +127,7 @@ dynamicPrediction = function(data.predict.all, long_fit_all, survival_fit_all,
   
   #### handle horizon = 0 edge case: probability of event in zero-length window is 0
   if(horizon <= 0){
-    out <- list(0, NULL)
+    out <- list(risk_prob_1 = 0, risk_prob_2 = NULL)
     class(out) <- "dynamicPrediction.BJM"
     return(out)
   }
@@ -140,9 +146,9 @@ dynamicPrediction = function(data.predict.all, long_fit_all, survival_fit_all,
   S_T_all_predict = marginalT(data.predict.all, long_fit_all, survival_fit_all, l_i = predict.time.horizon.1, upper_bound)
   S_T_all_infinity = marginalT(data.predict.all, long_fit_all, survival_fit_all, l_i = predict.time.infinity.1, upper_bound)
   
-  #conditional probability D|T, survival_fit_all[[4]] == formConditionalCR
+  #conditional probability D|T, survival_fit_all$formConditionalCR == formConditionalCR
   #with competing risk
-  if(length(survival_fit_all[[4]]) != 0){
+  if(length(survival_fit_all$formConditionalCR) != 0){
     #conditional probability D|T
     D_T_all_predict = conditionalDT(data.predict.all, long_fit_all, survival_fit_all, 
                                     l_i = predict.time.horizon)
@@ -186,7 +192,7 @@ dynamicPrediction = function(data.predict.all, long_fit_all, survival_fit_all,
     risk.prob.0[risk.prob.0 < 0] = 0
   }
   
-  out <- list(risk.prob.0, risk.prob.1)
+  out <- list(risk_prob_1 = risk.prob.0, risk_prob_2 = risk.prob.1)
   class(out) <- "dynamicPrediction.BJM"
   return(out)
 }

@@ -28,22 +28,22 @@ riskPlot = function(data.predict.all.pre, long_fit_all, survival_fit_all,
                        survivalVariableAll, survivalTransFunction,
                        bandcount1 = 10, bandcount2 = 10){
   
-  coxph_fit = survival_fit_all[[1]]
+  coxph_fit = survival_fit_all$coxph_fit
   survival_variable = as.character(formula(coxph_fit)[[2]])[2]
   
   ### event type variable name
-  if(length(survival_fit_all[[4]]) != 0){
-    event_type_variable = as.character(formula(survival_fit_all[[4]])[[2]])
+  if(length(survival_fit_all$formConditionalCR) != 0){
+    event_type_variable = as.character(formula(survival_fit_all$formConditionalCR)[[2]])
   }
   
   #name of biomarker
   if(is.null(bio_i)){
-    bio_i_name = as.character(formula(long_fit_all[[3]][[1]])[[2]]) 
+    bio_i_name = as.character(formula(long_fit_all$LongSubFixed[[1]])[[2]]) 
     
     DP_data_bio = data.frame(time = unlist(data.predict.all.pre[[1]][time_variable]), 
                              longitudinal = unlist(data.predict.all.pre[[1]][bio_i_name]))
   }else{
-    bio_i_name = as.character(formula(long_fit_all[[3]][[bio_i]])[[2]])
+    bio_i_name = as.character(formula(long_fit_all$LongSubFixed[[bio_i]])[[2]])
     
     DP_data_bio = data.frame(time = unlist(data.predict.all.pre[[bio_i]][time_variable]), 
                              longitudinal = unlist(data.predict.all.pre[[bio_i]][bio_i_name]))
@@ -65,7 +65,7 @@ riskPlot = function(data.predict.all.pre, long_fit_all, survival_fit_all,
     tt = tt + 1
 
     data.predict.all = list()
-    for(i in seq_len(length(long_fit_all[[3]]))){
+    for(i in seq_len(length(long_fit_all$LongSubFixed))){
       data.predict.all[[i]] = data.predict.all.pre[[i]][data.predict.all.pre[[i]][time_variable] <= time.cutoff,]
     }
     
@@ -75,18 +75,18 @@ riskPlot = function(data.predict.all.pre, long_fit_all, survival_fit_all,
                                   survivalVariableAll, survivalTransFunction,
                                   bandcount1, bandcount2)
     
-    if(length(survival_fit_all[[4]]) != 0){
-      risk.prob.1 = c(risk.prob.1, risk.prob[[1]])
-      risk.prob.2 = c(risk.prob.2, risk.prob[[2]])   
+    if(length(survival_fit_all$formConditionalCR) != 0){
+      risk.prob.1 = c(risk.prob.1, risk.prob$risk_prob_1)
+      risk.prob.2 = c(risk.prob.2, risk.prob$risk_prob_2)   
     }else{
-      risk.prob.1 = c(risk.prob.1, risk.prob[[1]])
+      risk.prob.1 = c(risk.prob.1, risk.prob$risk_prob_1)
     }
     
-    if(length(risk.prob[[1]]) !=0 ) landmark.time.new = c(landmark.time.new, time.cutoff)
+    if(length(risk.prob$risk_prob_1) !=0 ) landmark.time.new = c(landmark.time.new, time.cutoff)
     
   }
   
-  if(length(survival_fit_all[[4]]) != 0){
+  if(length(survival_fit_all$formConditionalCR) != 0){
     # with competing risks
     DP_data = data.frame(time = landmark.time.new, 
                          probType1 = risk.prob.1, 

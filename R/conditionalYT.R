@@ -35,11 +35,11 @@
 conditionalYT = function(data.predict.all, long_fit_all, l_i, survival_variable, 
                          time_variable, survivalVariableAll, survivalTransFunction){
   #LME model fitting
-  lfit = long_fit_all[[1]]
+  lfit = long_fit_all$lfit
   #variance-covariance matrix
-  Sigma = long_fit_all[[2]]
+  Sigma = long_fit_all$Sigma_fit
   #patient ID
-  num <- as.character(nlme::splitFormula(long_fit_all[[4]][[1]], "|")[[2]])[2]
+  num <- as.character(nlme::splitFormula(long_fit_all$LongSubRandom[[1]], "|")[[2]])[2]
   
   #number of longitudinal biomarkers
   n_longitudinal <- length(lfit)  #length(data_num_i_list)
@@ -200,8 +200,8 @@ conditionalYT = function(data.predict.all, long_fit_all, l_i, survival_variable,
         else
           
           ### NA in nlme outcome (longitudinal biomarkers), replace with 999
-          data_num_i_list[[i]][as.character(formula(long_fit_all[[3]][[i]])[[2]])][is.na(data_num_i_list[[i]][as.character(formula(long_fit_all[[3]][[i]])[[2]])])] <- 999
-          LME_indi_matrix[[i]] = t(model.matrix(long_fit_all[[3]][[i]], data_num_i_list[[i]]))
+          data_num_i_list[[i]][as.character(formula(long_fit_all$LongSubFixed[[i]])[[2]])][is.na(data_num_i_list[[i]][as.character(formula(long_fit_all$LongSubFixed[[i]])[[2]])])] <- 999
+          LME_indi_matrix[[i]] = t(model.matrix(long_fit_all$LongSubFixed[[i]], data_num_i_list[[i]]))
          if(dim( LME_indi_matrix[[i]] )[2] != dim(data_num_i_list[[i]])[1]){
            LME_indi_matrix[[i]] = cbind(LME_indi_matrix[[i]], matrix(NA, 
                 dim(LME_indi_matrix[[i]] )[1], dim(data_num_i_list[[i]])[1] - dim( LME_indi_matrix[[i]] )[2]))

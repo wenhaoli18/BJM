@@ -5,13 +5,13 @@ process_variance <- function(num_i, time_new, bio_i, data.predict.all,
                              long_fit_all, time_variable) {
   
   #LME model fitting
-  lfit = long_fit_all[[1]]
+  lfit = long_fit_all$lfit
   #variance-covariance matrix
-  Sigma = long_fit_all[[2]]
+  Sigma = long_fit_all$Sigma_fit
   #patient ID
-  num <- as.character(nlme::splitFormula(long_fit_all[[4]][[1]], "|")[[2]])[2]
+  num <- as.character(nlme::splitFormula(long_fit_all$LongSubRandom[[1]], "|")[[2]])[2]
   ### event type variable name
-  #event_type_variable = as.character(formula(survival_fit_all[[4]])[[2]])
+  #event_type_variable = as.character(formula(survival_fit_all$formConditionalCR)[[2]])
   
   #number of longitudinal biomarkers
   n_longitudinal <- length(lfit)  #length(data_num_i_list)

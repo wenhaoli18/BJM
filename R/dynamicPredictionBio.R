@@ -31,11 +31,16 @@
 #'  from the prediction time to infinity.
 #' @param bandcount3 The number of points used to calculate the probability density function.
 #' 
-#' @return A probability matrix, where the rows (l_i) correspond to specific time points 
-#' and the columns to individual patients. Each element within the matrix signifies 
-#' the probability of a future event occurring, as dynamically predicted for each 
-#' patient at each time point.
-#' 
+#' @return An object of class \code{"dynamicPredictionBio.BJM"}, a named list with elements:
+#' \describe{
+#'   \item{Y_predict}{A vector, one entry per patient, giving the MAP (most likely) predicted
+#'   value of biomarker \code{bio_i} at \code{prediction.time + horizon}.}
+#'   \item{Y_density}{A probability matrix whose rows correspond to the candidate biomarker
+#'   values in \code{Y_all} and whose columns correspond to individual patients; each entry
+#'   is the dynamically predicted density of the biomarker taking that value.}
+#'   \item{Y_all}{The grid of candidate biomarker values used to build \code{Y_density}.}
+#' }
+#'
 #' @examples 
 #' 
 #' \donttest{
@@ -107,7 +112,7 @@ dynamicPredictionBio = function(bio_i, data.predict.all, long_fit_all, survival_
                                  survivalVariableAll, survivalTransFunction, 
                                  bandcount2 = 40, bandcount3 = 300){
   
-  coxph_fit = survival_fit_all[[1]]
+  coxph_fit = survival_fit_all$coxph_fit
   survival_variable = as.character(formula(coxph_fit)[[2]])[2] #survival_variable = "fuyrs"
   ## at risk sample
   ## for loop number of biomarkers
@@ -126,15 +131,15 @@ dynamicPredictionBio = function(bio_i, data.predict.all, long_fit_all, survival_
   S_T_all_infinity = marginalT(data.predict.all, long_fit_all, survival_fit_all, l_i = predict.time.infinity.1, upper_bound)
   
 
-  Y_upper = max(data.predict.all[[bio_i]][as.character(formula(long_fit_all[[3]][[bio_i]])[[2]])], na.rm = TRUE)
-  Y_lower = min(data.predict.all[[bio_i]][as.character(formula(long_fit_all[[3]][[bio_i]])[[2]])], na.rm = TRUE)
+  Y_upper = max(data.predict.all[[bio_i]][as.character(formula(long_fit_all$LongSubFixed[[bio_i]])[[2]])], na.rm = TRUE)
+  Y_lower = min(data.predict.all[[bio_i]][as.character(formula(long_fit_all$LongSubFixed[[bio_i]])[[2]])], na.rm = TRUE)
   Y_all = seq(Y_lower - 5 * (Y_upper - Y_lower), Y_upper + 5 * (Y_upper - Y_lower), 
               11 * (Y_upper - Y_lower)/bandcount3) #seq(0, 100, 5)
   
   Y_density = c()
-  #conditional probability D|T, survival_fit_all[[4]] == formConditionalCR
+  #conditional probability D|T, survival_fit_all$formConditionalCR == formConditionalCR
   #with competing risk
-  if(length(survival_fit_all[[4]]) != 0){
+  if(length(survival_fit_all$formConditionalCR) != 0){
     #conditional probability D|T
     D_T_all_infinity = conditionalDT(data.predict.all, long_fit_all, survival_fit_all, 
                                      l_i = predict.time.infinity)
@@ -209,7 +214,7 @@ dynamicPredictionBio = function(bio_i, data.predict.all, long_fit_all, survival_
     
   }
   
-  out <- list(Y_predict, Y_density, Y_all)
+  out <- list(Y_predict = Y_predict, Y_density = Y_density, Y_all = Y_all)
   class(out) <- "dynamicPredictionBio.BJM"
   return(out)
 }

@@ -26,21 +26,21 @@
 #' @keywords internal
 conditionalDT = function(data.predict.all, long_fit_all, survival_fit_all, l_i){
   
-  coxph_fit = survival_fit_all[[1]]
+  coxph_fit = survival_fit_all$coxph_fit
   ### extract data to calculate the conditional probability
-  num <- as.character(nlme::splitFormula(long_fit_all[[4]][[1]], "|")[[2]])[2]
+  num <- as.character(nlme::splitFormula(long_fit_all$LongSubRandom[[1]], "|")[[2]])[2]
   data.surv =  data.predict.all[[1]][!duplicated(data.predict.all[[1]][num]), ]
   ### censor variable name
   #censor_variable = as.character(formula(coxph_fit)[[2]])[3]
   ### time-to-event variable name
   survival_variable = as.character(formula(coxph_fit)[[2]])[2]
   ### event type variable name
-  event_type_variable = as.character(formula(survival_fit_all[[4]])[[2]])
+  event_type_variable = as.character(formula(survival_fit_all$formConditionalCR)[[2]])
   
   ### NA in glm outcome (event type), replace with 999
   data.surv[event_type_variable][is.na( data.surv[event_type_variable])] <- 999
   ## data matrix used to calculate the probability
-  data_matrix_probability = model.matrix(survival_fit_all[[4]], data.surv)
+  data_matrix_probability = model.matrix(survival_fit_all$formConditionalCR, data.surv)
   
   ### is missing in covariates, model.matrix will delete automatically, then we need add NA to data_matrix_probability
   if(dim(data_matrix_probability)[1] != dim(data.surv)[1]){
@@ -52,7 +52,7 @@ conditionalDT = function(data.predict.all, long_fit_all, survival_fit_all, l_i){
   survival_variable_index <- which(colnames(data_matrix_probability) == survival_variable)
   
   ## fit glm vertical model
-  glm_fit = survival_fit_all[[3]]
+  glm_fit = survival_fit_all$glm_fit
   
   ## covariates * parameter matrix
   if(is.null(dim(data_matrix_probability[,-survival_variable_index]))){

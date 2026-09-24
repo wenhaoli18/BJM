@@ -105,13 +105,13 @@ predictPlot = function(data.predict.all.one, long_fit_all, survival_fit_all,
                     bandcount1 = 10, bandcount2 = 10, bandcount3 = 200,
                     bio_his = 1, bio_pred = 1, density = 1){
   
-  coxph_fit = survival_fit_all[[1]]
+  coxph_fit = survival_fit_all$coxph_fit
   survival_variable = as.character(formula(coxph_fit)[[2]])[2]
   ### event type variable name
-  if(length(survival_fit_all[[4]]) != 0)  event_type_variable = as.character(formula(survival_fit_all[[4]])[[2]])
+  if(length(survival_fit_all$formConditionalCR) != 0)  event_type_variable = as.character(formula(survival_fit_all$formConditionalCR)[[2]])
   
   #name of biomarker
-  bio_i_name = as.character(formula(long_fit_all[[3]][[bio_his]])[[2]])
+  bio_i_name = as.character(formula(long_fit_all$LongSubFixed[[bio_his]])[[2]])
   
   DP_data_bio = data.frame(time = unlist(data.predict.all.one[[bio_his]][time_variable]), 
                            longitudinal = unlist(data.predict.all.one[[bio_his]][bio_i_name]))
@@ -138,7 +138,7 @@ predictPlot = function(data.predict.all.one, long_fit_all, survival_fit_all,
     
     ### data before the prediction time
     data.predict.all = list()
-    for(i in seq_len(length(long_fit_all[[3]]))){
+    for(i in seq_len(length(long_fit_all$LongSubFixed))){
       data.predict.all[[i]] = data.predict.all.one[[i]][data.predict.all.one[[i]][time_variable] <= (prediction.time + 1e-8),]
     }
     
@@ -156,10 +156,10 @@ predictPlot = function(data.predict.all.one, long_fit_all, survival_fit_all,
                                      survivalVariableAll, survivalTransFunction,
                                      bandcount2, bandcount3)
     
-    Y_predict_mode = c(Y_predict_mode, Y_predict_all[[1]])
-    Y_all = unlist(Y_predict_all[[3]])
+    Y_predict_mode = c(Y_predict_mode, Y_predict_all$Y_predict)
+    Y_all = unlist(Y_predict_all$Y_all)
     Y_all_diff = Y_all[2] - Y_all[1]
-    my_vector = Y_predict_all[[2]][,1]
+    my_vector = Y_predict_all$Y_density[,1]
     index <- which(cumsum(my_vector) >= 0.1 * 1/Y_all_diff)[1]
     Y_predict_quantile_1_10 <- c(Y_predict_quantile_1_10, Y_all[index])
     index <- which(cumsum(my_vector) >= 0.2 * 1/Y_all_diff)[1]
@@ -180,20 +180,20 @@ predictPlot = function(data.predict.all.one, long_fit_all, survival_fit_all,
     Y_predict_quantile_9_10 <- c(Y_predict_quantile_9_10, Y_all[index])
     }
     
-    if(length(survival_fit_all[[4]]) != 0){
+    if(length(survival_fit_all$formConditionalCR) != 0){
       # with competing risks
-      risk.prob.1 = c(risk.prob.1, risk.prob[[1]])
-      risk.prob.2 = c(risk.prob.2, risk.prob[[2]])   
+      risk.prob.1 = c(risk.prob.1, risk.prob$risk_prob_1)
+      risk.prob.2 = c(risk.prob.2, risk.prob$risk_prob_2)   
     }else{
       # without competing risks
-      risk.prob.1 = c(risk.prob.1, risk.prob[[1]])
+      risk.prob.1 = c(risk.prob.1, risk.prob$risk_prob_1)
     }
     
   }
   
   ### plot figure
   scale_prob = 2 * max(na.omit(DP_data_bio$longitudinal))
-  if(length(survival_fit_all[[4]]) != 0 & is.null(bio_pred)){
+  if(length(survival_fit_all$formConditionalCR) != 0 & is.null(bio_pred)){
       ## with competing risks, without longitudinal biomarker information
       
       DP_data = data.frame(time = prediction.time + horizon, 
@@ -229,7 +229,7 @@ predictPlot = function(data.predict.all.one, long_fit_all, survival_fit_all,
       
       
       
-    } else if (length(survival_fit_all[[4]]) != 0 & !is.null(bio_pred) & !is.null(density)){
+    } else if (length(survival_fit_all$formConditionalCR) != 0 & !is.null(bio_pred) & !is.null(density)){
       
       ## with competing risks, with longitudinal biomarker information and density plots
       
@@ -298,7 +298,7 @@ predictPlot = function(data.predict.all.one, long_fit_all, survival_fit_all,
               panel.background = element_blank(),
               plot.background = element_blank()) 
       
-    }else if (length(survival_fit_all[[4]]) != 0 & !is.null(bio_pred) & is.null(density)){
+    }else if (length(survival_fit_all$formConditionalCR) != 0 & !is.null(bio_pred) & is.null(density)){
       ## with competing risks, with longitudinal biomarker information without density plots
       
       DP_data = data.frame(time = prediction.time + horizon, 
@@ -346,7 +346,7 @@ predictPlot = function(data.predict.all.one, long_fit_all, survival_fit_all,
               panel.background = element_blank(),
               plot.background = element_blank()) 
       
-    }else if (length(survival_fit_all[[4]]) == 0 & is.null(bio_pred) ){
+    }else if (length(survival_fit_all$formConditionalCR) == 0 & is.null(bio_pred) ){
       ## without competing risks, without longitudinal biomarker information
       
       DP_data = data.frame(time = prediction.time + horizon, 
@@ -378,7 +378,7 @@ predictPlot = function(data.predict.all.one, long_fit_all, survival_fit_all,
               plot.background = element_blank()) 
       
       
-    }else if (length(survival_fit_all[[4]]) == 0 & !is.null(bio_pred) & !is.null(density)){
+    }else if (length(survival_fit_all$formConditionalCR) == 0 & !is.null(bio_pred) & !is.null(density)){
       ## without competing risks, with longitudinal biomarker information with density plots
       
       DP_data = data.frame(time = prediction.time + horizon, 
@@ -444,7 +444,7 @@ predictPlot = function(data.predict.all.one, long_fit_all, survival_fit_all,
               plot.background = element_blank()) 
       
       
-    }else if (length(survival_fit_all[[4]]) == 0 & !is.null(bio_pred) & is.null(density)){
+    }else if (length(survival_fit_all$formConditionalCR) == 0 & !is.null(bio_pred) & is.null(density)){
       ## without competing risks, with longitudinal biomarker information without density plots
       
       DP_data = data.frame(time = prediction.time + horizon, 

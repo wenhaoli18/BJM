@@ -36,13 +36,13 @@ conditionalYDT = function(data.predict.all, long_fit_all, survival_fit_all,
                           l_i, survival_variable, 
                           time_variable, survivalVariableAll, survivalTransFunction){
   #LME model fitting
-  lfit = long_fit_all[[1]]
+  lfit = long_fit_all$lfit
   #variance-covariance matrix
-  Sigma = long_fit_all[[2]]
+  Sigma = long_fit_all$Sigma_fit
   #patient ID
-  num <- as.character(nlme::splitFormula(long_fit_all[[4]][[1]], "|")[[2]])[2]
+  num <- as.character(nlme::splitFormula(long_fit_all$LongSubRandom[[1]], "|")[[2]])[2]
   ### event type variable name
-  event_type_variable = as.character(formula(survival_fit_all[[4]])[[2]])
+  event_type_variable = as.character(formula(survival_fit_all$formConditionalCR)[[2]])
   
   #number of longitudinal biomarkers
   n_longitudinal <- length(lfit)  #length(data_num_i_list)
@@ -212,12 +212,12 @@ conditionalYDT = function(data.predict.all, long_fit_all, survival_fit_all,
           { #updated Mar 13, 2026
           
           ### NA in nlme outcome (longitudinal biomarkers), replace with 999
-          data_num_i_list_1[[i]][as.character(formula(long_fit_all[[3]][[i]])[[2]])][is.na(data_num_i_list_1[[i]][as.character(formula(long_fit_all[[3]][[i]])[[2]])])] <- 999
-          data_num_i_list_0[[i]][as.character(formula(long_fit_all[[3]][[i]])[[2]])][is.na(data_num_i_list_0[[i]][as.character(formula(long_fit_all[[3]][[i]])[[2]])])] <- 999
+          data_num_i_list_1[[i]][as.character(formula(long_fit_all$LongSubFixed[[i]])[[2]])][is.na(data_num_i_list_1[[i]][as.character(formula(long_fit_all$LongSubFixed[[i]])[[2]])])] <- 999
+          data_num_i_list_0[[i]][as.character(formula(long_fit_all$LongSubFixed[[i]])[[2]])][is.na(data_num_i_list_0[[i]][as.character(formula(long_fit_all$LongSubFixed[[i]])[[2]])])] <- 999
           
           ## extract data matrix to calcuate the probability
-          LME_indi_matrix_1[[i]] = t(model.matrix(long_fit_all[[3]][[i]], data_num_i_list_1[[i]]))
-          LME_indi_matrix_0[[i]] = t(model.matrix(long_fit_all[[3]][[i]], data_num_i_list_0[[i]]))
+          LME_indi_matrix_1[[i]] = t(model.matrix(long_fit_all$LongSubFixed[[i]], data_num_i_list_1[[i]]))
+          LME_indi_matrix_0[[i]] = t(model.matrix(long_fit_all$LongSubFixed[[i]], data_num_i_list_0[[i]]))
         
         } #updated Mar 13, 2026
         

@@ -62,7 +62,7 @@ test_that("full pipeline output matches pre-refactor baseline", {
                                   prediction.time = 5, horizon = 1, time_variable = "year",
                                   survivalVariableAll, survivalTransFunction,
                                   bandcount1 = 10, bandcount2 = 20)
-  expect_equal(unlist(risk_pred), baseline$risk_pred, tolerance = 1e-6)
+  expect_equal(unname(unlist(risk_pred)), baseline$risk_pred, tolerance = 1e-6)
 
   Y_pred <- dynamicPredictionBio(bio_i = 1, data.predict.all, long_fit_all, survival_fit_all,
                                   prediction.time = 5, horizon = 1, time_variable = "year",
