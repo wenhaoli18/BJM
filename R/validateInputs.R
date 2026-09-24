@@ -187,11 +187,22 @@ warn_unsafe_formula_terms <- function(formula_list, arg_name) {
 
 #' Assert that survival_variable_all/survival_trans_function are consistent
 #'
-#' @description Shared input-validation helper for \code{dynamicPrediction()}
-#' and \code{dynamicPredictionBio()}: the two arguments must have matching
-#' length, and every transform must be a function.
+#' @description Shared input-validation helper for \code{dynamicPrediction()},
+#' \code{dynamicPredictionBio()}, \code{predictPlot()}, and \code{riskPlot()}:
+#' the two arguments must have matching length, and every transform must be
+#' a function. When \code{probe_value} is supplied, every transform is also
+#' test-called once on it, and must return a single, finite, non-missing
+#' numeric value. Without this, a transform that throws an error, or
+#' returns a character value, a length != 1 vector, or a non-finite value
+#' (e.g. \code{log(x)} evaluated at \code{x <= 0}), would only surface deep
+#' inside the per-patient prediction grid built by \code{conditionalYT()}/
+#' \code{conditionalYDT()}/\code{conditionalYTBio()}/\code{conditionalYDTBio()}
+#' -- as a cryptic error, or, worse, as silently corrupted data with no
+#' error at all. The probe is a single call per transform, so it is cheap
+#' even though the same transform is later called many times inside the
+#' prediction grid.
 #' @keywords internal
-assert_survival_trans <- function(survival_variable_all, survival_trans_function) {
+assert_survival_trans <- function(survival_variable_all, survival_trans_function, probe_value = NULL) {
   if (length(survival_variable_all) != length(survival_trans_function)) {
     stop(sprintf(
       "`survival_variable_all` has %d element(s) but `survival_trans_function` has %d; they must have the same length.",
@@ -203,6 +214,28 @@ assert_survival_trans <- function(survival_variable_all, survival_trans_function
     if (any(not_fun)) {
       stop(sprintf("Every element of `survival_trans_function` must be a function; element %d is not.",
                    which(not_fun)[1]), call. = FALSE)
+    }
+    if (!is.null(probe_value)) {
+      for (i in seq_along(survival_trans_function)) {
+        value <- tryCatch(
+          survival_trans_function[[i]](probe_value),
+          error = function(e) {
+            stop(sprintf(paste0(
+              "`survival_trans_function[[%d]]` failed when called on a representative ",
+              "time value (%s): %s. Every element of `survival_trans_function` must be a ",
+              "function that accepts a single numeric time value and returns a single, ",
+              "finite numeric value."
+            ), i, format(probe_value), conditionMessage(e)), call. = FALSE)
+          }
+        )
+        ok <- is.numeric(value) && length(value) == 1 && is.finite(value)
+        if (!ok) {
+          stop(sprintf(paste0(
+            "`survival_trans_function[[%d]]` must return a single, finite numeric value; ",
+            "calling it on a representative time value (%s) returned a %s of length %d instead."
+          ), i, format(probe_value), class(value)[1], length(value)), call. = FALSE)
+        }
+      }
     }
   }
   invisible(TRUE)

@@ -4,11 +4,26 @@
 \alias{assert_survival_trans}
 \title{Assert that survival_variable_all/survival_trans_function are consistent}
 \usage{
-assert_survival_trans(survival_variable_all, survival_trans_function)
+assert_survival_trans(
+  survival_variable_all,
+  survival_trans_function,
+  probe_value = NULL
+)
 }
 \description{
-Shared input-validation helper for \code{dynamicPrediction()}
-and \code{dynamicPredictionBio()}: the two arguments must have matching
-length, and every transform must be a function.
+Shared input-validation helper for \code{dynamicPrediction()},
+\code{dynamicPredictionBio()}, \code{predictPlot()}, and \code{riskPlot()}:
+the two arguments must have matching length, and every transform must be
+a function. When \code{probe_value} is supplied, every transform is also
+test-called once on it, and must return a single, finite, non-missing
+numeric value. Without this, a transform that throws an error, or
+returns a character value, a length != 1 vector, or a non-finite value
+(e.g. \code{log(x)} evaluated at \code{x <= 0}), would only surface deep
+inside the per-patient prediction grid built by \code{conditionalYT()}/
+\code{conditionalYDT()}/\code{conditionalYTBio()}/\code{conditionalYDTBio()}
+-- as a cryptic error, or, worse, as silently corrupted data with no
+error at all. The probe is a single call per transform, so it is cheap
+even though the same transform is later called many times inside the
+prediction grid.
 }
 \keyword{internal}

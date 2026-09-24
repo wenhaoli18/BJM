@@ -94,6 +94,17 @@
   `time_variable` referenced an undefined variable instead of the
   actual `data_plot_all` argument. Fixed, so `condi_time2event = NULL`
   works as documented.
+* `dynamicPrediction()`, `dynamicPredictionBio()`, `predictPlot()`, and
+  `riskPlot()` only checked that each element of
+  `survival_trans_function` was a function, never that it actually
+  worked. A transform that throws an error, or returns a character
+  value, a vector of the wrong length, or a non-finite value (e.g.
+  `log(x)` at `x <= 0`), previously only surfaced as a cryptic failure
+  deep inside the per-patient prediction grid, or, in the non-finite
+  case, as silently corrupted predictions with no error at all. Fixed
+  by test-calling every transform once, up front, on the supplied
+  `prediction_time` and validating its output, before any of the
+  (potentially expensive) prediction machinery runs.
 
 ## Internal changes
 

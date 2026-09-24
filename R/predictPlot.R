@@ -128,7 +128,7 @@ predictPlot = function(data_predict_all_one, long_fit_all, survival_fit_all,
   assert_scalar_numeric(bandcount1, "bandcount1", positive = TRUE)
   assert_scalar_numeric(bandcount2, "bandcount2", positive = TRUE)
   assert_scalar_numeric(bandcount3, "bandcount3", positive = TRUE)
-  assert_survival_trans(survival_variable_all, survival_trans_function)
+  assert_survival_trans(survival_variable_all, survival_trans_function, probe_value = prediction_time)
   for (i in seq_along(data_predict_all_one)) {
     assert_vars_in_data(time_variable, data_predict_all_one[[i]], "time_variable",
                          sprintf("data_predict_all_one[[%d]]", i))
