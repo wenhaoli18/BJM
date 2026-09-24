@@ -59,8 +59,10 @@ integrating out to infinity when normalizing the predicted risk. A wider
 follow-up range needs a larger \code{bandcount2} to keep the grid
 spacing comparable.
 
-See \code{vignette("BJM-intro", package = "BJM")} for guidance on
-choosing \code{bandcount1}/\code{bandcount2} via a convergence check.}
+\code{checkBandcountConvergence()} (applied to \code{dynamicPrediction()}
+directly) automates checking these values. See also
+\code{vignette("BJM-intro", package = "BJM")} for guidance on choosing
+\code{bandcount1}/\code{bandcount2} via a convergence check.}
 }
 \value{
 Plot of risk using dynamic prediction.

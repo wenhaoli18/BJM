@@ -63,8 +63,10 @@ needs a larger \code{bandcount2} to keep the grid spacing comparable.
 
 There is no universal correct value for \code{bandcount1}/\code{bandcount2}:
 as a practical check, double both and confirm the resulting risk
-probabilities barely change; if they do, keep doubling. See
-\code{vignette("BJM-intro", package = "BJM")} for a worked example.}
+probabilities barely change; if they do, keep doubling.
+\code{checkBandcountConvergence()} automates exactly this check (one
+extra call, at a value you choose, instead of an open-ended search). See
+also \code{vignette("BJM-intro", package = "BJM")} for a worked example.}
 }
 \value{
 An object of class \code{"dynamicPrediction.BJM"}, a named list with elements:

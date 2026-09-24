@@ -37,7 +37,9 @@
 #' grid used to build the predicted density curve; controls the resolution
 #' of the density, not a time integral.
 #'
-#' See \code{vignette("BJM-intro", package = "BJM")} for guidance on
+#' \code{checkBandcountConvergence()} (applied to \code{dynamicPrediction()}/
+#' \code{dynamicPredictionBio()} directly) automates checking these values.
+#' See also \code{vignette("BJM-intro", package = "BJM")} for guidance on
 #' choosing \code{bandcount1}/\code{bandcount2}/\code{bandcount3} via a
 #' convergence check.
 #' 

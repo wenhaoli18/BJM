@@ -71,6 +71,16 @@
   too few distinct values. Use `poly(..., raw = TRUE)`, `I(x^2)`,
   `log()`, `sqrt()`, or other terms that do not depend on the
   surrounding data instead.
+* New `checkBandcountConvergence()` helper reduces the guesswork in
+  choosing `bandcount1`/`bandcount2`/`bandcount3` (previously left
+  entirely to manual trial and error, see the `bandcount1`/`bandcount2`
+  docs and `vignette("BJM-intro", package = "BJM")`). It runs
+  `dynamicPrediction()`/`dynamicPredictionBio()` once at the bandcount
+  value(s) you supply and once more with those value(s) scaled up (by
+  default, doubled), and reports the largest relative change in the
+  returned predictions, so you can see directly whether you have already
+  converged instead of guessing -- at the cost of exactly one extra
+  prediction call, not an open-ended auto-tuning loop.
 
 ## Bug fixes
 
