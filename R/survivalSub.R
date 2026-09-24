@@ -3,8 +3,15 @@
 #' @param data.survival.fitting Input data containing survival outcomes and baseline covariates.
 #' @param formMarginalSurv Survival input formats.
 #' @param formConditionalCR Competing risks input formats.
-#' @return Model fitting results of survival sub-model with or without competing risks.
-#' 
+#' @return An object of class \code{"survivalSub.BJM"}, a named list with elements:
+#' \describe{
+#'   \item{coxph_fit}{The fitted \code{\link[survival]{coxph}} marginal survival model.}
+#'   \item{formMarginalSurv}{The \code{formMarginalSurv} formula, as supplied.}
+#'   \item{glm_fit}{The fitted \code{\link[stats]{glm}} competing-risks (event type) model,
+#'   or \code{NULL} if \code{formConditionalCR} was not supplied.}
+#'   \item{formConditionalCR}{The \code{formConditionalCR} formula, as supplied (or \code{NULL}).}
+#' }
+#'
 #' @examples 
 #' 
 #' data(pbc3)
@@ -35,7 +42,8 @@ survivalSub = function(data.survival.fitting, formMarginalSurv, formConditionalC
     glm_fit = NULL
   }
   
-  out <- list(coxph_fit, formMarginalSurv, glm_fit, formConditionalCR)
+  out <- list(coxph_fit = coxph_fit, formMarginalSurv = formMarginalSurv,
+              glm_fit = glm_fit, formConditionalCR = formConditionalCR)
   class(out) <- "survivalSub.BJM"
   return(out)
 }

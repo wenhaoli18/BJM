@@ -27,15 +27,15 @@
 #' random effects of each longitudinal outcome. 
 #' The number of items in this \code{list} should match the length of \code{formLongFixed}.
 #' 
-#' @return This structure comprises a list with four components. 
-#' The initial element, labeled \code{lfit}, consists of a collection of 
-#' outcomes from fitting multiple univariate linear mixed models, 
-#' where each entry within \code{lfit} corresponds to the results obtained 
-#' through the application of the \code{lme} function from the \code{nlme} package. 
-#' The second element is the estimated variance-covariance matrix derived from 
-#' the random effects in a multivariate linear mixed model. 
-#' The third and fourth elements, \code{LongSubFixed} and \code{LongSubRandom}, 
-#' respectively, mirror the inputs provided to the model.
+#' @return An object of class \code{"longitudinalSub.BJM"}, a named list with elements:
+#' \describe{
+#'   \item{lfit}{A list of fitted univariate linear mixed models, one per longitudinal
+#'   outcome, each obtained via \code{\link[nlme]{lme}}.}
+#'   \item{Sigma_fit}{The estimated variance-covariance matrix of the random effects
+#'   in the multivariate linear mixed model.}
+#'   \item{LongSubFixed}{The \code{LongSubFixed} argument, as supplied.}
+#'   \item{LongSubRandom}{The \code{LongSubRandom} argument, as supplied.}
+#' }
 #' 
 #' @examples 
 #' \donttest{
@@ -282,12 +282,9 @@ longitudinalSub <- function(data.fit.all, LongSubFixed, LongSubRandom) {
   #Sigma_fit = matrix(0,3,3)
   #Sigma_fit = diag(diag(out$D))
   
-  long_fit_all = list()
-  long_fit_all[[1]] = lfit
-  long_fit_all[[2]] = Sigma_fit
-  long_fit_all[[3]] = LongSubFixed
-  long_fit_all[[4]] = LongSubRandom
-  
+  long_fit_all = list(lfit = lfit, Sigma_fit = Sigma_fit,
+                       LongSubFixed = LongSubFixed, LongSubRandom = LongSubRandom)
+
   class(long_fit_all) <- "longitudinalSub.BJM"
   return(long_fit_all)
 }

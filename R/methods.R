@@ -4,10 +4,10 @@
   sep_line  <- paste(rep("=", 65), collapse = "")
   dash_line <- paste(rep("-", 65), collapse = "")
 
-  coxph_fit   <- x[[1]]
-  cox_formula <- x[[2]]
-  glm_fit     <- x[[3]]
-  glm_form    <- x[[4]]
+  coxph_fit   <- x$coxph_fit
+  cox_formula <- x$formMarginalSurv
+  glm_fit     <- x$glm_fit
+  glm_form    <- x$formConditionalCR
   has_cr      <- !is.null(glm_fit)
   s_cox       <- summary(coxph_fit)
 
@@ -171,18 +171,11 @@ summary.survivalSub.BJM <- function(object, digits = 4, ...) {
   .format_survivalSub(object, digits = digits, extended = TRUE)
 
   out <- list(
-    cox_summary = summary(object[[1]]),
-    glm_summary = if (!is.null(object[[3]])) summary(object[[3]]) else NULL
+    cox_summary = summary(object$coxph_fit),
+    glm_summary = if (!is.null(object$glm_fit)) summary(object$glm_fit) else NULL
   )
   class(out) <- "summary.survivalSub.BJM"
   invisible(out)
-}
-
-
-#' @rdname print.survivalSub.BJM
-#' @export
-print_survivalSub <- function(x, digits = 4, ...) {
-  print.survivalSub.BJM(x, digits = digits, ...)
 }
 
 
@@ -192,9 +185,9 @@ print_survivalSub <- function(x, digits = 4, ...) {
   sep_line  <- paste(rep("=", 65), collapse = "")
   dash_line <- paste(rep("-", 65), collapse = "")
 
-  lfit         <- x[[1]]
-  Sigma_fit    <- x[[2]]
-  LongSubFixed <- x[[3]]
+  lfit         <- x$lfit
+  Sigma_fit    <- x$Sigma_fit
+  LongSubFixed <- x$LongSubFixed
   M            <- length(lfit)
 
   cat("\n")
@@ -301,28 +294,27 @@ print.longitudinalSub.BJM <- function(x, digits = 4, ...) {
 #' @export
 summary.longitudinalSub.BJM <- function(object, digits = 4, ...) {
   .format_longitudinalSub(object, digits = digits, extended = TRUE)
-  out <- lapply(object[[1]], summary)
+  out <- lapply(object$lfit, summary)
   class(out) <- "summary.longitudinalSub.BJM"
   invisible(out)
 }
 
 
-# backward-compatible alias
-#' @rdname print.longitudinalSub.BJM
-#' @export
-print_longitudinalSub <- function(x, digits = 4, ...) {
-  print.longitudinalSub.BJM(x, digits = digits, ...)
-}
-
-
-#' Combined print summary for a fitted BJM
+#' Print both sub-models of a fitted backward joint model
+#'
+#' Convenience function that prints the longitudinal and survival
+#' sub-model summaries together. Unlike \code{print.longitudinalSub.BJM}
+#' and \code{print.survivalSub.BJM}, this does not dispatch on a single
+#' \code{"BJM"}-classed object, because \code{\link{longitudinalSub}} and
+#' \code{\link{survivalSub}} are fit and returned separately; it simply
+#' prints both fit objects you already have.
 #'
 #' @param long_fit_all Output from \code{\link{longitudinalSub}}.
 #' @param survival_fit_all Output from \code{\link{survivalSub}}.
 #' @param digits Number of significant digits. Default is 4.
 #' @return Invisibly returns a named list with both fit objects.
 #' @export
-print_BJM <- function(long_fit_all, survival_fit_all, digits = 4) {
+printBJM <- function(long_fit_all, survival_fit_all, digits = 4) {
   cat("\n")
   cat("Backward Joint Model (BJM) - Model Summary\n")
   print.longitudinalSub.BJM(long_fit_all,  digits = digits)
@@ -342,8 +334,8 @@ print_BJM <- function(long_fit_all, survival_fit_all, digits = 4) {
   sep_line  <- paste(rep("=", 65), collapse = "")
   dash_line <- paste(rep("-", 65), collapse = "")
 
-  risk0  <- x[[1]]
-  risk1  <- x[[2]]
+  risk0  <- x$risk_prob_1
+  risk1  <- x$risk_prob_2
   has_cr <- !is.null(risk1)
   n_subj <- length(risk0)
   ids    <- if (!is.null(subject_ids)) as.character(subject_ids) else
@@ -456,21 +448,6 @@ summary.dynamicPrediction.BJM <- function(object, prediction.time = NULL,
 }
 
 
-# backward-compatible alias
-#' @rdname print.dynamicPrediction.BJM
-#' @export
-print_dynamicPrediction <- function(x, prediction.time = NULL,
-                                    horizon = NULL,
-                                    subject_ids = NULL,
-                                    digits = 4, ...) {
-  print.dynamicPrediction.BJM(x,
-                               prediction.time = prediction.time,
-                               horizon = horizon,
-                               subject_ids = subject_ids,
-                               digits = digits, ...)
-}
-
-
 # -- Internal formatting helper for dynamicPredictionBio (not exported) ---------
 .format_dynamicPredictionBio <- function(x, digits = 4,
                                          bio_i = NULL,
@@ -483,15 +460,15 @@ print_dynamicPrediction <- function(x, prediction.time = NULL,
   sep_line  <- paste(rep("=", 65), collapse = "")
   dash_line <- paste(rep("-", 65), collapse = "")
 
-  Y_predict <- x[[1]]
-  Y_density <- x[[2]]
-  Y_all     <- x[[3]]
+  Y_predict <- x$Y_predict
+  Y_density <- x$Y_density
+  Y_all     <- x$Y_all
   n_subj    <- length(Y_predict)
   ids       <- if (!is.null(subject_ids)) as.character(subject_ids) else
                  paste0("S", seq_len(n_subj))
 
   bio_name <- if (!is.null(bio_i) && !is.null(long_fit_all)) {
-    tryCatch(as.character(formula(long_fit_all[[3]][[bio_i]])[[2]]),
+    tryCatch(as.character(formula(long_fit_all$LongSubFixed[[bio_i]])[[2]]),
              error = function(e) paste0("Biomarker ", bio_i))
   } else if (!is.null(bio_i)) {
     paste0("Biomarker ", bio_i)
@@ -622,23 +599,4 @@ summary.dynamicPredictionBio.BJM <- function(object, bio_i = NULL,
                                 subject_ids = subject_ids,
                                 extended = TRUE)
   invisible(object)
-}
-
-
-# backward-compatible alias
-#' @rdname print.dynamicPredictionBio.BJM
-#' @export
-print_dynamicPredictionBio <- function(x, bio_i = NULL,
-                                       long_fit_all = NULL,
-                                       prediction.time = NULL,
-                                       horizon = NULL,
-                                       subject_ids = NULL,
-                                       digits = 4, ...) {
-  print.dynamicPredictionBio.BJM(x,
-                                  bio_i = bio_i,
-                                  long_fit_all = long_fit_all,
-                                  prediction.time = prediction.time,
-                                  horizon = horizon,
-                                  subject_ids = subject_ids,
-                                  digits = digits, ...)
 }
