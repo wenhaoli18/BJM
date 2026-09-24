@@ -215,15 +215,25 @@ dynamicPredictionBio = function(bio_i, data_predict_all, long_fit_all, survival_
                                           time_variable, survival_variable_all, 
                                           survival_trans_function)
 
+    # Y_density is filled row-by-row into a pre-allocated matrix rather than
+    # grown with rbind() inside the loop: rbind()-in-a-loop reallocates and
+    # copies the whole growing matrix on every iteration (O(bandcount3^2)
+    # copies total), which becomes non-negligible at the large end of
+    # bandcount3's auto-tuned range. The matrix is allocated on the first
+    # iteration once the per-patient row length is known, so this makes no
+    # assumption about that length elsewhere.
+    Y_density = NULL
     for(Y_i in seq_len(length(Y_all))){
       T.surv.predict.0 = t(f_y_D_all_predict[[1]][[Y_i]] * D_T_all_infinity[[1]] * S_T_all_infinity)
       T.surv.predict.1 = t(f_y_D_all_predict[[2]][[Y_i]] * D_T_all_infinity[[2]] * S_T_all_infinity)
       T.surv.infinity.0 = t(f_y_D_all_infinity[[1]] * D_T_all_infinity[[1]] * S_T_all_infinity)
       T.surv.infinity.1 = t(f_y_D_all_infinity[[2]] * D_T_all_infinity[[2]] * S_T_all_infinity)
-      
+
       risk.prob.1 = clamp_risk_prob(rowSums(T.surv.predict.1), rowSums(T.surv.infinity.1 + T.surv.infinity.0))
       risk.prob.0 = clamp_risk_prob(rowSums(T.surv.predict.0), rowSums(T.surv.infinity.1 + T.surv.infinity.0))
-      Y_density = rbind(Y_density, risk.prob.1 + risk.prob.0)
+      Y_density_row = risk.prob.1 + risk.prob.0
+      if(is.null(Y_density)) Y_density = matrix(NA_real_, length(Y_all), length(Y_density_row))
+      Y_density[Y_i, ] = Y_density_row
     }
     
     Y_predict = c()
@@ -246,13 +256,17 @@ dynamicPredictionBio = function(bio_i, data_predict_all, long_fit_all, survival_
                                           time_variable, survival_variable_all, 
                                           survival_trans_function)
     
+    # See the competing-risk branch above for why Y_density is filled into a
+    # pre-allocated matrix instead of grown with rbind() in the loop.
+    Y_density = NULL
     for(Y_i in seq_len(length(Y_all))){
-      
+
       T.surv.predict.0 = t(f_y_D_all_predict[[1]][[Y_i]] * S_T_all_infinity)
       T.surv.infinity.0 = t(f_y_D_all_infinity[[1]] * S_T_all_infinity)
 
       risk.prob.0 = clamp_risk_prob(rowSums(T.surv.predict.0), rowSums(T.surv.infinity.0 + 1e-20))
-      Y_density = rbind(Y_density, risk.prob.0)
+      if(is.null(Y_density)) Y_density = matrix(NA_real_, length(Y_all), length(risk.prob.0))
+      Y_density[Y_i, ] = risk.prob.0
 
     }
     
