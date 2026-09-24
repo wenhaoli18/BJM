@@ -59,7 +59,7 @@ conditionalYTBio = function(Y_all, time_new, bio_i, data.predict.all,
   data.long <- data.predict.all
   
   # Convert 'data.long' to a list if it is not a list
-  if (!is.list(data.long)) {
+  if (!is.list(data.long) || is.data.frame(data.long)) {
     data.long <- list(data.long)
     data.long <- rep(data.long, each = n_longitudinal)
   }

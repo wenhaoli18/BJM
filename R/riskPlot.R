@@ -63,7 +63,8 @@ riskPlot = function(data.predict.all.pre, long_fit_all, survival_fit_all,
   tt = 0
   for(time.cutoff in landmark.time){
     tt = tt + 1
-    
+
+    data.predict.all = list()
     for(i in seq_len(length(long_fit_all[[3]]))){
       data.predict.all[[i]] = data.predict.all.pre[[i]][data.predict.all.pre[[i]][time_variable] <= time.cutoff,]
     }

@@ -90,7 +90,7 @@ longitudinalSub <- function(data.fit.all, LongSubFixed, LongSubRandom) {
   }
   
   ### Convert 'data.long' to a list if it is not a list
-  if (!is.list(data.fit.all)) {
+  if (!is.list(data.fit.all) || is.data.frame(data.fit.all)) {
     data.fit.all <- list(data.fit.all)
     data.fit.all <- rep(data.fit.all, each = M)
   }
