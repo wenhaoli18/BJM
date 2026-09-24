@@ -115,21 +115,18 @@ dynamicPredictionBio = function(bio_i, data_predict_all, long_fit_all, survival_
   coxph_fit = survival_fit_all$coxph_fit
   survival_variable = as.character(formula(coxph_fit)[[2]])[2] #survival_variable = "fuyrs"
   ## at risk sample
-  ## for loop number of biomarkers
-  for(i in seq_len(length(data_predict_all))){
-    data_predict_all[[i]] = data_predict_all[[i]][data_predict_all[[i]][survival_variable] >= prediction_time, ]
-  }
-  
+  data_predict_all = subset_at_risk(data_predict_all, survival_variable, prediction_time)
+
   upper_bound = 2 * max(data_predict_all[[1]][survival_variable])
-  #### time frame used to do the integral
-  bandwidth2 = (upper_bound - prediction_time)/bandcount2   
-  predict.time.infinity = seq(prediction_time, upper_bound, bandwidth2)
-  predict.time.infinity.1 = seq(prediction_time - bandwidth2/2, upper_bound + bandwidth2/2, bandwidth2)
-  
+
+  infinity_grid <- prepare_infinity_grid(data_predict_all, long_fit_all, survival_fit_all,
+                                          prediction_time, upper_bound, bandcount2)
+  predict.time.infinity = infinity_grid$predict.time.infinity
+  predict.time.infinity.1 = infinity_grid$predict.time.infinity.1
+  S_T_all_infinity = infinity_grid$S_T_all_infinity
+
   risk.prob.0 = risk.prob.1 = NULL
-  ### marginal probability T
-  S_T_all_infinity = marginalT(data_predict_all, long_fit_all, survival_fit_all, l_i = predict.time.infinity.1, upper_bound)
-  
+
 
   Y_upper = max(data_predict_all[[bio_i]][as.character(formula(long_fit_all$long_sub_fixed[[bio_i]])[[2]])], na.rm = TRUE)
   Y_lower = min(data_predict_all[[bio_i]][as.character(formula(long_fit_all$long_sub_fixed[[bio_i]])[[2]])], na.rm = TRUE)
@@ -162,12 +159,8 @@ dynamicPredictionBio = function(bio_i, data_predict_all, long_fit_all, survival_
       T.surv.infinity.0 = t(f_y_D_all_infinity[[1]] * D_T_all_infinity[[1]] * S_T_all_infinity)
       T.surv.infinity.1 = t(f_y_D_all_infinity[[2]] * D_T_all_infinity[[2]] * S_T_all_infinity)
       
-      risk.prob.1 = rowSums(T.surv.predict.1) / rowSums(T.surv.infinity.1 + T.surv.infinity.0)
-      risk.prob.1[risk.prob.1 > 1] = 1
-      risk.prob.1[risk.prob.1 < 0] = 0
-      risk.prob.0 =  rowSums(T.surv.predict.0) / rowSums(T.surv.infinity.1 + T.surv.infinity.0)
-      risk.prob.0[risk.prob.0 > 1] = 1
-      risk.prob.0[risk.prob.0 < 0] = 0
+      risk.prob.1 = clamp_risk_prob(rowSums(T.surv.predict.1), rowSums(T.surv.infinity.1 + T.surv.infinity.0))
+      risk.prob.0 = clamp_risk_prob(rowSums(T.surv.predict.0), rowSums(T.surv.infinity.1 + T.surv.infinity.0))
       Y_density = rbind(Y_density, risk.prob.1 + risk.prob.0)
     }
     
@@ -196,9 +189,7 @@ dynamicPredictionBio = function(bio_i, data_predict_all, long_fit_all, survival_
       T.surv.predict.0 = t(f_y_D_all_predict[[1]][[Y_i]] * S_T_all_infinity)
       T.surv.infinity.0 = t(f_y_D_all_infinity[[1]] * S_T_all_infinity)
 
-      risk.prob.0 =  rowSums(T.surv.predict.0) / rowSums(T.surv.infinity.0 + 1e-20)
-      risk.prob.0[risk.prob.0 > 1] = 1
-      risk.prob.0[risk.prob.0 < 0] = 0
+      risk.prob.0 = clamp_risk_prob(rowSums(T.surv.predict.0), rowSums(T.surv.infinity.0 + 1e-20))
       Y_density = rbind(Y_density, risk.prob.0)
 
     }
