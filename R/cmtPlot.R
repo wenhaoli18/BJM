@@ -59,8 +59,23 @@
 cmtPlot = function(data_plot_all, condi_time2event, event_type_variable, event_type,
                    bio_variable, time_variable, survival_variable, interval_time = 1/12,
                    id_variable = "id"){
-  
-  ### A sequence of conditional time-to-event times 
+
+  assert_data_frame(data_plot_all, "data_plot_all")
+  assert_string(bio_variable, "bio_variable")
+  assert_string(time_variable, "time_variable")
+  assert_string(survival_variable, "survival_variable")
+  assert_vars_in_data(c(bio_variable, time_variable, survival_variable), data_plot_all,
+                       "bio_variable/time_variable/survival_variable", "data_plot_all")
+  if (!is.null(event_type_variable)) {
+    assert_string(event_type_variable, "event_type_variable")
+    if (length(event_type) < 2) {
+      stop("`event_type` must have at least 2 elements (one per competing event type) when `event_type_variable` is supplied.", call. = FALSE)
+    }
+  }
+  assert_scalar_numeric(condi_time2event, "condi_time2event")
+  assert_scalar_numeric(interval_time, "interval_time", positive = TRUE)
+
+  ### A sequence of conditional time-to-event times
   if(!is.null(condi_time2event)){
     ### if condi_time2event is pre-defined
     condi_time2event_seq = condi_time2event
