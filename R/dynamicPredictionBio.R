@@ -1,14 +1,14 @@
 #' Dynamic prediction function for future biomarker
 #' 
 #' The time values in the prediction data subset must be less than the 
-#' specified \code{prediction.time} which is the prediction time. The time points for 
+#' specified \code{prediction_time} which is the prediction time. The time points for 
 #' longitudinal repeated measurements must not surpass the prediction time.
 #' 
 #' @param bio_i Biomarker used to do prediction
-#' @param data.predict.all This involves a collection of \code{data.frame} objects for 
+#' @param data_predict_all This involves a collection of \code{data.frame} objects for 
 #' dynamic prediction, each corresponding to a distinct longitudinal outcome. 
-#' These data frames should contain the variables specified in \code{LongSubFixed} 
-#' and \code{LongSubRandom}. Utilizing a list structure 
+#' These data frames should contain the variables specified in \code{long_sub_fixed} 
+#' and \code{long_sub_random}. Utilizing a list structure 
 #' allows for the incorporation of multiple longitudinal outcomes, 
 #' each potentially following different measurement protocols. 
 #' In instances where all longitudinal outcomes are recorded at identical 
@@ -21,12 +21,12 @@
 #' @param survival_fit_all Results and parameters generated from the model fitting 
 #' procedure, utilizing the \code{coxph} function. These outputs include the comprehensive 
 #' findings and variables derived from the analysis.
-#' @param prediction.time Time used to make the prediction
+#' @param prediction_time Time used to make the prediction
 #' @param horizon Prediction horizon
 #' @param time_variable The name of time variable in linear mixed model.
-#' @param survivalVariableAll The name of the transformed time-to-event outcomes variable.
-#' @param survivalTransFunction The transformation function used for time-to-event outcomes, 
-#' in the order of \code{survivalVariableAll}.
+#' @param survival_variable_all The name of the transformed time-to-event outcomes variable.
+#' @param survival_trans_function The transformation function used for time-to-event outcomes, 
+#' in the order of \code{survival_variable_all}.
 #' @param bandcount2 The number of points used to perform the numerical integral,
 #'  from the prediction time to infinity.
 #' @param bandcount3 The number of points used to calculate the probability density function.
@@ -34,7 +34,7 @@
 #' @return An object of class \code{"dynamicPredictionBio.BJM"}, a named list with elements:
 #' \describe{
 #'   \item{Y_predict}{A vector, one entry per patient, giving the MAP (most likely) predicted
-#'   value of biomarker \code{bio_i} at \code{prediction.time + horizon}.}
+#'   value of biomarker \code{bio_i} at \code{prediction_time + horizon}.}
 #'   \item{Y_density}{A probability matrix whose rows correspond to the candidate biomarker
 #'   values in \code{Y_all} and whose columns correspond to individual patients; each entry
 #'   is the dynamically predicted density of the biomarker taking that value.}
@@ -46,15 +46,15 @@
 #' \donttest{
 #' data(pbc3)
 #' 
-#' data.survival.fitting =  pbc3[!duplicated(pbc3$id), ]
+#' data_survival_fitting =  pbc3[!duplicated(pbc3$id), ]
 #' 
-#' formMarginalSurv = Surv(years, status3) ~ age + sex
-#' formConditionalCR = NULL
+#' form_marginal_surv = Surv(years, status3) ~ age + sex
+#' form_conditional_cr = NULL
 #' 
-#' survival_fit_all = survivalSub(data.survival.fitting, formMarginalSurv, 
-#'                                formConditionalCR)
+#' survival_fit_all = survivalSub(data_survival_fitting, form_marginal_surv, 
+#'                                form_conditional_cr)
 #' 
-#' LongSubFixed = list(
+#' long_sub_fixed = list(
 #'   "long1" = serBilir ~ year + age + sex +  (years) + (years) * year,  
 #'   "long2" = prothrombin ~ year + age + sex + (years) + (years) * year,  
 #'   "long3" = albumin ~ year + age + age * year + sex + (years) + (years) * year,  
@@ -62,7 +62,7 @@
 #'   "long5" = SGOT ~ year + age + sex + (years) + (years) * year, 
 #'   "long6" = platelets ~ year + age + sex + (years)  + (years) * year)
 #' 
-#' LongSubRandom =list(
+#' long_sub_random =list(
 #'   "long1" =  ~ year| id,   
 #'   "long2" =  ~ year| id,    
 #'   "long3" =  ~ year| id,    
@@ -70,11 +70,11 @@
 #'   "long5" =  ~ year| id,    
 #'   "long6" =  ~ year| id)
 #' 
-#' survivalVariableAll = list(
+#' survival_variable_all = list(
 #'   "Tyears1",  "Tyears2", "Tyears3", "Tyears4"
 #' )
 #' 
-#' survivalTransFunction = list(
+#' survival_trans_function = list(
 #'   fun1 = function(x){abs(x - 1)}, 
 #'   fun2 = function(x){abs(x - 3)}, 
 #'   fun3 = function(x){abs(x - 5)}, 
@@ -82,79 +82,79 @@
 #' )
 #' 
 #' # Complete case analysis
-#' data.fit.all = list()
-#' for(i in seq_len(length(LongSubFixed))){
-#'   data.fit.all[[i]] = pbc3[pbc3$status3 == 1, ]
+#' data_fit_all = list()
+#' for(i in seq_len(length(long_sub_fixed))){
+#'   data_fit_all[[i]] = pbc3[pbc3$status3 == 1, ]
 #' }
 #' 
 #' # fitting longitudinal submodel
-#' long_fit_all = longitudinalSub(data.fit.all, LongSubFixed, LongSubRandom)
+#' long_fit_all = longitudinalSub(data_fit_all, long_sub_fixed, long_sub_random)
 #' 
 #' i_PID = 2
 #' data.raw.predict.1 = pbc3[pbc3$id == i_PID, ]
 #' 
-#' data.predict.all = list()
-#' for(i in seq_len(length(LongSubFixed))){
-#'   data.predict.all[[i]] = data.raw.predict.1[data.raw.predict.1$year <= 3,]
+#' data_predict_all = list()
+#' for(i in seq_len(length(long_sub_fixed))){
+#'   data_predict_all[[i]] = data.raw.predict.1[data.raw.predict.1$year <= 3,]
 #' }
 #' 
-#' Y_predict = dynamicPredictionBio(bio_i = 1, data.predict.all, long_fit_all, 
-#'                                  survival_fit_all, prediction.time = 3, 
+#' Y_predict = dynamicPredictionBio(bio_i = 1, data_predict_all, long_fit_all, 
+#'                                  survival_fit_all, prediction_time = 3, 
 #'                                  horizon = 3, time_variable = "year",
-#'                                  survivalVariableAll, survivalTransFunction,
+#'                                  survival_variable_all, survival_trans_function,
 #'                                  bandcount2 = 40, bandcount3 = 400)
 #' 
 #' }
 #' 
 #' @export
-dynamicPredictionBio = function(bio_i, data.predict.all, long_fit_all, survival_fit_all, 
-                                 prediction.time, horizon, time_variable, 
-                                 survivalVariableAll, survivalTransFunction, 
+dynamicPredictionBio = function(bio_i, data_predict_all, long_fit_all, survival_fit_all, 
+                                 prediction_time, horizon, time_variable, 
+                                 survival_variable_all, survival_trans_function, 
                                  bandcount2 = 40, bandcount3 = 300){
   
   coxph_fit = survival_fit_all$coxph_fit
   survival_variable = as.character(formula(coxph_fit)[[2]])[2] #survival_variable = "fuyrs"
   ## at risk sample
   ## for loop number of biomarkers
-  for(i in seq_len(length(data.predict.all))){
-    data.predict.all[[i]] = data.predict.all[[i]][data.predict.all[[i]][survival_variable] >= prediction.time, ]
+  for(i in seq_len(length(data_predict_all))){
+    data_predict_all[[i]] = data_predict_all[[i]][data_predict_all[[i]][survival_variable] >= prediction_time, ]
   }
   
-  upper_bound = 2 * max(data.predict.all[[1]][survival_variable])
+  upper_bound = 2 * max(data_predict_all[[1]][survival_variable])
   #### time frame used to do the integral
-  bandwidth2 = (upper_bound - prediction.time)/bandcount2   
-  predict.time.infinity = seq(prediction.time, upper_bound, bandwidth2)
-  predict.time.infinity.1 = seq(prediction.time - bandwidth2/2, upper_bound + bandwidth2/2, bandwidth2)
+  bandwidth2 = (upper_bound - prediction_time)/bandcount2   
+  predict.time.infinity = seq(prediction_time, upper_bound, bandwidth2)
+  predict.time.infinity.1 = seq(prediction_time - bandwidth2/2, upper_bound + bandwidth2/2, bandwidth2)
   
   risk.prob.0 = risk.prob.1 = NULL
   ### marginal probability T
-  S_T_all_infinity = marginalT(data.predict.all, long_fit_all, survival_fit_all, l_i = predict.time.infinity.1, upper_bound)
+  S_T_all_infinity = marginalT(data_predict_all, long_fit_all, survival_fit_all, l_i = predict.time.infinity.1, upper_bound)
   
 
-  Y_upper = max(data.predict.all[[bio_i]][as.character(formula(long_fit_all$LongSubFixed[[bio_i]])[[2]])], na.rm = TRUE)
-  Y_lower = min(data.predict.all[[bio_i]][as.character(formula(long_fit_all$LongSubFixed[[bio_i]])[[2]])], na.rm = TRUE)
+  Y_upper = max(data_predict_all[[bio_i]][as.character(formula(long_fit_all$long_sub_fixed[[bio_i]])[[2]])], na.rm = TRUE)
+  Y_lower = min(data_predict_all[[bio_i]][as.character(formula(long_fit_all$long_sub_fixed[[bio_i]])[[2]])], na.rm = TRUE)
   Y_all = seq(Y_lower - 5 * (Y_upper - Y_lower), Y_upper + 5 * (Y_upper - Y_lower), 
               11 * (Y_upper - Y_lower)/bandcount3) #seq(0, 100, 5)
   
   Y_density = c()
-  #conditional probability D|T, survival_fit_all$formConditionalCR == formConditionalCR
+  #conditional probability D|T, survival_fit_all$form_conditional_cr == form_conditional_cr
   #with competing risk
-  if(length(survival_fit_all$formConditionalCR) != 0){
+  if(length(survival_fit_all$form_conditional_cr) != 0){
     #conditional probability D|T
-    D_T_all_infinity = conditionalDT(data.predict.all, long_fit_all, survival_fit_all, 
+    D_T_all_infinity = conditionalDT(data_predict_all, long_fit_all, survival_fit_all, 
                                      l_i = predict.time.infinity)
     #conditional probability Y|D,T
-    f_y_D_all_infinity = conditionalYDT(data.predict.all, long_fit_all, survival_fit_all, 
+    f_y_D_all_infinity = conditionalYDT(data_predict_all, long_fit_all, survival_fit_all, 
                                         l_i = predict.time.infinity, survival_variable, 
-                                        time_variable, survivalVariableAll, 
-                                        survivalTransFunction)
+                                        time_variable, survival_variable_all, 
+                                        survival_trans_function)
     
-    f_y_D_all_predict = conditionalYDTBio(Y_all, time_new = prediction.time + horizon, 
-                                          bio_i, data.predict.all, long_fit_all, 
+    f_y_D_all_predict = conditionalYDTBio(Y_all, time_new = prediction_time + horizon, 
+                                          bio_i, data_predict_all, long_fit_all, 
                                           survival_fit_all, 
                                           l_i = predict.time.infinity, survival_variable, 
-                                          time_variable, survivalVariableAll, 
-                                          survivalTransFunction)
+                                          time_variable, survival_variable_all, 
+                                          survival_trans_function)
 
     for(Y_i in seq_len(length(Y_all))){
       T.surv.predict.0 = t(f_y_D_all_predict[[1]][[Y_i]] * D_T_all_infinity[[1]] * S_T_all_infinity)
@@ -183,13 +183,13 @@ dynamicPredictionBio = function(bio_i, data.predict.all, long_fit_all, survival_
   }else{ #without competing risk
     
     #conditional probability Y|T
-    f_y_D_all_infinity = conditionalYT(data.predict.all, long_fit_all, l_i = predict.time.infinity, 
-                                       survival_variable, time_variable, survivalVariableAll, survivalTransFunction)
-    f_y_D_all_predict = conditionalYTBio(Y_all, time_new = prediction.time + horizon, 
-                                          bio_i, data.predict.all, long_fit_all, 
+    f_y_D_all_infinity = conditionalYT(data_predict_all, long_fit_all, l_i = predict.time.infinity, 
+                                       survival_variable, time_variable, survival_variable_all, survival_trans_function)
+    f_y_D_all_predict = conditionalYTBio(Y_all, time_new = prediction_time + horizon, 
+                                          bio_i, data_predict_all, long_fit_all, 
                                           l_i = predict.time.infinity, survival_variable, 
-                                          time_variable, survivalVariableAll, 
-                                          survivalTransFunction)
+                                          time_variable, survival_variable_all, 
+                                          survival_trans_function)
     
     for(Y_i in seq_len(length(Y_all))){
       

@@ -3,10 +3,10 @@
 #' @description This function computes the conditional probability density function of 
 #' competing risk event type D, given the survival time T.
 #' 
-#' @param data.predict.all This involves a collection of \code{data.frame} objects for 
+#' @param data_predict_all This involves a collection of \code{data.frame} objects for 
 #' dynamic prediction, each corresponding to a distinct longitudinal outcome. 
-#' These data frames should contain the variables specified in \code{LongSubFixed} 
-#' and \code{LongSubRandom}. Utilizing a list structure 
+#' These data frames should contain the variables specified in \code{long_sub_fixed} 
+#' and \code{long_sub_random}. Utilizing a list structure 
 #' allows for the incorporation of multiple longitudinal outcomes, 
 #' each potentially following different measurement protocols. 
 #' In instances where all longitudinal outcomes are recorded at identical 
@@ -24,23 +24,23 @@
 #' @return Probability matrices of competing risk event type D conditional on 
 #' survival outcome T.
 #' @keywords internal
-conditionalDT = function(data.predict.all, long_fit_all, survival_fit_all, l_i){
+conditionalDT = function(data_predict_all, long_fit_all, survival_fit_all, l_i){
   
   coxph_fit = survival_fit_all$coxph_fit
   ### extract data to calculate the conditional probability
-  num <- as.character(nlme::splitFormula(long_fit_all$LongSubRandom[[1]], "|")[[2]])[2]
-  data.surv =  data.predict.all[[1]][!duplicated(data.predict.all[[1]][num]), ]
+  num <- as.character(nlme::splitFormula(long_fit_all$long_sub_random[[1]], "|")[[2]])[2]
+  data.surv =  data_predict_all[[1]][!duplicated(data_predict_all[[1]][num]), ]
   ### censor variable name
   #censor_variable = as.character(formula(coxph_fit)[[2]])[3]
   ### time-to-event variable name
   survival_variable = as.character(formula(coxph_fit)[[2]])[2]
   ### event type variable name
-  event_type_variable = as.character(formula(survival_fit_all$formConditionalCR)[[2]])
+  event_type_variable = as.character(formula(survival_fit_all$form_conditional_cr)[[2]])
   
   ### NA in glm outcome (event type), replace with 999
   data.surv[event_type_variable][is.na( data.surv[event_type_variable])] <- 999
   ## data matrix used to calculate the probability
-  data_matrix_probability = model.matrix(survival_fit_all$formConditionalCR, data.surv)
+  data_matrix_probability = model.matrix(survival_fit_all$form_conditional_cr, data.surv)
   
   ### is missing in covariates, model.matrix will delete automatically, then we need add NA to data_matrix_probability
   if(dim(data_matrix_probability)[1] != dim(data.surv)[1]){

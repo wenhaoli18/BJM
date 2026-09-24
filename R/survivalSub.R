@@ -1,49 +1,49 @@
 #' Fitting survival sub-model
 #' 
-#' @param data.survival.fitting Input data containing survival outcomes and baseline covariates.
-#' @param formMarginalSurv Survival input formats.
-#' @param formConditionalCR Competing risks input formats.
+#' @param data_survival_fitting Input data containing survival outcomes and baseline covariates.
+#' @param form_marginal_surv Survival input formats.
+#' @param form_conditional_cr Competing risks input formats.
 #' @return An object of class \code{"survivalSub.BJM"}, a named list with elements:
 #' \describe{
 #'   \item{coxph_fit}{The fitted \code{\link[survival]{coxph}} marginal survival model.}
-#'   \item{formMarginalSurv}{The \code{formMarginalSurv} formula, as supplied.}
+#'   \item{form_marginal_surv}{The \code{form_marginal_surv} formula, as supplied.}
 #'   \item{glm_fit}{The fitted \code{\link[stats]{glm}} competing-risks (event type) model,
-#'   or \code{NULL} if \code{formConditionalCR} was not supplied.}
-#'   \item{formConditionalCR}{The \code{formConditionalCR} formula, as supplied (or \code{NULL}).}
+#'   or \code{NULL} if \code{form_conditional_cr} was not supplied.}
+#'   \item{form_conditional_cr}{The \code{form_conditional_cr} formula, as supplied (or \code{NULL}).}
 #' }
 #'
 #' @examples 
 #' 
 #' data(pbc3)
 #' 
-#' data.survival.fitting =  pbc3[!duplicated(pbc3$id), ]
+#' data_survival_fitting =  pbc3[!duplicated(pbc3$id), ]
 #' 
-#' formMarginalSurv = Surv(years, status3) ~ age + sex
-#' formConditionalCR = NULL
+#' form_marginal_surv = Surv(years, status3) ~ age + sex
+#' form_conditional_cr = NULL
 #' 
-#' survival_fit_all = survivalSub(data.survival.fitting, formMarginalSurv, 
-#'                                formConditionalCR)
+#' survival_fit_all = survivalSub(data_survival_fitting, form_marginal_surv, 
+#'                                form_conditional_cr)
 #' 
 #' @export
-survivalSub = function(data.survival.fitting, formMarginalSurv, formConditionalCR){
+survivalSub = function(data_survival_fitting, form_marginal_surv, form_conditional_cr){
   
   ### fit cox weibull model
-  coxph_fit = coxph(formMarginalSurv, data = data.survival.fitting, ties = "breslow")
+  coxph_fit = coxph(form_marginal_surv, data = data_survival_fitting, ties = "breslow")
   ### censoring indicator name
   censor_variable = as.character(formula(coxph_fit)[[2]])[3]
   
-  data.glm = data.survival.fitting[data.survival.fitting[censor_variable] != 0, ]
+  data.glm = data_survival_fitting[data_survival_fitting[censor_variable] != 0, ]
   ##with or without competing risk
-  if(length(formConditionalCR) != 0){
+  if(length(form_conditional_cr) != 0){
     ## competing risks outcomes
     ## Vertical model
-    glm_fit = glm(formConditionalCR, data.glm, family = binomial)
+    glm_fit = glm(form_conditional_cr, data.glm, family = binomial)
   }else{
     glm_fit = NULL
   }
   
-  out <- list(coxph_fit = coxph_fit, formMarginalSurv = formMarginalSurv,
-              glm_fit = glm_fit, formConditionalCR = formConditionalCR)
+  out <- list(coxph_fit = coxph_fit, form_marginal_surv = form_marginal_surv,
+              glm_fit = glm_fit, form_conditional_cr = form_conditional_cr)
   class(out) <- "survivalSub.BJM"
   return(out)
 }

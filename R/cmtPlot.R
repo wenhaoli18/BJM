@@ -7,7 +7,7 @@
 #' calculated using the mean value of all patients' biomarker values at that time point. 
 #' The interval between two time points is defined by \code{interval_time}
 #' 
-#' @param data.plot.all A \code{data.frame} that includes the biomarker used for plotting. 
+#' @param data_plot_all A \code{data.frame} that includes the biomarker used for plotting. 
 #' It is utilized to plot conditional mean trajectories (CMT).
 #' @param condi_time2event Conditional event time, indicating that all patients should 
 #' have events at this time in the plot
@@ -19,7 +19,7 @@
 #' @param survival_variable Name of the time-to-event outcomes variable.
 #' @param interval_time The time interval between two time points. Time points are 
 #' plotted within the baseline to event time.
-#' @param id_variable Name of the patient ID column in \code{data.plot.all}. Default is \code{"id"}.
+#' @param id_variable Name of the patient ID column in \code{data_plot_all}. Default is \code{"id"}.
 #' 
 #' @return Conditional mean trajectories plot.
 #' 
@@ -29,7 +29,7 @@
 #' 
 #' data(pbc3)
 #' 
-#' pbc.cmt <- cmtPlot(data.plot.all = pbc3, condi_time2event = 5, 
+#' pbc.cmt <- cmtPlot(data_plot_all = pbc3, condi_time2event = 5, 
 #'    event_type_variable = NULL, event_type = NULL,
 #'    bio_variable = "serBilir", time_variable = "year", 
 #'    survival_variable = "years", 
@@ -44,9 +44,9 @@
 #' 
 #' data(pbc3)
 #' 
-#' data.plot.all = pbc3[!is.na(pbc3$status4),]
+#' data_plot_all = pbc3[!is.na(pbc3$status4),]
 #' 
-#' pbc.cmt.cr <- cmtPlot(data.plot.all, condi_time2event = 5, 
+#' pbc.cmt.cr <- cmtPlot(data_plot_all, condi_time2event = 5, 
 #'    event_type_variable = 'status4', event_type = c("0", "1"),
 #'    bio_variable = "albumin", time_variable = "year", 
 #'    survival_variable = "years", 
@@ -56,7 +56,7 @@
 #' pbc.cmt.cr
 #'
 #' @export
-cmtPlot = function(data.plot.all, condi_time2event, event_type_variable, event_type,
+cmtPlot = function(data_plot_all, condi_time2event, event_type_variable, event_type,
                    bio_variable, time_variable, survival_variable, interval_time = 1/12,
                    id_variable = "id"){
   
@@ -78,7 +78,7 @@ cmtPlot = function(data.plot.all, condi_time2event, event_type_variable, event_t
   ### with competing risks
     
   ### Event type 1
-  plot_data = data.plot.all[data.plot.all[event_type_variable] == event_type[1],]
+  plot_data = data_plot_all[data_plot_all[event_type_variable] == event_type[1],]
   cluster_event_value = list() 
     
   #### number of patients has events at certain period
@@ -117,7 +117,7 @@ cmtPlot = function(data.plot.all, condi_time2event, event_type_variable, event_t
   cluster_event_value_event1 = cluster_event_value
   
   #### Event type 2
-  plot_data = data.plot.all[data.plot.all[event_type_variable] == event_type[2],]
+  plot_data = data_plot_all[data_plot_all[event_type_variable] == event_type[2],]
   cluster_event_value = list() 
   
   #### number of patients has events at certain period
@@ -181,7 +181,7 @@ cmtPlot = function(data.plot.all, condi_time2event, event_type_variable, event_t
   }else{
     # without competing risks
     
-    plot_data = data.plot.all
+    plot_data = data_plot_all
     cluster_event_value = list() 
     #### number of patients has events at certain period
     event1_number = c()

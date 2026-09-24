@@ -2,19 +2,19 @@
 #' 
 #' @description This function gives the risk prediction plot.
 #' 
-#' @param data.predict.all.pre This involves a collection of \code{data.frame} objects for
+#' @param data_predict_all_pre This involves a collection of \code{data.frame} objects for
 #' @param long_fit_all Outputs from the model fitting process using the \code{nlme} package, 
 #' encompassing the results and parameters obtained from the analysis.
 #' @param survival_fit_all Results and parameters generated from the model fitting 
 #' procedure, utilizing the \code{coxph} function. These outputs include the comprehensive 
 #' findings and variables derived from the analysis.
-#' @param prediction.time Time used to make the prediction.
+#' @param prediction_time Time used to make the prediction.
 #' @param bio_i Biomarker used to do prediction. 
 #' @param horizon Prediction horizon.
 #' @param time_variable The name of time variable in linear mixed model.
-#' @param survivalVariableAll The name of the transformed time-to-event outcomes variable.
-#' @param survivalTransFunction The transformation function used for time-to-event outcomes, 
-#' in the order of \code{survivalVariableAll}.
+#' @param survival_variable_all The name of the transformed time-to-event outcomes variable.
+#' @param survival_trans_function The transformation function used for time-to-event outcomes, 
+#' in the order of \code{survival_variable_all}.
 #' @param bandcount1 The number of points used to perform the numerical integral, 
 #' from the prediction time to the prediction time plus the horizon.
 #' @param bandcount2 The number of points used to perform the numerical integral,
@@ -22,41 +22,41 @@
 #' 
 #' @return Plot of risk using dynamic prediction.
 #' @export
-riskPlot = function(data.predict.all.pre, long_fit_all, survival_fit_all, 
-                       prediction.time = NULL, bio_i = NULL,
+riskPlot = function(data_predict_all_pre, long_fit_all, survival_fit_all,
+                       prediction_time = NULL, bio_i = NULL,
                        horizon, time_variable,
-                       survivalVariableAll, survivalTransFunction,
+                       survival_variable_all, survival_trans_function,
                        bandcount1 = 10, bandcount2 = 10){
   
   coxph_fit = survival_fit_all$coxph_fit
   survival_variable = as.character(formula(coxph_fit)[[2]])[2]
   
   ### event type variable name
-  if(length(survival_fit_all$formConditionalCR) != 0){
-    event_type_variable = as.character(formula(survival_fit_all$formConditionalCR)[[2]])
+  if(length(survival_fit_all$form_conditional_cr) != 0){
+    event_type_variable = as.character(formula(survival_fit_all$form_conditional_cr)[[2]])
   }
   
   #name of biomarker
   if(is.null(bio_i)){
-    bio_i_name = as.character(formula(long_fit_all$LongSubFixed[[1]])[[2]]) 
+    bio_i_name = as.character(formula(long_fit_all$long_sub_fixed[[1]])[[2]]) 
     
-    DP_data_bio = data.frame(time = unlist(data.predict.all.pre[[1]][time_variable]), 
-                             longitudinal = unlist(data.predict.all.pre[[1]][bio_i_name]))
+    DP_data_bio = data.frame(time = unlist(data_predict_all_pre[[1]][time_variable]),
+                             longitudinal = unlist(data_predict_all_pre[[1]][bio_i_name]))
   }else{
-    bio_i_name = as.character(formula(long_fit_all$LongSubFixed[[bio_i]])[[2]])
-    
-    DP_data_bio = data.frame(time = unlist(data.predict.all.pre[[bio_i]][time_variable]), 
-                             longitudinal = unlist(data.predict.all.pre[[bio_i]][bio_i_name]))
+    bio_i_name = as.character(formula(long_fit_all$long_sub_fixed[[bio_i]])[[2]])
+
+    DP_data_bio = data.frame(time = unlist(data_predict_all_pre[[bio_i]][time_variable]),
+                             longitudinal = unlist(data_predict_all_pre[[bio_i]][bio_i_name]))
     
   }
   
   
-  if(is.null(prediction.time)){
-    landmark.time = unlist(getFirst(data.predict.all.pre)[time_variable])
-  }else if(length(prediction.time) == 1){
-    landmark.time = c(prediction.time, 1.5 * prediction.time, 2 * prediction.time)
+  if(is.null(prediction_time)){
+    landmark.time = unlist(getFirst(data_predict_all_pre)[time_variable])
+  }else if(length(prediction_time) == 1){
+    landmark.time = c(prediction_time, 1.5 * prediction_time, 2 * prediction_time)
   }else{
-    landmark.time = prediction.time
+    landmark.time = prediction_time
   }
   
   landmark.time.new = c(); risk.prob.1 = c(); risk.prob.2 = c()
@@ -64,18 +64,18 @@ riskPlot = function(data.predict.all.pre, long_fit_all, survival_fit_all,
   for(time.cutoff in landmark.time){
     tt = tt + 1
 
-    data.predict.all = list()
-    for(i in seq_len(length(long_fit_all$LongSubFixed))){
-      data.predict.all[[i]] = data.predict.all.pre[[i]][data.predict.all.pre[[i]][time_variable] <= time.cutoff,]
+    data_predict_all = list()
+    for(i in seq_len(length(long_fit_all$long_sub_fixed))){
+      data_predict_all[[i]] = data_predict_all_pre[[i]][data_predict_all_pre[[i]][time_variable] <= time.cutoff,]
     }
     
-    risk.prob = dynamicPrediction(data.predict.all, long_fit_all, survival_fit_all, 
-                                  prediction.time = time.cutoff, 
+    risk.prob = dynamicPrediction(data_predict_all, long_fit_all, survival_fit_all, 
+                                  prediction_time = time.cutoff, 
                                   horizon, time_variable,
-                                  survivalVariableAll, survivalTransFunction,
+                                  survival_variable_all, survival_trans_function,
                                   bandcount1, bandcount2)
     
-    if(length(survival_fit_all$formConditionalCR) != 0){
+    if(length(survival_fit_all$form_conditional_cr) != 0){
       risk.prob.1 = c(risk.prob.1, risk.prob$risk_prob_1)
       risk.prob.2 = c(risk.prob.2, risk.prob$risk_prob_2)   
     }else{
@@ -86,7 +86,7 @@ riskPlot = function(data.predict.all.pre, long_fit_all, survival_fit_all,
     
   }
   
-  if(length(survival_fit_all$formConditionalCR) != 0){
+  if(length(survival_fit_all$form_conditional_cr) != 0){
     # with competing risks
     DP_data = data.frame(time = landmark.time.new, 
                          probType1 = risk.prob.1, 
@@ -105,8 +105,8 @@ riskPlot = function(data.predict.all.pre, long_fit_all, survival_fit_all,
         scale_y_continuous(sec.axis = sec_axis(~./scale_prob, name="Risk Probabilities")) + 
         ylab("Predicted risk probability") + xlab("Follow-up time") +   
         #0 - 1 black, 1 - 2 red
-        geom_vline(xintercept = unlist(getFirst(data.predict.all.pre)[survival_variable])[1], 
-                   linetype = "solid", color = unlist(getFirst(data.predict.all.pre)[event_type_variable])[1] + 1, size = 2) + 
+        geom_vline(xintercept = unlist(getFirst(data_predict_all_pre)[survival_variable])[1], 
+                   linetype = "solid", color = unlist(getFirst(data_predict_all_pre)[event_type_variable])[1] + 1, size = 2) + 
         theme_bw(base_size = 25) +
         theme(panel.grid.major = element_blank(),
               panel.grid.minor = element_blank(),
@@ -132,8 +132,8 @@ riskPlot = function(data.predict.all.pre, long_fit_all, survival_fit_all,
                                       "Event type1" = "black", "Event type2" = "red"))   +
         scale_y_continuous(sec.axis = sec_axis(~./scale_prob, name="Risk Probabilities")) + 
         ylab("Longitudinal biomarker") + xlab("Follow-up time") +   
-        geom_vline(xintercept = unlist(getFirst(data.predict.all.pre)[survival_variable])[1], 
-                   linetype = "solid", color = unlist(getFirst(data.predict.all.pre)[event_type_variable])[1] + 1, size = 2) + 
+        geom_vline(xintercept = unlist(getFirst(data_predict_all_pre)[survival_variable])[1], 
+                   linetype = "solid", color = unlist(getFirst(data_predict_all_pre)[event_type_variable])[1] + 1, size = 2) + 
         theme_bw(base_size = 25)+
         theme(panel.grid.major = element_blank(),
               panel.grid.minor = element_blank(),
@@ -177,7 +177,7 @@ riskPlot = function(data.predict.all.pre, long_fit_all, survival_fit_all,
                                       "Risk probability" = "black"))   +
         scale_y_continuous(sec.axis = sec_axis(~./scale_prob, name="Risk Probabilities")) + 
         ylab("Longitudinal biomarker") + xlab("Follow-up time") +   
-        geom_vline(xintercept = unlist(getFirst(data.predict.all.pre)[survival_variable])[1], 
+        geom_vline(xintercept = unlist(getFirst(data_predict_all_pre)[survival_variable])[1], 
                    linetype = "solid", color = "red", size = 2) + 
         theme_bw(base_size = 25)+
         theme(panel.grid.major = element_blank(),

@@ -1,9 +1,9 @@
 #' Marginal distribution of T
 #' 
-#' @param data.predict.all This involves a collection of \code{data.frame} objects for 
+#' @param data_predict_all This involves a collection of \code{data.frame} objects for 
 #' dynamic prediction, each corresponding to a distinct longitudinal outcome. 
-#' These data frames should contain the variables specified in \code{LongSubFixed} 
-#' and \code{LongSubRandom}. Utilizing a list structure 
+#' These data frames should contain the variables specified in \code{long_sub_fixed} 
+#' and \code{long_sub_random}. Utilizing a list structure 
 #' allows for the incorporation of multiple longitudinal outcomes, 
 #' each potentially following different measurement protocols. 
 #' In instances where all longitudinal outcomes are recorded at identical 
@@ -27,12 +27,12 @@
 #' Each entry in the matrix denotes the marginal density probability of 
 #' survival for a given patient at a particular time point.
 #' @keywords internal
-marginalT = function(data.predict.all, long_fit_all, survival_fit_all, l_i, upper_bound){
+marginalT = function(data_predict_all, long_fit_all, survival_fit_all, l_i, upper_bound){
   
   coxph_fit = survival_fit_all$coxph_fit
   # survival data frame
-  num <- as.character(nlme::splitFormula(long_fit_all$LongSubRandom[[1]], "|")[[2]])[2]
-  data.surv =  data.predict.all[[1]][!duplicated(data.predict.all[[1]][num]), ]
+  num <- as.character(nlme::splitFormula(long_fit_all$long_sub_random[[1]], "|")[[2]])[2]
+  data.surv =  data_predict_all[[1]][!duplicated(data_predict_all[[1]][num]), ]
   
   ## baseline hazard
   cum_basehaz_weibull = basehaz(coxph_fit, centered = FALSE)
@@ -46,9 +46,9 @@ marginalT = function(data.predict.all, long_fit_all, survival_fit_all, l_i, uppe
   ## covariates * parameter matrix
   if(dim(data.surv)[1] == 1){
     ## one sample
-    covariate_para_matrix = c(coxph_fit$coefficients  %*%  model.matrix(survival_fit_all$formMarginalSurv, data.surv)[,-1])
+    covariate_para_matrix = c(coxph_fit$coefficients  %*%  model.matrix(survival_fit_all$form_marginal_surv, data.surv)[,-1])
   }else{
-    covariate_para_matrix = c(coxph_fit$coefficients  %*%  t(model.matrix(survival_fit_all$formMarginalSurv, data.surv)[,-1]))
+    covariate_para_matrix = c(coxph_fit$coefficients  %*%  t(model.matrix(survival_fit_all$form_marginal_surv, data.surv)[,-1]))
   }
   
   ### cumulative survival
