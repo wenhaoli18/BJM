@@ -68,7 +68,9 @@ nearby grid points.
 
 There is no universal correct value for \code{bandcount2}/\code{bandcount3}:
 as a practical check, double both and confirm the results barely change;
-if they do, keep doubling. See \code{vignette("BJM-intro", package =
+if they do, keep doubling. \code{checkBandcountConvergence()} automates
+exactly this check (one extra call, at a value you choose, instead of an
+open-ended search). See also \code{vignette("BJM-intro", package =
 "BJM")} for a worked example.}
 }
 \value{
