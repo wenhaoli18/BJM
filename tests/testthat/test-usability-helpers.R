@@ -74,3 +74,37 @@ test_that("cmtPlot rejects an id_variable not present in data_plot_all", {
     "not_a_column"
   )
 })
+
+test_that("warn_unsafe_formula_terms warns on poly()/ns()/bs()/factor(), which recompute their basis from whatever data they are given", {
+  expect_warning(
+    warn_unsafe_formula_terms(list(y ~ poly(x, 2) + z), "long_sub_fixed"),
+    "poly"
+  )
+  expect_warning(
+    warn_unsafe_formula_terms(list(y ~ splines::ns(x, df = 3) + z), "long_sub_fixed"),
+    "ns"
+  )
+  expect_warning(
+    warn_unsafe_formula_terms(list(y ~ splines::bs(x, df = 3) + z), "long_sub_fixed"),
+    "bs"
+  )
+  expect_warning(
+    warn_unsafe_formula_terms(list(y ~ factor(x) + z), "long_sub_fixed"),
+    "factor"
+  )
+})
+
+test_that("warn_unsafe_formula_terms does not warn on poly(..., raw = TRUE) or other data-independent nonlinear terms", {
+  expect_no_warning(warn_unsafe_formula_terms(list(y ~ poly(x, 2, raw = TRUE) + z), "long_sub_fixed"))
+  expect_no_warning(warn_unsafe_formula_terms(list(y ~ I(x^2) + log(z + 1) + sqrt(z)), "long_sub_fixed"))
+})
+
+test_that("longitudinalSub warns when long_sub_fixed uses poly()/factor(), whose prediction-time basis silently disagrees with the fitting-time basis", {
+  data(pbc3, envir = environment())
+  data_fit_one <- pbc3[pbc3$status3 == 1, ]
+
+  expect_warning(
+    longitudinalSub(data_fit_one, serBilir ~ poly(year, 2) + age + sex + years, ~ year | id),
+    "poly"
+  )
+})
