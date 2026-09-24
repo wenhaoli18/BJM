@@ -139,6 +139,52 @@ assert_index <- function(x, max_value, arg_name, context) {
   invisible(TRUE)
 }
 
+#' Warn about formula terms whose basis is recomputed from whatever data
+#' they are given
+#'
+#' @description \code{poly()} (in its default orthogonal mode),
+#' \code{splines::ns()}/\code{splines::bs()}, and \code{factor()} compute
+#' their basis/contrasts from whatever data is passed to \code{model.matrix()}.
+#' BJM's prediction functions rebuild the design matrix from a small,
+#' patient-specific slice of data at every point on the internal prediction
+#' grid, which is not the data the model was fit on, so the basis
+#' recomputed at prediction time silently does not match the one used at
+#' fitting time (or, with too few distinct values, \code{model.matrix()}
+#' fails outright). \code{poly(..., raw = TRUE)}, \code{I(x^2)}, \code{log()},
+#' \code{sqrt()}, and similar terms that do not depend on the surrounding
+#' data are unaffected and are not flagged.
+#' @keywords internal
+warn_unsafe_formula_terms <- function(formula_list, arg_name) {
+  find_unsafe_calls <- function(expr) {
+    hits <- character(0)
+    if (is.call(expr)) {
+      fname <- as.character(expr[[1]])
+      fname <- fname[length(fname)]
+      if (fname %in% c("poly", "ns", "bs", "factor")) {
+        raw_arg <- tryCatch(eval(expr[["raw"]]), error = function(e) FALSE)
+        if (!(fname == "poly" && isTRUE(raw_arg))) {
+          hits <- c(hits, deparse(expr))
+        }
+      }
+      for (a in as.list(expr)[-1]) {
+        hits <- c(hits, find_unsafe_calls(a))
+      }
+    }
+    hits
+  }
+
+  for (i in seq_along(formula_list)) {
+    hits <- unique(find_unsafe_calls(formula_list[[i]]))
+    if (length(hits) > 0) {
+      warning(sprintf(
+        "`%s[[%d]]` uses %s. Its basis/contrasts depend on the data it is computed from, but BJM rebuilds the design matrix from a small, patient-specific slice of data at every point on the prediction grid -- so this can silently produce incorrect predictions, or fail outright when there are too few distinct values, instead of reusing the basis fit at training time. Prefer poly(..., raw = TRUE), I(x^2), log(), sqrt(), or other terms that do not depend on the surrounding data.",
+        arg_name, i, paste(hits, collapse = ", ")
+      ), call. = FALSE)
+    }
+  }
+  invisible(TRUE)
+}
+
 #' Assert that survival_variable_all/survival_trans_function are consistent
 #'
 #' @description Shared input-validation helper for \code{dynamicPrediction()}

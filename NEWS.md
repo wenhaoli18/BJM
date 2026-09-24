@@ -59,6 +59,18 @@
   `predictPlot()` and `data_predict_all_pre` in `riskPlot()`) accepts a
   single bare `data.frame`, reused for every biomarker, instead of a
   repeated list, when all biomarkers share the same measurement data.
+* `longitudinalSub()` now warns when a `long_sub_fixed` formula contains
+  `poly()` (in its default orthogonal mode), `splines::ns()`,
+  `splines::bs()`, or `factor()`. These terms recompute their
+  basis/contrasts from whatever data they are given, but
+  `dynamicPrediction()`/`dynamicPredictionBio()` rebuild the design
+  matrix from a small, patient-specific slice of data at every point on
+  the internal prediction grid, not the data the model was fit on -- so
+  the basis silently disagrees with the one used at fitting time
+  (wrong predictions) or `model.matrix()` fails outright when there are
+  too few distinct values. Use `poly(..., raw = TRUE)`, `I(x^2)`,
+  `log()`, `sqrt()`, or other terms that do not depend on the
+  surrounding data instead.
 
 ## Bug fixes
 

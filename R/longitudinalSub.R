@@ -16,12 +16,22 @@
 #' a single \code{data.frame} object can be in a list. 
 #' It is assumed that every \code{data.frame} is organized in a long format.
 #' 
-#' @param long_sub_fixed This refers to a collection of formulas detailing the 
-#' fixed effects portion for each longitudinal outcome. On the left side of each formula, 
-#' the response variable is defined, while the right side outlines 
+#' @param long_sub_fixed This refers to a collection of formulas detailing the
+#' fixed effects portion for each longitudinal outcome. On the left side of each formula,
+#' the response variable is defined, while the right side outlines
 #' the fixed effect terms. Should only a single formula be provided - whether
 #' as a list with one item or as a standalone formula - it is inferred that
 #' a conventional univariate joint model is being constructed.
+#' Terms whose basis/contrasts depend on the data they are computed from --
+#' \code{poly()} in its default orthogonal mode, \code{splines::ns()}/
+#' \code{splines::bs()}, and \code{factor()} -- trigger a warning, because
+#' \code{dynamicPrediction()}/\code{dynamicPredictionBio()} rebuild the
+#' design matrix from a small, patient-specific slice of data at every point
+#' on the prediction grid, so the basis recomputed at prediction time can
+#' silently disagree with the one used to fit the model (or fail outright
+#' with too few distinct values). Prefer \code{poly(..., raw = TRUE)},
+#' \code{I(x^2)}, \code{log()}, \code{sqrt()}, or other terms that do not
+#' depend on the surrounding data.
 #' 
 #' @param long_sub_random A list of one-sided formulas that define the model for the 
 #' random effects of each longitudinal outcome. 
@@ -84,6 +94,7 @@ longitudinalSub <- function(data_fit_all, long_sub_fixed, long_sub_random) {
   long_sub_random_check <- if (is.list(long_sub_random)) long_sub_random else list(long_sub_random)
   assert_all_formulas(long_sub_fixed_check, "long_sub_fixed")
   assert_all_formulas(long_sub_random_check, "long_sub_random")
+  warn_unsafe_formula_terms(long_sub_fixed_check, "long_sub_fixed")
   if (length(long_sub_fixed_check) != length(long_sub_random_check)) {
     stop(sprintf(
       "`long_sub_fixed` has %d element(s) but `long_sub_random` has %d; they must describe the same number of longitudinal outcomes.",

@@ -28,7 +28,17 @@ fixed effects portion for each longitudinal outcome. On the left side of each fo
 the response variable is defined, while the right side outlines
 the fixed effect terms. Should only a single formula be provided - whether
 as a list with one item or as a standalone formula - it is inferred that
-a conventional univariate joint model is being constructed.}
+a conventional univariate joint model is being constructed.
+Terms whose basis/contrasts depend on the data they are computed from --
+\code{poly()} in its default orthogonal mode, \code{splines::ns()}/
+\code{splines::bs()}, and \code{factor()} -- trigger a warning, because
+\code{dynamicPrediction()}/\code{dynamicPredictionBio()} rebuild the
+design matrix from a small, patient-specific slice of data at every point
+on the prediction grid, so the basis recomputed at prediction time can
+silently disagree with the one used to fit the model (or fail outright
+with too few distinct values). Prefer \code{poly(..., raw = TRUE)},
+\code{I(x^2)}, \code{log()}, \code{sqrt()}, or other terms that do not
+depend on the surrounding data.}
 
 \item{long_sub_random}{A list of one-sided formulas that define the model for the
 random effects of each longitudinal outcome.
