@@ -106,8 +106,11 @@ conditionalYTBio = function(Y_all, time_new, bio_i, data_predict_all,
       #LME_indi_matrix_0 = list()
       for(i in 1:n_longitudinal){
         model_formula = formula(lfit[[i]]) #lfit[[1]]
-        #terms_model <- terms(model_formula)
-        #variable_names <- attr(terms_model, "term.labels")
+        ### terms cached from the fit on the *full* training data, not
+        ### re-derived from this patient's own small slice -- see
+        ### conditionalYDT.R for why this matters for poly()/
+        ### splines::ns()/splines::bs()/factor() terms.
+        terms_model <- lfit[[i]]$terms
         all_variables <- all.vars(model_formula)
         
         #survival variable replaced by l_i[it]
@@ -117,7 +120,7 @@ conditionalYTBio = function(Y_all, time_new, bio_i, data_predict_all,
         #replaced by trans_function(l_i[it])
         if(length(survival_variable_all) != 0){
           for(surv_i in 1 : length(survival_variable_all)){
-            data_num_i_list[[i]][survival_variable_all[[surv_i]]] = survival_trans_function[[surv_i]](l_i[it])
+            data_num_i_list[[i]][survival_variable_all[[surv_i]]] = apply_survival_trans(survival_trans_function[[surv_i]], l_i[it], surv_i)
           }
         }
         
@@ -136,7 +139,9 @@ conditionalYTBio = function(Y_all, time_new, bio_i, data_predict_all,
         data_num_i_list_0[[i]][as.character(formula(long_fit_all$long_sub_fixed[[i]])[[2]])][is.na(data_num_i_list_0[[i]][as.character(formula(long_fit_all$long_sub_fixed[[i]])[[2]])])] <- 999
         
         ## extract data matrix to calcuate the probability
-        LME_indi_matrix_1[[i]] = t(model.matrix(long_fit_all$long_sub_fixed[[i]], data_num_i_list_1[[i]]))
+        xlev_i = if (!is.null(long_fit_all$xlevels)) long_fit_all$xlevels[[i]] else NULL
+        mf_i_1 = model.frame(terms_model, data_num_i_list_1[[i]], xlev = xlev_i)
+        LME_indi_matrix_1[[i]] = t(model.matrix(terms_model, mf_i_1, contrasts.arg = lfit[[i]]$contrasts))
 
         ### data missing when extract the data using model.matrix, 
         ### model.matrix will automatic delete the missing data

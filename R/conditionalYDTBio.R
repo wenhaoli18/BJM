@@ -111,12 +111,15 @@ conditionalYDTBio = function(Y_all, time_new, bio_i, data_predict_all,
     ### once per patient, instead of inside the l_i loop below. Only the
     ### survival_variable/survival_variable_all cells change across l_i --
     ### everything else about this patient's data (rows, other covariates,
-    ### NA pattern, factor levels/contrasts, including the bio_i extra row
-    ### appended by select_patient_longitudinal_data_bio()) is fixed, so it
-    ### is derived once here (exactly as the original per-l_i model.matrix()
-    ### call would have derived it every time) and then just has those cells
-    ### overwritten in place below. See conditionalYDT.R for the identical
-    ### pattern and its verification.
+    ### NA pattern, including the bio_i extra row appended by
+    ### select_patient_longitudinal_data_bio()) is fixed, so it is derived
+    ### once here and then just has those cells overwritten in place below.
+    ### terms_i is `lfit[[i]]$terms`, cached from the fit on the *full*
+    ### training data (not re-derived from this patient's small slice), so
+    ### poly()/splines::ns()/splines::bs()/factor() reuse the basis/
+    ### contrasts fit at training time via model.frame(..., xlev=) and
+    ### model.matrix(..., contrasts.arg=). See conditionalYDT.R for the
+    ### identical pattern and its verification.
     terms_i_list = list()
     mf_1_list = list()
     mf_0_list = list()
@@ -133,8 +136,8 @@ conditionalYDTBio = function(Y_all, time_new, bio_i, data_predict_all,
       data_i_0[survival_variable] = l_i[1]
       if(length(survival_variable_all) != 0){
         for(surv_i in 1 : length(survival_variable_all)){
-          data_i_1[survival_variable_all[[surv_i]]] = survival_trans_function[[surv_i]](l_i[1])
-          data_i_0[survival_variable_all[[surv_i]]] = survival_trans_function[[surv_i]](l_i[1])
+          data_i_1[survival_variable_all[[surv_i]]] = apply_survival_trans(survival_trans_function[[surv_i]], l_i[1], surv_i)
+          data_i_0[survival_variable_all[[surv_i]]] = apply_survival_trans(survival_trans_function[[surv_i]], l_i[1], surv_i)
         }
       }
       data_i_1[event_type_variable] = 1
@@ -147,11 +150,12 @@ conditionalYDTBio = function(Y_all, time_new, bio_i, data_predict_all,
       data_i_1[[outcome_var_all[[i]]]][is.na(data_i_1[[outcome_var_all[[i]]]])] <- 999
       data_i_0[[outcome_var_all[[i]]]][is.na(data_i_0[[outcome_var_all[[i]]]])] <- 999
 
-      ### terms() (and factor levels/contrasts) derived from this patient's
-      ### own data, exactly as the original per-l_i model.matrix() call did.
-      terms_i_list[[i]] = terms(model_formula_all[[i]], data = data_i_1)
-      mf_1_list[[i]] = model.frame(terms_i_list[[i]], data_i_1)
-      mf_0_list[[i]] = model.frame(terms_i_list[[i]], data_i_0)
+      ### terms/xlevels/contrasts cached from the fit (see comment above),
+      ### not re-derived from this patient's own small slice of data.
+      terms_i_list[[i]] = lfit[[i]]$terms
+      xlev_i = if (!is.null(long_fit_all$xlevels)) long_fit_all$xlevels[[i]] else NULL
+      mf_1_list[[i]] = model.frame(terms_i_list[[i]], data_i_1, xlev = xlev_i)
+      mf_0_list[[i]] = model.frame(terms_i_list[[i]], data_i_0, xlev = xlev_i)
       n_expected_1[i] = nrow(data_i_1)
       n_expected_0[i] = nrow(data_i_0)
     }
@@ -180,7 +184,7 @@ conditionalYDTBio = function(Y_all, time_new, bio_i, data_predict_all,
           for(surv_i in 1 : length(survival_variable_all)){
             svar = survival_variable_all[[surv_i]]
             if(svar %in% names(mf_1_list[[i]])){
-              trans_val = survival_trans_function[[surv_i]](l_i[it])
+              trans_val = apply_survival_trans(survival_trans_function[[surv_i]], l_i[it], surv_i)
               mf_1_list[[i]][[svar]] = trans_val
               mf_0_list[[i]][[svar]] = trans_val
             }
@@ -188,8 +192,8 @@ conditionalYDTBio = function(Y_all, time_new, bio_i, data_predict_all,
         }
 
         ## extract data matrix to calcuate the probability
-        LME_indi_matrix_1[[i]] = t(model.matrix(terms_i, mf_1_list[[i]]))
-        LME_indi_matrix_0[[i]] = t(model.matrix(terms_i, mf_0_list[[i]]))
+        LME_indi_matrix_1[[i]] = t(model.matrix(terms_i, mf_1_list[[i]], contrasts.arg = lfit[[i]]$contrasts))
+        LME_indi_matrix_0[[i]] = t(model.matrix(terms_i, mf_0_list[[i]], contrasts.arg = lfit[[i]]$contrasts))
 
           ### data missing when extract the data using model.matrix,
           ### model.matrix will automatic delete the missing data

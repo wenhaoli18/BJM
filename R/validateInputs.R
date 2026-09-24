@@ -273,3 +273,29 @@ assert_survival_trans <- function(survival_variable_all, survival_trans_function
   }
   invisible(TRUE)
 }
+
+#' Call a single survival_trans_function element and validate its output
+#'
+#' @description \code{assert_survival_trans()} only probes each transform
+#' once, at a single representative time value, before the prediction grid
+#' runs. That catches a transform that is broken everywhere (wrong return
+#' type/length, or throws), but not one that only misbehaves away from the
+#' probe point -- e.g. \code{log(x - 10)}, which is fine near the probe value
+#' but returns \code{NaN} once the internal prediction grid (which can range
+#' up to \code{2 * max(observed survival time)}) reaches \code{x <= 10}. This
+#' helper wraps every actual call site inside \code{conditionalYT()}/
+#' \code{conditionalYTBio()}/\code{conditionalYDT()}/\code{conditionalYDTBio()}
+#' so a bad value is caught immediately, with a clear error, instead of
+#' silently corrupting a data.frame column or surfacing later as a cryptic
+#' "replacement has ... rows, data has ..." error.
+#' @keywords internal
+apply_survival_trans <- function(fun, x, surv_i) {
+  value <- fun(x)
+  if (!is.numeric(value) || length(value) != 1 || !is.finite(value)) {
+    stop(sprintf(paste0(
+      "`survival_trans_function[[%d]]` must return a single, finite numeric value; ",
+      "calling it on %s returned a %s of length %d instead."
+    ), surv_i, format(x), class(value)[1], length(value)), call. = FALSE)
+  }
+  value
+}

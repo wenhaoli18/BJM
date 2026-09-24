@@ -7,7 +7,7 @@ test_that("longitudinalSub fits a univariate model when given a single formula",
                           ~ year | id)
 
   expect_s3_class(fit, "longitudinalSub.BJM")
-  expect_length(fit, 4)
+  expect_length(fit, 5)
   expect_length(fit[[1]], 1)
   expect_s3_class(fit[[1]][[1]], "lme")
   # D is the 2x2 random-effects covariance matrix (intercept + slope)

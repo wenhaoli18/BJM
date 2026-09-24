@@ -45,6 +45,13 @@
 #'   in the multivariate linear mixed model.}
 #'   \item{long_sub_fixed}{The \code{long_sub_fixed} argument, as supplied.}
 #'   \item{long_sub_random}{The \code{long_sub_random} argument, as supplied.}
+#'   \item{xlevels}{A list, one element per longitudinal outcome, of the
+#'   factor levels observed in the full training data for that outcome.
+#'   Used internally at prediction time so that \code{poly()}/
+#'   \code{splines::ns()}/\code{splines::bs()}/\code{factor()} terms in
+#'   \code{long_sub_fixed} reuse the basis/contrasts fit at training time
+#'   instead of recomputing one from a small, patient-specific slice of
+#'   data.}
 #' }
 #' 
 #' @examples 
@@ -134,6 +141,7 @@ longitudinalSub <- function(data_fit_all, long_sub_fixed, long_sub_random) {
   lfit <- list()
   lfit_0 <- list()
   mf.fixed <- list()
+  xlevels <- list()
   yik <- list()
   Xik <- list()
   nk <- vector(length = M)
@@ -180,7 +188,16 @@ longitudinalSub <- function(data_fit_all, long_sub_fixed, long_sub_random) {
     # Model frames
     mf.fixed[[m]] <- model.frame(lfit[[m]]$terms,
                                  data.fit.one[, all.vars(long_sub_fixed[[m]])])
-    
+
+    ### factor levels observed in the full training data, cached so that
+    ### prediction-time code can rebuild a model.frame() from a small,
+    ### patient-specific slice of data without silently dropping levels that
+    ### happen not to appear in that slice (which would otherwise make
+    ### factor() error with "contrasts can be applied only to factors with 2
+    ### or more levels", or -- for poly()/splines::ns()/bs() -- recompute a
+    ### different basis than the one the model was fit with).
+    xlevels[[m]] <- .getXlevels(lfit[[m]]$terms, mf.fixed[[m]])
+
     # Longitudinal outcomes by using "model.response" to get the response variable
     yik[[m]] <- by(model.response(mf.fixed[[m]], "numeric"), droplevels(data.fit.one[, id]), as.vector)
     
@@ -313,7 +330,8 @@ longitudinalSub <- function(data_fit_all, long_sub_fixed, long_sub_random) {
   #Sigma_fit = diag(diag(out$D))
   
   long_fit_all = list(lfit = lfit, Sigma_fit = Sigma_fit,
-                       long_sub_fixed = long_sub_fixed, long_sub_random = long_sub_random)
+                       long_sub_fixed = long_sub_fixed, long_sub_random = long_sub_random,
+                       xlevels = xlevels)
 
   class(long_fit_all) <- "longitudinalSub.BJM"
   return(long_fit_all)
