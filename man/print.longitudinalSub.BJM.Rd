@@ -2,12 +2,9 @@
 % Please edit documentation in R/methods.R
 \name{print.longitudinalSub.BJM}
 \alias{print.longitudinalSub.BJM}
-\alias{print_longitudinalSub}
 \title{Print method for \code{longitudinalSub.BJM} objects}
 \usage{
 \method{print}{longitudinalSub.BJM}(x, digits = 4, ...)
-
-print_longitudinalSub(x, digits = 4, ...)
 }
 \arguments{
 \item{x}{A \code{longitudinalSub.BJM} object returned by \code{\link{longitudinalSub}}.}

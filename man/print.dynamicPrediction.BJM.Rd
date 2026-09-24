@@ -2,21 +2,11 @@
 % Please edit documentation in R/methods.R
 \name{print.dynamicPrediction.BJM}
 \alias{print.dynamicPrediction.BJM}
-\alias{print_dynamicPrediction}
 \title{Print method for \code{dynamicPrediction.BJM} objects}
 \usage{
 \method{print}{dynamicPrediction.BJM}(
   x,
-  prediction.time = NULL,
-  horizon = NULL,
-  subject_ids = NULL,
-  digits = 4,
-  ...
-)
-
-print_dynamicPrediction(
-  x,
-  prediction.time = NULL,
+  prediction_time = NULL,
   horizon = NULL,
   subject_ids = NULL,
   digits = 4,
@@ -26,7 +16,7 @@ print_dynamicPrediction(
 \arguments{
 \item{x}{A \code{dynamicPrediction.BJM} object.}
 
-\item{prediction.time}{Landmark time (for display). Default \code{NULL}.}
+\item{prediction_time}{Landmark time (for display). Default \code{NULL}.}
 
 \item{horizon}{Prediction horizon (for display). Default \code{NULL}.}
 

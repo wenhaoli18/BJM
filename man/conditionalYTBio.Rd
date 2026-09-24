@@ -8,13 +8,13 @@ conditionalYTBio(
   Y_all,
   time_new,
   bio_i,
-  data.predict.all,
+  data_predict_all,
   long_fit_all,
   l_i,
   survival_variable,
   time_variable,
-  survivalVariableAll,
-  survivalTransFunction
+  survival_variable_all,
+  survival_trans_function
 )
 }
 \arguments{
@@ -22,10 +22,10 @@ conditionalYTBio(
 
 \item{bio_i}{Biomarker used to do prediction}
 
-\item{data.predict.all}{This involves a collection of \code{data.frame} objects for
+\item{data_predict_all}{This involves a collection of \code{data.frame} objects for
 dynamic prediction, each corresponding to a distinct longitudinal outcome.
-These data frames should contain the variables specified in \code{LongSubFixed}
-and \code{LongSubRandom}. Utilizing a list structure
+These data frames should contain the variables specified in \code{long_sub_fixed}
+and \code{long_sub_random}. Utilizing a list structure
 allows for the incorporation of multiple longitudinal outcomes,
 each potentially following different measurement protocols.
 In instances where all longitudinal outcomes are recorded at identical
@@ -42,10 +42,10 @@ encompassing the results and parameters obtained from the analysis.}
 
 \item{time_variable}{The name of time variable in linear mixed model.}
 
-\item{survivalVariableAll}{The name of the transformed time-to-event outcomes variable.}
+\item{survival_variable_all}{The name of the transformed time-to-event outcomes variable.}
 
-\item{survivalTransFunction}{The transformation function used for time-to-event outcomes,
-in the order of \code{survivalVariableAll}.}
+\item{survival_trans_function}{The transformation function used for time-to-event outcomes,
+in the order of \code{survival_variable_all}.}
 }
 \value{
 The output is a list containing probability matrices. In the presence of

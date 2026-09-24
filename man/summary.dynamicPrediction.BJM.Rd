@@ -6,7 +6,7 @@
 \usage{
 \method{summary}{dynamicPrediction.BJM}(
   object,
-  prediction.time = NULL,
+  prediction_time = NULL,
   horizon = NULL,
   subject_ids = NULL,
   digits = 4,
@@ -16,7 +16,7 @@
 \arguments{
 \item{object}{A \code{dynamicPrediction.BJM} object.}
 
-\item{prediction.time}{Landmark time (for display). Default \code{NULL}.}
+\item{prediction_time}{Landmark time (for display). Default \code{NULL}.}
 
 \item{horizon}{Prediction horizon (for display). Default \code{NULL}.}
 

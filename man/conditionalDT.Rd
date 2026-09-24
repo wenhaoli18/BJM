@@ -4,13 +4,13 @@
 \alias{conditionalDT}
 \title{conditional distribution of D|T}
 \usage{
-conditionalDT(data.predict.all, long_fit_all, survival_fit_all, l_i)
+conditionalDT(data_predict_all, long_fit_all, survival_fit_all, l_i)
 }
 \arguments{
-\item{data.predict.all}{This involves a collection of \code{data.frame} objects for
+\item{data_predict_all}{This involves a collection of \code{data.frame} objects for
 dynamic prediction, each corresponding to a distinct longitudinal outcome.
-These data frames should contain the variables specified in \code{LongSubFixed}
-and \code{LongSubRandom}. Utilizing a list structure
+These data frames should contain the variables specified in \code{long_sub_fixed}
+and \code{long_sub_random}. Utilizing a list structure
 allows for the incorporation of multiple longitudinal outcomes,
 each potentially following different measurement protocols.
 In instances where all longitudinal outcomes are recorded at identical

@@ -8,7 +8,7 @@
   object,
   bio_i = NULL,
   long_fit_all = NULL,
-  prediction.time = NULL,
+  prediction_time = NULL,
   horizon = NULL,
   subject_ids = NULL,
   digits = 4,
@@ -22,7 +22,7 @@
 
 \item{long_fit_all}{\code{longitudinalSub.BJM} object for name lookup.}
 
-\item{prediction.time}{Landmark time (for display). Default \code{NULL}.}
+\item{prediction_time}{Landmark time (for display). Default \code{NULL}.}
 
 \item{horizon}{Prediction horizon (for display). Default \code{NULL}.}
 

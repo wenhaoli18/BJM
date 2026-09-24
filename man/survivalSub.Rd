@@ -4,17 +4,24 @@
 \alias{survivalSub}
 \title{Fitting survival sub-model}
 \usage{
-survivalSub(data.survival.fitting, formMarginalSurv, formConditionalCR)
+survivalSub(data_survival_fitting, form_marginal_surv, form_conditional_cr)
 }
 \arguments{
-\item{data.survival.fitting}{Input data containing survival outcomes and baseline covariates.}
+\item{data_survival_fitting}{Input data containing survival outcomes and baseline covariates.}
 
-\item{formMarginalSurv}{Survival input formats.}
+\item{form_marginal_surv}{Survival input formats.}
 
-\item{formConditionalCR}{Competing risks input formats.}
+\item{form_conditional_cr}{Competing risks input formats.}
 }
 \value{
-Model fitting results of survival sub-model with or without competing risks.
+An object of class \code{"survivalSub.BJM"}, a named list with elements:
+\describe{
+\item{coxph_fit}{The fitted \code{\link[survival]{coxph}} marginal survival model.}
+\item{form_marginal_surv}{The \code{form_marginal_surv} formula, as supplied.}
+\item{glm_fit}{The fitted \code{\link[stats]{glm}} competing-risks (event type) model,
+or \code{NULL} if \code{form_conditional_cr} was not supplied.}
+\item{form_conditional_cr}{The \code{form_conditional_cr} formula, as supplied (or \code{NULL}).}
+}
 }
 \description{
 Fitting survival sub-model
@@ -23,12 +30,12 @@ Fitting survival sub-model
 
 data(pbc3)
 
-data.survival.fitting =  pbc3[!duplicated(pbc3$id), ]
+data_survival_fitting =  pbc3[!duplicated(pbc3$id), ]
 
-formMarginalSurv = Surv(years, status3) ~ age + sex
-formConditionalCR = NULL
+form_marginal_surv = Surv(years, status3) ~ age + sex
+form_conditional_cr = NULL
 
-survival_fit_all = survivalSub(data.survival.fitting, formMarginalSurv, 
-                               formConditionalCR)
+survival_fit_all = survivalSub(data_survival_fitting, form_marginal_surv, 
+                               form_conditional_cr)
 
 }
