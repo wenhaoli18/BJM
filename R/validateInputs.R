@@ -141,6 +141,20 @@ assert_bandcount <- function(x, arg_name) {
   invisible(TRUE)
 }
 
+#' Assert that an object is a single positive integer
+#'
+#' @description Shared input-validation helper for \code{n_cores}: catches a
+#' non-integer, zero, negative, or non-scalar value before it reaches
+#' \code{parallel::mclapply()}'s own (less informative) \code{mc.cores}
+#' validation.
+#' @keywords internal
+assert_positive_integer <- function(x, arg_name) {
+  if (!is.numeric(x) || length(x) != 1 || is.na(x) || x != round(x) || x < 1) {
+    stop(sprintf("`%s` must be a single positive integer.", arg_name), call. = FALSE)
+  }
+  invisible(TRUE)
+}
+
 #' Assert that an index is a valid, in-range biomarker position
 #'
 #' @description Shared input-validation helper for \code{bio_i}: catches an

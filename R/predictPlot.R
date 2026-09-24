@@ -56,6 +56,18 @@
 #' @param bio_his Which biomarker history will be plotted
 #' @param bio_pred Indicator, predict future biomarker or not, if NULL do not predict
 #' @param density Indicator, plot future biomarker density or not, if NULL do not plot
+#' @param n_cores Number of CPU cores to use for computing the prediction at
+#' each point in \code{horizon}. Each point is computed independently, so
+#' this loop can be dispatched across cores. Defaults to \code{1} (serial
+#' execution; identical behavior/output to versions of this function without
+#' this argument). Values greater than \code{1} use \code{parallel::mclapply()},
+#' which relies on forking and is therefore only actually parallel on
+#' Unix-like systems (Linux, macOS); on Windows, \code{mclapply()} silently
+#' runs the iterations serially regardless of \code{n_cores} (a limitation of
+#' R's fork-based parallelism, not of this package). Parallel execution
+#' produces exactly the same numeric result as serial execution -- only the
+#' order in which iterations are computed (not the order results are
+#' assembled in) changes.
 #' @return Plot of risk and future biomarker with density using dynamic prediction.
 #' 
 #' @examples 
@@ -126,7 +138,7 @@ predictPlot = function(data_predict_all_one, long_fit_all, survival_fit_all,
                     prediction_time = 4, horizon = seq(0.0, 3.0, 0.5), time_variable,
                     survival_variable_all, survival_trans_function,
                     bandcount1 = "auto", bandcount2 = "auto", bandcount3 = "auto",
-                    bio_his = 1, bio_pred = 1, density = 1){
+                    bio_his = 1, bio_pred = 1, density = 1, n_cores = 1){
 
   assert_class(long_fit_all, "longitudinalSub.BJM", "long_fit_all", "longitudinalSub")
   assert_class(survival_fit_all, "survivalSub.BJM", "survival_fit_all", "survivalSub")
@@ -140,6 +152,7 @@ predictPlot = function(data_predict_all_one, long_fit_all, survival_fit_all,
   assert_bandcount(bandcount1, "bandcount1")
   assert_bandcount(bandcount2, "bandcount2")
   assert_bandcount(bandcount3, "bandcount3")
+  assert_positive_integer(n_cores, "n_cores")
   assert_survival_trans(survival_variable_all, survival_trans_function, probe_value = prediction_time)
   for (i in seq_along(data_predict_all_one)) {
     assert_vars_in_data(time_variable, data_predict_all_one[[i]], "time_variable",
@@ -194,8 +207,69 @@ predictPlot = function(data_predict_all_one, long_fit_all, survival_fit_all,
     bandcount3 <- resolved_3$bandcount3
   }
 
+  ### risk predicted probability, mode/quantile biomarker prediction: each
+  ### point in `horizon` only reads data_predict_all/long_fit_all/
+  ### survival_fit_all/bandcount1/bandcount2/bandcount3 (all fixed above),
+  ### so it is an independent unit of work. It is dispatched below via
+  ### lapply() (serial, n_cores == 1, the default -- identical to the old
+  ### sequential for() loop) or parallel::mclapply() (n_cores > 1), and the
+  ### per-horizon results are reassembled afterwards, in the original
+  ### horizon order, into exactly the vectors the old loop built with
+  ### c(...) accumulation.
+  has_cr <- length(survival_fit_all$form_conditional_cr) != 0
+
+  compute_one_horizon <- function(prediction.horizon) {
+    risk.prob = dynamicPrediction(data_predict_all, long_fit_all, survival_fit_all,
+                                  prediction_time,
+                                  horizon = prediction.horizon, time_variable,
+                                  survival_variable_all, survival_trans_function,
+                                  bandcount1, bandcount2)
+
+    out <- list(risk_prob_1 = risk.prob$risk_prob_1,
+                risk_prob_2 = if (has_cr) risk.prob$risk_prob_2 else NULL)
+
+    if(!is.null(bio_pred)){
+      Y_predict_all = dynamicPredictionBio(bio_i = bio_his, data_predict_all, long_fit_all,
+                                       survival_fit_all,
+                                       prediction_time,
+                                       horizon = prediction.horizon, time_variable,
+                                       survival_variable_all, survival_trans_function,
+                                       bandcount2, bandcount3)
+
+      Y_all = unlist(Y_predict_all$Y_all)
+      Y_all_diff = Y_all[2] - Y_all[1]
+      my_vector = Y_predict_all$Y_density[,1]
+      quantiles <- numeric(9)
+      for (q in 1:9) {
+        index <- which(cumsum(my_vector) >= (q / 10) * 1/Y_all_diff)[1]
+        quantiles[q] <- Y_all[index]
+      }
+      out$Y_predict_mode <- Y_predict_all$Y_predict
+      out$quantiles <- quantiles
+    }
+
+    out
+  }
+
+  if (n_cores > 1) {
+    results_per_horizon <- parallel::mclapply(horizon, compute_one_horizon, mc.cores = n_cores)
+    # Unlike lapply(), mclapply() does not propagate an error raised inside a
+    # worker: it catches it and returns a "try-error" object in that slot of
+    # the result list instead, leaving the other slots unaffected. Detect
+    # that here and re-raise the original error, so a failure behaves the
+    # same way (stops predictPlot() with the same message) regardless of
+    # n_cores.
+    failed <- vapply(results_per_horizon, function(r) inherits(r, "try-error"), logical(1))
+    if (any(failed)) {
+      stop(conditionMessage(attr(results_per_horizon[[which(failed)[1]]], "condition")), call. = FALSE)
+    }
+  } else {
+    results_per_horizon <- lapply(horizon, compute_one_horizon)
+  }
+
   ### risk predicted probability
-  risk.prob.1 = c(); risk.prob.2 = c()
+  risk.prob.1 = unlist(lapply(results_per_horizon, function(r) r$risk_prob_1))
+  risk.prob.2 = if (has_cr) unlist(lapply(results_per_horizon, function(r) r$risk_prob_2)) else c()
   ### mode prediction
   Y_predict_mode = c()
   ### quantiles prediction
@@ -208,59 +282,20 @@ predictPlot = function(data_predict_all_one, long_fit_all, survival_fit_all,
   Y_predict_quantile_7_10 = c()
   Y_predict_quantile_8_10 = c()
   Y_predict_quantile_9_10 = c()
-  tt = 0
-  for(prediction.horizon in horizon){
-    tt = tt + 1
-
-    risk.prob = dynamicPrediction(data_predict_all, long_fit_all, survival_fit_all,
-                                  prediction_time, 
-                                  horizon = prediction.horizon, time_variable,
-                                  survival_variable_all, survival_trans_function,
-                                  bandcount1, bandcount2)
-    
-    if(!is.null(bio_pred)){
-    Y_predict_all = dynamicPredictionBio(bio_i = bio_his, data_predict_all, long_fit_all, 
-                                     survival_fit_all, 
-                                     prediction_time, 
-                                     horizon = prediction.horizon, time_variable,
-                                     survival_variable_all, survival_trans_function,
-                                     bandcount2, bandcount3)
-    
-    Y_predict_mode = c(Y_predict_mode, Y_predict_all$Y_predict)
-    Y_all = unlist(Y_predict_all$Y_all)
-    Y_all_diff = Y_all[2] - Y_all[1]
-    my_vector = Y_predict_all$Y_density[,1]
-    index <- which(cumsum(my_vector) >= 0.1 * 1/Y_all_diff)[1]
-    Y_predict_quantile_1_10 <- c(Y_predict_quantile_1_10, Y_all[index])
-    index <- which(cumsum(my_vector) >= 0.2 * 1/Y_all_diff)[1]
-    Y_predict_quantile_2_10 <- c(Y_predict_quantile_2_10, Y_all[index])
-    index <- which(cumsum(my_vector) >= 0.3 * 1/Y_all_diff)[1]
-    Y_predict_quantile_3_10 <- c(Y_predict_quantile_3_10, Y_all[index])
-    index <- which(cumsum(my_vector) >= 0.4 * 1/Y_all_diff)[1]
-    Y_predict_quantile_4_10 <- c(Y_predict_quantile_4_10, Y_all[index])
-    index <- which(cumsum(my_vector) >= 0.5 * 1/Y_all_diff)[1]
-    Y_predict_quantile_5_10 <- c(Y_predict_quantile_5_10, Y_all[index])
-    index <- which(cumsum(my_vector) >= 0.6 * 1/Y_all_diff)[1]
-    Y_predict_quantile_6_10 <- c(Y_predict_quantile_6_10, Y_all[index])
-    index <- which(cumsum(my_vector) >= 0.7 * 1/Y_all_diff)[1]
-    Y_predict_quantile_7_10 <- c(Y_predict_quantile_7_10, Y_all[index])
-    index <- which(cumsum(my_vector) >= 0.8 * 1/Y_all_diff)[1]
-    Y_predict_quantile_8_10 <- c(Y_predict_quantile_8_10, Y_all[index])
-    index <- which(cumsum(my_vector) >= 0.9 * 1/Y_all_diff)[1]
-    Y_predict_quantile_9_10 <- c(Y_predict_quantile_9_10, Y_all[index])
-    }
-    
-    if(length(survival_fit_all$form_conditional_cr) != 0){
-      # with competing risks
-      risk.prob.1 = c(risk.prob.1, risk.prob$risk_prob_1)
-      risk.prob.2 = c(risk.prob.2, risk.prob$risk_prob_2)   
-    }else{
-      # without competing risks
-      risk.prob.1 = c(risk.prob.1, risk.prob$risk_prob_1)
-    }
-    
+  if(!is.null(bio_pred)){
+    Y_predict_mode = unlist(lapply(results_per_horizon, function(r) r$Y_predict_mode))
+    Q <- do.call(rbind, lapply(results_per_horizon, function(r) r$quantiles))
+    Y_predict_quantile_1_10 = Q[, 1]
+    Y_predict_quantile_2_10 = Q[, 2]
+    Y_predict_quantile_3_10 = Q[, 3]
+    Y_predict_quantile_4_10 = Q[, 4]
+    Y_predict_quantile_5_10 = Q[, 5]
+    Y_predict_quantile_6_10 = Q[, 6]
+    Y_predict_quantile_7_10 = Q[, 7]
+    Y_predict_quantile_8_10 = Q[, 8]
+    Y_predict_quantile_9_10 = Q[, 9]
   }
-  
+
   ### plot figure
   scale_prob = 2 * max(na.omit(DP_data_bio$longitudinal))
   if(length(survival_fit_all$form_conditional_cr) != 0 & is.null(bio_pred)){

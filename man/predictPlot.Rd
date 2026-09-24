@@ -18,7 +18,8 @@ predictPlot(
   bandcount3 = "auto",
   bio_his = 1,
   bio_pred = 1,
-  density = 1
+  density = 1,
+  n_cores = 1
 )
 }
 \arguments{
@@ -87,6 +88,19 @@ further guidance on choosing \code{bandcount1}/\code{bandcount2}/
 \item{bio_pred}{Indicator, predict future biomarker or not, if NULL do not predict}
 
 \item{density}{Indicator, plot future biomarker density or not, if NULL do not plot}
+
+\item{n_cores}{Number of CPU cores to use for computing the prediction at
+each point in \code{horizon}. Each point is computed independently, so
+this loop can be dispatched across cores. Defaults to \code{1} (serial
+execution; identical behavior/output to versions of this function without
+this argument). Values greater than \code{1} use \code{parallel::mclapply()},
+which relies on forking and is therefore only actually parallel on
+Unix-like systems (Linux, macOS); on Windows, \code{mclapply()} silently
+runs the iterations serially regardless of \code{n_cores} (a limitation of
+R's fork-based parallelism, not of this package). Parallel execution
+produces exactly the same numeric result as serial execution -- only the
+order in which iterations are computed (not the order results are
+assembled in) changes.}
 }
 \value{
 Plot of risk and future biomarker with density using dynamic prediction.
