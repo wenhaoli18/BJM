@@ -122,6 +122,25 @@ assert_string <- function(x, arg_name) {
   invisible(TRUE)
 }
 
+#' Assert that a bandcount argument is a positive number or "auto"
+#'
+#' @description Shared input-validation helper for the \code{bandcount1}/
+#' \code{bandcount2}/\code{bandcount3} arguments of \code{dynamicPrediction()},
+#' \code{dynamicPredictionBio()}, \code{predictPlot()}, and \code{riskPlot()},
+#' which now accept either an explicit positive number (the original
+#' behavior) or the literal string \code{"auto"} to have the value chosen
+#' automatically (see \code{auto_tune_bandcount()}).
+#' @keywords internal
+assert_bandcount <- function(x, arg_name) {
+  if (identical(x, "auto")) {
+    return(invisible(TRUE))
+  }
+  if (!is.numeric(x) || length(x) != 1 || is.na(x) || x <= 0) {
+    stop(sprintf("`%s` must be a single positive number, or the string \"auto\".", arg_name), call. = FALSE)
+  }
+  invisible(TRUE)
+}
+
 #' Assert that an index is a valid, in-range biomarker position
 #'
 #' @description Shared input-validation helper for \code{bio_i}: catches an

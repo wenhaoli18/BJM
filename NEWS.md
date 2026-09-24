@@ -71,16 +71,29 @@
   too few distinct values. Use `poly(..., raw = TRUE)`, `I(x^2)`,
   `log()`, `sqrt()`, or other terms that do not depend on the
   surrounding data instead.
-* New `checkBandcountConvergence()` helper reduces the guesswork in
-  choosing `bandcount1`/`bandcount2`/`bandcount3` (previously left
-  entirely to manual trial and error, see the `bandcount1`/`bandcount2`
-  docs and `vignette("BJM-intro", package = "BJM")`). It runs
-  `dynamicPrediction()`/`dynamicPredictionBio()` once at the bandcount
-  value(s) you supply and once more with those value(s) scaled up (by
-  default, doubled), and reports the largest relative change in the
-  returned predictions, so you can see directly whether you have already
-  converged instead of guessing -- at the cost of exactly one extra
-  prediction call, not an open-ended auto-tuning loop.
+* `bandcount1`/`bandcount2`/`bandcount3` (in `dynamicPrediction()`,
+  `dynamicPredictionBio()`, `predictPlot()`, and `riskPlot()`) no longer
+  need to be chosen by hand: they now default to `"auto"` instead of a
+  fixed number. Under `"auto"`, the value is started small and doubled,
+  comparing the returned predictions to the previous round, until the
+  largest relative change drops below 1%, or 2 doublings have been
+  tried (so resolving a bandcount costs at most 3 prediction calls, not
+  an open-ended loop). `predictPlot()`/`riskPlot()` resolve their
+  `"auto"` bandcount(s) once, using a representative probe call, rather
+  than repeating the search on every point in their internal
+  `horizon`/landmark-time loop. If a bandcount has still not converged
+  after hitting this cap, a warning reports it and the result at the
+  largest value tried is returned anyway (not an error). Pass an
+  explicit number, as in previous package versions, to skip auto-tuning
+  and use a fixed value instead.
+* New `checkBandcountConvergence()` helper gives direct, manual control
+  over the same doubling check that now runs automatically by default
+  (e.g. to use a tighter tolerance, or more doublings, than the
+  built-in `"auto"` search): it runs `dynamicPrediction()`/
+  `dynamicPredictionBio()` once at the bandcount value(s) you supply and
+  once more with those value(s) scaled up (by default, doubled), and
+  reports the largest relative change in the returned predictions -- at
+  the cost of exactly one extra prediction call.
 
 ## Bug fixes
 

@@ -26,16 +26,24 @@
 #' in the order of \code{survival_variable_all}.
 #' @param bandcount1 The number of grid points spanning the prediction window,
 #' from \code{prediction_time} to \code{prediction_time + horizon}. Larger
-#' values give a more accurate but slower estimate.
+#' values give a more accurate but slower estimate. Defaults to \code{"auto"},
+#' which resolves it once, before looping over the landmark times, (using
+#' the first landmark time as a representative probe) by doubling from a
+#' built-in starting value until the predicted risk stabilizes; see
+#' \code{\link{dynamicPrediction}}'s \code{bandcount1} for details of that
+#' search. The resolved value is then reused, fixed, for every landmark
+#' time -- it is not re-searched on every iteration.
 #' @param bandcount2 The number of grid points used to approximate
 #' integrating out to infinity when normalizing the predicted risk. A wider
 #' follow-up range needs a larger \code{bandcount2} to keep the grid
-#' spacing comparable.
+#' spacing comparable. Defaults to \code{"auto"}; resolved the same way as
+#' \code{bandcount1} (jointly with it, when both are \code{"auto"}).
 #'
-#' \code{checkBandcountConvergence()} (applied to \code{dynamicPrediction()}
-#' directly) automates checking these values. See also
-#' \code{vignette("BJM-intro", package = "BJM")} for guidance on choosing
-#' \code{bandcount1}/\code{bandcount2} via a convergence check.
+#' Pass explicit numbers instead of \code{"auto"} for full manual control, or
+#' use \code{checkBandcountConvergence()} (applied to \code{dynamicPrediction()}
+#' directly) to inspect the convergence behavior yourself. See also
+#' \code{vignette("BJM-intro", package = "BJM")} for further guidance on
+#' choosing \code{bandcount1}/\code{bandcount2}.
 #'
 #' @return Plot of risk using dynamic prediction.
 #' @export
@@ -43,7 +51,7 @@ riskPlot = function(data_predict_all_pre, long_fit_all, survival_fit_all,
                        prediction_time = NULL, bio_i = NULL,
                        horizon, time_variable,
                        survival_variable_all, survival_trans_function,
-                       bandcount1 = 10, bandcount2 = 10){
+                       bandcount1 = "auto", bandcount2 = "auto"){
 
   assert_class(long_fit_all, "longitudinalSub.BJM", "long_fit_all", "longitudinalSub")
   assert_class(survival_fit_all, "survivalSub.BJM", "survival_fit_all", "survivalSub")
@@ -56,8 +64,8 @@ riskPlot = function(data_predict_all_pre, long_fit_all, survival_fit_all,
   }
   assert_string(time_variable, "time_variable")
   assert_scalar_numeric(horizon, "horizon")
-  assert_scalar_numeric(bandcount1, "bandcount1", positive = TRUE)
-  assert_scalar_numeric(bandcount2, "bandcount2", positive = TRUE)
+  assert_bandcount(bandcount1, "bandcount1")
+  assert_bandcount(bandcount2, "bandcount2")
   # prediction_time may be NULL (landmark defaults to each patient's first
   # observed time_variable value) or a vector of landmark times; probe with
   # the first usable value, or skip the probe entirely if none is available yet.
@@ -102,7 +110,28 @@ riskPlot = function(data_predict_all_pre, long_fit_all, survival_fit_all,
   }else{
     landmark.time = prediction_time
   }
-  
+
+  ### bandcount1/bandcount2 = "auto" (the default): resolve them once here,
+  ### using the first landmark time as a representative probe, rather than
+  ### re-running the auto-tuning search on every landmark time in the loop
+  ### below (see auto_tune_bandcount()).
+  auto_names_1_2 <- c("bandcount1", "bandcount2")[c(identical(bandcount1, "auto"), identical(bandcount2, "auto"))]
+  if (length(auto_names_1_2) > 0) {
+    probe_data_predict_all <- list()
+    for (i in seq_len(length(long_fit_all$long_sub_fixed))) {
+      probe_data_predict_all[[i]] = data_predict_all_pre[[i]][data_predict_all_pre[[i]][time_variable] <= landmark.time[1], ]
+    }
+    probe_args <- list(data_predict_all = probe_data_predict_all, long_fit_all = long_fit_all,
+                        survival_fit_all = survival_fit_all, prediction_time = landmark.time[1],
+                        horizon = horizon, time_variable = time_variable,
+                        survival_variable_all = survival_variable_all,
+                        survival_trans_function = survival_trans_function,
+                        bandcount1 = bandcount1, bandcount2 = bandcount2)
+    resolved_1_2 <- auto_tune_bandcount(dynamicPrediction, probe_args, auto_names_1_2)$bandcount
+    if (!is.null(resolved_1_2$bandcount1)) bandcount1 <- resolved_1_2$bandcount1
+    if (!is.null(resolved_1_2$bandcount2)) bandcount2 <- resolved_1_2$bandcount2
+  }
+
   landmark.time.new = c(); risk.prob.1 = c(); risk.prob.2 = c()
   tt = 0
   for(time.cutoff in landmark.time){

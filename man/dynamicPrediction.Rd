@@ -13,8 +13,8 @@ dynamicPrediction(
   time_variable,
   survival_variable_all,
   survival_trans_function,
-  bandcount1 = 10,
-  bandcount2 = 40
+  bandcount1 = "auto",
+  bandcount2 = "auto"
 )
 }
 \arguments{
@@ -52,7 +52,7 @@ in the order of \code{survival_variable_all}.}
 \item{bandcount1}{The number of grid points spanning the prediction window,
 from \code{prediction_time} to \code{prediction_time + horizon} (the
 numerator of the risk probability). Larger values give a more accurate but
-slower estimate.}
+slower estimate. Defaults to \code{"auto"} (see Details).}
 
 \item{bandcount2}{The number of grid points spanning
 \code{[prediction_time, upper_bound]}, where \code{upper_bound} is set
@@ -60,13 +60,7 @@ internally to twice the longest observed survival/censoring time among
 at-risk patients; this approximates integrating out to infinity for the
 denominator that normalizes the risk probability. A wider follow-up range
 needs a larger \code{bandcount2} to keep the grid spacing comparable.
-
-There is no universal correct value for \code{bandcount1}/\code{bandcount2}:
-as a practical check, double both and confirm the resulting risk
-probabilities barely change; if they do, keep doubling.
-\code{checkBandcountConvergence()} automates exactly this check (one
-extra call, at a value you choose, instead of an open-ended search). See
-also \code{vignette("BJM-intro", package = "BJM")} for a worked example.}
+Defaults to \code{"auto"} (see Details).}
 }
 \value{
 An object of class \code{"dynamicPrediction.BJM"}, a named list with elements:
@@ -84,6 +78,24 @@ when \code{horizon <= 0}.}
 The time values in the prediction data subset must be less than the
 specified \code{prediction_time} which is the prediction time. The time points for
 longitudinal repeated measurements must not surpass the prediction time.
+}
+\details{
+There is no universal correct value for \code{bandcount1}/\code{bandcount2}:
+as a practical check, double both and confirm the resulting risk
+probabilities barely change; if they do, keep doubling. By default
+(\code{bandcount1 = "auto"}, \code{bandcount2 = "auto"}), this doubling
+check is done for you: starting from small built-in values, both are
+doubled together, and the result is compared to the previous round,
+until the largest relative change in the risk probabilities drops below
+1\%, or 2 doublings have been tried (so at most 3 calls' worth of work).
+If it still has not converged by then, a warning reports this and the
+result at the largest value tried is returned anyway (not an error), so
+this never silently loops for an unbounded amount of time. Pass an
+explicit number for either argument to skip auto-tuning it and use a
+fixed value instead (as in previous package versions), or call
+\code{checkBandcountConvergence()} directly for more control over the
+tolerance and doubling count. See also \code{vignette("BJM-intro",
+package = "BJM")} for a worked example.
 }
 \examples{
 
