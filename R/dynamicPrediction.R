@@ -117,35 +117,32 @@ dynamicPrediction = function(data_predict_all, long_fit_all, survival_fit_all,
   coxph_fit = survival_fit_all$coxph_fit
   survival_variable = as.character(formula(coxph_fit)[[2]])[2] #survival_variable = "fuyrs"
   ## at risk sample
-  ## for loop number of biomarkers
-  for(i in seq_len(length(data_predict_all))){
-    #data_predict_all[[i]] = data_predict_all[[i]][data_predict_all[[i]]$time <= prediction_time, ]
-    data_predict_all[[i]] = data_predict_all[[i]][data_predict_all[[i]][survival_variable] >= prediction_time, ]
-  }
-  
+  data_predict_all = subset_at_risk(data_predict_all, survival_variable, prediction_time)
+
   upper_bound = 2 * max(data_predict_all[[1]][survival_variable])
-  
+
   #### handle horizon = 0 edge case: probability of event in zero-length window is 0
   if(horizon <= 0){
     out <- list(risk_prob_1 = 0, risk_prob_2 = NULL)
     class(out) <- "dynamicPrediction.BJM"
     return(out)
   }
-  
+
   #### time frame used to do the integral
   bandwidth1 = horizon/bandcount1
   predict.time.horizon = seq(prediction_time, prediction_time + horizon, bandwidth1)
   predict.time.horizon.1 = seq(prediction_time - bandwidth1/2, prediction_time + horizon + bandwidth1/2, bandwidth1)
-  
-  bandwidth2 = (upper_bound - prediction_time)/bandcount2  
-  predict.time.infinity = seq(prediction_time, upper_bound, bandwidth2)
-  predict.time.infinity.1 = seq(prediction_time - bandwidth2/2, upper_bound + bandwidth2/2, bandwidth2)
-  
+
+  infinity_grid <- prepare_infinity_grid(data_predict_all, long_fit_all, survival_fit_all,
+                                          prediction_time, upper_bound, bandcount2)
+  predict.time.infinity = infinity_grid$predict.time.infinity
+  predict.time.infinity.1 = infinity_grid$predict.time.infinity.1
+  S_T_all_infinity = infinity_grid$S_T_all_infinity
+
   risk.prob.0 = risk.prob.1 = NULL
   ### marginal probability T
   S_T_all_predict = marginalT(data_predict_all, long_fit_all, survival_fit_all, l_i = predict.time.horizon.1, upper_bound)
-  S_T_all_infinity = marginalT(data_predict_all, long_fit_all, survival_fit_all, l_i = predict.time.infinity.1, upper_bound)
-  
+
   #conditional probability D|T, survival_fit_all$form_conditional_cr == form_conditional_cr
   #with competing risk
   if(length(survival_fit_all$form_conditional_cr) != 0){
@@ -168,14 +165,9 @@ dynamicPrediction = function(data_predict_all, long_fit_all, survival_fit_all,
     T.surv.predict.1 = t(f_y_D_all_predict[[2]] * D_T_all_predict[[2]] * S_T_all_predict)
     T.surv.infinity.1 = t(f_y_D_all_infinity[[2]] * D_T_all_infinity[[2]] * S_T_all_infinity)
     
-    risk.prob.0 =  rowSums(T.surv.predict.0) / rowSums(T.surv.infinity.0 + T.surv.infinity.1)
-    risk.prob.0[risk.prob.0 > 1] = 1
-    risk.prob.0[risk.prob.0 < 0] = 0
-    
-    risk.prob.1 =  rowSums(T.surv.predict.1) / rowSums(T.surv.infinity.0 + T.surv.infinity.1)
-    risk.prob.1[risk.prob.1 > 1] = 1
-    risk.prob.1[risk.prob.1 < 0] = 0
-    
+    risk.prob.0 = clamp_risk_prob(rowSums(T.surv.predict.0), rowSums(T.surv.infinity.0 + T.surv.infinity.1))
+    risk.prob.1 = clamp_risk_prob(rowSums(T.surv.predict.1), rowSums(T.surv.infinity.0 + T.surv.infinity.1))
+
   }else{
     #without competing risk
     #conditional probability Y|T
@@ -187,9 +179,7 @@ dynamicPrediction = function(data_predict_all, long_fit_all, survival_fit_all,
     T.surv.predict.0 = t(f_y_D_all_predict[[1]]  * S_T_all_predict)
     T.surv.infinity.0 = t(f_y_D_all_infinity[[1]]  * S_T_all_infinity)
     
-    risk.prob.0 =  rowSums(T.surv.predict.0) / rowSums(T.surv.infinity.0 + 1e-20)
-    risk.prob.0[risk.prob.0 > 1] = 1
-    risk.prob.0[risk.prob.0 < 0] = 0
+    risk.prob.0 = clamp_risk_prob(rowSums(T.surv.predict.0), rowSums(T.surv.infinity.0 + 1e-20))
   }
   
   out <- list(risk_prob_1 = risk.prob.0, risk_prob_2 = risk.prob.1)
