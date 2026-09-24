@@ -15,7 +15,8 @@ riskPlot(
   survival_variable_all,
   survival_trans_function,
   bandcount1 = "auto",
-  bandcount2 = "auto"
+  bandcount2 = "auto",
+  n_cores = 1
 )
 }
 \arguments{
@@ -71,6 +72,19 @@ use \code{checkBandcountConvergence()} (applied to \code{dynamicPrediction()}
 directly) to inspect the convergence behavior yourself. See also
 \code{vignette("BJM-intro", package = "BJM")} for further guidance on
 choosing \code{bandcount1}/\code{bandcount2}.}
+
+\item{n_cores}{Number of CPU cores to use for computing the prediction at
+each landmark time in \code{prediction_time}. Each landmark time is
+computed independently, so this loop can be dispatched across cores.
+Defaults to \code{1} (serial execution; identical behavior/output to
+versions of this function without this argument). Values greater than
+\code{1} use \code{parallel::mclapply()}, which relies on forking and is
+therefore only actually parallel on Unix-like systems (Linux, macOS); on
+Windows, \code{mclapply()} silently runs the iterations serially
+regardless of \code{n_cores} (a limitation of R's fork-based parallelism,
+not of this package). Parallel execution produces exactly the same
+numeric result as serial execution -- only the order in which iterations
+are computed (not the order results are assembled in) changes.}
 }
 \value{
 Plot of risk using dynamic prediction.

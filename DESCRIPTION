@@ -13,7 +13,7 @@ Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
 Depends: R (>= 3.5.0), survival
-Imports: nlme, mvtnorm, ggplot2, Matrix
+Imports: nlme, mvtnorm, ggplot2, Matrix, parallel
 Suggests: testthat (>= 3.0.0), knitr, rmarkdown
 Config/testthat/edition: 3
 VignetteBuilder: knitr

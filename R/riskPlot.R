@@ -45,13 +45,25 @@
 #' \code{vignette("BJM-intro", package = "BJM")} for further guidance on
 #' choosing \code{bandcount1}/\code{bandcount2}.
 #'
+#' @param n_cores Number of CPU cores to use for computing the prediction at
+#' each landmark time in \code{prediction_time}. Each landmark time is
+#' computed independently, so this loop can be dispatched across cores.
+#' Defaults to \code{1} (serial execution; identical behavior/output to
+#' versions of this function without this argument). Values greater than
+#' \code{1} use \code{parallel::mclapply()}, which relies on forking and is
+#' therefore only actually parallel on Unix-like systems (Linux, macOS); on
+#' Windows, \code{mclapply()} silently runs the iterations serially
+#' regardless of \code{n_cores} (a limitation of R's fork-based parallelism,
+#' not of this package). Parallel execution produces exactly the same
+#' numeric result as serial execution -- only the order in which iterations
+#' are computed (not the order results are assembled in) changes.
 #' @return Plot of risk using dynamic prediction.
 #' @export
 riskPlot = function(data_predict_all_pre, long_fit_all, survival_fit_all,
                        prediction_time = NULL, bio_i = NULL,
                        horizon, time_variable,
                        survival_variable_all, survival_trans_function,
-                       bandcount1 = "auto", bandcount2 = "auto"){
+                       bandcount1 = "auto", bandcount2 = "auto", n_cores = 1){
 
   assert_class(long_fit_all, "longitudinalSub.BJM", "long_fit_all", "longitudinalSub")
   assert_class(survival_fit_all, "survivalSub.BJM", "survival_fit_all", "survivalSub")
@@ -66,6 +78,7 @@ riskPlot = function(data_predict_all_pre, long_fit_all, survival_fit_all,
   assert_scalar_numeric(horizon, "horizon")
   assert_bandcount(bandcount1, "bandcount1")
   assert_bandcount(bandcount2, "bandcount2")
+  assert_positive_integer(n_cores, "n_cores")
   # prediction_time may be NULL (landmark defaults to each patient's first
   # observed time_variable value) or a vector of landmark times; probe with
   # the first usable value, or skip the probe entirely if none is available yet.
@@ -132,33 +145,54 @@ riskPlot = function(data_predict_all_pre, long_fit_all, survival_fit_all,
     if (!is.null(resolved_1_2$bandcount2)) bandcount2 <- resolved_1_2$bandcount2
   }
 
-  landmark.time.new = c(); risk.prob.1 = c(); risk.prob.2 = c()
-  tt = 0
-  for(time.cutoff in landmark.time){
-    tt = tt + 1
+  ### each landmark time only reads data_predict_all_pre/long_fit_all/
+  ### survival_fit_all/bandcount1/bandcount2 (all fixed above), so it is an
+  ### independent unit of work. It is dispatched below via lapply() (serial,
+  ### n_cores == 1, the default -- identical to the old sequential for()
+  ### loop) or parallel::mclapply() (n_cores > 1), and the per-landmark-time
+  ### results are reassembled afterwards, in the original landmark.time
+  ### order, into exactly the vectors the old loop built with c(...)
+  ### accumulation.
+  has_cr <- length(survival_fit_all$form_conditional_cr) != 0
 
+  compute_one_landmark <- function(time.cutoff) {
     data_predict_all = list()
     for(i in seq_len(length(long_fit_all$long_sub_fixed))){
       data_predict_all[[i]] = data_predict_all_pre[[i]][data_predict_all_pre[[i]][time_variable] <= time.cutoff,]
     }
-    
-    risk.prob = dynamicPrediction(data_predict_all, long_fit_all, survival_fit_all, 
-                                  prediction_time = time.cutoff, 
+
+    risk.prob = dynamicPrediction(data_predict_all, long_fit_all, survival_fit_all,
+                                  prediction_time = time.cutoff,
                                   horizon, time_variable,
                                   survival_variable_all, survival_trans_function,
                                   bandcount1, bandcount2)
-    
-    if(length(survival_fit_all$form_conditional_cr) != 0){
-      risk.prob.1 = c(risk.prob.1, risk.prob$risk_prob_1)
-      risk.prob.2 = c(risk.prob.2, risk.prob$risk_prob_2)   
-    }else{
-      risk.prob.1 = c(risk.prob.1, risk.prob$risk_prob_1)
-    }
-    
-    if(length(risk.prob$risk_prob_1) !=0 ) landmark.time.new = c(landmark.time.new, time.cutoff)
-    
+
+    list(time.cutoff = time.cutoff,
+         risk_prob_1 = risk.prob$risk_prob_1,
+         risk_prob_2 = if (has_cr) risk.prob$risk_prob_2 else NULL,
+         keep = length(risk.prob$risk_prob_1) != 0)
   }
-  
+
+  if (n_cores > 1) {
+    results_per_landmark <- parallel::mclapply(landmark.time, compute_one_landmark, mc.cores = n_cores)
+    # Unlike lapply(), mclapply() does not propagate an error raised inside a
+    # worker: it catches it and returns a "try-error" object in that slot of
+    # the result list instead, leaving the other slots unaffected. Detect
+    # that here and re-raise the original error, so a failure behaves the
+    # same way (stops riskPlot() with the same message) regardless of
+    # n_cores.
+    failed <- vapply(results_per_landmark, function(r) inherits(r, "try-error"), logical(1))
+    if (any(failed)) {
+      stop(conditionMessage(attr(results_per_landmark[[which(failed)[1]]], "condition")), call. = FALSE)
+    }
+  } else {
+    results_per_landmark <- lapply(landmark.time, compute_one_landmark)
+  }
+
+  risk.prob.1 = unlist(lapply(results_per_landmark, function(r) r$risk_prob_1))
+  risk.prob.2 = if (has_cr) unlist(lapply(results_per_landmark, function(r) r$risk_prob_2)) else c()
+  landmark.time.new = unlist(lapply(results_per_landmark, function(r) if (r$keep) r$time.cutoff else NULL))
+
   if(length(survival_fit_all$form_conditional_cr) != 0){
     # with competing risks
     DP_data = data.frame(time = landmark.time.new, 
