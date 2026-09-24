@@ -73,103 +73,19 @@ conditionalYT = function(data_predict_all, long_fit_all, l_i, survival_variable,
     ### each rows represent intercept, slope, covariates numbers, time to event/l_i
     ### each columns represent different repeated measurements with different times.
 
-    # Initialize lists to store the results for each subject 'num_i'
-    # rep_num_i_list will store the repeated ones for each data frame.
-    # data_num_i_list will store the filtered data for each patient num_i.
-    rep_num_i_list <- list()
-    data_num_i_list <- list()
-    
-    # Iterate over each data frame
-    for (i in 1:n_longitudinal) {#
-      df <- data.long[[i]]
-      # Extract data for patient ID of 'num_i',  where 'num' equals 'num_i'
-      selected_data <- df[df[num] == num_i, ]
-      # Store the row length of patient ID of 'num_i', in a vector of repeated 1, 
-      # Store in the list for different biomarkers
-      rep_num_i_list[[i]] <- rep(1, length(unlist(selected_data[time_variable])))
-      # Store the filtered patient ID of 'num_i' data with all variables in the list
-      data_num_i_list[[i]] <- selected_data
-    }
-    #if all biomarkers contained in one data frame
-    if(length(data.long) == 1){
-      for (i in 1:n_longitudinal) {#
-        rep_num_i_list[[i]] <- rep_num_i_list[[1]]
-        data_num_i_list[[i]] <- data_num_i_list[[1]]
-      }
-    }
-    
-    # Use lapply to check the length of each element, 
-    # and then use any to determine whether there is an element with a length of 0
-    if(any(sapply(data_num_i_list, nrow) == 0)) next
-    
-    ####Initialize longitudinal matrix for all biomarkers
-    longitudinal_all_matrix <- matrix(0, nrow = sum(sapply(data_num_i_list, nrow)), ncol = n_longitudinal) #n_data_num_i_list
-    ####Constructing the longitudinal matrix for all biomarkers
-    length_y = rep(0, n_longitudinal + 1)
-    for (i in 1:n_longitudinal) {
-      longname = as.character(formula(lfit[[i]]))[2]
-      
-      #length_y[i + 1] = length_y[i] + length(c(data_num_i_list[[i]][,longname])) #paste('longitudinal',i, sep = "")
-      # change Mar 24 add unlist
-      length_y[i + 1] = length_y[i] + length(c(unlist(data_num_i_list[[i]][,longname]))) #paste('longitudinal',i, sep = "")
-      # change Mar 24 add unlist
-      longitudinal_all_matrix[c((length_y[i] + 1) : length_y[i + 1]), i]  <- 
-        unlist(data_num_i_list[[i]][,longname]) #paste('longitudinal',i, sep = "")
-    }
+    patient_data <- select_patient_longitudinal_data(data.long, num, num_i, n_longitudinal, time_variable)
+    if(is.null(patient_data)) next
+    rep_num_i_list <- patient_data$rep_num_i_list
+    data_num_i_list <- patient_data$data_num_i_list
 
-    ####constructing the regression parameters' matrix
-    n_lfit_total = 0 #total number of rows
-    for(i in seq_len(length(lfit))){
-      n_lfit_total = n_lfit_total + length(lfit[[i]]$coefficients$fixed)
-    }
-    parameter_matrix <- matrix(0, nrow = n_lfit_total, ncol = length(lfit))
-    length_p = rep(0, n_longitudinal + 1)
-    for (i in 1:n_longitudinal) {
-      length_p[i + 1] = length_p[i] + length(lfit[[i]]$coefficients$fixed)
-      parameter_matrix[c((length_p[i] + 1) : length_p[i + 1]), i]  <- lfit[[i]]$coefficients$fixed
-    }
+    design <- build_conditional_design(rep_num_i_list, data_num_i_list, lfit, Sigma,
+                                        sigma.longitudinal, time_variable, n_longitudinal)
+    longitudinal_all_matrix <- design$longitudinal_all_matrix
+    parameter_matrix <- design$parameter_matrix
+    det_Var_cov_estep <- design$det_Var_cov_estep
+    Sigma_all_solve <- design$Sigma_all_solve
+    long_sigma_long <- design$long_sigma_long
 
-    A_i_ = list()
-    ###random intercept or slope, depend on variance-covariance matrix
-    if(dim(Sigma)[1] == n_longitudinal){
-      ###random intercept
-      for(i in 1:n_longitudinal){
-        A_i_[[i]] = rbind(rep_num_i_list[[i]])
-      }
-    }else{
-      ###random slope
-      for(i in 1:n_longitudinal){
-        A_i_[[i]] = rbind(rep_num_i_list[[i]], unlist(data_num_i_list[[i]][time_variable]))
-      }
-    }
-
-    A_i <- matrix(0, nrow = sum(sapply(A_i_, ncol)), ncol = sum(sapply(A_i_, nrow)))
-    length_A = rep(0, n_longitudinal + 1)
-    for (i in 1:n_longitudinal) {
-      length_A[i + 1] = length_A[i] + dim(A_i_[[i]])[2]
-      if(dim(Sigma)[1] == n_longitudinal){
-        ###random intercept
-        A_i[c((length_A[i] + 1) : length_A[i + 1]), i]  <- t(A_i_[[i]])
-      }else{
-        ###random slope
-        A_i[c((length_A[i] + 1) : length_A[i + 1]), (2*i-1):(2*i)]  <- t(A_i_[[i]])
-      }
-    }
-
-    Sigma_vector = c()
-    for(i in 1:n_longitudinal){
-      Sigma_vector = c(Sigma_vector, rep(sigma.longitudinal[i]^2, dim(data_num_i_list[[i]])[1]))
-    }
-    Sigma_all =  A_i %*% Sigma %*% t(A_i) + diag(Sigma_vector)
-
-    det_Var_cov_estep = det(2 * pi* Sigma_all)
-    Sigma_all_solve = solve(Sigma_all)
-    
-    #A_matrix_1_1_loop = LME_all_matrix %*% Sigma_all_solve %*% t(LME_all_matrix)
-    #A_matrix_2_1_loop = LME_all_matrix %*% Sigma_all_solve %*% longitudinal_all_matrix
-    
-    long_sigma_long = t(longitudinal_all_matrix) %*% Sigma_all_solve %*%  longitudinal_all_matrix
-    
     ### for loop and make prediction probability for all time points in l_i
     for(it in 1: length(l_i)){
       
