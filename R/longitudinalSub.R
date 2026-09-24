@@ -80,6 +80,17 @@
 #' 
 #' @export
 longitudinalSub <- function(data_fit_all, long_sub_fixed, long_sub_random) {
+  long_sub_fixed_check <- if (is.list(long_sub_fixed)) long_sub_fixed else list(long_sub_fixed)
+  long_sub_random_check <- if (is.list(long_sub_random)) long_sub_random else list(long_sub_random)
+  assert_all_formulas(long_sub_fixed_check, "long_sub_fixed")
+  assert_all_formulas(long_sub_random_check, "long_sub_random")
+  if (length(long_sub_fixed_check) != length(long_sub_random_check)) {
+    stop(sprintf(
+      "`long_sub_fixed` has %d element(s) but `long_sub_random` has %d; they must describe the same number of longitudinal outcomes.",
+      length(long_sub_fixed_check), length(long_sub_random_check)
+    ), call. = FALSE)
+  }
+
   if (!is.list(long_sub_fixed)) {
     long_sub_fixed <- list(long_sub_fixed)
     long_sub_random <- list(long_sub_random)
@@ -88,15 +99,23 @@ longitudinalSub <- function(data_fit_all, long_sub_fixed, long_sub_random) {
     ### number of biomarkers
     M <- length(long_sub_fixed)
   }
-  
+
+  assert_data_list(data_fit_all, "data_fit_all", M, allow_bare_df = TRUE)
+
   ### Convert 'data.long' to a list if it is not a list
   if (!is.list(data_fit_all) || is.data.frame(data_fit_all)) {
     data_fit_all <- list(data_fit_all)
     data_fit_all <- rep(data_fit_all, each = M)
   }
-  
+
   ### patient id indicator
   id <- as.character(nlme::splitFormula(long_sub_random[[1]], "|")[[2]])[2]
+  for (m in seq_len(M)) {
+    assert_vars_in_data(unique(c(all.vars(long_sub_fixed[[m]]), all.vars(long_sub_random[[m]]), id)),
+                         data_fit_all[[m]],
+                         sprintf("long_sub_fixed[[%d]]/long_sub_random[[%d]]", m, m),
+                         sprintf("data_fit_all[[%d]]", m))
+  }
   ### number of patients, should be the same for each biomarker list
   ### changed and add unlist
   n <- length(unlist(unique(data_fit_all[[1]][, id])))
