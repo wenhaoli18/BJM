@@ -33,7 +33,23 @@ riskPlot = function(data_predict_all_pre, long_fit_all, survival_fit_all,
                        horizon, time_variable,
                        survival_variable_all, survival_trans_function,
                        bandcount1 = 10, bandcount2 = 10){
-  
+
+  assert_class(long_fit_all, "longitudinalSub.BJM", "long_fit_all", "longitudinalSub")
+  assert_class(survival_fit_all, "survivalSub.BJM", "survival_fit_all", "survivalSub")
+  assert_data_list(data_predict_all_pre, "data_predict_all_pre", length(long_fit_all$lfit))
+  if (!is.null(bio_i)) {
+    assert_index(bio_i, length(long_fit_all$lfit), "bio_i", "longitudinal outcomes in long_fit_all")
+  }
+  assert_string(time_variable, "time_variable")
+  assert_scalar_numeric(horizon, "horizon")
+  assert_scalar_numeric(bandcount1, "bandcount1", positive = TRUE)
+  assert_scalar_numeric(bandcount2, "bandcount2", positive = TRUE)
+  assert_survival_trans(survival_variable_all, survival_trans_function)
+  for (i in seq_along(data_predict_all_pre)) {
+    assert_vars_in_data(time_variable, data_predict_all_pre[[i]], "time_variable",
+                         sprintf("data_predict_all_pre[[%d]]", i))
+  }
+
   coxph_fit = survival_fit_all$coxph_fit
   survival_variable = as.character(formula(coxph_fit)[[2]])[2]
   

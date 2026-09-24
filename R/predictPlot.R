@@ -113,7 +113,22 @@ predictPlot = function(data_predict_all_one, long_fit_all, survival_fit_all,
                     survival_variable_all, survival_trans_function,
                     bandcount1 = 10, bandcount2 = 10, bandcount3 = 200,
                     bio_his = 1, bio_pred = 1, density = 1){
-  
+
+  assert_class(long_fit_all, "longitudinalSub.BJM", "long_fit_all", "longitudinalSub")
+  assert_class(survival_fit_all, "survivalSub.BJM", "survival_fit_all", "survivalSub")
+  assert_index(bio_his, length(long_fit_all$lfit), "bio_his", "longitudinal outcomes in long_fit_all")
+  assert_data_list(data_predict_all_one, "data_predict_all_one", length(long_fit_all$lfit))
+  assert_scalar_numeric(prediction_time, "prediction_time")
+  assert_string(time_variable, "time_variable")
+  assert_scalar_numeric(bandcount1, "bandcount1", positive = TRUE)
+  assert_scalar_numeric(bandcount2, "bandcount2", positive = TRUE)
+  assert_scalar_numeric(bandcount3, "bandcount3", positive = TRUE)
+  assert_survival_trans(survival_variable_all, survival_trans_function)
+  for (i in seq_along(data_predict_all_one)) {
+    assert_vars_in_data(time_variable, data_predict_all_one[[i]], "time_variable",
+                         sprintf("data_predict_all_one[[%d]]", i))
+  }
+
   coxph_fit = survival_fit_all$coxph_fit
   survival_variable = as.character(formula(coxph_fit)[[2]])[2]
   ### event type variable name
