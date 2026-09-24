@@ -76,16 +76,20 @@ test_that("dynamicPrediction rejects a long_fit_all/survival_fit_all swap", {
   )
 })
 
-test_that("dynamicPrediction rejects a bare data.frame for data_predict_all", {
+test_that("dynamicPrediction accepts a bare data.frame for data_predict_all, reusing it for every biomarker", {
   f <- setup_dp_fixture()
 
-  expect_error(
-    dynamicPrediction(f$data_predict_all[[1]], f$long_fit_all, f$survival_fit_all,
-                       prediction_time = 5, horizon = 1, time_variable = "year",
-                       f$survival_variable_all, f$survival_trans_function,
-                       bandcount1 = 10, bandcount2 = 20),
-    "must be a list of data.frame objects"
-  )
+  risk_bare <- dynamicPrediction(f$data_predict_all[[1]], f$long_fit_all, f$survival_fit_all,
+                                  prediction_time = 5, horizon = 1, time_variable = "year",
+                                  f$survival_variable_all, f$survival_trans_function,
+                                  bandcount1 = 10, bandcount2 = 20)
+  risk_list <- dynamicPrediction(f$data_predict_all, f$long_fit_all, f$survival_fit_all,
+                                  prediction_time = 5, horizon = 1, time_variable = "year",
+                                  f$survival_variable_all, f$survival_trans_function,
+                                  bandcount1 = 10, bandcount2 = 20)
+
+  expect_equal(risk_bare$risk_prob_1, risk_list$risk_prob_1)
+  expect_equal(risk_bare$risk_prob_2, risk_list$risk_prob_2)
 })
 
 test_that("dynamicPrediction rejects a data_predict_all list of the wrong length", {

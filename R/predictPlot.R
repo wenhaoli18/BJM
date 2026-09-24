@@ -8,12 +8,14 @@
 #' and \code{long_sub_random}. Utilizing a list structure 
 #' allows for the incorporation of multiple longitudinal outcomes, 
 #' each potentially following different measurement protocols. 
-#' In instances where all longitudinal outcomes are recorded at identical 
-#' time points across patients, a singular \code{data.frame} object may 
-#' be used in a \code{list}. It is presumed that each data frame is 
+#' In instances where all longitudinal outcomes are recorded at identical
+#' time points across patients, a singular \code{data.frame} object may
+#' be used in a \code{list}. Alternatively, a single bare \code{data.frame}
+#' (not wrapped in a list) may be supplied directly; it is then reused for
+#' every longitudinal outcome. It is presumed that each data frame is
 #' structured in a long format.
-#' 
-#' @param long_fit_all Outputs from the model fitting process using the \code{nlme} package, 
+#'
+#' @param long_fit_all Outputs from the model fitting process using the \code{nlme} package,
 #' encompassing the results and parameters obtained from the analysis.
 #' @param survival_fit_all Results and parameters generated from the model fitting 
 #' procedure, utilizing the \code{coxph} function. These outputs include the comprehensive 
@@ -117,7 +119,10 @@ predictPlot = function(data_predict_all_one, long_fit_all, survival_fit_all,
   assert_class(long_fit_all, "longitudinalSub.BJM", "long_fit_all", "longitudinalSub")
   assert_class(survival_fit_all, "survivalSub.BJM", "survival_fit_all", "survivalSub")
   assert_index(bio_his, length(long_fit_all$lfit), "bio_his", "longitudinal outcomes in long_fit_all")
-  assert_data_list(data_predict_all_one, "data_predict_all_one", length(long_fit_all$lfit))
+  assert_data_list(data_predict_all_one, "data_predict_all_one", length(long_fit_all$lfit), allow_bare_df = TRUE)
+  if (!is.list(data_predict_all_one) || is.data.frame(data_predict_all_one)) {
+    data_predict_all_one <- rep(list(data_predict_all_one), each = length(long_fit_all$lfit))
+  }
   assert_scalar_numeric(prediction_time, "prediction_time")
   assert_string(time_variable, "time_variable")
   assert_scalar_numeric(bandcount1, "bandcount1", positive = TRUE)

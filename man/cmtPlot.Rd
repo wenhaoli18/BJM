@@ -21,7 +21,8 @@ cmtPlot(
 It is utilized to plot conditional mean trajectories (CMT).}
 
 \item{condi_time2event}{Conditional event time, indicating that all patients should
-have events at this time in the plot}
+have events at this time in the plot. If \code{NULL}, it defaults to the midpoint
+of the observed range of \code{time_variable} in \code{data_plot_all}.}
 
 \item{event_type_variable}{Competing risks variable indicator name. Set to NULL if
 there are no competing risks.}

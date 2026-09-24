@@ -89,6 +89,14 @@ bio_pred <- dynamicPredictionBio(
 bio_pred$Y_predict
 ```
 
+`survival_variable_all`/`survival_trans_function` above follow a common
+convention (`"Tyears1"`, `"Tyears2"`, ..., each the absolute distance from a
+fixed cut point); `survivalTrans(c(1, 3, 5, 7))` builds that same pair for
+you instead of hand-writing two matching lists. And every `data_*_all`
+argument shown above (`data_fit_all`, `data_predict_all`, ...) also accepts
+a single bare `data.frame` — reused for every biomarker — instead of a
+repeated list, when all biomarkers share the same measurement data.
+
 `predictPlot()` and `riskPlot()` visualize these predictions for a
 single patient; `cmtPlot()` plots observed longitudinal trajectories
 stratified by eventual outcome.

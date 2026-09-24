@@ -3,7 +3,16 @@
 #' @description This function gives the risk prediction plot.
 #' 
 #' @param data_predict_all_pre This involves a collection of \code{data.frame} objects for
-#' @param long_fit_all Outputs from the model fitting process using the \code{nlme} package, 
+#' dynamic prediction, each corresponding to a distinct longitudinal outcome. These data
+#' frames should contain the variables specified in \code{long_sub_fixed} and
+#' \code{long_sub_random}. Utilizing a list structure allows for the incorporation of
+#' multiple longitudinal outcomes, each potentially following different measurement
+#' protocols. In instances where all longitudinal outcomes are recorded at identical time
+#' points across patients, a singular \code{data.frame} object may be used in a \code{list}.
+#' Alternatively, a single bare \code{data.frame} (not wrapped in a list) may be supplied
+#' directly; it is then reused for every longitudinal outcome. It is presumed that each
+#' data frame is structured in a long format.
+#' @param long_fit_all Outputs from the model fitting process using the \code{nlme} package,
 #' encompassing the results and parameters obtained from the analysis.
 #' @param survival_fit_all Results and parameters generated from the model fitting 
 #' procedure, utilizing the \code{coxph} function. These outputs include the comprehensive 
@@ -36,7 +45,10 @@ riskPlot = function(data_predict_all_pre, long_fit_all, survival_fit_all,
 
   assert_class(long_fit_all, "longitudinalSub.BJM", "long_fit_all", "longitudinalSub")
   assert_class(survival_fit_all, "survivalSub.BJM", "survival_fit_all", "survivalSub")
-  assert_data_list(data_predict_all_pre, "data_predict_all_pre", length(long_fit_all$lfit))
+  assert_data_list(data_predict_all_pre, "data_predict_all_pre", length(long_fit_all$lfit), allow_bare_df = TRUE)
+  if (!is.list(data_predict_all_pre) || is.data.frame(data_predict_all_pre)) {
+    data_predict_all_pre <- rep(list(data_predict_all_pre), each = length(long_fit_all$lfit))
+  }
   if (!is.null(bio_i)) {
     assert_index(bio_i, length(long_fit_all$lfit), "bio_i", "longitudinal outcomes in long_fit_all")
   }
