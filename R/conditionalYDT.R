@@ -59,7 +59,7 @@ conditionalYDT = function(data.predict.all, long_fit_all, survival_fit_all,
   data.long <- data.predict.all
   
   # Convert 'data.long' to a list if it is not a list
-  if (!is.list(data.long)) {
+  if (!is.list(data.long) || is.data.frame(data.long)) {
     data.long <- list(data.long)
     data.long <- rep(data.long, each = n_longitudinal)
   }
