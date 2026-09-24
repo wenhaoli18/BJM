@@ -18,13 +18,13 @@ test_that("longitudinalSub fits a multivariate model and returns a joint D matri
   data(pbc3, envir = environment())
   data.fit <- pbc3[pbc3$status3 == 1, ]
 
-  LongSubFixed <- list(
+  long_sub_fixed <- list(
     "long1" = serBilir ~ year + age + sex,
     "long2" = albumin ~ year + age + sex
   )
-  LongSubRandom <- list("long1" = ~ year | id, "long2" = ~ year | id)
+  long_sub_random <- list("long1" = ~ year | id, "long2" = ~ year | id)
 
-  fit <- longitudinalSub(list(data.fit, data.fit), LongSubFixed, LongSubRandom)
+  fit <- longitudinalSub(list(data.fit, data.fit), long_sub_fixed, long_sub_random)
 
   expect_s3_class(fit, "longitudinalSub.BJM")
   expect_length(fit[[1]], 2)

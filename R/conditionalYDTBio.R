@@ -3,10 +3,10 @@
 #' @description This function computes the conditional probability density function of 
 #' longitudinal variable Y, given the survival time T with competing risk D.
 #' 
-#' @param data.predict.all This involves a collection of \code{data.frame} objects for 
+#' @param data_predict_all This involves a collection of \code{data.frame} objects for 
 #' dynamic prediction, each corresponding to a distinct longitudinal outcome. 
-#' These data frames should contain the variables specified in \code{LongSubFixed} 
-#' and \code{LongSubRandom}. Utilizing a list structure 
+#' These data frames should contain the variables specified in \code{long_sub_fixed} 
+#' and \code{long_sub_random}. Utilizing a list structure 
 #' allows for the incorporation of multiple longitudinal outcomes, 
 #' each potentially following different measurement protocols. 
 #' In instances where all longitudinal outcomes are recorded at identical 
@@ -19,9 +19,9 @@
 #' @param l_i A vector of time points to calculate the conditional probability.
 #' @param survival_variable Time-to-event outcomes variable name.
 #' @param time_variable The name of time variable in linear mixed model.
-#' @param survivalVariableAll The name of the transformed time-to-event outcomes variable.
-#' @param survivalTransFunction The transformation function used for time-to-event outcomes, 
-#' in the order of \code{survivalVariableAll}.
+#' @param survival_variable_all The name of the transformed time-to-event outcomes variable.
+#' @param survival_trans_function The transformation function used for time-to-event outcomes, 
+#' in the order of \code{survival_variable_all}.
 #' 
 #' @return The output is a list containing probability matrices. In the presence of 
 #' competing risks, this list includes two elements; otherwise, 
@@ -32,19 +32,19 @@
 #' of longitudinal variable Y given the survival time T with competing risk D
 #' for a particular patient at a specific time point.
 #' @keywords internal
-conditionalYDTBio = function(Y_all, time_new, bio_i, data.predict.all, 
+conditionalYDTBio = function(Y_all, time_new, bio_i, data_predict_all, 
                              long_fit_all, 
                               survival_fit_all, l_i, survival_variable, 
-                              time_variable, survivalVariableAll, survivalTransFunction){
+                              time_variable, survival_variable_all, survival_trans_function){
   
   #LME model fitting
   lfit = long_fit_all$lfit
   #variance-covariance matrix
   Sigma = long_fit_all$Sigma_fit
   #patient ID
-  num <- as.character(nlme::splitFormula(long_fit_all$LongSubRandom[[1]], "|")[[2]])[2]
+  num <- as.character(nlme::splitFormula(long_fit_all$long_sub_random[[1]], "|")[[2]])[2]
   ### event type variable name
-  event_type_variable = as.character(formula(survival_fit_all$formConditionalCR)[[2]])
+  event_type_variable = as.character(formula(survival_fit_all$form_conditional_cr)[[2]])
   
   #number of longitudinal biomarkers
   n_longitudinal <- length(lfit)  #length(data_num_i_list)
@@ -53,7 +53,7 @@ conditionalYDTBio = function(Y_all, time_new, bio_i, data.predict.all,
   # data.long is an input list from user
   # data.long must be a list, it can contain n data frames and each element contains one biomarker
   # or data.long can be a list and only contain one data matrix, all biomarkers are contained
-  data.long <- data.predict.all
+  data.long <- data_predict_all
   
   # Convert 'data.long' to a list if it is not a list
   if (!is.list(data.long) || is.data.frame(data.long)) {
@@ -64,7 +64,7 @@ conditionalYDTBio = function(Y_all, time_new, bio_i, data.predict.all,
   # MVN variance 
   # Apply the function over each unique num using lapply for variance list
   Sigma_all <- lapply(as.numeric(unlist(unique(data.long[[1]][num]))), process_variance, 
-                      time_new, bio_i, data.predict.all, long_fit_all, time_variable)
+                      time_new, bio_i, data_predict_all, long_fit_all, time_variable)
   
   # A probability matrix, 
   # with the number of rows (l_i) corresponding to specific time points and 
@@ -100,7 +100,7 @@ conditionalYDTBio = function(Y_all, time_new, bio_i, data.predict.all,
         #replace time variable with predict time
         selected_data[time_variable][nrow(selected_data),] = time_new
         #name of biomarker
-        bio_i_name = as.character(formula(long_fit_all$LongSubFixed[[i]])[[2]]) 
+        bio_i_name = as.character(formula(long_fit_all$long_sub_fixed[[i]])[[2]]) 
         Y_select_all = c() ### matrix for all Y_all for predicted biomarker
         for(Y_new in Y_all){
           selected_data[bio_i_name][nrow(selected_data),] = Y_new
@@ -163,9 +163,9 @@ conditionalYDTBio = function(Y_all, time_new, bio_i, data.predict.all,
         
         #transformed survival variable/basis function of survival variable
         #replaced by trans_function(l_i[it])
-        if(length(survivalVariableAll) != 0){
-          for(surv_i in 1 : length(survivalVariableAll)){
-            data_num_i_list[[i]][survivalVariableAll[[surv_i]]] = survivalTransFunction[[surv_i]](l_i[it])
+        if(length(survival_variable_all) != 0){
+          for(surv_i in 1 : length(survival_variable_all)){
+            data_num_i_list[[i]][survival_variable_all[[surv_i]]] = survival_trans_function[[surv_i]](l_i[it])
           }
         }
 
@@ -180,12 +180,12 @@ conditionalYDTBio = function(Y_all, time_new, bio_i, data.predict.all,
           stop("Error: Condition is false. Please add survival variable to linear mixed model.")
         else
           ### NA in nlme outcome (longitudinal biomarkers), replace with 999
-          data_num_i_list_1[[i]][as.character(formula(long_fit_all$LongSubFixed[[i]])[[2]])][is.na(data_num_i_list_1[[i]][as.character(formula(long_fit_all$LongSubFixed[[i]])[[2]])])] <- 999
-          data_num_i_list_0[[i]][as.character(formula(long_fit_all$LongSubFixed[[i]])[[2]])][is.na(data_num_i_list_0[[i]][as.character(formula(long_fit_all$LongSubFixed[[i]])[[2]])])] <- 999
+          data_num_i_list_1[[i]][as.character(formula(long_fit_all$long_sub_fixed[[i]])[[2]])][is.na(data_num_i_list_1[[i]][as.character(formula(long_fit_all$long_sub_fixed[[i]])[[2]])])] <- 999
+          data_num_i_list_0[[i]][as.character(formula(long_fit_all$long_sub_fixed[[i]])[[2]])][is.na(data_num_i_list_0[[i]][as.character(formula(long_fit_all$long_sub_fixed[[i]])[[2]])])] <- 999
           
           ## extract data matrix to calcuate the probability
-          LME_indi_matrix_1[[i]] = t(model.matrix(long_fit_all$LongSubFixed[[i]], data_num_i_list_1[[i]]))
-          LME_indi_matrix_0[[i]] = t(model.matrix(long_fit_all$LongSubFixed[[i]], data_num_i_list_0[[i]]))
+          LME_indi_matrix_1[[i]] = t(model.matrix(long_fit_all$long_sub_fixed[[i]], data_num_i_list_1[[i]]))
+          LME_indi_matrix_0[[i]] = t(model.matrix(long_fit_all$long_sub_fixed[[i]], data_num_i_list_0[[i]]))
         
           ### data missing when extract the data using model.matrix, 
           ### model.matrix will automatic delete the missing data

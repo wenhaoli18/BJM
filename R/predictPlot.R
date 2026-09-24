@@ -2,10 +2,10 @@
 #' 
 #' @description This function gives the risk and biomarker prediction plot.
 #' 
-#' @param data.predict.all.one This involves a collection of \code{data.frame} one object for 
+#' @param data_predict_all_one This involves a collection of \code{data.frame} one object for
 #' dynamic prediction and making plots, each corresponding to a distinct longitudinal outcome. 
-#' These data frames should contain the variables specified in \code{LongSubFixed} 
-#' and \code{LongSubRandom}. Utilizing a list structure 
+#' These data frames should contain the variables specified in \code{long_sub_fixed} 
+#' and \code{long_sub_random}. Utilizing a list structure 
 #' allows for the incorporation of multiple longitudinal outcomes, 
 #' each potentially following different measurement protocols. 
 #' In instances where all longitudinal outcomes are recorded at identical 
@@ -18,12 +18,12 @@
 #' @param survival_fit_all Results and parameters generated from the model fitting 
 #' procedure, utilizing the \code{coxph} function. These outputs include the comprehensive 
 #' findings and variables derived from the analysis.
-#' @param prediction.time Time used to make the prediction.
+#' @param prediction_time Time used to make the prediction.
 #' @param horizon Prediction horizon.
 #' @param time_variable The name of time variable in linear mixed model.
-#' @param survivalVariableAll The name of the transformed time-to-event outcomes variable.
-#' @param survivalTransFunction The transformation function used for time-to-event outcomes, 
-#' in the order of \code{survivalVariableAll}.
+#' @param survival_variable_all The name of the transformed time-to-event outcomes variable.
+#' @param survival_trans_function The transformation function used for time-to-event outcomes, 
+#' in the order of \code{survival_variable_all}.
 #' @param bandcount1 The number of points used to perform the numerical integral, 
 #' from the prediction time to the prediction time plus the horizon.
 #' @param bandcount2 The number of points used to perform the numerical integral,
@@ -39,15 +39,15 @@
 #' \donttest{
 #' data(pbc3)
 #' 
-#' data.survival.fitting =  pbc3[!duplicated(pbc3$id), ]
+#' data_survival_fitting =  pbc3[!duplicated(pbc3$id), ]
 #' 
-#' formMarginalSurv = Surv(years, status3) ~ age + sex
-#' formConditionalCR = NULL
+#' form_marginal_surv = Surv(years, status3) ~ age + sex
+#' form_conditional_cr = NULL
 #' 
-#' survival_fit_all = survivalSub(data.survival.fitting, formMarginalSurv, 
-#'                                formConditionalCR)
+#' survival_fit_all = survivalSub(data_survival_fitting, form_marginal_surv, 
+#'                                form_conditional_cr)
 #' 
-#' LongSubFixed = list(
+#' long_sub_fixed = list(
 #'   "long1" = serBilir ~ year + age + sex +  (years) + (years) * year,  
 #'   "long2" = prothrombin ~ year + age + sex + (years) + (years) * year,  
 #'   "long3" = albumin ~ year + age + age * year + sex + (years) + (years) * year,  
@@ -55,7 +55,7 @@
 #'   "long5" = SGOT ~ year + age + sex + (years) + (years) * year, 
 #'   "long6" = platelets ~ year + age + sex + (years)  + (years) * year)
 #' 
-#' LongSubRandom =list(
+#' long_sub_random =list(
 #'   "long1" =  ~ year| id,   
 #'   "long2" =  ~ year| id,    
 #'   "long3" =  ~ year| id,    
@@ -63,11 +63,11 @@
 #'   "long5" =  ~ year| id,    
 #'   "long6" =  ~ year| id)
 #' 
-#' survivalVariableAll = list(
+#' survival_variable_all = list(
 #'   "Tyears1",  "Tyears2", "Tyears3", "Tyears4"
 #' )
 #' 
-#' survivalTransFunction = list(
+#' survival_trans_function = list(
 #'   fun1 = function(x){abs(x - 1)}, 
 #'   fun2 = function(x){abs(x - 3)}, 
 #'   fun3 = function(x){abs(x - 5)}, 
@@ -75,48 +75,48 @@
 #' )
 #' 
 #' # Complete case analysis
-#' data.fit.all = list()
-#' for(i in seq_len(length(LongSubFixed))){
-#'   data.fit.all[[i]] = pbc3[pbc3$status3 == 1, ]
+#' data_fit_all = list()
+#' for(i in seq_len(length(long_sub_fixed))){
+#'   data_fit_all[[i]] = pbc3[pbc3$status3 == 1, ]
 #' }
 #' 
 #' # fitting longitudinal submodel
-#' long_fit_all = longitudinalSub(data.fit.all, LongSubFixed, LongSubRandom)
+#' long_fit_all = longitudinalSub(data_fit_all, long_sub_fixed, long_sub_random)
 #' 
 #' i_PID = 2
 #' data.raw.predict.plot = pbc3[pbc3$id == i_PID, ]
-#' data.predict.all.pre = list(data.raw.predict.plot, data.raw.predict.plot, data.raw.predict.plot,
+#' data_predict_all_one = list(data.raw.predict.plot, data.raw.predict.plot, data.raw.predict.plot,
 #'                             data.raw.predict.plot, data.raw.predict.plot, data.raw.predict.plot)
-#' 
+#'
 #' # plot biomarker 1 history,  predict future biomarker
-#' 
-#' predictPlot(data.predict.all.pre, long_fit_all, survival_fit_all, 
-#'             prediction.time = 5, bio_his = 1, bio_pred = 1,
+#'
+#' predictPlot(data_predict_all_one, long_fit_all, survival_fit_all,
+#'             prediction_time = 5, bio_his = 1, bio_pred = 1,
 #'             horizon = seq(0.5, 3.0, 0.5), time_variable = "year",
-#'             survivalVariableAll, survivalTransFunction,
+#'             survival_variable_all, survival_trans_function,
 #'            bandcount1 = 10, bandcount2 = 10, bandcount3 = 200)
 #'        
 #' }
 #'     
 #' @export
-predictPlot = function(data.predict.all.one, long_fit_all, survival_fit_all, 
-                    prediction.time = 4, horizon = seq(0.0, 3.0, 0.5), time_variable,
-                    survivalVariableAll, survivalTransFunction,
+predictPlot = function(data_predict_all_one, long_fit_all, survival_fit_all,
+                    prediction_time = 4, horizon = seq(0.0, 3.0, 0.5), time_variable,
+                    survival_variable_all, survival_trans_function,
                     bandcount1 = 10, bandcount2 = 10, bandcount3 = 200,
                     bio_his = 1, bio_pred = 1, density = 1){
   
   coxph_fit = survival_fit_all$coxph_fit
   survival_variable = as.character(formula(coxph_fit)[[2]])[2]
   ### event type variable name
-  if(length(survival_fit_all$formConditionalCR) != 0)  event_type_variable = as.character(formula(survival_fit_all$formConditionalCR)[[2]])
+  if(length(survival_fit_all$form_conditional_cr) != 0)  event_type_variable = as.character(formula(survival_fit_all$form_conditional_cr)[[2]])
   
   #name of biomarker
-  bio_i_name = as.character(formula(long_fit_all$LongSubFixed[[bio_his]])[[2]])
+  bio_i_name = as.character(formula(long_fit_all$long_sub_fixed[[bio_his]])[[2]])
   
-  DP_data_bio = data.frame(time = unlist(data.predict.all.one[[bio_his]][time_variable]), 
-                           longitudinal = unlist(data.predict.all.one[[bio_his]][bio_i_name]))
+  DP_data_bio = data.frame(time = unlist(data_predict_all_one[[bio_his]][time_variable]),
+                           longitudinal = unlist(data_predict_all_one[[bio_his]][bio_i_name]))
   
-  DP_data_bio = DP_data_bio[DP_data_bio$time <= prediction.time, ]
+  DP_data_bio = DP_data_bio[DP_data_bio$time <= prediction_time, ]
   
   ### risk predicted probability
   risk.prob.1 = c(); risk.prob.2 = c()
@@ -137,23 +137,23 @@ predictPlot = function(data.predict.all.one, long_fit_all, survival_fit_all,
     tt = tt + 1
     
     ### data before the prediction time
-    data.predict.all = list()
-    for(i in seq_len(length(long_fit_all$LongSubFixed))){
-      data.predict.all[[i]] = data.predict.all.one[[i]][data.predict.all.one[[i]][time_variable] <= (prediction.time + 1e-8),]
+    data_predict_all = list()
+    for(i in seq_len(length(long_fit_all$long_sub_fixed))){
+      data_predict_all[[i]] = data_predict_all_one[[i]][data_predict_all_one[[i]][time_variable] <= (prediction_time + 1e-8),]
     }
     
-    risk.prob = dynamicPrediction(data.predict.all, long_fit_all, survival_fit_all, 
-                                  prediction.time, 
+    risk.prob = dynamicPrediction(data_predict_all, long_fit_all, survival_fit_all, 
+                                  prediction_time, 
                                   horizon = prediction.horizon, time_variable,
-                                  survivalVariableAll, survivalTransFunction,
+                                  survival_variable_all, survival_trans_function,
                                   bandcount1, bandcount2)
     
     if(!is.null(bio_pred)){
-    Y_predict_all = dynamicPredictionBio(bio_i = bio_his, data.predict.all, long_fit_all, 
+    Y_predict_all = dynamicPredictionBio(bio_i = bio_his, data_predict_all, long_fit_all, 
                                      survival_fit_all, 
-                                     prediction.time, 
+                                     prediction_time, 
                                      horizon = prediction.horizon, time_variable,
-                                     survivalVariableAll, survivalTransFunction,
+                                     survival_variable_all, survival_trans_function,
                                      bandcount2, bandcount3)
     
     Y_predict_mode = c(Y_predict_mode, Y_predict_all$Y_predict)
@@ -180,7 +180,7 @@ predictPlot = function(data.predict.all.one, long_fit_all, survival_fit_all,
     Y_predict_quantile_9_10 <- c(Y_predict_quantile_9_10, Y_all[index])
     }
     
-    if(length(survival_fit_all$formConditionalCR) != 0){
+    if(length(survival_fit_all$form_conditional_cr) != 0){
       # with competing risks
       risk.prob.1 = c(risk.prob.1, risk.prob$risk_prob_1)
       risk.prob.2 = c(risk.prob.2, risk.prob$risk_prob_2)   
@@ -193,10 +193,10 @@ predictPlot = function(data.predict.all.one, long_fit_all, survival_fit_all,
   
   ### plot figure
   scale_prob = 2 * max(na.omit(DP_data_bio$longitudinal))
-  if(length(survival_fit_all$formConditionalCR) != 0 & is.null(bio_pred)){
+  if(length(survival_fit_all$form_conditional_cr) != 0 & is.null(bio_pred)){
       ## with competing risks, without longitudinal biomarker information
       
-      DP_data = data.frame(time = prediction.time + horizon, 
+      DP_data = data.frame(time = prediction_time + horizon, 
                            probType1 = risk.prob.1, 
                            probType2 = risk.prob.2)
       
@@ -217,7 +217,7 @@ predictPlot = function(data.predict.all.one, long_fit_all, survival_fit_all,
         scale_y_continuous(sec.axis = sec_axis(~./scale_prob, name="Risk Probabilities")) + 
         ylab("Longitudinal biomarker") + xlab("Follow-up time") +   
         scale_x_continuous(breaks = seq(0, 15, 1))  +
-        geom_vline(xintercept = prediction.time, linetype = "solid", color = "brown", size = 1) + 
+        geom_vline(xintercept = prediction_time, linetype = "solid", color = "brown", size = 1) + 
         geom_hline(yintercept = c(0, scale_prob/5, scale_prob/5*2, scale_prob/5*3, 
                                   scale_prob/5*4, scale_prob), 
                    linetype = "dotted", color = "pink", size = 1.2) +
@@ -229,11 +229,11 @@ predictPlot = function(data.predict.all.one, long_fit_all, survival_fit_all,
       
       
       
-    } else if (length(survival_fit_all$formConditionalCR) != 0 & !is.null(bio_pred) & !is.null(density)){
+    } else if (length(survival_fit_all$form_conditional_cr) != 0 & !is.null(bio_pred) & !is.null(density)){
       
       ## with competing risks, with longitudinal biomarker information and density plots
       
-      DP_data = data.frame(time = prediction.time + horizon, 
+      DP_data = data.frame(time = prediction_time + horizon, 
                            probType1 = risk.prob.1, 
                            probType2 = risk.prob.2,
                            predMode = Y_predict_mode,
@@ -288,7 +288,7 @@ predictPlot = function(data.predict.all.one, long_fit_all, survival_fit_all,
         scale_y_continuous(sec.axis = sec_axis(~./scale_prob, name="Risk Probabilities")) + 
         ylab("Longitudinal biomarker") + xlab("Follow-up time") +  
         scale_x_continuous(breaks = seq(0, 15, 1))  +
-        geom_vline(xintercept = prediction.time, linetype = "solid", color = "brown", size = 1) + 
+        geom_vline(xintercept = prediction_time, linetype = "solid", color = "brown", size = 1) + 
         geom_hline(yintercept = c(0, scale_prob/5, scale_prob/5*2, scale_prob/5*3, 
                                   scale_prob/5*4, scale_prob), 
                    linetype = "dotted", color = "pink", size = 1.2) +
@@ -298,10 +298,10 @@ predictPlot = function(data.predict.all.one, long_fit_all, survival_fit_all,
               panel.background = element_blank(),
               plot.background = element_blank()) 
       
-    }else if (length(survival_fit_all$formConditionalCR) != 0 & !is.null(bio_pred) & is.null(density)){
+    }else if (length(survival_fit_all$form_conditional_cr) != 0 & !is.null(bio_pred) & is.null(density)){
       ## with competing risks, with longitudinal biomarker information without density plots
       
-      DP_data = data.frame(time = prediction.time + horizon, 
+      DP_data = data.frame(time = prediction_time + horizon, 
                            probType1 = risk.prob.1, 
                            probType2 = risk.prob.2,
                            predMode = Y_predict_mode,
@@ -336,7 +336,7 @@ predictPlot = function(data.predict.all.one, long_fit_all, survival_fit_all,
         scale_y_continuous(sec.axis = sec_axis(~./scale_prob, name="Risk Probabilities")) + 
         ylab("Longitudinal biomarker") + xlab("Follow-up time") +   
         scale_x_continuous(breaks = seq(0, 15, 1))  +
-        geom_vline(xintercept = prediction.time, linetype = "solid", color = "brown", size = 1) + 
+        geom_vline(xintercept = prediction_time, linetype = "solid", color = "brown", size = 1) + 
         geom_hline(yintercept = c(0, scale_prob/5, scale_prob/5*2, scale_prob/5*3, 
                                   scale_prob/5*4, scale_prob), 
                    linetype = "dotted", color = "pink", size = 1.2) +
@@ -346,10 +346,10 @@ predictPlot = function(data.predict.all.one, long_fit_all, survival_fit_all,
               panel.background = element_blank(),
               plot.background = element_blank()) 
       
-    }else if (length(survival_fit_all$formConditionalCR) == 0 & is.null(bio_pred) ){
+    }else if (length(survival_fit_all$form_conditional_cr) == 0 & is.null(bio_pred) ){
       ## without competing risks, without longitudinal biomarker information
       
-      DP_data = data.frame(time = prediction.time + horizon, 
+      DP_data = data.frame(time = prediction_time + horizon, 
                            probType1 = risk.prob.1)
       
       dp_plot = ggplot() +
@@ -367,7 +367,7 @@ predictPlot = function(data.predict.all.one, long_fit_all, survival_fit_all,
         scale_y_continuous(sec.axis = sec_axis(~./scale_prob, name="Risk Probabilities")) + 
         ylab("Longitudinal biomarker") + xlab("Follow-up time") +   
         scale_x_continuous(breaks = seq(0, 15, 1))  +
-        geom_vline(xintercept = prediction.time, linetype = "solid", color = "brown", size = 1) + 
+        geom_vline(xintercept = prediction_time, linetype = "solid", color = "brown", size = 1) + 
         geom_hline(yintercept = c(0, scale_prob/5, scale_prob/5*2, scale_prob/5*3, 
                                   scale_prob/5*4, scale_prob), 
                    linetype = "dotted", color = "pink", size = 1.2) +
@@ -378,10 +378,10 @@ predictPlot = function(data.predict.all.one, long_fit_all, survival_fit_all,
               plot.background = element_blank()) 
       
       
-    }else if (length(survival_fit_all$formConditionalCR) == 0 & !is.null(bio_pred) & !is.null(density)){
+    }else if (length(survival_fit_all$form_conditional_cr) == 0 & !is.null(bio_pred) & !is.null(density)){
       ## without competing risks, with longitudinal biomarker information with density plots
       
-      DP_data = data.frame(time = prediction.time + horizon, 
+      DP_data = data.frame(time = prediction_time + horizon, 
                            probType1 = risk.prob.1,
                            predMode = Y_predict_mode,
                            predQuan1 = Y_predict_quantile_1_10,
@@ -433,7 +433,7 @@ predictPlot = function(data.predict.all.one, long_fit_all, survival_fit_all,
         scale_y_continuous(sec.axis = sec_axis(~./scale_prob, name="Risk Probabilities")) + 
         ylab("Longitudinal biomarker") + xlab("Follow-up time") +   
         scale_x_continuous(breaks = seq(0, 15, 1))  +
-        geom_vline(xintercept = prediction.time, linetype = "solid", color = "brown", size = 1) + 
+        geom_vline(xintercept = prediction_time, linetype = "solid", color = "brown", size = 1) + 
         geom_hline(yintercept = c(0, scale_prob/5, scale_prob/5*2, scale_prob/5*3, 
                                   scale_prob/5*4, scale_prob), 
                    linetype = "dotted", color = "pink", size = 1.2) +
@@ -444,10 +444,10 @@ predictPlot = function(data.predict.all.one, long_fit_all, survival_fit_all,
               plot.background = element_blank()) 
       
       
-    }else if (length(survival_fit_all$formConditionalCR) == 0 & !is.null(bio_pred) & is.null(density)){
+    }else if (length(survival_fit_all$form_conditional_cr) == 0 & !is.null(bio_pred) & is.null(density)){
       ## without competing risks, with longitudinal biomarker information without density plots
       
-      DP_data = data.frame(time = prediction.time + horizon, 
+      DP_data = data.frame(time = prediction_time + horizon, 
                            probType1 = risk.prob.1,
                            predMode = Y_predict_mode,
                            predQuan1 = Y_predict_quantile_1_10,
@@ -479,7 +479,7 @@ predictPlot = function(data.predict.all.one, long_fit_all, survival_fit_all,
         scale_y_continuous(sec.axis = sec_axis(~./scale_prob, name="Risk Probabilities")) + 
         ylab("Longitudinal biomarker") + xlab("Follow-up time") +   
         scale_x_continuous(breaks = seq(0, 15, 1))  +
-        geom_vline(xintercept = prediction.time, linetype = "solid", color = "brown", size = 1) + 
+        geom_vline(xintercept = prediction_time, linetype = "solid", color = "brown", size = 1) + 
         geom_hline(yintercept = c(0, scale_prob/5, scale_prob/5*2, scale_prob/5*3, 
                                   scale_prob/5*4, scale_prob), 
                    linetype = "dotted", color = "pink", size = 1.2) +
