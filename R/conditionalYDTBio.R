@@ -75,6 +75,20 @@ conditionalYDTBio = function(Y_all, time_new, bio_i, data_predict_all,
     f_Y_T_D_w0[[Y_i]] = matrix(NA, length(l_i), length(unlist(data.long[[1]][!duplicated(data.long[[1]][num]), ][num])))
   }
   
+  ### Each biomarker's longitudinal model formula (and the variables/outcome
+  ### name derived from it) is fixed for the whole function call -- it does
+  ### not depend on num_i or l_i[it] at all -- so it is derived once here,
+  ### rather than being recomputed inside the patient/l_i loops below (where
+  ### it previously ran length(l_i) times per patient per biomarker).
+  model_formula_all = list()
+  all_variables_all = list()
+  outcome_var_all = list()
+  for(i in 1:n_longitudinal){
+    model_formula_all[[i]] = formula(lfit[[i]])
+    all_variables_all[[i]] = all.vars(model_formula_all[[i]])
+    outcome_var_all[[i]] = as.character(formula(long_fit_all$long_sub_fixed[[i]])[[2]])
+  }
+
   iii = 0
   for(num_i in unlist(data.long[[1]][!duplicated(data.long[[1]][num]), ][num])){
     iii = iii + 1
@@ -93,6 +107,55 @@ conditionalYDTBio = function(Y_all, time_new, bio_i, data_predict_all,
     longitudinal_all_matrix <- build_longitudinal_matrix_bio(data_num_i_list, lfit, bio_i, Y_select_all,
                                                               n_longitudinal, Y_all)
 
+    ### Build a reusable model.frame "template" per biomarker/event-type,
+    ### once per patient, instead of inside the l_i loop below. Only the
+    ### survival_variable/survival_variable_all cells change across l_i --
+    ### everything else about this patient's data (rows, other covariates,
+    ### NA pattern, factor levels/contrasts, including the bio_i extra row
+    ### appended by select_patient_longitudinal_data_bio()) is fixed, so it
+    ### is derived once here (exactly as the original per-l_i model.matrix()
+    ### call would have derived it every time) and then just has those cells
+    ### overwritten in place below. See conditionalYDT.R for the identical
+    ### pattern and its verification.
+    terms_i_list = list()
+    mf_1_list = list()
+    mf_0_list = list()
+    n_expected_1 = integer(n_longitudinal)
+    n_expected_0 = integer(n_longitudinal)
+    for(i in 1:n_longitudinal){
+      data_i_1 = data_num_i_list[[i]]
+      data_i_0 = data_num_i_list[[i]]
+
+      ### placeholder value for the l_i-dependent columns -- overwritten on
+      ### every l_i grid point in the loop below, so its value here is
+      ### irrelevant to the result; it only fixes the template's column type.
+      data_i_1[survival_variable] = l_i[1]
+      data_i_0[survival_variable] = l_i[1]
+      if(length(survival_variable_all) != 0){
+        for(surv_i in 1 : length(survival_variable_all)){
+          data_i_1[survival_variable_all[[surv_i]]] = survival_trans_function[[surv_i]](l_i[1])
+          data_i_0[survival_variable_all[[surv_i]]] = survival_trans_function[[surv_i]](l_i[1])
+        }
+      }
+      data_i_1[event_type_variable] = 1
+      data_i_0[event_type_variable] = 0
+
+      if(!(survival_variable %in% all_variables_all[[i]]))
+        stop("Error: Condition is false. Please add survival variable to linear mixed model.")
+
+      ### NA in nlme outcome (longitudinal biomarkers), replace with 999
+      data_i_1[[outcome_var_all[[i]]]][is.na(data_i_1[[outcome_var_all[[i]]]])] <- 999
+      data_i_0[[outcome_var_all[[i]]]][is.na(data_i_0[[outcome_var_all[[i]]]])] <- 999
+
+      ### terms() (and factor levels/contrasts) derived from this patient's
+      ### own data, exactly as the original per-l_i model.matrix() call did.
+      terms_i_list[[i]] = terms(model_formula_all[[i]], data = data_i_1)
+      mf_1_list[[i]] = model.frame(terms_i_list[[i]], data_i_1)
+      mf_0_list[[i]] = model.frame(terms_i_list[[i]], data_i_0)
+      n_expected_1[i] = nrow(data_i_1)
+      n_expected_0[i] = nrow(data_i_0)
+    }
+
     #### MVN mean function
     Amean_list1 = list()
     Amean_list0 = list()
@@ -103,51 +166,44 @@ conditionalYDTBio = function(Y_all, time_new, bio_i, data_predict_all,
       LME_indi_matrix_1 = list()
       LME_indi_matrix_0 = list()
       for(i in 1:n_longitudinal){
-        model_formula = formula(lfit[[i]]) #lfit[[1]]
-        #terms_model <- terms(model_formula)
-        #variable_names <- attr(terms_model, "term.labels")
-        all_variables <- all.vars(model_formula)
-        
+        terms_i = terms_i_list[[i]]
+
         #survival variable replaced by l_i[it]
-        data_num_i_list[[i]][survival_variable] = l_i[it]
-        
+        if(survival_variable %in% names(mf_1_list[[i]])){
+          mf_1_list[[i]][[survival_variable]] = l_i[it]
+          mf_0_list[[i]][[survival_variable]] = l_i[it]
+        }
+
         #transformed survival variable/basis function of survival variable
         #replaced by trans_function(l_i[it])
         if(length(survival_variable_all) != 0){
           for(surv_i in 1 : length(survival_variable_all)){
-            data_num_i_list[[i]][survival_variable_all[[surv_i]]] = survival_trans_function[[surv_i]](l_i[it])
+            svar = survival_variable_all[[surv_i]]
+            if(svar %in% names(mf_1_list[[i]])){
+              trans_val = survival_trans_function[[surv_i]](l_i[it])
+              mf_1_list[[i]][[svar]] = trans_val
+              mf_0_list[[i]][[svar]] = trans_val
+            }
           }
         }
 
-        #event type indicator replaced by 1/0
-        data_num_i_list_1 = data_num_i_list_0 = data_num_i_list
-        data_num_i_list_1[[i]][event_type_variable] = 1
-        data_num_i_list_0[[i]][event_type_variable] = 0
-        
-        target_covariate = survival_variable 
-        ### if fuyrs exists or not
-        if(target_covariate %in% all_variables != TRUE)
-          stop("Error: Condition is false. Please add survival variable to linear mixed model.")
-        else
-          ### NA in nlme outcome (longitudinal biomarkers), replace with 999
-          data_num_i_list_1[[i]][as.character(formula(long_fit_all$long_sub_fixed[[i]])[[2]])][is.na(data_num_i_list_1[[i]][as.character(formula(long_fit_all$long_sub_fixed[[i]])[[2]])])] <- 999
-          data_num_i_list_0[[i]][as.character(formula(long_fit_all$long_sub_fixed[[i]])[[2]])][is.na(data_num_i_list_0[[i]][as.character(formula(long_fit_all$long_sub_fixed[[i]])[[2]])])] <- 999
-          
-          ## extract data matrix to calcuate the probability
-          LME_indi_matrix_1[[i]] = t(model.matrix(long_fit_all$long_sub_fixed[[i]], data_num_i_list_1[[i]]))
-          LME_indi_matrix_0[[i]] = t(model.matrix(long_fit_all$long_sub_fixed[[i]], data_num_i_list_0[[i]]))
-        
-          ### data missing when extract the data using model.matrix, 
+        ## extract data matrix to calcuate the probability
+        LME_indi_matrix_1[[i]] = t(model.matrix(terms_i, mf_1_list[[i]]))
+        LME_indi_matrix_0[[i]] = t(model.matrix(terms_i, mf_0_list[[i]]))
+
+          ### data missing when extract the data using model.matrix,
           ### model.matrix will automatic delete the missing data
-         if(dim( LME_indi_matrix_1[[i]] )[2] != dim(data_num_i_list_1[[i]])[1]){
-           LME_indi_matrix_1[[i]] = cbind(LME_indi_matrix_1[[i]], matrix(NA, 
-                dim(LME_indi_matrix_1[[i]] )[1], dim(data_num_i_list_1[[i]])[1] - 
+         if(dim( LME_indi_matrix_1[[i]] )[2] != n_expected_1[i]){
+           LME_indi_matrix_1[[i]] = cbind(LME_indi_matrix_1[[i]], matrix(NA,
+                dim(LME_indi_matrix_1[[i]] )[1], n_expected_1[i] -
                   dim( LME_indi_matrix_1[[i]] )[2]))
-           LME_indi_matrix_0[[i]] = cbind(LME_indi_matrix_0[[i]], matrix(NA, 
-                dim(LME_indi_matrix_0[[i]] )[1], dim(data_num_i_list_1[[i]])[1] - 
+         }
+         if(dim( LME_indi_matrix_0[[i]] )[2] != n_expected_0[i]){
+           LME_indi_matrix_0[[i]] = cbind(LME_indi_matrix_0[[i]], matrix(NA,
+                dim(LME_indi_matrix_0[[i]] )[1], n_expected_0[i] -
                   dim( LME_indi_matrix_0[[i]] )[2]))
          }
-           
+
       }
       
       mean_list1 = c()
