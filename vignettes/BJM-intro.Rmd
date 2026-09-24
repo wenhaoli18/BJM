@@ -130,6 +130,18 @@ risk <- dynamicPrediction(
 risk
 ```
 
+`survival_variable_all`/`survival_trans_function` almost always follow the
+same convention shown above: variables named `"Tyears1"`, `"Tyears2"`, ...,
+each the absolute distance from a fixed cut point. `survivalTrans()` builds
+exactly that pair from a plain vector of cut points, so you do not have to
+hand-write two matching parallel lists:
+
+```{r survival-trans-helper}
+trans <- survivalTrans(c(1, 3, 5, 7))
+identical(trans$survival_variable_all, survival_variable_all)
+trans$survival_trans_function[[1]](2)
+```
+
 `risk_prob_1` and `risk_prob_2` are the predicted probabilities of
 experiencing each of the two competing event types within the one-year
 horizon, conditional on the patient's longitudinal history and survival to

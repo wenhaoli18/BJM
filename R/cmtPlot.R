@@ -9,8 +9,9 @@
 #' 
 #' @param data_plot_all A \code{data.frame} that includes the biomarker used for plotting. 
 #' It is utilized to plot conditional mean trajectories (CMT).
-#' @param condi_time2event Conditional event time, indicating that all patients should 
-#' have events at this time in the plot
+#' @param condi_time2event Conditional event time, indicating that all patients should
+#' have events at this time in the plot. If \code{NULL}, it defaults to the midpoint
+#' of the observed range of \code{time_variable} in \code{data_plot_all}.
 #' @param event_type_variable Competing risks variable indicator name. Set to NULL if 
 #' there are no competing risks.
 #' @param event_type A vector containing the names of all event types.
@@ -64,15 +65,18 @@ cmtPlot = function(data_plot_all, condi_time2event, event_type_variable, event_t
   assert_string(bio_variable, "bio_variable")
   assert_string(time_variable, "time_variable")
   assert_string(survival_variable, "survival_variable")
-  assert_vars_in_data(c(bio_variable, time_variable, survival_variable), data_plot_all,
-                       "bio_variable/time_variable/survival_variable", "data_plot_all")
+  assert_string(id_variable, "id_variable")
+  assert_vars_in_data(c(bio_variable, time_variable, survival_variable, id_variable), data_plot_all,
+                       "bio_variable/time_variable/survival_variable/id_variable", "data_plot_all")
   if (!is.null(event_type_variable)) {
     assert_string(event_type_variable, "event_type_variable")
     if (length(event_type) < 2) {
       stop("`event_type` must have at least 2 elements (one per competing event type) when `event_type_variable` is supplied.", call. = FALSE)
     }
   }
-  assert_scalar_numeric(condi_time2event, "condi_time2event")
+  if (!is.null(condi_time2event)) {
+    assert_scalar_numeric(condi_time2event, "condi_time2event")
+  }
   assert_scalar_numeric(interval_time, "interval_time", positive = TRUE)
 
   ### A sequence of conditional time-to-event times
@@ -81,13 +85,13 @@ cmtPlot = function(data_plot_all, condi_time2event, event_type_variable, event_t
     condi_time2event_seq = condi_time2event
   }else{
     ### Pick the middel point of the time duration
-    condi_time2event_seq = ceiling(1/2 * min(unlist(plot_data[time_variable])) +  
-                                     1/2 * max(unlist(plot_data[time_variable])))
+    condi_time2event_seq = ceiling(1/2 * min(unlist(data_plot_all[time_variable])) +
+                                     1/2 * max(unlist(data_plot_all[time_variable])))
     ### otherwise generate a sequence automatically
-    #condi_time2event_seq = seq(ceiling(min(unlist(plot_data[time_variable]))), 
-    #                           ceiling(max(unlist(plot_data[time_variable]))), 
+    #condi_time2event_seq = seq(ceiling(min(unlist(plot_data[time_variable]))),
+    #                           ceiling(max(unlist(plot_data[time_variable]))),
     #                           by = interval_time_1 )[-1]
-  } 
+  }
   
   if(!is.null(event_type_variable)){
   ### with competing risks
@@ -104,7 +108,7 @@ cmtPlot = function(data_plot_all, condi_time2event, event_type_variable, event_t
     ### sample data who has events in the interval of [event_year - 1, event_year] 
     plot_data_event_year = plot_data[plot_data[survival_variable] <= event_year & 
                                      plot_data[survival_variable] >= event_year - 1,]
-    event1_number[event_year_i] = dim(plot_data_event_year[!duplicated(plot_data_event_year$id_variable), ])[1]
+    event1_number[event_year_i] = dim(plot_data_event_year[!duplicated(plot_data_event_year[[id_variable]]), ])[1]
     if(dim(plot_data_event_year)[1] == 0) {
       ### if no data in plot_data_event_year, use previous event year
       cluster_event_value[[event_year_i]] = cluster_event_value[[event_year_i - 1]]
@@ -143,7 +147,7 @@ cmtPlot = function(data_plot_all, condi_time2event, event_type_variable, event_t
     ### sample data who has events in the interval of [event_year - 1, event_year] 
     plot_data_event_year = plot_data[plot_data[survival_variable] <= event_year & 
                                        plot_data[survival_variable] >= event_year - 1,]
-    event2_number[event_year_i] = dim(plot_data_event_year[!duplicated(plot_data_event_year$id_variable), ])[1]
+    event2_number[event_year_i] = dim(plot_data_event_year[!duplicated(plot_data_event_year[[id_variable]]), ])[1]
     if(dim(plot_data_event_year)[1] == 0) {
       ### if no data in plot_data_event_year, use previous event year
       cluster_event_value[[event_year_i]] = cluster_event_value[[event_year_i - 1]]
@@ -206,7 +210,7 @@ cmtPlot = function(data_plot_all, condi_time2event, event_type_variable, event_t
       ### sample data who has events in the interval of [event_year - 1, event_year] 
       plot_data_event_year = plot_data[plot_data[survival_variable] <= event_year & 
                                          plot_data[survival_variable] >= event_year - 1,]
-      event1_number[event_year_i] = dim(plot_data_event_year[!duplicated(plot_data_event_year$id_variable), ])[1]
+      event1_number[event_year_i] = dim(plot_data_event_year[!duplicated(plot_data_event_year[[id_variable]]), ])[1]
       if(dim(plot_data_event_year)[1] == 0) {
         ### if no data in plot_data_event_year, use previous event year
         cluster_event_value[[event_year_i]] = cluster_event_value[[event_year_i - 1]]

@@ -19,7 +19,16 @@ riskPlot(
 )
 }
 \arguments{
-\item{data_predict_all_pre}{This involves a collection of \code{data.frame} objects for}
+\item{data_predict_all_pre}{This involves a collection of \code{data.frame} objects for
+dynamic prediction, each corresponding to a distinct longitudinal outcome. These data
+frames should contain the variables specified in \code{long_sub_fixed} and
+\code{long_sub_random}. Utilizing a list structure allows for the incorporation of
+multiple longitudinal outcomes, each potentially following different measurement
+protocols. In instances where all longitudinal outcomes are recorded at identical time
+points across patients, a singular \code{data.frame} object may be used in a \code{list}.
+Alternatively, a single bare \code{data.frame} (not wrapped in a list) may be supplied
+directly; it is then reused for every longitudinal outcome. It is presumed that each
+data frame is structured in a long format.}
 
 \item{long_fit_all}{Outputs from the model fitting process using the \code{nlme} package,
 encompassing the results and parameters obtained from the analysis.}
