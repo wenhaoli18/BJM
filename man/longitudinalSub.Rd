@@ -53,6 +53,13 @@ outcome, each obtained via \code{\link[nlme]{lme}}.}
 in the multivariate linear mixed model.}
 \item{long_sub_fixed}{The \code{long_sub_fixed} argument, as supplied.}
 \item{long_sub_random}{The \code{long_sub_random} argument, as supplied.}
+\item{xlevels}{A list, one element per longitudinal outcome, of the
+factor levels observed in the full training data for that outcome.
+Used internally at prediction time so that \code{poly()}/
+\code{splines::ns()}/\code{splines::bs()}/\code{factor()} terms in
+\code{long_sub_fixed} reuse the basis/contrasts fit at training time
+instead of recomputing one from a small, patient-specific slice of
+data.}
 }
 }
 \description{

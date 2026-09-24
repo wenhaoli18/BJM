@@ -94,7 +94,11 @@ conditionalYT = function(data_predict_all, long_fit_all, l_i, survival_variable,
       #interaction_orders = list()
       for(i in 1:n_longitudinal){
         model_formula = formula(lfit[[i]]) #lfit[[1]]
-        terms_model <- terms(model_formula)
+        ### terms cached from the fit on the *full* training data, not
+        ### re-derived from this patient's own small slice -- see
+        ### conditionalYDT.R for why this matters for poly()/
+        ### splines::ns()/splines::bs()/factor() terms.
+        terms_model <- lfit[[i]]$terms
         variable_names <- attr(terms_model, "term.labels")
         all_variables <- all.vars(model_formula)
         
@@ -105,7 +109,7 @@ conditionalYT = function(data_predict_all, long_fit_all, l_i, survival_variable,
         #replaced by trans_function(l_i[it])
         if(length(survival_variable_all) != 0){
           for(surv_i in 1 : length(survival_variable_all)){
-            data_num_i_list[[i]][survival_variable_all[[surv_i]]] = survival_trans_function[[surv_i]](l_i[it])
+            data_num_i_list[[i]][survival_variable_all[[surv_i]]] = apply_survival_trans(survival_trans_function[[surv_i]], l_i[it], surv_i)
           }
         }
 
@@ -117,7 +121,9 @@ conditionalYT = function(data_predict_all, long_fit_all, l_i, survival_variable,
           
           ### NA in nlme outcome (longitudinal biomarkers), replace with 999
           data_num_i_list[[i]][as.character(formula(long_fit_all$long_sub_fixed[[i]])[[2]])][is.na(data_num_i_list[[i]][as.character(formula(long_fit_all$long_sub_fixed[[i]])[[2]])])] <- 999
-          LME_indi_matrix[[i]] = t(model.matrix(long_fit_all$long_sub_fixed[[i]], data_num_i_list[[i]]))
+          xlev_i = if (!is.null(long_fit_all$xlevels)) long_fit_all$xlevels[[i]] else NULL
+          mf_i = model.frame(terms_model, data_num_i_list[[i]], xlev = xlev_i)
+          LME_indi_matrix[[i]] = t(model.matrix(terms_model, mf_i, contrasts.arg = lfit[[i]]$contrasts))
          if(dim( LME_indi_matrix[[i]] )[2] != dim(data_num_i_list[[i]])[1]){
            LME_indi_matrix[[i]] = cbind(LME_indi_matrix[[i]], matrix(NA, 
                 dim(LME_indi_matrix[[i]] )[1], dim(data_num_i_list[[i]])[1] - dim( LME_indi_matrix[[i]] )[2]))

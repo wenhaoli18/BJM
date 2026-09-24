@@ -108,17 +108,27 @@ conditionalYDT = function(data_predict_all, long_fit_all, survival_fit_all,
     ### once per patient, instead of inside the l_i loop below. Only the
     ### survival_variable/survival_variable_all cells change across l_i --
     ### everything else about this patient's data (rows, other covariates,
-    ### NA pattern, factor levels/contrasts) is fixed, so it is derived once
-    ### here (exactly as the original per-l_i model.matrix() call would have
-    ### derived it every time) and then just has those cells overwritten
-    ### in place below. This is what makes model.matrix(terms_i, mf) below
-    ### cheap: since mf already carries a "terms" attribute, model.matrix()
-    ### skips re-running model.frame()/terms() from scratch -- which is what
-    ### dominated profiling time here, especially with large l_i grids (i.e.
-    ### large bandcount1/bandcount2, see checkBandcountConvergence()).
-    ### Verified to reproduce the original fresh-model.matrix()-every-l_i
-    ### result exactly (including NA-driven row-dropping), not an
-    ### approximation of it.
+    ### NA pattern) is fixed, so it is derived once here and then just has
+    ### those cells overwritten in place below. This is also what makes
+    ### model.matrix(terms_i, mf) below cheap: since mf already carries a
+    ### "terms" attribute, model.matrix() skips re-running model.frame()/
+    ### terms() from scratch -- which is what dominated profiling time here,
+    ### especially with large l_i grids (i.e. large bandcount1/bandcount2,
+    ### see checkBandcountConvergence()).
+    ###
+    ### terms_i is `lfit[[i]]$terms`, the terms object saved by
+    ### longitudinalSub() when the model was fit on the *full* training
+    ### data -- not re-derived from this patient's own (small) data. For
+    ### ordinary terms this makes no difference, but poly()/splines::ns()/
+    ### splines::bs() embed their basis parameters (knots, centering) in the
+    ### terms object's `predvars` attribute, and factor() needs the full set
+    ### of observed levels; re-deriving terms() from a small per-patient
+    ### slice would silently recompute a different (wrong) basis, or error
+    ### outright with too few distinct values/levels. Reusing the cached
+    ### terms/xlevels/contrasts from the fit, via model.frame(..., xlev=)
+    ### and model.matrix(..., contrasts.arg=), makes model.matrix() build
+    ### exactly the design matrix the model was fit with, matching
+    ### predict.lme()'s own approach.
     terms_i_list = list()
     mf_1_list = list()
     mf_0_list = list()
@@ -135,8 +145,8 @@ conditionalYDT = function(data_predict_all, long_fit_all, survival_fit_all,
       data_i_0[survival_variable] = l_i[1]
       if(length(survival_variable_all) != 0){
         for(surv_i in 1 : length(survival_variable_all)){
-          data_i_1[survival_variable_all[[surv_i]]] = survival_trans_function[[surv_i]](l_i[1])
-          data_i_0[survival_variable_all[[surv_i]]] = survival_trans_function[[surv_i]](l_i[1])
+          data_i_1[survival_variable_all[[surv_i]]] = apply_survival_trans(survival_trans_function[[surv_i]], l_i[1], surv_i)
+          data_i_0[survival_variable_all[[surv_i]]] = apply_survival_trans(survival_trans_function[[surv_i]], l_i[1], surv_i)
         }
       }
       data_i_1[event_type_variable] = 1
@@ -149,11 +159,12 @@ conditionalYDT = function(data_predict_all, long_fit_all, survival_fit_all,
       data_i_1[[outcome_var_all[[i]]]][is.na(data_i_1[[outcome_var_all[[i]]]])] <- 999
       data_i_0[[outcome_var_all[[i]]]][is.na(data_i_0[[outcome_var_all[[i]]]])] <- 999
 
-      ### terms() (and factor levels/contrasts) derived from this patient's
-      ### own data, exactly as the original per-l_i model.matrix() call did.
-      terms_i_list[[i]] = terms(model_formula_all[[i]], data = data_i_1)
-      mf_1_list[[i]] = model.frame(terms_i_list[[i]], data_i_1)
-      mf_0_list[[i]] = model.frame(terms_i_list[[i]], data_i_0)
+      ### terms/xlevels/contrasts cached from the fit (see comment above),
+      ### not re-derived from this patient's own small slice of data.
+      terms_i_list[[i]] = lfit[[i]]$terms
+      xlev_i = if (!is.null(long_fit_all$xlevels)) long_fit_all$xlevels[[i]] else NULL
+      mf_1_list[[i]] = model.frame(terms_i_list[[i]], data_i_1, xlev = xlev_i)
+      mf_0_list[[i]] = model.frame(terms_i_list[[i]], data_i_0, xlev = xlev_i)
       n_expected_1[i] = nrow(data_i_1)
       n_expected_0[i] = nrow(data_i_0)
     }
@@ -179,7 +190,7 @@ conditionalYDT = function(data_predict_all, long_fit_all, survival_fit_all,
           for(surv_i in 1 : length(survival_variable_all)){
             svar = survival_variable_all[[surv_i]]
             if(svar %in% names(mf_1_list[[i]])){
-              trans_val = survival_trans_function[[surv_i]](l_i[it])
+              trans_val = apply_survival_trans(survival_trans_function[[surv_i]], l_i[it], surv_i)
               mf_1_list[[i]][[svar]] = trans_val
               mf_0_list[[i]][[svar]] = trans_val
             }
@@ -187,8 +198,8 @@ conditionalYDT = function(data_predict_all, long_fit_all, survival_fit_all,
         }
 
         ## extract data matrix to calcuate the probability
-        LME_indi_matrix_1[[i]] = t(model.matrix(terms_i, mf_1_list[[i]]))
-        LME_indi_matrix_0[[i]] = t(model.matrix(terms_i, mf_0_list[[i]]))
+        LME_indi_matrix_1[[i]] = t(model.matrix(terms_i, mf_1_list[[i]], contrasts.arg = lfit[[i]]$contrasts))
+        LME_indi_matrix_0[[i]] = t(model.matrix(terms_i, mf_0_list[[i]], contrasts.arg = lfit[[i]]$contrasts))
 
           ### data missing when extrat the data using model.matrix,
           ### model.matrix will automatic delete the missing data

@@ -3,7 +3,7 @@
 #'   scale_y_continuous scale_x_continuous sec_axis guide_legend
 #'   ylab xlab theme_bw theme element_blank
 #' @importFrom stats binomial formula glm lm model.frame model.matrix
-#'   model.response na.omit predict terms
+#'   model.response na.omit predict terms .getXlevels
 #' @importFrom survival coxph basehaz Surv strata
 #' @importFrom nlme lme lmeControl splitFormula getVarCov fixef
 #' @importFrom Matrix bdiag
