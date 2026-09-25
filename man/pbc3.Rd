@@ -5,7 +5,7 @@
 \alias{pbc3}
 \title{Mayo Clinic primary biliary cirrhosis data used as example code}
 \format{
-A data frame with 1945 observations on the following 20 variables:
+A data frame with 1945 observations on the following 27 variables:
 \describe{
 
 \item{\code{id}}{patients identifier; in total there are 312 patients.}
@@ -80,7 +80,7 @@ Used for competing risks with censored.}
 \code{\link[survival]{pbc}}.
 }
 \usage{
-data(pbc2)
+data(pbc3)
 }
 \description{
 The dataset originates from the Mayo Clinic trial on

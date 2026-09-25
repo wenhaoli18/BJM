@@ -9,8 +9,8 @@
 #' Thus, the dataset specifically pertains to these 312 patients, 
 #' for whom the data is largely complete.
 #'
-#' @usage data(pbc2)
-#' @format A data frame with 1945 observations on the following 20 variables:
+#' @usage data(pbc3)
+#' @format A data frame with 1945 observations on the following 27 variables:
 #'   \describe{
 #'
 #'   \item{\code{id}}{patients identifier; in total there are 312 patients.}
