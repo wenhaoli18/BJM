@@ -26,6 +26,14 @@
   | `LongSubFixed` | `long_sub_fixed` |
   | `LongSubRandom` | `long_sub_random` |
 
+* Removed the `pbc2` example dataset. It was never referenced by any
+  exported function, vignette, or test, and `pbc3` -- the dataset
+  actually used throughout the package's examples and tests -- is not
+  a duplicate of it (`pbc3` recodes `sex`, log-transforms several
+  biomarkers, and adds the competing-risk/transformed-time columns
+  `status3`, `status4`, `status5`, and `Tyears1`-`Tyears4`). Code that
+  called `data(pbc2)` should switch to `data(pbc3)` and account for
+  these differences.
 * Removed the exported `print_survivalSub()`, `print_longitudinalSub()`,
   `print_dynamicPrediction()`, and `print_dynamicPredictionBio()`
   functions. Each only forwarded to the corresponding S3 `print.*.BJM`
@@ -131,6 +139,16 @@
 
 ## Internal changes
 
+* `longitudinalSub()`'s documentation now includes a worked
+  `poly()`/`splines::ns()`/`factor()` example, matched by an equivalent
+  example in the package's example scripts, showing that the warning
+  described above is a prompt to double-check the fitted basis, not a
+  sign that predictions from these terms are wrong.
+* Fixed `pbc3`'s documentation, which had copied `@usage`/`@format`
+  tags from `pbc2` (`data(pbc2)`, "20 variables") instead of describing
+  `pbc3` itself (`data(pbc3)`, 27 variables); the variable-by-variable
+  `\describe` list was unaffected and already documented all 27 `pbc3`
+  columns correctly.
 * Added a `tests/testthat` suite, including golden-master
   characterization tests captured from the package's own `pbc3`
   example data, covering both the competing-risk and

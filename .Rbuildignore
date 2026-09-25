@@ -1,0 +1,6 @@
+^_pkgdown\.yml$
+^pkgdown$
+^doc$
+^Meta$
+^cran-comments\.md$
+^\.github$
