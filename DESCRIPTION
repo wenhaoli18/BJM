@@ -19,7 +19,4 @@ Config/testthat/edition: 3
 VignetteBuilder: knitr
 Author: Wenhao Li [aut, cre],
   Liang Li [aut]
-Repository: CRAN
-Date/Publication: 2026-6-28 09:50:02 UTC
 NeedsCompilation: no
-Packaged: 2026-06-28 22:27:06 UTC; wenhaoli
