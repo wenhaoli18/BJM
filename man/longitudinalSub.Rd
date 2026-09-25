@@ -110,6 +110,16 @@ for(i in seq_len(length(long_sub_fixed))){
 # fitting longitudinal submodel
 long_fit_all = longitudinalSub(data_fit_all, long_sub_fixed, long_sub_random)
 
+# poly() in its default orthogonal mode, splines::ns()/bs(), and
+# factor() trigger a warning (see the long_sub_fixed argument above),
+# but are still safe to use: the terms/xlevels/contrasts fit on the
+# full training data are cached and reused at prediction time, instead
+# of being recomputed from each patient's small per-prediction slice.
+long_fit_poly = longitudinalSub(
+  pbc3[pbc3$status3 == 1, ],
+  serBilir ~ year + poly(age, 2) + factor(sex) + years,
+  ~ year | id)
+
 }
 
 }
