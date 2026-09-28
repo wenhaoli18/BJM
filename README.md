@@ -1,6 +1,7 @@
 # BJM
 
 <!-- badges: start -->
+[![pkgdown](https://img.shields.io/badge/docs-pkgdown-blue.svg)](https://wenhaoli18.github.io/BJM/)
 <!-- badges: end -->
 
 BJM fits a *backward joint model* of multivariate longitudinal outcomes
