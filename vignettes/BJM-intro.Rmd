@@ -128,7 +128,8 @@ requires the optional `torch` package (listed in `Suggests`, not
 `Imports`), so the rest of this section only runs if `torch` is installed.
 
 ```{r impute-check}
-torch_available <- requireNamespace("torch", quietly = TRUE)
+torch_available <- requireNamespace("torch", quietly = TRUE) &&
+  isTRUE(tryCatch(torch::torch_is_installed(), error = function(e) FALSE))
 torch_available
 ```
 
