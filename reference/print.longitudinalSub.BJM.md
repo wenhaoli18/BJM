@@ -14,7 +14,7 @@ print(x, digits = 4, ...)
 - x:
 
   A `longitudinalSub.BJM` object returned by
-  [`longitudinalSub`](https://liwh0904.github.io/BJM/reference/longitudinalSub.md).
+  [`longitudinalSub`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md).
 
 - digits:
 

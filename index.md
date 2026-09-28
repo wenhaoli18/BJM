@@ -98,14 +98,15 @@ for you instead of hand-writing two matching lists. And every
 — instead of a repeated list, when all biomarkers share the same
 measurement data.
 
-[`predictPlot()`](https://liwh0904.github.io/BJM/reference/predictPlot.md)
-and [`riskPlot()`](https://liwh0904.github.io/BJM/reference/riskPlot.md)
+[`predictPlot()`](https://wenhaoli18.github.io/BJM/reference/predictPlot.md)
+and
+[`riskPlot()`](https://wenhaoli18.github.io/BJM/reference/riskPlot.md)
 visualize these predictions for a single patient;
-[`cmtPlot()`](https://liwh0904.github.io/BJM/reference/cmtPlot.md) plots
-observed longitudinal trajectories stratified by eventual outcome.
+[`cmtPlot()`](https://wenhaoli18.github.io/BJM/reference/cmtPlot.md)
+plots observed longitudinal trajectories stratified by eventual outcome.
 
 For the full walkthrough — including how to choose the `bandcount1`/
 `bandcount2`/`bandcount3` numerical-integration tuning parameters via a
 convergence check, and what the input-validation error messages look
 like — see
-[`vignette("BJM-intro", package = "BJM")`](https://liwh0904.github.io/BJM/articles/BJM-intro.md).
+[`vignette("BJM-intro", package = "BJM")`](https://wenhaoli18.github.io/BJM/articles/BJM-intro.md).

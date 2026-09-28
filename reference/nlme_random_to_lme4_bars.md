@@ -1,12 +1,12 @@
 # Convert an nlme-style random-effects formula to an lme4-style bar term
 
-[`longitudinalSub()`](https://liwh0904.github.io/BJM/reference/longitudinalSub.md)'s
+[`longitudinalSub()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md)'s
 `long_sub_random` argument uses
 [`nlme::lme()`](https://rdrr.io/pkg/nlme/man/lme.html)'s
 `~ terms | group` formula convention.
 [`ordinal::clmm()`](https://rdrr.io/pkg/ordinal/man/clmm.html) (used to
 fit the marginal model for a categorical/ ordinal biomarker – see
-[`fit_marginal_ordinal()`](https://liwh0904.github.io/BJM/reference/fit_marginal_ordinal.md))
+[`fit_marginal_ordinal()`](https://wenhaoli18.github.io/BJM/reference/fit_marginal_ordinal.md))
 instead expects random effects written as an `lme4`-style
 `(terms | group)` bar term embedded directly in the model formula. This
 helper translates one into the other so that the exact same

@@ -1,9 +1,9 @@
 # Fit the survival sub-model
 
 Fits the survival building block used by
-[`predictRisk`](https://liwh0904.github.io/BJM/reference/predictRisk.md)
+[`predictRisk`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md)
 and
-[`dynamicPredictionBio`](https://liwh0904.github.io/BJM/reference/dynamicPredictionBio.md):
+[`dynamicPredictionBio`](https://wenhaoli18.github.io/BJM/reference/dynamicPredictionBio.md):
 a marginal Cox proportional-hazards model (via
 [`coxph`](https://rdrr.io/pkg/survival/man/coxph.html), with
 `x = TRUE, y = TRUE` so the fit is self-contained for later prediction)
@@ -14,7 +14,7 @@ given `form_conditional_cr`. The competing-risks model is fit only among
 subjects who experienced an event (i.e. whose censoring indicator is
 non-zero), predicting which type of event occurred conditional on an
 event having occurred. Together with
-[`longitudinalSub`](https://liwh0904.github.io/BJM/reference/longitudinalSub.md),
+[`longitudinalSub`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md),
 the object returned here forms the pair of sub-models that dynamic
 prediction is built on.
 

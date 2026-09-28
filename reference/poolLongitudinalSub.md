@@ -1,12 +1,12 @@
 # Pool longitudinal sub-model fits across multiple imputations with Rubin's rules
 
 When
-[`imputeLongitudinal`](https://liwh0904.github.io/BJM/reference/imputeLongitudinal.md)
+[`imputeLongitudinal`](https://wenhaoli18.github.io/BJM/reference/imputeLongitudinal.md)
 is run with `impute = "multiple"`, it returns `n_imputations`
 independently completed versions of `data_fit_all` in
 `data_fit_all_list`, instead of a single completed dataset filled with
 the across-draw mean (`impute = "single"`). Fitting
-[`longitudinalSub`](https://liwh0904.github.io/BJM/reference/longitudinalSub.md)
+[`longitudinalSub`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md)
 once per completion and combining the resulting fixed-effect estimates
 with Rubin's rules (Rubin, 1987) – rather than averaging into one
 completed dataset up front – is the standard way multiple imputation
@@ -28,7 +28,7 @@ poolLongitudinalSub(long_fit_all_list)
 
   A list of two or more `longitudinalSub.BJM` objects: the result of
   calling
-  [`longitudinalSub`](https://liwh0904.github.io/BJM/reference/longitudinalSub.md)
+  [`longitudinalSub`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md)
   once on each completed dataset in
   `imputeLongitudinal(..., impute = "multiple")$data_fit_all_list`,
   using the same `long_sub_fixed`/ `long_sub_random` for every

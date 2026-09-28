@@ -1,7 +1,7 @@
 # Sinusoidal diffusion-timestep embedding
 
 Internal helper for
-[`imputeLongitudinal`](https://liwh0904.github.io/BJM/reference/imputeLongitudinal.md)'s
+[`imputeLongitudinal`](https://wenhaoli18.github.io/BJM/reference/imputeLongitudinal.md)'s
 `method = "diffusion"` backend: the standard Transformer/DDPM sinusoidal
 position embedding, applied to a (possibly per-row-varying) integer
 timestep instead of a sequence position. The frequency basis is computed

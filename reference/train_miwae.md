@@ -1,7 +1,7 @@
 # Train the MIWAE network with a full-batch importance-weighted ELBO
 
 Internal helper for
-[`imputeLongitudinal`](https://liwh0904.github.io/BJM/reference/imputeLongitudinal.md).
+[`imputeLongitudinal`](https://wenhaoli18.github.io/BJM/reference/imputeLongitudinal.md).
 
 ## Usage
 

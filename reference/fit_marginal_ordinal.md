@@ -4,9 +4,9 @@ Fits a cumulative link mixed model (probit link) via
 [`ordinal::clmm()`](https://rdrr.io/pkg/ordinal/man/clmm.html), used as
 the marginal model for a categorical biomarker in the Gaussian-copula
 extension of
-[`longitudinalSub()`](https://liwh0904.github.io/BJM/reference/longitudinalSub.md)
+[`longitudinalSub()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md)
 (see
-[`longitudinalSubCopula()`](https://liwh0904.github.io/BJM/reference/longitudinalSubCopula.md)).
+[`longitudinalSubCopula()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSubCopula.md)).
 The probit link is used specifically (rather than the more common logit)
 because it integrates directly with the latent-Gaussian-score
 representation the copula extension relies on: the underlying continuous
@@ -21,7 +21,7 @@ biomarker's marginal model separately first (here, exactly as
 [`nlme::lme()`](https://rdrr.io/pkg/nlme/man/lme.html) does for
 continuous biomarkers), then re-estimate the joint random-effects
 covariance across all biomarkers afterwards (see
-[`longitudinalSubVarCopula()`](https://liwh0904.github.io/BJM/reference/longitudinalSubVarCopula.md)).
+[`longitudinalSubVarCopula()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSubVarCopula.md)).
 
 ## Usage
 

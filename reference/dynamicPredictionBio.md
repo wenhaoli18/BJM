@@ -1,27 +1,27 @@
 # Predict a future biomarker value from fitted sub-models, for a single biomarker
 
 **Internal single-biomarker engine** behind
-[`predictLongitudinal`](https://liwh0904.github.io/BJM/reference/predictLongitudinal.md)
+[`predictLongitudinal`](https://wenhaoli18.github.io/BJM/reference/predictLongitudinal.md)
 – call
-[`predictLongitudinal()`](https://liwh0904.github.io/BJM/reference/predictLongitudinal.md)
+[`predictLongitudinal()`](https://wenhaoli18.github.io/BJM/reference/predictLongitudinal.md)
 directly instead (it dispatches here automatically when `bio_i` names
 exactly one biomarker, and to
-[`dynamicPredictionBioAll`](https://liwh0904.github.io/BJM/reference/dynamicPredictionBioAll.md)
+[`dynamicPredictionBioAll`](https://wenhaoli18.github.io/BJM/reference/dynamicPredictionBioAll.md)
 otherwise). Kept as a separate internal function – rather than folded
 into
-[`predictLongitudinal()`](https://liwh0904.github.io/BJM/reference/predictLongitudinal.md)
+[`predictLongitudinal()`](https://wenhaoli18.github.io/BJM/reference/predictLongitudinal.md)
 – because
-[`predictPlot`](https://liwh0904.github.io/BJM/reference/predictPlot.md)
+[`predictPlot`](https://wenhaoli18.github.io/BJM/reference/predictPlot.md)
 and
-[`checkBandcountConvergence`](https://liwh0904.github.io/BJM/reference/checkBandcountConvergence.md)
+[`checkBandcountConvergence`](https://wenhaoli18.github.io/BJM/reference/checkBandcountConvergence.md)
 also call it directly for a single biomarker at a time.
 
 Companion to
-[`predictRisk`](https://liwh0904.github.io/BJM/reference/predictRisk.md),
+[`predictRisk`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md),
 using the same fitted longitudinal
-([`longitudinalSub`](https://liwh0904.github.io/BJM/reference/longitudinalSub.md))
+([`longitudinalSub`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md))
 and survival
-([`survivalSub`](https://liwh0904.github.io/BJM/reference/survivalSub.md))
+([`survivalSub`](https://wenhaoli18.github.io/BJM/reference/survivalSub.md))
 sub-models, but instead of an event-risk probability this returns a
 predictive density for a future value of one chosen biomarker (`bio_i`)
 at `prediction_time + horizon`, conditional on the subject's observed
@@ -32,14 +32,14 @@ predictive distribution against the survival sub-model's hazard, using
 the subject's empirical-Bayes random-effects update from their observed
 history; its mode (`Y_predict`) is reported as the point prediction. As
 in
-[`predictRisk`](https://liwh0904.github.io/BJM/reference/predictRisk.md),
+[`predictRisk`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md),
 the survival-side integrals are evaluated on numerical grids controlled
 by `bandcount2`, and the density itself is evaluated on a grid
 controlled by `bandcount3`; see Details.
 
 `bio_i` may refer to either a **continuous** or an **ordinal** biomarker
 (see
-[`longitudinalSubCopula`](https://liwh0904.github.io/BJM/reference/longitudinalSubCopula.md));
+[`longitudinalSubCopula`](https://wenhaoli18.github.io/BJM/reference/longitudinalSubCopula.md));
 for an ordinal `bio_i`, `Y_all` and `Y_predict` hold integer *category
 codes* (`1:K`, in the fitted factor's
 [`levels()`](https://rdrr.io/r/base/levels.html)/threshold order) rather
@@ -187,10 +187,10 @@ anyway (not an error), so this never silently loops for an unbounded
 amount of time. Pass an explicit number for either argument to skip
 auto-tuning it and use a fixed value instead (as in previous package
 versions), or call
-[`checkBandcountConvergence()`](https://liwh0904.github.io/BJM/reference/checkBandcountConvergence.md)
+[`checkBandcountConvergence()`](https://wenhaoli18.github.io/BJM/reference/checkBandcountConvergence.md)
 directly for more control over the tolerance and doubling count. See
 also
-[`vignette("BJM-intro", package = "BJM")`](https://liwh0904.github.io/BJM/articles/BJM-intro.md)
+[`vignette("BJM-intro", package = "BJM")`](https://wenhaoli18.github.io/BJM/articles/BJM-intro.md)
 for a worked example.
 
 ## Examples

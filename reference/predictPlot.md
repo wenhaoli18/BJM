@@ -2,14 +2,14 @@
 
 Fixes the landmark time at `prediction_time` and sweeps forward over a
 range of prediction horizons, calling
-[`predictRisk`](https://liwh0904.github.io/BJM/reference/predictRisk.md)
+[`predictRisk`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md)
 (and, when `bio_pred` is supplied,
-[`predictLongitudinal`](https://liwh0904.github.io/BJM/reference/predictLongitudinal.md))
+[`predictLongitudinal`](https://wenhaoli18.github.io/BJM/reference/predictLongitudinal.md))
 at each horizon to trace out how predicted event risk (and, optionally,
 the predicted density/point-forecast of biomarker `bio_pred`) evolves
 the further out the prediction window extends from a single fixed
 landmark. This contrasts with
-[`riskPlot`](https://liwh0904.github.io/BJM/reference/riskPlot.md),
+[`riskPlot`](https://wenhaoli18.github.io/BJM/reference/riskPlot.md),
 which instead fixes the horizon and sweeps over a set of landmark times.
 
 ## Usage
@@ -91,7 +91,7 @@ predictPlot(
   resolves it once, before looping over `horizon` (using the largest
   requested horizon as a representative probe), by doubling from a
   built-in starting value until the predicted risk stabilizes; see
-  [`predictRisk`](https://liwh0904.github.io/BJM/reference/predictRisk.md)'s
+  [`predictRisk`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md)'s
   `bandcount1` for details of that search. The resolved value is then
   reused, fixed, for every point in `horizon` – it is not re-searched on
   every iteration.
@@ -113,12 +113,12 @@ predictPlot(
 
   Pass explicit numbers instead of `"auto"` for full manual control, or
   use
-  [`checkBandcountConvergence()`](https://liwh0904.github.io/BJM/reference/checkBandcountConvergence.md)
+  [`checkBandcountConvergence()`](https://wenhaoli18.github.io/BJM/reference/checkBandcountConvergence.md)
   (applied to
-  [`predictRisk()`](https://liwh0904.github.io/BJM/reference/predictRisk.md)/
-  [`predictLongitudinal()`](https://liwh0904.github.io/BJM/reference/predictLongitudinal.md)
+  [`predictRisk()`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md)/
+  [`predictLongitudinal()`](https://wenhaoli18.github.io/BJM/reference/predictLongitudinal.md)
   directly) to inspect the convergence behavior yourself. See also
-  [`vignette("BJM-intro", package = "BJM")`](https://liwh0904.github.io/BJM/articles/BJM-intro.md)
+  [`vignette("BJM-intro", package = "BJM")`](https://wenhaoli18.github.io/BJM/articles/BJM-intro.md)
   for further guidance on choosing `bandcount1`/`bandcount2`/
   `bandcount3`.
 
@@ -219,7 +219,7 @@ predictPlot(data_predict_all_one, long_fit_all, survival_fit_all,
 #> Warning: Using `size` aesthetic for lines was deprecated in ggplot2 3.4.0.
 #> ℹ Please use `linewidth` instead.
 #> ℹ The deprecated feature was likely used in the BJM package.
-#>   Please report the issue at <https://github.com/liwh0904/BJM/issues>.
+#>   Please report the issue at <https://github.com/wenhaoli18/BJM/issues>.
 
        
 # }

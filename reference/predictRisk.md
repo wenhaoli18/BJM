@@ -1,9 +1,9 @@
 # Dynamic prediction function for future event risk
 
 Combines a fitted longitudinal sub-model
-([`longitudinalSub`](https://liwh0904.github.io/BJM/reference/longitudinalSub.md))
+([`longitudinalSub`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md))
 and survival sub-model
-([`survivalSub`](https://liwh0904.github.io/BJM/reference/survivalSub.md))
+([`survivalSub`](https://wenhaoli18.github.io/BJM/reference/survivalSub.md))
 into a backward joint model prediction: for each at-risk subject at
 `prediction_time`, the subject's observed longitudinal history up to
 that time is used to update their individual random effects (empirical
@@ -136,10 +136,10 @@ at the largest value tried is returned anyway (not an error), so this
 never silently loops for an unbounded amount of time. Pass an explicit
 number for either argument to skip auto-tuning it and use a fixed value
 instead (as in previous package versions), or call
-[`checkBandcountConvergence()`](https://liwh0904.github.io/BJM/reference/checkBandcountConvergence.md)
+[`checkBandcountConvergence()`](https://wenhaoli18.github.io/BJM/reference/checkBandcountConvergence.md)
 directly for more control over the tolerance and doubling count. See
 also
-[`vignette("BJM-intro", package = "BJM")`](https://liwh0904.github.io/BJM/articles/BJM-intro.md)
+[`vignette("BJM-intro", package = "BJM")`](https://wenhaoli18.github.io/BJM/articles/BJM-intro.md)
 for a worked example.
 
 ## Examples

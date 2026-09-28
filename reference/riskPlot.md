@@ -2,7 +2,7 @@
 
 Fixes the prediction horizon and sweeps backward/forward over a set of
 landmark times, calling
-[`predictRisk`](https://liwh0904.github.io/BJM/reference/predictRisk.md)
+[`predictRisk`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md)
 at each landmark in `prediction_time` to trace out how predicted event
 risk over that fixed-length window changes as the landmark moves – i.e.
 as more (or less) of the subject's longitudinal history is used to
@@ -12,12 +12,12 @@ to use directly; a single value, which is expanded to three landmarks
 `NULL`, which uses every observed longitudinal measurement time (across
 subjects, from the first biomarker's data) as a landmark. This contrasts
 with
-[`predictPlot`](https://liwh0904.github.io/BJM/reference/predictPlot.md),
+[`predictPlot`](https://wenhaoli18.github.io/BJM/reference/predictPlot.md),
 which instead fixes the landmark and sweeps over a range of horizons.
 The optional `bio_i` argument only selects which biomarker's observed
 trajectory is overlaid on the plot for visual reference – it does not
 affect the risk computation itself (unlike
-[`predictPlot`](https://liwh0904.github.io/BJM/reference/predictPlot.md)'s
+[`predictPlot`](https://wenhaoli18.github.io/BJM/reference/predictPlot.md)'s
 `bio_pred`, which drives a biomarker density prediction).
 
 ## Usage
@@ -100,7 +100,7 @@ riskPlot(
   resolves it once, before looping over the landmark times, (using the
   first landmark time as a representative probe) by doubling from a
   built-in starting value until the predicted risk stabilizes; see
-  [`predictRisk`](https://liwh0904.github.io/BJM/reference/predictRisk.md)'s
+  [`predictRisk`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md)'s
   `bandcount1` for details of that search. The resolved value is then
   reused, fixed, for every landmark time – it is not re-searched on
   every iteration.
@@ -115,11 +115,11 @@ riskPlot(
 
   Pass explicit numbers instead of `"auto"` for full manual control, or
   use
-  [`checkBandcountConvergence()`](https://liwh0904.github.io/BJM/reference/checkBandcountConvergence.md)
+  [`checkBandcountConvergence()`](https://wenhaoli18.github.io/BJM/reference/checkBandcountConvergence.md)
   (applied to
-  [`predictRisk()`](https://liwh0904.github.io/BJM/reference/predictRisk.md)
+  [`predictRisk()`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md)
   directly) to inspect the convergence behavior yourself. See also
-  [`vignette("BJM-intro", package = "BJM")`](https://liwh0904.github.io/BJM/articles/BJM-intro.md)
+  [`vignette("BJM-intro", package = "BJM")`](https://wenhaoli18.github.io/BJM/articles/BJM-intro.md)
   for further guidance on choosing `bandcount1`/`bandcount2`.
 
 - n_cores:

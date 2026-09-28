@@ -1,28 +1,28 @@
 # Conditional distribution of Y\|T for a mixed continuous/ordinal (Gaussian-copula) joint model, if no competing risk
 
 Copula-aware counterpart to
-[`conditionalYT()`](https://liwh0904.github.io/BJM/reference/conditionalYT.md),
+[`conditionalYT()`](https://wenhaoli18.github.io/BJM/reference/conditionalYT.md),
 used by
-[`predictRisk()`](https://liwh0904.github.io/BJM/reference/predictRisk.md)
+[`predictRisk()`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md)
 whenever `long_fit_all$biomarker_type` contains at least one `"ordinal"`
 biomarker (see
-[`longitudinalSubCopula()`](https://liwh0904.github.io/BJM/reference/longitudinalSubCopula.md)).
+[`longitudinalSubCopula()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSubCopula.md)).
 Continuous biomarkers contribute an exact Gaussian density factor,
 exactly as
-[`conditionalYT()`](https://liwh0904.github.io/BJM/reference/conditionalYT.md)
+[`conditionalYT()`](https://wenhaoli18.github.io/BJM/reference/conditionalYT.md)
 computes for every biomarker; ordinal biomarkers instead contribute a
 Gaussian-copula box probability (via
-[`mixed_density_prob_copula()`](https://liwh0904.github.io/BJM/reference/mixed_density_prob_copula.md)),
+[`mixed_density_prob_copula()`](https://wenhaoli18.github.io/BJM/reference/mixed_density_prob_copula.md)),
 since only the cumulative-link category – not the exact underlying
 latent score – is observed for them. All-continuous fits are unaffected:
 they are still routed to
-[`conditionalYT()`](https://liwh0904.github.io/BJM/reference/conditionalYT.md)
+[`conditionalYT()`](https://wenhaoli18.github.io/BJM/reference/conditionalYT.md)
 by
-[`predictRisk()`](https://liwh0904.github.io/BJM/reference/predictRisk.md),
+[`predictRisk()`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md),
 this function is never called for them, and
-[`mixed_density_prob_copula()`](https://liwh0904.github.io/BJM/reference/mixed_density_prob_copula.md)
+[`mixed_density_prob_copula()`](https://wenhaoli18.github.io/BJM/reference/mixed_density_prob_copula.md)
 reduces to (a constant multiple of)
-[`conditionalYT()`](https://liwh0904.github.io/BJM/reference/conditionalYT.md)'s
+[`conditionalYT()`](https://wenhaoli18.github.io/BJM/reference/conditionalYT.md)'s
 own computation when there are no ordinal markers – see that function's
 documentation.
 

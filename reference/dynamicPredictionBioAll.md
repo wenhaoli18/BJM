@@ -1,25 +1,25 @@
 # Predict multiple future biomarker values from fitted sub-models
 
 **Internal multi-biomarker engine** behind
-[`predictLongitudinal`](https://liwh0904.github.io/BJM/reference/predictLongitudinal.md)
+[`predictLongitudinal`](https://wenhaoli18.github.io/BJM/reference/predictLongitudinal.md)
 – call
-[`predictLongitudinal()`](https://liwh0904.github.io/BJM/reference/predictLongitudinal.md)
+[`predictLongitudinal()`](https://wenhaoli18.github.io/BJM/reference/predictLongitudinal.md)
 directly instead (it dispatches here automatically when `bio_i` names
 more than one biomarker, or is left `NULL`).
 
 Batch counterpart to
-[`dynamicPredictionBio`](https://liwh0904.github.io/BJM/reference/dynamicPredictionBio.md):
+[`dynamicPredictionBio`](https://wenhaoli18.github.io/BJM/reference/dynamicPredictionBio.md):
 predicts every requested biomarker in `bio_i` from the same fitted
 longitudinal/survival sub-models and the same `data_predict_all`, but
 computes the bio_i-**independent** part of the pipeline (restricting to
 at-risk patients, the survival-side integration grid, and the
 denominator conditional density – see
-[`compute_bio_shared_step()`](https://liwh0904.github.io/BJM/reference/compute_bio_shared_step.md))
+[`compute_bio_shared_step()`](https://wenhaoli18.github.io/BJM/reference/compute_bio_shared_step.md))
 only **once** and reuses it across every biomarker, instead of
 recomputing it once per biomarker the way calling
-[`dynamicPredictionBio()`](https://liwh0904.github.io/BJM/reference/dynamicPredictionBio.md)
+[`dynamicPredictionBio()`](https://wenhaoli18.github.io/BJM/reference/dynamicPredictionBio.md)
 in a loop would. This matters most under the Gaussian-copula path (see
-[`longitudinalSubCopula`](https://liwh0904.github.io/BJM/reference/longitudinalSubCopula.md)),
+[`longitudinalSubCopula`](https://wenhaoli18.github.io/BJM/reference/longitudinalSubCopula.md)),
 where that denominator involves
 [`mvtnorm::pmvnorm()`](https://rdrr.io/pkg/mvtnorm/man/pmvnorm.html)
 Monte-Carlo evaluations that are otherwise the dominant cost of a
@@ -31,7 +31,7 @@ auto-tuned separately when left at their default `"auto"`: if
 `bandcount2 = "auto"`, it is resolved **once**, using a single
 representative biomarker (the first one in `bio_i`), via the same
 doubling-until-stable check
-[`dynamicPredictionBio`](https://liwh0904.github.io/BJM/reference/dynamicPredictionBio.md)
+[`dynamicPredictionBio`](https://wenhaoli18.github.io/BJM/reference/dynamicPredictionBio.md)
 uses; the shared step is then built once at that resolved value. If
 `bandcount3 = "auto"`, it is then resolved independently for **every**
 biomarker in `bio_i` (their candidate-value grids need not converge at
@@ -39,10 +39,10 @@ the same resolution), reusing the once-computed shared step for every
 doubling round rather than rebuilding it – except for any **ordinal**
 biomarker, for which `bandcount3` tuning is always skipped (its
 candidate grid is fixed at its category count; see
-[`dynamicPredictionBio`](https://liwh0904.github.io/BJM/reference/dynamicPredictionBio.md))
+[`dynamicPredictionBio`](https://wenhaoli18.github.io/BJM/reference/dynamicPredictionBio.md))
 and `"bandcount3"` is recorded as `NA` for that biomarker. See Details
 in
-[`dynamicPredictionBio`](https://liwh0904.github.io/BJM/reference/dynamicPredictionBio.md)
+[`dynamicPredictionBio`](https://wenhaoli18.github.io/BJM/reference/dynamicPredictionBio.md)
 for the general auto-bandcount rationale.
 
 ## Usage
@@ -69,63 +69,63 @@ dynamicPredictionBioAll(
 
   Integer vector of biomarkers to predict. May include continuous and/or
   ordinal biomarkers (see
-  [`dynamicPredictionBio`](https://liwh0904.github.io/BJM/reference/dynamicPredictionBio.md)).
+  [`dynamicPredictionBio`](https://wenhaoli18.github.io/BJM/reference/dynamicPredictionBio.md)).
   Defaults to `NULL`, meaning every biomarker in `long_fit_all`.
 
 - data_predict_all:
 
   See
-  [`dynamicPredictionBio`](https://liwh0904.github.io/BJM/reference/dynamicPredictionBio.md).
+  [`dynamicPredictionBio`](https://wenhaoli18.github.io/BJM/reference/dynamicPredictionBio.md).
 
 - long_fit_all:
 
   See
-  [`dynamicPredictionBio`](https://liwh0904.github.io/BJM/reference/dynamicPredictionBio.md).
+  [`dynamicPredictionBio`](https://wenhaoli18.github.io/BJM/reference/dynamicPredictionBio.md).
 
 - survival_fit_all:
 
   See
-  [`dynamicPredictionBio`](https://liwh0904.github.io/BJM/reference/dynamicPredictionBio.md).
+  [`dynamicPredictionBio`](https://wenhaoli18.github.io/BJM/reference/dynamicPredictionBio.md).
 
 - prediction_time:
 
   See
-  [`dynamicPredictionBio`](https://liwh0904.github.io/BJM/reference/dynamicPredictionBio.md).
+  [`dynamicPredictionBio`](https://wenhaoli18.github.io/BJM/reference/dynamicPredictionBio.md).
 
 - horizon:
 
   See
-  [`dynamicPredictionBio`](https://liwh0904.github.io/BJM/reference/dynamicPredictionBio.md).
+  [`dynamicPredictionBio`](https://wenhaoli18.github.io/BJM/reference/dynamicPredictionBio.md).
 
 - time_variable:
 
   See
-  [`dynamicPredictionBio`](https://liwh0904.github.io/BJM/reference/dynamicPredictionBio.md).
+  [`dynamicPredictionBio`](https://wenhaoli18.github.io/BJM/reference/dynamicPredictionBio.md).
 
 - survival_variable_all:
 
   See
-  [`dynamicPredictionBio`](https://liwh0904.github.io/BJM/reference/dynamicPredictionBio.md).
+  [`dynamicPredictionBio`](https://wenhaoli18.github.io/BJM/reference/dynamicPredictionBio.md).
 
 - survival_trans_function:
 
   See
-  [`dynamicPredictionBio`](https://liwh0904.github.io/BJM/reference/dynamicPredictionBio.md).
+  [`dynamicPredictionBio`](https://wenhaoli18.github.io/BJM/reference/dynamicPredictionBio.md).
 
 - bandcount2:
 
   See
-  [`dynamicPredictionBio`](https://liwh0904.github.io/BJM/reference/dynamicPredictionBio.md).
+  [`dynamicPredictionBio`](https://wenhaoli18.github.io/BJM/reference/dynamicPredictionBio.md).
 
 - bandcount3:
 
   See
-  [`dynamicPredictionBio`](https://liwh0904.github.io/BJM/reference/dynamicPredictionBio.md).
+  [`dynamicPredictionBio`](https://wenhaoli18.github.io/BJM/reference/dynamicPredictionBio.md).
 
 ## Value
 
 A named list of `"dynamicPredictionBio.BJM"` objects (see
-[`dynamicPredictionBio`](https://liwh0904.github.io/BJM/reference/dynamicPredictionBio.md)),
+[`dynamicPredictionBio`](https://wenhaoli18.github.io/BJM/reference/dynamicPredictionBio.md)),
 one per requested biomarker, named by that biomarker's response-variable
 name; with attributes `"bandcount2"` (the single resolved/used
 `bandcount2`) and `"bandcount3"` (a named numeric vector of the

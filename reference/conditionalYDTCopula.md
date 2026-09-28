@@ -1,14 +1,14 @@
 # Conditional distribution of Y\|D,T for a mixed continuous/ordinal (Gaussian-copula) joint model, if with competing risk
 
 Copula-aware counterpart to
-[`conditionalYDT()`](https://liwh0904.github.io/BJM/reference/conditionalYDT.md),
+[`conditionalYDT()`](https://wenhaoli18.github.io/BJM/reference/conditionalYDT.md),
 used by
-[`predictRisk()`](https://liwh0904.github.io/BJM/reference/predictRisk.md)
+[`predictRisk()`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md)
 whenever `long_fit_all$biomarker_type` contains at least one `"ordinal"`
 biomarker (see
-[`longitudinalSubCopula()`](https://liwh0904.github.io/BJM/reference/longitudinalSubCopula.md)).
+[`longitudinalSubCopula()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSubCopula.md)).
 See
-[`conditionalYTCopula()`](https://liwh0904.github.io/BJM/reference/conditionalYTCopula.md)
+[`conditionalYTCopula()`](https://wenhaoli18.github.io/BJM/reference/conditionalYTCopula.md)
 for the mixed continuous/ordinal density/probability construction shared
 by both event-type branches (`w0`/`w1`) here.
 

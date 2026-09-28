@@ -1,21 +1,21 @@
 # Conditional distribution of Y\|T for a mixed continuous/ordinal (Gaussian-copula) joint model, if no competing risk – biomarker-value prediction
 
 Copula-aware counterpart to
-[`conditionalYTBio()`](https://liwh0904.github.io/BJM/reference/conditionalYTBio.md),
+[`conditionalYTBio()`](https://wenhaoli18.github.io/BJM/reference/conditionalYTBio.md),
 used by
-[`dynamicPredictionBio()`](https://liwh0904.github.io/BJM/reference/dynamicPredictionBio.md)
+[`dynamicPredictionBio()`](https://wenhaoli18.github.io/BJM/reference/dynamicPredictionBio.md)
 whenever `long_fit_all$biomarker_type` contains at least one `"ordinal"`
 biomarker (see
-[`longitudinalSubCopula()`](https://liwh0904.github.io/BJM/reference/longitudinalSubCopula.md)).
+[`longitudinalSubCopula()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSubCopula.md)).
 Both a continuous and an **ordinal** `bio_i` target are supported: for
 an ordinal `bio_i`, `Y_all` is expected to already be the vector of
 candidate *category labels* (the fitted factor's
 [`levels()`](https://rdrr.io/r/base/levels.html), in threshold order)
 rather than a numeric grid – see
-[`compute_bio_marker_step()`](https://liwh0904.github.io/BJM/reference/compute_bio_marker_step.md),
+[`compute_bio_marker_step()`](https://wenhaoli18.github.io/BJM/reference/compute_bio_marker_step.md),
 which builds that vector and translates the result back into integer
 category codes for its caller. No branching is actually needed here:
-[`build_conditional_design_copula()`](https://liwh0904.github.io/BJM/reference/build_conditional_design_copula.md)
+[`build_conditional_design_copula()`](https://wenhaoli18.github.io/BJM/reference/build_conditional_design_copula.md)
 already looks up each row of biomarker `bio_i` (historical **and** the
 candidate row assigned below) generically via
 `long_fit_all$biomarker_type[bio_i]`, bracketing an ordinal row's latent
@@ -24,19 +24,19 @@ matching it to an exact value – exactly the same mechanism already used
 for every *other* ordinal biomarker's observed history in the joint
 density. Assigning a candidate label into `data_it_Y`'s ordinal factor
 column (below) therefore evaluates the same
-[`mixed_density_prob_copula()`](https://liwh0904.github.io/BJM/reference/mixed_density_prob_copula.md)
+[`mixed_density_prob_copula()`](https://wenhaoli18.github.io/BJM/reference/mixed_density_prob_copula.md)
 box probability as any other ordinal row would, with no separate code
 path required.
 
 Unlike
-[`conditionalYTBio()`](https://liwh0904.github.io/BJM/reference/conditionalYTBio.md)
+[`conditionalYTBio()`](https://wenhaoli18.github.io/BJM/reference/conditionalYTBio.md)
 – which can evaluate
 [`mvtnorm::dmvnorm()`](https://rdrr.io/pkg/mvtnorm/man/Mvnorm.html) once
 per `l_i` across every `Y_all` candidate in one vectorized call, because
 the multivariate-normal density does not need re-normalizing per
 candidate – here each candidate value in `Y_all` changes the conditional
 block's mean/covariance (see
-[`mixed_density_prob_copula()`](https://liwh0904.github.io/BJM/reference/mixed_density_prob_copula.md))
+[`mixed_density_prob_copula()`](https://wenhaoli18.github.io/BJM/reference/mixed_density_prob_copula.md))
 and therefore requires its own
 [`mvtnorm::pmvnorm()`](https://rdrr.io/pkg/mvtnorm/man/pmvnorm.html)
 evaluation. This makes the copula path in this function

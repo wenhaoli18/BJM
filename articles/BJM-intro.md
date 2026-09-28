@@ -10,15 +10,15 @@ values) conditional on survival to that point.
 
 Fitting and prediction is a four-step pipeline:
 
-1.  [`survivalSub()`](https://liwh0904.github.io/BJM/reference/survivalSub.md)
+1.  [`survivalSub()`](https://wenhaoli18.github.io/BJM/reference/survivalSub.md)
     fits the marginal survival sub-model (and, optionally, a
     competing-risks sub-model).
-2.  [`longitudinalSub()`](https://liwh0904.github.io/BJM/reference/longitudinalSub.md)
+2.  [`longitudinalSub()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md)
     fits the longitudinal sub-model(s), one per biomarker.
-3.  [`predictRisk()`](https://liwh0904.github.io/BJM/reference/predictRisk.md)
+3.  [`predictRisk()`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md)
     combines the two fits to predict a patient’s event risk over a
     future horizon.
-4.  [`predictLongitudinal()`](https://liwh0904.github.io/BJM/reference/predictLongitudinal.md)
+4.  [`predictLongitudinal()`](https://wenhaoli18.github.io/BJM/reference/predictLongitudinal.md)
     additionally predicts a future value of one or more specific
     biomarkers.
 
@@ -43,7 +43,7 @@ constant within patient.
 
 ## Step 1: Fit the survival sub-model with `survivalSub()`
 
-[`survivalSub()`](https://liwh0904.github.io/BJM/reference/survivalSub.md)
+[`survivalSub()`](https://wenhaoli18.github.io/BJM/reference/survivalSub.md)
 needs one row per patient, so we first drop the repeated longitudinal
 rows. `form_marginal_surv` is a standard
 [`survival::Surv()`](https://rdrr.io/pkg/survival/man/Surv.html) formula
@@ -192,7 +192,7 @@ long_fit_all
 
 ## Optional: imputing interrupted follow-up before fitting
 
-[`longitudinalSub()`](https://liwh0904.github.io/BJM/reference/longitudinalSub.md),
+[`longitudinalSub()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md),
 as used above, does complete-case analysis: for each biomarker it drops
 rows missing that biomarker’s own covariates, and then keeps only the
 subjects who have at least one non-missing observation of *every*
@@ -201,9 +201,9 @@ information – a subject who has `serBilir` at every visit but never had
 `albumin` drawn is dropped from *both* models, not just the `albumin`
 one.
 
-[`imputeLongitudinal()`](https://liwh0904.github.io/BJM/reference/imputeLongitudinal.md)
+[`imputeLongitudinal()`](https://wenhaoli18.github.io/BJM/reference/imputeLongitudinal.md)
 is an optional preprocessing step that fills these gaps before
-[`longitudinalSub()`](https://liwh0904.github.io/BJM/reference/longitudinalSub.md)
+[`longitudinalSub()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md)
 runs, assuming the missingness is at random (MAR) given the observed
 covariates and biomarkers. Two backends are available, selected with
 `method`:
@@ -221,7 +221,7 @@ covariates and biomarkers. Two backends are available, selected with
 Both share the same call shape and return shape, so switching between
 them is a one-argument change; the completed data can be passed straight
 to
-[`longitudinalSub()`](https://liwh0904.github.io/BJM/reference/longitudinalSub.md)
+[`longitudinalSub()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md)
 in place of the original `data_fit_all` either way. It requires the
 optional `torch` package (listed in `Suggests`, not `Imports`), so the
 rest of this section only runs if `torch` is installed.
@@ -269,7 +269,7 @@ imputed$diagnostics$serBilir
 ```
 
 Feeding the completed data into
-[`longitudinalSub()`](https://liwh0904.github.io/BJM/reference/longitudinalSub.md)
+[`longitudinalSub()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md)
 retains at least as many subjects as running it on the masked data
 directly, because a subject who was excluded only for missing one
 biomarker at one visit is no longer excluded once that cell is filled
@@ -332,7 +332,7 @@ complete-case fit) before relying on either for inference.
 filled with the *mean* of the completions drawn from the generative
 model, giving one completed dataset. That is convenient, but it
 understates uncertainty – fitting
-[`longitudinalSub()`](https://liwh0904.github.io/BJM/reference/longitudinalSub.md)
+[`longitudinalSub()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md)
 on a single completed dataset treats the imputed values as if they were
 observed data, so the resulting standard errors do not reflect not
 actually knowing them.
@@ -340,10 +340,10 @@ actually knowing them.
 `impute = "multiple"` instead returns `n_imputations` separately
 completed datasets in `data_fit_all_list`, without averaging them
 together. Fitting
-[`longitudinalSub()`](https://liwh0904.github.io/BJM/reference/longitudinalSub.md)
+[`longitudinalSub()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md)
 once per completion and combining the fixed-effect estimates with
 Rubin’s rules (Rubin, 1987) – implemented here by
-[`poolLongitudinalSub()`](https://liwh0904.github.io/BJM/reference/poolLongitudinalSub.md)
+[`poolLongitudinalSub()`](https://wenhaoli18.github.io/BJM/reference/poolLongitudinalSub.md)
 – propagates the disagreement between completions into the final
 standard errors, instead of discarding it:
 
@@ -386,7 +386,7 @@ year of `year = 5`.
 
 `survival_variable_all`/`survival_trans_function` describe how the raw
 event-time variable is transformed for the integration grid; see
-[`?predictRisk`](https://liwh0904.github.io/BJM/reference/predictRisk.md)
+[`?predictRisk`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md)
 for details.
 
 ``` r
@@ -427,7 +427,7 @@ risk
 `survival_variable_all`/`survival_trans_function` almost always follow
 the same convention shown above: variables named `"Tyears1"`,
 `"Tyears2"`, …, each the absolute distance from a fixed cut point.
-[`survivalTrans()`](https://liwh0904.github.io/BJM/reference/survivalTrans.md)
+[`survivalTrans()`](https://wenhaoli18.github.io/BJM/reference/survivalTrans.md)
 builds exactly that pair from a plain vector of cut points, so you do
 not have to hand-write two matching parallel lists:
 
@@ -448,7 +448,7 @@ to `prediction_time`. (`risk_prob_2` is `NULL` whenever
 
 ## Step 4: Predict a future biomarker value with `predictLongitudinal()`
 
-[`predictLongitudinal()`](https://liwh0904.github.io/BJM/reference/predictLongitudinal.md)
+[`predictLongitudinal()`](https://wenhaoli18.github.io/BJM/reference/predictLongitudinal.md)
 answers a different question: not *whether* an event happens, but what a
 specific biomarker’s value is likely to be at
 `prediction_time + horizon`, conditional on survival. `bio_i` selects
@@ -474,21 +474,21 @@ bio_pred$Y_predict
 `Y_predict` is the MAP (most likely) predicted value;
 `Y_density`/`Y_all` give the full predicted density over a grid of
 candidate values, which is what
-[`predictPlot()`](https://liwh0904.github.io/BJM/reference/predictPlot.md)
+[`predictPlot()`](https://wenhaoli18.github.io/BJM/reference/predictPlot.md)
 visualizes (see
-[`?predictPlot`](https://liwh0904.github.io/BJM/reference/predictPlot.md)).
+[`?predictPlot`](https://wenhaoli18.github.io/BJM/reference/predictPlot.md)).
 
 ## Choosing `bandcount1`, `bandcount2`, `bandcount3`
 
-[`predictRisk()`](https://liwh0904.github.io/BJM/reference/predictRisk.md)
+[`predictRisk()`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md)
 and
-[`predictLongitudinal()`](https://liwh0904.github.io/BJM/reference/predictLongitudinal.md)
+[`predictLongitudinal()`](https://wenhaoli18.github.io/BJM/reference/predictLongitudinal.md)
 estimate their outputs by numerical integration over patient-specific
 time and biomarker grids. The `bandcount*` arguments control how fine
 those grids are:
 
 - **`bandcount1`**
-  ([`predictRisk()`](https://liwh0904.github.io/BJM/reference/predictRisk.md)
+  ([`predictRisk()`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md)
   only) is the number of grid points spanning the prediction window
   itself, from `prediction_time` to `prediction_time + horizon`. This is
   the numerator of the risk probability.
@@ -500,7 +500,7 @@ those grids are:
   follow-up range needs a larger `bandcount2` to keep the grid spacing
   comparable.
 - **`bandcount3`**
-  ([`predictLongitudinal()`](https://liwh0904.github.io/BJM/reference/predictLongitudinal.md)
+  ([`predictLongitudinal()`](https://wenhaoli18.github.io/BJM/reference/predictLongitudinal.md)
   only) is the number of points in the candidate-biomarker-value grid
   (`Y_all`) used to build the predicted density and locate its mode
   (`Y_predict`). It controls the resolution of the density curve, not a
@@ -539,7 +539,7 @@ If doubling the `bandcount*` values changes the result by more than you
 can tolerate, keep doubling until it doesn’t; if it barely changes
 anything (as above), the smaller, cheaper value is fine to use. The same
 check applies to `bandcount3` for
-[`predictLongitudinal()`](https://liwh0904.github.io/BJM/reference/predictLongitudinal.md).
+[`predictLongitudinal()`](https://wenhaoli18.github.io/BJM/reference/predictLongitudinal.md).
 
 ## Friendly error messages
 
@@ -550,7 +550,7 @@ from deep inside
 [`model.matrix()`](https://rdrr.io/r/stats/model.matrix.html) or list
 indexing. For example, passing a single `data.frame` instead of a list
 to
-[`predictRisk()`](https://liwh0904.github.io/BJM/reference/predictRisk.md):
+[`predictRisk()`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md):
 
 ``` r
 
@@ -585,28 +585,28 @@ longitudinalSub(pbc3, serBilir ~ year + not_a_column, ~ year | id)
 
 ## Where to go next
 
-- [`?predictPlot`](https://liwh0904.github.io/BJM/reference/predictPlot.md)
+- [`?predictPlot`](https://wenhaoli18.github.io/BJM/reference/predictPlot.md)
   and
-  [`?riskPlot`](https://liwh0904.github.io/BJM/reference/riskPlot.md)
+  [`?riskPlot`](https://wenhaoli18.github.io/BJM/reference/riskPlot.md)
   visualize the outputs of
-  [`predictLongitudinal()`](https://liwh0904.github.io/BJM/reference/predictLongitudinal.md)/[`predictRisk()`](https://liwh0904.github.io/BJM/reference/predictRisk.md)
+  [`predictLongitudinal()`](https://wenhaoli18.github.io/BJM/reference/predictLongitudinal.md)/[`predictRisk()`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md)
   for a single patient.
-- [`?cmtPlot`](https://liwh0904.github.io/BJM/reference/cmtPlot.md)
+- [`?cmtPlot`](https://wenhaoli18.github.io/BJM/reference/cmtPlot.md)
   plots observed longitudinal trajectories stratified by eventual
   outcome, useful for checking whether a biomarker looks informative
   before fitting.
-- [`?imputeLongitudinal`](https://liwh0904.github.io/BJM/reference/imputeLongitudinal.md)
+- [`?imputeLongitudinal`](https://wenhaoli18.github.io/BJM/reference/imputeLongitudinal.md)
   fills in missing longitudinal biomarker values due to interrupted
   follow-up before
-  [`longitudinalSub()`](https://liwh0904.github.io/BJM/reference/longitudinalSub.md)
+  [`longitudinalSub()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md)
   runs, instead of relying on complete-case analysis (see “Optional:
   imputing interrupted follow-up before fitting” above).
-- [`?poolLongitudinalSub`](https://liwh0904.github.io/BJM/reference/poolLongitudinalSub.md)
+- [`?poolLongitudinalSub`](https://wenhaoli18.github.io/BJM/reference/poolLongitudinalSub.md)
   combines
-  [`longitudinalSub()`](https://liwh0904.github.io/BJM/reference/longitudinalSub.md)
+  [`longitudinalSub()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md)
   fits across the multiple completed datasets from
   `imputeLongitudinal(..., impute = "multiple")` with Rubin’s rules, so
   imputation uncertainty is reflected in the reported standard errors
   (see “Propagating imputation uncertainty with
-  [`poolLongitudinalSub()`](https://liwh0904.github.io/BJM/reference/poolLongitudinalSub.md)”
+  [`poolLongitudinalSub()`](https://wenhaoli18.github.io/BJM/reference/poolLongitudinalSub.md)”
   above).

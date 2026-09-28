@@ -1,9 +1,9 @@
 # Check whether bandcount1/bandcount2/bandcount3 are large enough
 
-[`predictRisk()`](https://liwh0904.github.io/BJM/reference/predictRisk.md)/[`predictLongitudinal()`](https://liwh0904.github.io/BJM/reference/predictLongitudinal.md)
+[`predictRisk()`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md)/[`predictLongitudinal()`](https://wenhaoli18.github.io/BJM/reference/predictLongitudinal.md)
 approximate the integrals behind the predicted risk probabilities (and,
 for
-[`predictLongitudinal()`](https://liwh0904.github.io/BJM/reference/predictLongitudinal.md),
+[`predictLongitudinal()`](https://wenhaoli18.github.io/BJM/reference/predictLongitudinal.md),
 the predicted biomarker density) with a finite grid, controlled by
 `bandcount1`/`bandcount2`/ `bandcount3`. There is no universal correct
 value: too few grid points silently bias the answer, and too many just
@@ -11,7 +11,7 @@ cost more time, and the right value depends on the data (e.g. how wide
 the follow-up range is). Rather than guess, or auto-loop until some
 tolerance is met – which multiplies runtime unpredictably, especially
 for
-[`predictLongitudinal()`](https://liwh0904.github.io/BJM/reference/predictLongitudinal.md)'s
+[`predictLongitudinal()`](https://wenhaoli18.github.io/BJM/reference/predictLongitudinal.md)'s
 nested `bandcount2` x `bandcount3` grid – this runs the prediction once
 at the bandcount value(s) you supply, once more with those value(s)
 scaled up, and reports the largest relative change between the two, so
@@ -37,7 +37,7 @@ checkBandcountConvergence(
 
   The prediction function to check: `predictRisk` or
   `predictLongitudinal` themselves (not a string, and not
-  [`predictPlot()`](https://liwh0904.github.io/BJM/reference/predictPlot.md)/[`riskPlot()`](https://liwh0904.github.io/BJM/reference/riskPlot.md),
+  [`predictPlot()`](https://wenhaoli18.github.io/BJM/reference/predictPlot.md)/[`riskPlot()`](https://wenhaoli18.github.io/BJM/reference/riskPlot.md),
   which return a plot rather than the underlying numeric predictions
   this function compares). When passing `predictLongitudinal`, forward a
   `bio_i` (via `...`) that names exactly **one** biomarker – this

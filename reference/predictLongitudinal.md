@@ -1,11 +1,11 @@
 # Dynamic prediction function for future longitudinal outcomes
 
 Companion to
-[`predictRisk`](https://liwh0904.github.io/BJM/reference/predictRisk.md),
+[`predictRisk`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md),
 using the same fitted longitudinal
-([`longitudinalSub`](https://liwh0904.github.io/BJM/reference/longitudinalSub.md))
+([`longitudinalSub`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md))
 and survival
-([`survivalSub`](https://liwh0904.github.io/BJM/reference/survivalSub.md))
+([`survivalSub`](https://wenhaoli18.github.io/BJM/reference/survivalSub.md))
 sub-models, but instead of an event-risk probability this returns a
 predictive density for a future value of one or more chosen biomarkers
 (`bio_i`) at `prediction_time + horizon`, conditional on the subject's
@@ -27,7 +27,7 @@ This is the single, unified entry point for biomarker-value prediction:
   density) only **once** and reusing it across every biomarker, instead
   of recomputing it once per biomarker. This matters most under the
   Gaussian-copula path (see
-  [`longitudinalSubCopula`](https://liwh0904.github.io/BJM/reference/longitudinalSubCopula.md)),
+  [`longitudinalSubCopula`](https://wenhaoli18.github.io/BJM/reference/longitudinalSubCopula.md)),
   where that denominator involves
   [`mvtnorm::pmvnorm()`](https://rdrr.io/pkg/mvtnorm/man/pmvnorm.html)
   Monte-Carlo evaluations that are otherwise the dominant cost of a
@@ -37,7 +37,7 @@ See Value for the exact return shape in each case.
 
 `bio_i` may refer to either **continuous** or **ordinal** biomarkers
 (see
-[`longitudinalSubCopula`](https://liwh0904.github.io/BJM/reference/longitudinalSubCopula.md)),
+[`longitudinalSubCopula`](https://wenhaoli18.github.io/BJM/reference/longitudinalSubCopula.md)),
 and a single call may mix both. For an ordinal biomarker,
 `Y_all`/`Y_predict` hold integer *category codes* (`1:K`, in the fitted
 factor's [`levels()`](https://rdrr.io/r/base/levels.html)/threshold
@@ -205,10 +205,10 @@ reports this and the result at the largest value tried is returned
 anyway (not an error), so this never silently loops for an unbounded
 amount of time. Pass an explicit number for either argument to skip
 auto-tuning it and use a fixed value instead, or call
-[`checkBandcountConvergence()`](https://liwh0904.github.io/BJM/reference/checkBandcountConvergence.md)
+[`checkBandcountConvergence()`](https://wenhaoli18.github.io/BJM/reference/checkBandcountConvergence.md)
 directly for more control over the tolerance and doubling count. See
 also
-[`vignette("BJM-intro", package = "BJM")`](https://liwh0904.github.io/BJM/articles/BJM-intro.md)
+[`vignette("BJM-intro", package = "BJM")`](https://wenhaoli18.github.io/BJM/articles/BJM-intro.md)
 for a worked example.
 
 ## Examples

@@ -44,7 +44,7 @@
 <li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="search.json">
 </form></li>
-<li class="nav-item"><a class="external-link nav-link" href="https://github.com/liwh0904/BJM/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/wenhaoli18/BJM/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
       </ul>
 </div>
 
@@ -56,7 +56,7 @@
 <div class="page-header"><h1 id="bjm">BJM<a class="anchor" aria-label="anchor" href="#bjm"></a>
 </h1></div>
 <!-- badges: start -->
-<!-- badges: end -->
+
 <p>BJM fits a <em>backward joint model</em> of multivariate longitudinal outcomes and time-to-event data, and uses it to make <strong>dynamic predictions</strong>: given a patient’s longitudinal history up to some <code>prediction_time</code>, predict their risk of an event (and, if desired, their future biomarker values) conditional on survival to that point. The backward joint model formulation keeps fitting and prediction fast, even with large sample sizes and many longitudinal variables, and accommodates irregularly measured longitudinal data and competing risks.</p>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
@@ -73,7 +73,7 @@
 </h2>
 <p>Fitting and prediction is a four-step pipeline: fit a survival sub-model, fit a longitudinal sub-model per biomarker, then combine them to predict event risk and/or future biomarker values.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://liwh0904.github.io/BJM/">BJM</a></span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://wenhaoli18.github.io/BJM/">BJM</a></span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">pbc3</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co">## 1. Fit the survival sub-model (one row per patient)</span></span>
@@ -136,8 +136,8 @@
 <h2 data-toc-skip>Links</h2>
 <ul class="list-unstyled">
 <li><a href="https://cloud.r-project.org/package=BJM" class="external-link">View on CRAN</a></li>
-<li><a href="https://github.com/liwh0904/BJM/" class="external-link">Browse source code</a></li>
-<li><a href="https://github.com/liwh0904/BJM/issues" class="external-link">Report a bug</a></li>
+<li><a href="https://github.com/wenhaoli18/BJM/" class="external-link">Browse source code</a></li>
+<li><a href="https://github.com/wenhaoli18/BJM/issues" class="external-link">Report a bug</a></li>
 </ul>
 </div>
 
@@ -166,7 +166,12 @@
 </ul>
 </div>
 
-
+<div class="dev-status">
+<h2 data-toc-skip>Dev status</h2>
+<ul class="list-unstyled">
+<li><a href="https://wenhaoli18.github.io/BJM/"><img src="https://img.shields.io/badge/docs-pkgdown-blue.svg" alt="pkgdown"></a></li>
+</ul>
+</div>
 
   </aside>
 </div>

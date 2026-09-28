@@ -1,9 +1,9 @@
 # Conditional distribution of Y\|D,T for a mixed continuous/ordinal (Gaussian-copula) joint model, if with competing risk – biomarker-value prediction
 
 Copula-aware counterpart to
-[`conditionalYDTBio()`](https://liwh0904.github.io/BJM/reference/conditionalYDTBio.md),
+[`conditionalYDTBio()`](https://wenhaoli18.github.io/BJM/reference/conditionalYDTBio.md),
 used by
-[`dynamicPredictionBio()`](https://liwh0904.github.io/BJM/reference/dynamicPredictionBio.md)
+[`dynamicPredictionBio()`](https://wenhaoli18.github.io/BJM/reference/dynamicPredictionBio.md)
 whenever `long_fit_all$biomarker_type` contains at least one `"ordinal"`
 biomarker and a competing-risk `survival_fit_all` is supplied. Both a
 continuous and an **ordinal** `bio_i` target are supported: for an
@@ -11,19 +11,19 @@ ordinal `bio_i`, `Y_all` is expected to already be the vector of
 candidate *category labels* (the fitted factor's
 [`levels()`](https://rdrr.io/r/base/levels.html), in threshold order)
 rather than a numeric grid – see
-[`compute_bio_marker_step()`](https://liwh0904.github.io/BJM/reference/compute_bio_marker_step.md),
+[`compute_bio_marker_step()`](https://wenhaoli18.github.io/BJM/reference/compute_bio_marker_step.md),
 which builds that vector and translates the result back into integer
 category codes for its caller. See
-[`conditionalYTBioCopula()`](https://liwh0904.github.io/BJM/reference/conditionalYTBioCopula.md)
+[`conditionalYTBioCopula()`](https://wenhaoli18.github.io/BJM/reference/conditionalYTBioCopula.md)
 for why no branching is actually needed here –
-[`build_conditional_design_copula()`](https://liwh0904.github.io/BJM/reference/build_conditional_design_copula.md)
+[`build_conditional_design_copula()`](https://wenhaoli18.github.io/BJM/reference/build_conditional_design_copula.md)
 already looks up each row of biomarker `bio_i` generically via
 `long_fit_all$biomarker_type[bio_i]`, whether that row is historical or
 the candidate row assigned below – and for why this function evaluates
 [`mvtnorm::pmvnorm()`](https://rdrr.io/pkg/mvtnorm/man/pmvnorm.html)
 once per patient/`l_i`/ `Y_all` candidate/event-type branch, rather than
 one vectorized `dmvnorm()` call per patient/`l_i` as
-[`conditionalYDTBio()`](https://liwh0904.github.io/BJM/reference/conditionalYDTBio.md)
+[`conditionalYDTBio()`](https://wenhaoli18.github.io/BJM/reference/conditionalYDTBio.md)
 does.
 
 ## Usage

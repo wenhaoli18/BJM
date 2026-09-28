@@ -1,9 +1,10 @@
 # Build a survival-time transform basis from cut points
 
-[`predictRisk()`](https://liwh0904.github.io/BJM/reference/predictRisk.md),
-[`dynamicPredictionBio()`](https://liwh0904.github.io/BJM/reference/dynamicPredictionBio.md),
-[`predictPlot()`](https://liwh0904.github.io/BJM/reference/predictPlot.md),
-and [`riskPlot()`](https://liwh0904.github.io/BJM/reference/riskPlot.md)
+[`predictRisk()`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md),
+[`dynamicPredictionBio()`](https://wenhaoli18.github.io/BJM/reference/dynamicPredictionBio.md),
+[`predictPlot()`](https://wenhaoli18.github.io/BJM/reference/predictPlot.md),
+and
+[`riskPlot()`](https://wenhaoli18.github.io/BJM/reference/riskPlot.md)
 all take a pair of arguments,
 `survival_variable_all`/`survival_trans_function`, that describe
 transformed basis variables of the (remaining) survival time; these can
@@ -41,11 +42,11 @@ survivalTrans(cut_points, prefix = "Tyears")
 
 A named list with elements `survival_variable_all` and
 `survival_trans_function`, in the format expected by
-[`predictRisk()`](https://liwh0904.github.io/BJM/reference/predictRisk.md),
-[`dynamicPredictionBio()`](https://liwh0904.github.io/BJM/reference/dynamicPredictionBio.md),
-[`predictPlot()`](https://liwh0904.github.io/BJM/reference/predictPlot.md),
+[`predictRisk()`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md),
+[`dynamicPredictionBio()`](https://wenhaoli18.github.io/BJM/reference/dynamicPredictionBio.md),
+[`predictPlot()`](https://wenhaoli18.github.io/BJM/reference/predictPlot.md),
 and
-[`riskPlot()`](https://liwh0904.github.io/BJM/reference/riskPlot.md).
+[`riskPlot()`](https://wenhaoli18.github.io/BJM/reference/riskPlot.md).
 
 ## Examples
 

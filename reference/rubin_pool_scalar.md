@@ -1,7 +1,7 @@
 # Combine one coefficient's per-completion estimates with Rubin's rules
 
 Internal helper for
-[`poolLongitudinalSub`](https://liwh0904.github.io/BJM/reference/poolLongitudinalSub.md):
+[`poolLongitudinalSub`](https://wenhaoli18.github.io/BJM/reference/poolLongitudinalSub.md):
 implements the scalar-parameter pooling rules of Rubin (1987, Ch. 3) and
 the Barnard & Rubin (1999) small-sample degrees-of-freedom adjustment,
 for a single fixed-effect coefficient's `m` per-completion
@@ -28,4 +28,4 @@ rubin_pool_scalar(estimates, std_errors, dfcom)
 
   The complete-data degrees of freedom (assumed common across
   completions; see
-  [`poolLongitudinalSub`](https://liwh0904.github.io/BJM/reference/poolLongitudinalSub.md)).
+  [`poolLongitudinalSub`](https://wenhaoli18.github.io/BJM/reference/poolLongitudinalSub.md)).

@@ -1,7 +1,7 @@
 # Print method for `dynamicPredictionBio.BJM` objects
 
 Automatically called when you type the result of
-[`predictLongitudinal()`](https://liwh0904.github.io/BJM/reference/predictLongitudinal.md)
+[`predictLongitudinal()`](https://wenhaoli18.github.io/BJM/reference/predictLongitudinal.md)
 (with a single `bio_i`) at the console.
 
 ## Usage

@@ -16,7 +16,7 @@ print(x, digits = 4, ...)
 - x:
 
   A `poolLongitudinalSub.BJM` object returned by
-  [`poolLongitudinalSub`](https://liwh0904.github.io/BJM/reference/poolLongitudinalSub.md).
+  [`poolLongitudinalSub`](https://wenhaoli18.github.io/BJM/reference/poolLongitudinalSub.md).
 
 - digits:
 

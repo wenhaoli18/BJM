@@ -7,7 +7,7 @@ data-augmentation representation): the category actually observed only
 tells us the latent score fell in the interval implied by the fitted
 thresholds, not its exact value. Before each outer E-step/M-step update
 of the shared random-effects covariance matrix `D` (see
-[`longitudinalSubVarCopula()`](https://liwh0904.github.io/BJM/reference/longitudinalSubVarCopula.md)),
+[`longitudinalSubVarCopula()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSubVarCopula.md)),
 this "inner" E-step plugs in, for every ordinal observation, the mean of
 that latent score's truncated-normal conditional distribution given its
 observed category and the current fixed-effect and (from the previous
@@ -34,9 +34,9 @@ impute_latent_ordinal(m, l, beta, alpha_m, Eb_prev, beta_idx_m, r_idx_m)
 - l:
 
   The per-subject design-matrix bookkeeping list built by
-  [`longitudinalSubCopula()`](https://liwh0904.github.io/BJM/reference/longitudinalSubCopula.md)
+  [`longitudinalSubCopula()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSubCopula.md)
   (same shape as the `l` passed to
-  [`longitudinalSubVar()`](https://liwh0904.github.io/BJM/reference/longitudinalSubVar.md));
+  [`longitudinalSubVar()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSubVar.md));
   `l$yik[[m]]` holds each subject's observed category codes (`1..K`) for
   biomarker `m`.
 

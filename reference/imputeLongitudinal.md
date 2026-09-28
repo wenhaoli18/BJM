@@ -1,10 +1,10 @@
 # Impute missing longitudinal biomarker values with a deep generative model
 
-[`longitudinalSub()`](https://liwh0904.github.io/BJM/reference/longitudinalSub.md)
+[`longitudinalSub()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md)
 fits each biomarker's mixed model on the complete cases for that
 biomarker, and then keeps only the subjects who have at least one
 non-missing observation of *every* biomarker (see
-[`longitudinalSub`](https://liwh0904.github.io/BJM/reference/longitudinalSub.md)).
+[`longitudinalSub`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md)).
 With interrupted/irregular follow-up this throws away information: a
 subject missing just one of several biomarkers at a visit – or missing a
 biomarker's measurements entirely – is dropped from every biomarker's
@@ -12,7 +12,7 @@ fit, not just the one it is missing.
 
 `imputeLongitudinal()` is an optional preprocessing step that fills
 these gaps *before*
-[`longitudinalSub()`](https://liwh0904.github.io/BJM/reference/longitudinalSub.md)
+[`longitudinalSub()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md)
 runs, assuming the missingness is at random (MAR) given the observed
 covariates and biomarkers. Two deep generative backends are available,
 selected with `method`:
@@ -39,7 +39,7 @@ selected with `method`:
 
 Both backends draw one or more plausible completions of the missing
 cells, and the completed data.frame(s) can be passed directly to
-[`longitudinalSub()`](https://liwh0904.github.io/BJM/reference/longitudinalSub.md)
+[`longitudinalSub()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md)
 in place of the original `data_fit_all`.
 
 ## Usage
@@ -67,14 +67,14 @@ imputeLongitudinal(
 - data_fit_all:
 
   As in
-  [`longitudinalSub`](https://liwh0904.github.io/BJM/reference/longitudinalSub.md):
+  [`longitudinalSub`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md):
   either a single data.frame reused for every biomarker, or a list with
   one data.frame per biomarker (long format, one row per subject-visit).
 
 - long_sub_fixed:
 
   As in
-  [`longitudinalSub`](https://liwh0904.github.io/BJM/reference/longitudinalSub.md):
+  [`longitudinalSub`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md):
   a formula, or list of formulas (one per biomarker), whose left-hand
   side must be a bare column name (no transformation) – the column that
   gets imputed.
@@ -82,7 +82,7 @@ imputeLongitudinal(
 - long_sub_random:
 
   As in
-  [`longitudinalSub`](https://liwh0904.github.io/BJM/reference/longitudinalSub.md):
+  [`longitudinalSub`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md):
   used only to read off the subject id variable (`~ ... | id`).
 
 - time_variable:
@@ -133,7 +133,7 @@ imputeLongitudinal(
   a drop-in replacement for the original `data_fit_all`) or `"multiple"`
   (also returns `n_imputations` separately-drawn completed datasets in
   `data_fit_all_list`, for callers who want to fit
-  [`longitudinalSub()`](https://liwh0904.github.io/BJM/reference/longitudinalSub.md)
+  [`longitudinalSub()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md)
   once per completion and pool the results with Rubin's rules
   themselves).
 
@@ -150,7 +150,7 @@ A named list with elements:
   A completed version of `data_fit_all`, in the same list/data.frame
   shape, with every missing biomarker cell filled. Ready to pass
   straight to
-  [`longitudinalSub`](https://liwh0904.github.io/BJM/reference/longitudinalSub.md).
+  [`longitudinalSub`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md).
 
 - data_fit_all_list:
 
@@ -172,7 +172,7 @@ observed (an error is raised if any covariate has missing values). Each
 biomarker's own within-subject serial correlation continues to be
 modeled downstream by
 [`nlme::lme()`](https://rdrr.io/pkg/nlme/man/lme.html) inside
-[`longitudinalSub()`](https://liwh0904.github.io/BJM/reference/longitudinalSub.md),
+[`longitudinalSub()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md),
 exactly as today; this function only models
 `p(biomarkers | covariates, missingness mask)` row by row (one row per
 subject-visit), so it does not need to know the random-effects structure

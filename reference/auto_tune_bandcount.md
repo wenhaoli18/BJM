@@ -2,18 +2,18 @@
 
 Shared implementation backing `bandcount1`/
 `bandcount2`/`bandcount3 = "auto"` support in
-[`predictRisk()`](https://liwh0904.github.io/BJM/reference/predictRisk.md)/[`dynamicPredictionBio()`](https://liwh0904.github.io/BJM/reference/dynamicPredictionBio.md),
+[`predictRisk()`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md)/[`dynamicPredictionBio()`](https://wenhaoli18.github.io/BJM/reference/dynamicPredictionBio.md),
 and the bandcount pre-resolution done once, up front, by
-[`predictPlot()`](https://liwh0904.github.io/BJM/reference/predictPlot.md)/
-[`riskPlot()`](https://liwh0904.github.io/BJM/reference/riskPlot.md) (so
-their internal horizon/landmark loops do not repeat the auto-tuning
+[`predictPlot()`](https://wenhaoli18.github.io/BJM/reference/predictPlot.md)/
+[`riskPlot()`](https://wenhaoli18.github.io/BJM/reference/riskPlot.md)
+(so their internal horizon/landmark loops do not repeat the auto-tuning
 search on every iteration).
 
 Starts every argument named in `auto_names` at its entry in
-[`bandcount_auto_start()`](https://liwh0904.github.io/BJM/reference/bandcount_auto_start.md),
+[`bandcount_auto_start()`](https://wenhaoli18.github.io/BJM/reference/bandcount_auto_start.md),
 doubles all of them together each round, and compares consecutive
 results with
-[`max_relative_diff()`](https://liwh0904.github.io/BJM/reference/max_relative_diff.md)
+[`max_relative_diff()`](https://wenhaoli18.github.io/BJM/reference/max_relative_diff.md)
 until the largest relative change drops below `tol`, or `max_rounds`
 extra doublings have been tried – a hard cap, so this never loops
 indefinitely: at most `max_rounds + 1` calls to `predict_fun` (the

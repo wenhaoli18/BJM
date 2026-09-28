@@ -1,7 +1,7 @@
 # Print method for `predictRisk.BJM` objects
 
 Automatically called when you type the result of
-[`predictRisk()`](https://liwh0904.github.io/BJM/reference/predictRisk.md)
+[`predictRisk()`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md)
 at the console.
 
 ## Usage

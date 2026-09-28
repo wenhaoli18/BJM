@@ -15,9 +15,9 @@ predictor variables on several longitudinal outcomes at once while
 accounting for both population-level (fixed) effects and subject-level
 (random) variability, and for how the outcomes covary within a subject.
 The result is one of the two sub-models – together with
-[`survivalSub`](https://liwh0904.github.io/BJM/reference/survivalSub.md)
+[`survivalSub`](https://wenhaoli18.github.io/BJM/reference/survivalSub.md)
 – that
-[`predictRisk`](https://liwh0904.github.io/BJM/reference/predictRisk.md)/[`dynamicPredictionBio`](https://liwh0904.github.io/BJM/reference/dynamicPredictionBio.md)
+[`predictRisk`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md)/[`dynamicPredictionBio`](https://wenhaoli18.github.io/BJM/reference/dynamicPredictionBio.md)
 combine to produce dynamic risk/biomarker predictions.
 
 ## Usage
@@ -61,7 +61,7 @@ longitudinalSub(
   [`splines::bs()`](https://rdrr.io/r/splines/bs.html), and
   [`factor()`](https://rdrr.io/r/base/factor.html) – trigger a warning,
   because
-  [`predictRisk()`](https://liwh0904.github.io/BJM/reference/predictRisk.md)/[`dynamicPredictionBio()`](https://liwh0904.github.io/BJM/reference/dynamicPredictionBio.md)
+  [`predictRisk()`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md)/[`dynamicPredictionBio()`](https://wenhaoli18.github.io/BJM/reference/dynamicPredictionBio.md)
   rebuild the design matrix from a small, patient-specific slice of data
   at every point on the prediction grid, so the basis recomputed at
   prediction time can silently disagree with the one used to fit the
@@ -92,7 +92,7 @@ longitudinalSub(
   probit cumulative link mixed model, requiring the optional ordinal
   package) and folded into the shared random-effects covariance matrix
   via a Gaussian-copula extension of the EM algorithm – see
-  [`longitudinalSubCopula()`](https://liwh0904.github.io/BJM/reference/longitudinalSubCopula.md)
+  [`longitudinalSubCopula()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSubCopula.md)
   for implementation details.
 
 ## Value

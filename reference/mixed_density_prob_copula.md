@@ -8,19 +8,19 @@ ordinal-marker latent scores fall in the box implied by their observed
 categories' cumulative-link thresholds – conditional on the continuous
 rows' observed values (via the standard multivariate-normal
 conditioning/Schur-complement formula). This is the quantity
-[`conditionalYT()`](https://liwh0904.github.io/BJM/reference/conditionalYT.md)/[`conditionalYDT()`](https://liwh0904.github.io/BJM/reference/conditionalYDT.md)
+[`conditionalYT()`](https://wenhaoli18.github.io/BJM/reference/conditionalYT.md)/[`conditionalYDT()`](https://wenhaoli18.github.io/BJM/reference/conditionalYDT.md)
 compute directly as a single Gaussian density when every marker is
 continuous (see the quadratic-form comment in `R/conditionalYT.R`);
 setting `oo_idx = integer(0)` here reduces to exactly that computation
 (the full `(2*pi)^{-n/2}` normalizing constant is kept, not dropped,
 even though it would cancel in
-[`predictRisk()`](https://liwh0904.github.io/BJM/reference/predictRisk.md)'s
+[`predictRisk()`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md)'s
 own ratio –
-[`dynamicPredictionBio()`](https://liwh0904.github.io/BJM/reference/dynamicPredictionBio.md)
+[`dynamicPredictionBio()`](https://wenhaoli18.github.io/BJM/reference/dynamicPredictionBio.md)
 instead divides this function's output by
 [`mvtnorm::dmvnorm()`](https://rdrr.io/pkg/mvtnorm/man/Mvnorm.html)-normalized
 values from
-[`conditionalYTBioCopula()`](https://liwh0904.github.io/BJM/reference/conditionalYTBioCopula.md)/[`conditionalYDTBioCopula()`](https://liwh0904.github.io/BJM/reference/conditionalYDTBioCopula.md),
+[`conditionalYTBioCopula()`](https://wenhaoli18.github.io/BJM/reference/conditionalYTBioCopula.md)/[`conditionalYDTBioCopula()`](https://wenhaoli18.github.io/BJM/reference/conditionalYDTBioCopula.md),
 so the constant must be correct in absolute terms, not just consistent
 within one call, for `Y_density` to remain a genuine, correctly-scaled
 conditional density – see `R/conditionalYTBio.R`'s analogous
@@ -46,7 +46,7 @@ mixed_density_prob_copula(
 - Sigma_all:
 
   Full stacked covariance matrix for this patient (as returned by
-  [`build_conditional_design_copula()`](https://liwh0904.github.io/BJM/reference/build_conditional_design_copula.md)).
+  [`build_conditional_design_copula()`](https://wenhaoli18.github.io/BJM/reference/build_conditional_design_copula.md)).
 
 - mu_full:
 
