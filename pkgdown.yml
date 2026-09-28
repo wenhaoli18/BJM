@@ -1,0 +1,9 @@
+pandoc: 3.8.3
+pkgdown: 2.2.1
+pkgdown_sha: ~
+articles:
+  BJM-intro: BJM-intro.html
+last_built: 2026-09-28T08:35Z
+urls:
+  reference: https://liwh0904.github.io/BJM/reference
+  article: https://liwh0904.github.io/BJM/articles
