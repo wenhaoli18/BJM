@@ -8,6 +8,8 @@ Authors@R: c(
 Maintainer: Wenhao Li <wenhaoli.jlu@gmail.com>
 Description: Provides tools to fit joint models of multivariate longitudinal data and time-to-event data for dynamic prediction. It allows the joint prediction of both future time-to-event outcomes and future longitudinal outcomes conditional on survival. The models accommodate irregularly measured longitudinal data and competing risks outcomes. The use of the backward joint model enables fast and efficient computation, especially for applications with large sample sizes and many longitudinal variables. Methods without competing risks are described in Shen and Li (2021) <doi:10.1002/sim.9037>, and their extension to competing risks is described in Li et al. (2026) <doi:10.1007/s10985-026-09725-x>.
 License: MIT + file LICENSE
+URL: https://liwh0904.github.io/BJM/, https://github.com/liwh0904/BJM
+BugReports: https://github.com/liwh0904/BJM/issues
 LazyData: true
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
