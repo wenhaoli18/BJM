@@ -1,4 +1,4 @@
-url: ~
+url: https://liwh0904.github.io/BJM/
 
 template:
   bootstrap: 5
@@ -13,8 +13,9 @@ reference:
 - title: Dynamic prediction
   desc: Predict event risk and future biomarker values from the fitted sub-models.
   contents:
-  - dynamicPrediction
-  - dynamicPredictionBio
+  - predictRisk
+  - predictLongitudinal
+  - checkBandcountConvergence
   - survivalTrans
 
 - title: Plots
@@ -23,19 +24,6 @@ reference:
   - predictPlot
   - riskPlot
   - cmtPlot
-
-- title: Print and summary methods
-  desc: S3 methods for inspecting fitted models and predictions.
-  contents:
-  - printBJM
-  - print.survivalSub.BJM
-  - print.longitudinalSub.BJM
-  - print.dynamicPrediction.BJM
-  - print.dynamicPredictionBio.BJM
-  - summary.survivalSub.BJM
-  - summary.longitudinalSub.BJM
-  - summary.dynamicPrediction.BJM
-  - summary.dynamicPredictionBio.BJM
 
 - title: Data
   contents:
