@@ -18,6 +18,12 @@ reference:
   - checkBandcountConvergence
   - survivalTrans
 
+- title: Missing data imputation
+  desc: Impute missing longitudinal biomarker values and pool sub-model fits across imputations.
+  contents:
+  - imputeLongitudinal
+  - poolLongitudinalSub
+
 - title: Plots
   desc: Visualize predictions and observed longitudinal trajectories.
   contents:
