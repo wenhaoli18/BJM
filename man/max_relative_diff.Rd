@@ -14,7 +14,7 @@ field).
 }
 \description{
 Shared comparison logic for \code{checkBandcountConvergence()}
-and the \code{"auto"} bandcount support in \code{dynamicPrediction()}/
+and the \code{"auto"} bandcount support in \code{predictRisk()}/
 \code{dynamicPredictionBio()}: only plain numeric vectors (no \code{dim})
 that have the same length in both results are compared. This naturally
 skips fields whose \emph{size} is itself controlled by the bandcount being

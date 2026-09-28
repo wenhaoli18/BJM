@@ -10,7 +10,7 @@ subset_at_risk(data_predict_all, survival_variable, prediction_time)
 \code{data_predict_all}, filtered in place per element.
 }
 \description{
-Shared helper for \code{dynamicPrediction} and
+Shared helper for \code{predictRisk} and
 \code{dynamicPredictionBio}: drops rows whose survival-time variable is
 below \code{prediction_time} from every biomarker's data frame.
 }

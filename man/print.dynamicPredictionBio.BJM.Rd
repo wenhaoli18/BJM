@@ -36,6 +36,8 @@
 Invisibly returns \code{x}.
 }
 \description{
-Automatically called when you type the result of \code{dynamicPredictionBio()}
-at the console.
+Automatically called when you type the result of
+\code{\link{predictLongitudinal}()} (with a single \code{bio_i}) at the
+console.
 }
+\keyword{internal}

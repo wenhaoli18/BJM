@@ -19,3 +19,4 @@ Invisibly returns \code{x}.
 \description{
 Automatically called when you type \code{long_fit_all} at the console.
 }
+\keyword{internal}

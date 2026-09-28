@@ -8,7 +8,7 @@ assert_bandcount(x, arg_name)
 }
 \description{
 Shared input-validation helper for the \code{bandcount1}/
-\code{bandcount2}/\code{bandcount3} arguments of \code{dynamicPrediction()},
+\code{bandcount2}/\code{bandcount3} arguments of \code{predictRisk()},
 \code{dynamicPredictionBio()}, \code{predictPlot()}, and \code{riskPlot()},
 which now accept either an explicit positive number (the original
 behavior) or the literal string \code{"auto"} to have the value chosen

@@ -3,7 +3,7 @@
 #'   scale_y_continuous scale_x_continuous sec_axis guide_legend
 #'   ylab xlab theme_bw theme element_blank
 #' @importFrom stats binomial formula glm lm model.frame model.matrix
-#'   model.response na.omit predict terms .getXlevels
+#'   model.response na.omit predict terms .getXlevels as.formula sd rnorm
 #' @importFrom survival coxph basehaz Surv strata
 #' @importFrom nlme lme lmeControl splitFormula getVarCov fixef
 #' @importFrom Matrix bdiag
@@ -15,5 +15,10 @@ utils::globalVariables(c(
   "time", "longitudinal", "probEvent", "probType1", "probType2",
   "predMode", "predQuan1", "predQuan2", "predQuan3", "predQuan4",
   "predQuan5", "predQuan6", "predQuan7", "predQuan8", "predQuan9",
-  "Plot_p1"
+  "Plot_p1",
+  ### `self` is torch::nn_module()'s implicit binding to the module
+  ### instance inside `initialize`/`encode`/`decode`, supplied by torch at
+  ### call time -- not a real undefined global, just invisible to R CMD
+  ### check's static analysis.
+  "self"
 ))

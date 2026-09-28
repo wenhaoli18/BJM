@@ -14,7 +14,7 @@ auto_tune_bandcount(
 )
 }
 \arguments{
-\item{predict_fun}{\code{dynamicPrediction} or \code{dynamicPredictionBio}.}
+\item{predict_fun}{\code{predictRisk} or \code{dynamicPredictionBio}.}
 
 \item{args}{A named list of all of \code{predict_fun}'s arguments
 (typically \code{as.list(environment())} captured right after argument
@@ -31,7 +31,7 @@ resolved numeric bandcount value(s), one per element of \code{auto_names}).
 \description{
 Shared implementation backing \code{bandcount1}/
 \code{bandcount2}/\code{bandcount3 = "auto"} support in
-\code{dynamicPrediction()}/\code{dynamicPredictionBio()}, and the
+\code{predictRisk()}/\code{dynamicPredictionBio()}, and the
 bandcount pre-resolution done once, up front, by \code{predictPlot()}/
 \code{riskPlot()} (so their internal horizon/landmark loops do not repeat
 the auto-tuning search on every iteration).

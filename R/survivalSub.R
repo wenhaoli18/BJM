@@ -1,8 +1,31 @@
-#' Fitting survival sub-model
-#' 
-#' @param data_survival_fitting Input data containing survival outcomes and baseline covariates.
-#' @param form_marginal_surv Survival input formats.
-#' @param form_conditional_cr Competing risks input formats.
+#' Fit the survival sub-model
+#'
+#' @description
+#' Fits the survival building block used by \code{\link{predictRisk}}
+#' and \code{\link{dynamicPredictionBio}}: a marginal Cox proportional-hazards
+#' model (via \code{\link[survival]{coxph}}, with \code{x = TRUE, y = TRUE} so
+#' the fit is self-contained for later prediction) for the time-to-event
+#' outcome given \code{form_marginal_surv}, plus, optionally, a logistic
+#' event-type/competing-risks model (via \code{\link[stats]{glm}} with
+#' \code{family = binomial}) given \code{form_conditional_cr}. The
+#' competing-risks model is fit only among subjects who experienced an event
+#' (i.e. whose censoring indicator is non-zero), predicting which type of
+#' event occurred conditional on an event having occurred. Together with
+#' \code{\link{longitudinalSub}}, the object returned here forms the pair of
+#' sub-models that dynamic prediction is built on.
+#'
+#' @param data_survival_fitting One row per subject, containing the
+#'   time-to-event outcome, censoring/event-type indicator, and any baseline
+#'   covariates referenced in \code{form_marginal_surv} or
+#'   \code{form_conditional_cr}.
+#' @param form_marginal_surv A survival formula, e.g.
+#'   \code{Surv(time, status) ~ covariates}, passed to
+#'   \code{\link[survival]{coxph}} to fit the marginal event-time model.
+#' @param form_conditional_cr An optional formula for the competing-risks
+#'   (event-type) model, e.g. \code{event_type ~ covariates}, passed to
+#'   \code{\link[stats]{glm}} with \code{family = binomial}. Set to
+#'   \code{NULL} when there is only a single event type (no competing
+#'   risks).
 #' @return An object of class \code{"survivalSub.BJM"}, a named list with elements:
 #' \describe{
 #'   \item{coxph_fit}{The fitted \code{\link[survival]{coxph}} marginal survival model.}
@@ -42,7 +65,13 @@ survivalSub = function(data_survival_fitting, form_marginal_surv, form_condition
   }
 
   ### fit cox weibull model
-  coxph_fit = coxph(form_marginal_surv, data = data_survival_fitting, ties = "breslow")
+  ### x = TRUE, y = TRUE make the fit self-contained: survfit.coxph()/basehaz()
+  ### (called later, at prediction time, possibly in a different environment)
+  ### skip re-deriving the model frame from the captured call + its formula's
+  ### environment, which would otherwise fail whenever the caller's data
+  ### object is not literally named `data_survival_fitting`.
+  coxph_fit = coxph(form_marginal_surv, data = data_survival_fitting, ties = "breslow",
+                     x = TRUE, y = TRUE)
   ### censoring indicator name
   censor_variable = as.character(formula(coxph_fit)[[2]])[3]
   

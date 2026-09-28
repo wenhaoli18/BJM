@@ -71,7 +71,7 @@ survival_trans_function <- list(
 data_raw_predict <- pbc3[pbc3$id == 2, ]
 data_predict_all <- list(data_raw_predict, data_raw_predict)
 
-risk <- dynamicPrediction(
+risk <- predictRisk(
   data_predict_all, long_fit_all, survival_fit_all,
   prediction_time = 5, horizon = 1, time_variable = "year",
   survival_variable_all, survival_trans_function,
@@ -80,7 +80,7 @@ risk <- dynamicPrediction(
 risk
 
 ## 4. Predict a future biomarker value conditional on survival
-bio_pred <- dynamicPredictionBio(
+bio_pred <- predictLongitudinal(
   bio_i = 1, data_predict_all, long_fit_all, survival_fit_all,
   prediction_time = 5, horizon = 1, time_variable = "year",
   survival_variable_all, survival_trans_function,

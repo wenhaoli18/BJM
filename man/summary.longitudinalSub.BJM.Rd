@@ -20,3 +20,4 @@ Invisibly returns a list of per-outcome \code{summary.lme} objects.
 Like \code{print} but adds per-outcome random-effects variance components
 and the full correlation matrix of D.
 }
+\keyword{internal}

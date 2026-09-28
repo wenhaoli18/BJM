@@ -61,14 +61,14 @@ test_that("longitudinalSub rejects a fixed-effects formula referencing a missing
   )
 })
 
-# Shared fixture reused from test-dynamicPrediction.R (sourced into the same
+# Shared fixture reused from test-predictRisk.R (sourced into the same
 # environment by testthat).
 
-test_that("dynamicPrediction rejects a long_fit_all/survival_fit_all swap", {
+test_that("predictRisk rejects a long_fit_all/survival_fit_all swap", {
   f <- setup_dp_fixture()
 
   expect_error(
-    dynamicPrediction(f$data_predict_all, f$survival_fit_all, f$long_fit_all,
+    predictRisk(f$data_predict_all, f$survival_fit_all, f$long_fit_all,
                        prediction_time = 5, horizon = 1, time_variable = "year",
                        f$survival_variable_all, f$survival_trans_function,
                        bandcount1 = 10, bandcount2 = 20),
@@ -76,14 +76,14 @@ test_that("dynamicPrediction rejects a long_fit_all/survival_fit_all swap", {
   )
 })
 
-test_that("dynamicPrediction accepts a bare data.frame for data_predict_all, reusing it for every biomarker", {
+test_that("predictRisk accepts a bare data.frame for data_predict_all, reusing it for every biomarker", {
   f <- setup_dp_fixture()
 
-  risk_bare <- dynamicPrediction(f$data_predict_all[[1]], f$long_fit_all, f$survival_fit_all,
+  risk_bare <- predictRisk(f$data_predict_all[[1]], f$long_fit_all, f$survival_fit_all,
                                   prediction_time = 5, horizon = 1, time_variable = "year",
                                   f$survival_variable_all, f$survival_trans_function,
                                   bandcount1 = 10, bandcount2 = 20)
-  risk_list <- dynamicPrediction(f$data_predict_all, f$long_fit_all, f$survival_fit_all,
+  risk_list <- predictRisk(f$data_predict_all, f$long_fit_all, f$survival_fit_all,
                                   prediction_time = 5, horizon = 1, time_variable = "year",
                                   f$survival_variable_all, f$survival_trans_function,
                                   bandcount1 = 10, bandcount2 = 20)
@@ -92,11 +92,11 @@ test_that("dynamicPrediction accepts a bare data.frame for data_predict_all, reu
   expect_equal(risk_bare$risk_prob_2, risk_list$risk_prob_2)
 })
 
-test_that("dynamicPrediction rejects a data_predict_all list of the wrong length", {
+test_that("predictRisk rejects a data_predict_all list of the wrong length", {
   f <- setup_dp_fixture()
 
   expect_error(
-    dynamicPrediction(f$data_predict_all[1], f$long_fit_all, f$survival_fit_all,
+    predictRisk(f$data_predict_all[1], f$long_fit_all, f$survival_fit_all,
                        prediction_time = 5, horizon = 1, time_variable = "year",
                        f$survival_variable_all, f$survival_trans_function,
                        bandcount1 = 10, bandcount2 = 20),
@@ -104,11 +104,11 @@ test_that("dynamicPrediction rejects a data_predict_all list of the wrong length
   )
 })
 
-test_that("dynamicPrediction rejects a missing time_variable column", {
+test_that("predictRisk rejects a missing time_variable column", {
   f <- setup_dp_fixture()
 
   expect_error(
-    dynamicPrediction(f$data_predict_all, f$long_fit_all, f$survival_fit_all,
+    predictRisk(f$data_predict_all, f$long_fit_all, f$survival_fit_all,
                        prediction_time = 5, horizon = 1, time_variable = "not_a_column",
                        f$survival_variable_all, f$survival_trans_function,
                        bandcount1 = 10, bandcount2 = 20),
@@ -116,11 +116,11 @@ test_that("dynamicPrediction rejects a missing time_variable column", {
   )
 })
 
-test_that("dynamicPrediction rejects a non-positive bandcount1", {
+test_that("predictRisk rejects a non-positive bandcount1", {
   f <- setup_dp_fixture()
 
   expect_error(
-    dynamicPrediction(f$data_predict_all, f$long_fit_all, f$survival_fit_all,
+    predictRisk(f$data_predict_all, f$long_fit_all, f$survival_fit_all,
                        prediction_time = 5, horizon = 1, time_variable = "year",
                        f$survival_variable_all, f$survival_trans_function,
                        bandcount1 = 0, bandcount2 = 20),
@@ -128,11 +128,11 @@ test_that("dynamicPrediction rejects a non-positive bandcount1", {
   )
 })
 
-test_that("dynamicPrediction rejects mismatched survival_variable_all/survival_trans_function", {
+test_that("predictRisk rejects mismatched survival_variable_all/survival_trans_function", {
   f <- setup_dp_fixture()
 
   expect_error(
-    dynamicPrediction(f$data_predict_all, f$long_fit_all, f$survival_fit_all,
+    predictRisk(f$data_predict_all, f$long_fit_all, f$survival_fit_all,
                        prediction_time = 5, horizon = 1, time_variable = "year",
                        f$survival_variable_all, f$survival_trans_function[1:2],
                        bandcount1 = 10, bandcount2 = 20),
@@ -152,13 +152,13 @@ test_that("assert_survival_trans accepts a well-formed transform when probed", {
   )
 })
 
-test_that("dynamicPrediction rejects a survival_trans_function that throws an error, instead of failing deep inside the per-patient prediction grid", {
+test_that("predictRisk rejects a survival_trans_function that throws an error, instead of failing deep inside the per-patient prediction grid", {
   f <- setup_dp_fixture()
   bad_trans <- f$survival_trans_function
   bad_trans[[2]] <- function(x) stop("boom")
 
   expect_error(
-    dynamicPrediction(f$data_predict_all, f$long_fit_all, f$survival_fit_all,
+    predictRisk(f$data_predict_all, f$long_fit_all, f$survival_fit_all,
                        prediction_time = 5, horizon = 1, time_variable = "year",
                        f$survival_variable_all, bad_trans,
                        bandcount1 = 10, bandcount2 = 20),
@@ -166,13 +166,13 @@ test_that("dynamicPrediction rejects a survival_trans_function that throws an er
   )
 })
 
-test_that("dynamicPrediction rejects a survival_trans_function that returns a character value", {
+test_that("predictRisk rejects a survival_trans_function that returns a character value", {
   f <- setup_dp_fixture()
   bad_trans <- f$survival_trans_function
   bad_trans[[1]] <- function(x) "not a number"
 
   expect_error(
-    dynamicPrediction(f$data_predict_all, f$long_fit_all, f$survival_fit_all,
+    predictRisk(f$data_predict_all, f$long_fit_all, f$survival_fit_all,
                        prediction_time = 5, horizon = 1, time_variable = "year",
                        f$survival_variable_all, bad_trans,
                        bandcount1 = 10, bandcount2 = 20),
@@ -180,13 +180,13 @@ test_that("dynamicPrediction rejects a survival_trans_function that returns a ch
   )
 })
 
-test_that("dynamicPrediction rejects a survival_trans_function that returns a length > 1 vector", {
+test_that("predictRisk rejects a survival_trans_function that returns a length > 1 vector", {
   f <- setup_dp_fixture()
   bad_trans <- f$survival_trans_function
   bad_trans[[3]] <- function(x) c(x, x + 1)
 
   expect_error(
-    dynamicPrediction(f$data_predict_all, f$long_fit_all, f$survival_fit_all,
+    predictRisk(f$data_predict_all, f$long_fit_all, f$survival_fit_all,
                        prediction_time = 5, horizon = 1, time_variable = "year",
                        f$survival_variable_all, bad_trans,
                        bandcount1 = 10, bandcount2 = 20),
@@ -194,7 +194,7 @@ test_that("dynamicPrediction rejects a survival_trans_function that returns a le
   )
 })
 
-test_that("dynamicPrediction rejects a survival_trans_function that returns a non-finite value", {
+test_that("predictRisk rejects a survival_trans_function that returns a non-finite value", {
   f <- setup_dp_fixture()
   bad_trans <- f$survival_trans_function
   # log() of a negative number is NaN, not an error -- would otherwise
@@ -203,7 +203,7 @@ test_that("dynamicPrediction rejects a survival_trans_function that returns a no
 
   expect_error(
     suppressWarnings(
-      dynamicPrediction(f$data_predict_all, f$long_fit_all, f$survival_fit_all,
+      predictRisk(f$data_predict_all, f$long_fit_all, f$survival_fit_all,
                          prediction_time = 5, horizon = 1, time_variable = "year",
                          f$survival_variable_all, bad_trans,
                          bandcount1 = 10, bandcount2 = 20)

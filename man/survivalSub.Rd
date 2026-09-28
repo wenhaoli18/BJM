@@ -2,16 +2,25 @@
 % Please edit documentation in R/survivalSub.R
 \name{survivalSub}
 \alias{survivalSub}
-\title{Fitting survival sub-model}
+\title{Fit the survival sub-model}
 \usage{
 survivalSub(data_survival_fitting, form_marginal_surv, form_conditional_cr)
 }
 \arguments{
-\item{data_survival_fitting}{Input data containing survival outcomes and baseline covariates.}
+\item{data_survival_fitting}{One row per subject, containing the
+time-to-event outcome, censoring/event-type indicator, and any baseline
+covariates referenced in \code{form_marginal_surv} or
+\code{form_conditional_cr}.}
 
-\item{form_marginal_surv}{Survival input formats.}
+\item{form_marginal_surv}{A survival formula, e.g.
+\code{Surv(time, status) ~ covariates}, passed to
+\code{\link[survival]{coxph}} to fit the marginal event-time model.}
 
-\item{form_conditional_cr}{Competing risks input formats.}
+\item{form_conditional_cr}{An optional formula for the competing-risks
+(event-type) model, e.g. \code{event_type ~ covariates}, passed to
+\code{\link[stats]{glm}} with \code{family = binomial}. Set to
+\code{NULL} when there is only a single event type (no competing
+risks).}
 }
 \value{
 An object of class \code{"survivalSub.BJM"}, a named list with elements:
@@ -24,7 +33,18 @@ or \code{NULL} if \code{form_conditional_cr} was not supplied.}
 }
 }
 \description{
-Fitting survival sub-model
+Fits the survival building block used by \code{\link{predictRisk}}
+and \code{\link{dynamicPredictionBio}}: a marginal Cox proportional-hazards
+model (via \code{\link[survival]{coxph}}, with \code{x = TRUE, y = TRUE} so
+the fit is self-contained for later prediction) for the time-to-event
+outcome given \code{form_marginal_surv}, plus, optionally, a logistic
+event-type/competing-risks model (via \code{\link[stats]{glm}} with
+\code{family = binomial}) given \code{form_conditional_cr}. The
+competing-risks model is fit only among subjects who experienced an event
+(i.e. whose censoring indicator is non-zero), predicting which type of
+event occurred conditional on an event having occurred. Together with
+\code{\link{longitudinalSub}}, the object returned here forms the pair of
+sub-models that dynamic prediction is built on.
 }
 \examples{
 

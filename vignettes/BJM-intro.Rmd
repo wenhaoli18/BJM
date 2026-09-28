@@ -28,10 +28,10 @@ Fitting and prediction is a four-step pipeline:
    competing-risks sub-model).
 2. `longitudinalSub()` fits the longitudinal sub-model(s), one per
    biomarker.
-3. `dynamicPrediction()` combines the two fits to predict a patient's event
+3. `predictRisk()` combines the two fits to predict a patient's event
    risk over a future horizon.
-4. `dynamicPredictionBio()` additionally predicts a future value of one
-   specific biomarker.
+4. `predictLongitudinal()` additionally predicts a future value of one or
+   more specific biomarkers.
 
 This vignette walks through all four steps on the `pbc3` data set that
 ships with the package, then covers two practical questions that come up
@@ -96,7 +96,168 @@ long_fit_all <- longitudinalSub(data_fit_all, long_sub_fixed, long_sub_random)
 long_fit_all
 ```
 
-## Step 3: Predict event risk with `dynamicPrediction()`
+## Optional: imputing interrupted follow-up before fitting
+
+`longitudinalSub()`, as used above, does complete-case analysis: for each
+biomarker it drops rows missing that biomarker's own covariates, and then
+keeps only the subjects who have at least one non-missing observation of
+*every* biomarker. With interrupted/irregular follow-up this throws away
+real information -- a subject who has `serBilir` at every visit but never
+had `albumin` drawn is dropped from *both* models, not just the `albumin`
+one.
+
+`imputeLongitudinal()` is an optional preprocessing step that fills these
+gaps before `longitudinalSub()` runs, assuming the missingness is at random
+(MAR) given the observed covariates and biomarkers. Two backends are
+available, selected with `method`:
+
+- `method = "miwae"` (default) fits a MIWAE (Missing data
+  Importance-Weighted AutoEncoder; Mattei & Frellsen, 2019) jointly across
+  the supplied biomarkers and draws plausible completions via
+  self-normalized importance resampling.
+- `method = "diffusion"` fits a conditional denoising diffusion
+  probabilistic model (DDPM; Ho, Jain & Abbeel, 2020) instead, trained with
+  a masked score-matching loss, and imputes with a RePaint-style (Lugmayr
+  et al., 2022) reverse-diffusion sampler that reproduces every observed
+  value exactly and only draws the missing ones.
+
+Both share the same call shape and return shape, so switching between them
+is a one-argument change; the completed data can be passed straight to
+`longitudinalSub()` in place of the original `data_fit_all` either way. It
+requires the optional `torch` package (listed in `Suggests`, not
+`Imports`), so the rest of this section only runs if `torch` is installed.
+
+```{r impute-check}
+torch_available <- requireNamespace("torch", quietly = TRUE)
+torch_available
+```
+
+To see it in action, artificially delete 12% of the `serBilir` and
+`albumin` measurements in the fitting data at random -- satisfying MAR by
+construction, and mimicking a subject whose visit happened but one
+biomarker wasn't drawn that day:
+
+```{r impute-mask, eval = torch_available}
+set.seed(1)
+data_fit_masked <- data_fit_all[[1]]
+n <- nrow(data_fit_masked)
+data_fit_masked$serBilir[sample.int(n, floor(0.12 * n))] <- NA
+data_fit_masked$albumin[sample.int(n, floor(0.12 * n))] <- NA
+```
+
+```{r impute-run, eval = torch_available}
+imputed <- imputeLongitudinal(
+  data_fit_masked, long_sub_fixed, long_sub_random,
+  time_variable = "year", epochs = 80, seed = 1
+)
+```
+
+`diagnostics` reports, per biomarker, the observed mean/sd alongside the
+deep-generative and classical-baseline imputed mean/sd -- useful for
+judging whether the deep model's completions look reasonable before
+trusting them on your own data, since a deep generative model needs enough
+data to fit reliably and is not automatically the better choice at every
+sample size:
+
+```{r impute-diagnostics, eval = torch_available}
+imputed$diagnostics$serBilir
+```
+
+Feeding the completed data into `longitudinalSub()` retains at least as
+many subjects as running it on the masked data directly, because a subject
+who was excluded only for missing one biomarker at one visit is no longer
+excluded once that cell is filled in:
+
+```{r impute-subjects, eval = torch_available}
+count_retained <- function(data_fit_all, long_sub_fixed, id = "id") {
+  if (is.data.frame(data_fit_all)) {
+    data_fit_all <- rep(list(data_fit_all), length(long_sub_fixed))
+  }
+  ids_by_marker <- lapply(seq_along(long_sub_fixed), function(m) {
+    d <- data_fit_all[[m]]
+    complete <- d[rowSums(is.na(d[all.vars(long_sub_fixed[[m]])])) == 0, ]
+    unique(complete[[id]])
+  })
+  Reduce(intersect, ids_by_marker)
+}
+
+length(count_retained(data_fit_masked, long_sub_fixed))
+length(count_retained(imputed$data_fit_all, long_sub_fixed))
+```
+
+```{r impute-fit, eval = torch_available}
+long_fit_imputed <- longitudinalSub(imputed$data_fit_all, long_sub_fixed, long_sub_random)
+```
+
+### A diffusion-based alternative
+
+The same masked data can be completed with `method = "diffusion"` instead
+-- same arguments, a different generative model underneath:
+
+```{r impute-run-diffusion, eval = torch_available}
+imputed_diffusion <- imputeLongitudinal(
+  data_fit_masked, long_sub_fixed, long_sub_random,
+  time_variable = "year", method = "diffusion",
+  epochs = 60, diffusion_steps = 40, seed = 1
+)
+imputed_diffusion$diagnostics$serBilir
+```
+
+```{r impute-fit-diffusion, eval = torch_available}
+long_fit_imputed_diffusion <- longitudinalSub(imputed_diffusion$data_fit_all,
+                                               long_sub_fixed, long_sub_random)
+length(count_retained(imputed_diffusion$data_fit_all, long_sub_fixed))
+```
+
+Neither backend is automatically the better choice: compare the
+`diagnostics` above against the observed mean/sd, and, if in doubt, compare
+downstream fixed-effect estimates from `long_fit_imputed` and
+`long_fit_imputed_diffusion` against `long_fit_all` (the original
+complete-case fit) before relying on either for inference.
+
+### Propagating imputation uncertainty with `poolLongitudinalSub()`
+
+`imputed` above used the default `impute = "single"`: `data_fit_all` is
+filled with the *mean* of the completions drawn from the generative model,
+giving one completed dataset. That is convenient, but it understates
+uncertainty -- fitting `longitudinalSub()` on a single completed dataset
+treats the imputed values as if they were observed data, so the resulting
+standard errors do not reflect not actually knowing them.
+
+`impute = "multiple"` instead returns `n_imputations` separately completed
+datasets in `data_fit_all_list`, without averaging them together. Fitting
+`longitudinalSub()` once per completion and combining the fixed-effect
+estimates with Rubin's rules (Rubin, 1987) -- implemented here by
+`poolLongitudinalSub()` -- propagates the disagreement between completions
+into the final standard errors, instead of discarding it:
+
+```{r impute-run-multiple, eval = torch_available}
+imputed_multiple <- imputeLongitudinal(
+  data_fit_masked, long_sub_fixed, long_sub_random,
+  time_variable = "year", n_imputations = 5, impute = "multiple",
+  epochs = 80, seed = 1
+)
+length(imputed_multiple$data_fit_all_list)
+```
+
+```{r impute-pool, eval = torch_available}
+long_fit_all_list <- lapply(imputed_multiple$data_fit_all_list, function(d) {
+  longitudinalSub(d, long_sub_fixed, long_sub_random)
+})
+pooled <- poolLongitudinalSub(long_fit_all_list)
+pooled
+```
+
+The printed table's `FMI` (fraction of missing information) column reports,
+per coefficient, how much precision the missingness cost relative to having
+observed everything -- a coefficient with a high FMI is one where the
+choice to impute (and how) matters more for that specific estimate, even if
+the biomarker's overall missingness rate looks modest. `pooled$pooled` is a
+named list (one `data.frame` per biomarker) with the pooled `estimate`,
+`std_error`, `df`, `statistic`, `p_value`, `riv`, and `fmi` for programmatic
+use.
+
+## Step 3: Predict event risk with `predictRisk()`
 
 To predict for a specific patient, build a `data_predict_all` list (one
 `data.frame` per biomarker, mirroring `data_fit_all`) containing only that
@@ -106,7 +267,7 @@ for patient 2, the risk of each event type within one year of `year = 5`.
 
 `survival_variable_all`/`survival_trans_function` describe how the raw
 event-time variable is transformed for the integration grid; see
-`?dynamicPrediction` for details.
+`?predictRisk` for details.
 
 ```{r dynamic-prediction}
 survival_variable_all <- list("Tyears1", "Tyears2", "Tyears3", "Tyears4")
@@ -120,7 +281,7 @@ survival_trans_function <- list(
 data_raw_predict <- pbc3[pbc3$id == 2, ]
 data_predict_all <- list(data_raw_predict, data_raw_predict)
 
-risk <- dynamicPrediction(
+risk <- predictRisk(
   data_predict_all, long_fit_all, survival_fit_all,
   prediction_time = 5, horizon = 1, time_variable = "year",
   survival_variable_all, survival_trans_function,
@@ -148,15 +309,19 @@ horizon, conditional on the patient's longitudinal history and survival to
 `prediction_time`. (`risk_prob_2` is `NULL` whenever `survival_fit_all` was
 fit without `form_conditional_cr`.)
 
-## Step 4: Predict a future biomarker value with `dynamicPredictionBio()`
+## Step 4: Predict a future biomarker value with `predictLongitudinal()`
 
-`dynamicPredictionBio()` answers a different question: not *whether* an
+`predictLongitudinal()` answers a different question: not *whether* an
 event happens, but what a specific biomarker's value is likely to be at
 `prediction_time + horizon`, conditional on survival. `bio_i` selects the
-biomarker by its position in `long_fit_all` (`1` = `serBilir` here).
+biomarker(s) by position in `long_fit_all` (`1` = `serBilir` here); naming
+exactly one biomarker returns a single result, while naming more than one
+(or leaving `bio_i = NULL` for every biomarker) returns a named list of
+results instead, computing the shared, bio_i-independent part of the
+pipeline only once and reusing it across every biomarker.
 
 ```{r dynamic-prediction-bio}
-bio_pred <- dynamicPredictionBio(
+bio_pred <- predictLongitudinal(
   bio_i = 1, data_predict_all, long_fit_all, survival_fit_all,
   prediction_time = 5, horizon = 1, time_variable = "year",
   survival_variable_all, survival_trans_function,
@@ -172,11 +337,11 @@ what `predictPlot()` visualizes (see `?predictPlot`).
 
 ## Choosing `bandcount1`, `bandcount2`, `bandcount3`
 
-`dynamicPrediction()` and `dynamicPredictionBio()` estimate their outputs
+`predictRisk()` and `predictLongitudinal()` estimate their outputs
 by numerical integration over patient-specific time and biomarker grids.
 The `bandcount*` arguments control how fine those grids are:
 
-- **`bandcount1`** (`dynamicPrediction()` only) is the number of grid
+- **`bandcount1`** (`predictRisk()` only) is the number of grid
   points spanning the prediction window itself, from `prediction_time` to
   `prediction_time + horizon`. This is the numerator of the risk
   probability.
@@ -186,7 +351,7 @@ The `bandcount*` arguments control how fine those grids are:
   patients. This approximates "integrating out to infinity" for the
   denominator that normalizes the risk probability. A wider follow-up
   range needs a larger `bandcount2` to keep the grid spacing comparable.
-- **`bandcount3`** (`dynamicPredictionBio()` only) is the number of points
+- **`bandcount3`** (`predictLongitudinal()` only) is the number of points
   in the candidate-biomarker-value grid (`Y_all`) used to build the
   predicted density and locate its mode (`Y_predict`). It controls the
   resolution of the density curve, not a time integral.
@@ -199,14 +364,14 @@ the length of follow-up in your data — so the practical approach is a
 every `bandcount*` doubled, and confirm the results barely move.
 
 ```{r bandcount-convergence}
-risk_default <- dynamicPrediction(
+risk_default <- predictRisk(
   data_predict_all, long_fit_all, survival_fit_all,
   prediction_time = 5, horizon = 1, time_variable = "year",
   survival_variable_all, survival_trans_function,
   bandcount1 = 10, bandcount2 = 20
 )
 
-risk_doubled <- dynamicPrediction(
+risk_doubled <- predictRisk(
   data_predict_all, long_fit_all, survival_fit_all,
   prediction_time = 5, horizon = 1, time_variable = "year",
   survival_variable_all, survival_trans_function,
@@ -220,7 +385,7 @@ abs(risk_default$risk_prob_2 - risk_doubled$risk_prob_2)
 If doubling the `bandcount*` values changes the result by more than you can
 tolerate, keep doubling until it doesn't; if it barely changes anything (as
 above), the smaller, cheaper value is fine to use. The same check applies
-to `bandcount3` for `dynamicPredictionBio()`.
+to `bandcount3` for `predictLongitudinal()`.
 
 ## Friendly error messages
 
@@ -228,10 +393,10 @@ The pipeline functions validate their arguments before doing any model
 fitting or numerical integration, so common mistakes fail fast with a
 message that names the offending argument — instead of a cryptic error
 from deep inside `model.matrix()` or list indexing. For example, passing a
-single `data.frame` instead of a list to `dynamicPrediction()`:
+single `data.frame` instead of a list to `predictRisk()`:
 
 ```{r validation-example, error = TRUE}
-dynamicPrediction(
+predictRisk(
   data_predict_all[[1]], long_fit_all, survival_fit_all,
   prediction_time = 5, horizon = 1, time_variable = "year",
   survival_variable_all, survival_trans_function,
@@ -248,7 +413,16 @@ longitudinalSub(pbc3, serBilir ~ year + not_a_column, ~ year | id)
 ## Where to go next
 
 - `?predictPlot` and `?riskPlot` visualize the outputs of
-  `dynamicPredictionBio()`/`dynamicPrediction()` for a single patient.
+  `predictLongitudinal()`/`predictRisk()` for a single patient.
 - `?cmtPlot` plots observed longitudinal trajectories stratified by
   eventual outcome, useful for checking whether a biomarker looks
   informative before fitting.
+- `?imputeLongitudinal` fills in missing longitudinal biomarker values due
+  to interrupted follow-up before `longitudinalSub()` runs, instead of
+  relying on complete-case analysis (see "Optional: imputing interrupted
+  follow-up before fitting" above).
+- `?poolLongitudinalSub` combines `longitudinalSub()` fits across the
+  multiple completed datasets from `imputeLongitudinal(..., impute =
+  "multiple")` with Rubin's rules, so imputation uncertainty is reflected
+  in the reported standard errors (see "Propagating imputation uncertainty
+  with `poolLongitudinalSub()`" above).

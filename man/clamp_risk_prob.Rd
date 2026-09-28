@@ -10,7 +10,7 @@ clamp_risk_prob(numerator_sum, denominator_sum)
 A numeric vector of risk probabilities in \code{[0, 1]}.
 }
 \description{
-Shared helper for \code{dynamicPrediction} and
+Shared helper for \code{predictRisk} and
 \code{dynamicPredictionBio}: divides summed predicted-event mass by
 summed total mass and clamps the result to \code{[0, 1]}.
 }

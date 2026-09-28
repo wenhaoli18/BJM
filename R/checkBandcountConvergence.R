@@ -1,15 +1,15 @@
 #' Check whether bandcount1/bandcount2/bandcount3 are large enough
 #'
-#' @description \code{dynamicPrediction()}/\code{dynamicPredictionBio()}
+#' @description \code{predictRisk()}/\code{predictLongitudinal()}
 #' approximate the integrals behind the predicted risk probabilities (and,
-#' for \code{dynamicPredictionBio()}, the predicted biomarker density) with a
+#' for \code{predictLongitudinal()}, the predicted biomarker density) with a
 #' finite grid, controlled by \code{bandcount1}/\code{bandcount2}/
 #' \code{bandcount3}. There is no universal correct value: too few grid
 #' points silently bias the answer, and too many just cost more time, and
 #' the right value depends on the data (e.g. how wide the follow-up range
 #' is). Rather than guess, or auto-loop until some tolerance is met --
 #' which multiplies runtime unpredictably, especially for
-#' \code{dynamicPredictionBio()}'s nested \code{bandcount2} x
+#' \code{predictLongitudinal()}'s nested \code{bandcount2} x
 #' \code{bandcount3} grid -- this runs the prediction once at the
 #' bandcount value(s) you supply, once more with those value(s) scaled up,
 #' and reports the largest relative change between the two, so you can see
@@ -17,10 +17,13 @@
 #' bandcount(s) and re-run. It costs exactly 2 calls to \code{predict_fun},
 #' regardless of how many times you invoke it.
 #'
-#' @param predict_fun The prediction function to check: \code{dynamicPrediction}
-#' or \code{dynamicPredictionBio} themselves (not a string, and not
+#' @param predict_fun The prediction function to check: \code{predictRisk}
+#' or \code{predictLongitudinal} themselves (not a string, and not
 #' \code{predictPlot()}/\code{riskPlot()}, which return a plot rather than
-#' the underlying numeric predictions this function compares).
+#' the underlying numeric predictions this function compares). When passing
+#' \code{predictLongitudinal}, forward a \code{bio_i} (via \code{...}) that
+#' names exactly \strong{one} biomarker -- this function only supports
+#' comparing a single biomarker's prediction at a time (see \code{...}).
 #' @param ... Arguments to forward to \code{predict_fun}, exactly as you
 #' would call it directly, except for the bandcount argument(s) being
 #' checked, which are supplied separately via \code{bandcount_args}. Any
@@ -79,7 +82,7 @@
 #'
 #' # Check bandcount1/bandcount2 together: are they both already large enough?
 #' check = checkBandcountConvergence(
-#'   dynamicPrediction, data_predict_all, long_fit_all, survival_fit_all,
+#'   predictRisk, data_predict_all, long_fit_all, survival_fit_all,
 #'   prediction_time = 3, horizon = 3, time_variable = "year",
 #'   trans$survival_variable_all, trans$survival_trans_function,
 #'   bandcount_args = list(bandcount1 = 10, bandcount2 = 10)
@@ -89,17 +92,17 @@
 #'
 #' @export
 checkBandcountConvergence <- function(predict_fun, ..., bandcount_args, multiplier = 2, tol = 0.01) {
-  is_dynamic_prediction <- identical(predict_fun, dynamicPrediction)
-  is_dynamic_prediction_bio <- identical(predict_fun, dynamicPredictionBio)
-  if (!is_dynamic_prediction && !is_dynamic_prediction_bio) {
+  is_predict_risk <- identical(predict_fun, predictRisk)
+  is_predict_longitudinal <- identical(predict_fun, predictLongitudinal)
+  if (!is_predict_risk && !is_predict_longitudinal) {
     stop(paste(
-      "`predict_fun` must be `dynamicPrediction` or `dynamicPredictionBio`",
+      "`predict_fun` must be `predictRisk` or `predictLongitudinal`",
       "(the function itself, not a string, and not `predictPlot`/`riskPlot`,",
       "which return a plot rather than the underlying numeric predictions",
       "this function compares)."
     ), call. = FALSE)
   }
-  predict_fun_name <- if (is_dynamic_prediction) "dynamicPrediction" else "dynamicPredictionBio"
+  predict_fun_name <- if (is_predict_risk) "predictRisk" else "predictLongitudinal"
 
   if (!is.list(bandcount_args) || length(bandcount_args) == 0 ||
       is.null(names(bandcount_args)) || any(names(bandcount_args) == "")) {
@@ -128,6 +131,20 @@ checkBandcountConvergence <- function(predict_fun, ..., bandcount_args, multipli
   scaled_bandcount_args <- lapply(bandcount_args, function(x) x * multiplier)
 
   base_result <- do.call(predict_fun, c(extra_args, bandcount_args))
+  if (is_predict_longitudinal && inherits(base_result, "dynamicPredictionBioAll.BJM")) {
+    # predictLongitudinal() returns this (nested-list) shape when `bio_i`
+    # names more than one biomarker, or is left NULL -- max_relative_diff()
+    # below only compares flat numeric fields, so a nested-list result would
+    # silently yield nothing comparable rather than a useful check. Caught
+    # here, before the (redundant) second call, rather than left to produce
+    # a confusing all-NA/"could not compare" result.
+    stop(paste(
+      "`predict_fun = predictLongitudinal` returned a multi-biomarker result",
+      "(`bio_i` named more than one biomarker, or was left NULL).",
+      "checkBandcountConvergence() only supports checking one biomarker at a",
+      "time: pass a `bio_i` (via `...`) that names exactly one biomarker."
+    ), call. = FALSE)
+  }
   scaled_result <- do.call(predict_fun, c(extra_args, scaled_bandcount_args))
 
   # See max_relative_diff() for which fields are comparable and why.

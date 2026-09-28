@@ -31,3 +31,4 @@ survival_fit_all  <- survivalSub(data_survival_fitting,
 survival_fit_all   # triggers print.survivalSub.BJM automatically
 
 }
+\keyword{internal}

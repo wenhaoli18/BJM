@@ -1,9 +1,24 @@
-#' Dynamic prediction function
-#' 
-#' The time values in the prediction data subset must be less than the 
-#' specified \code{prediction_time} which is the prediction time. The time points for 
+#' Dynamic prediction function for future event risk
+#'
+#' @description
+#' Combines a fitted longitudinal sub-model (\code{\link{longitudinalSub}})
+#' and survival sub-model (\code{\link{survivalSub}}) into a backward joint
+#' model prediction: for each at-risk subject at \code{prediction_time}, the
+#' subject's observed longitudinal history up to that time is used to update
+#' their individual random effects (empirical Bayes), which are then
+#' integrated against the survival sub-model's hazard to give the predicted
+#' probability of experiencing the event within
+#' \code{(prediction_time, prediction_time + horizon]}, conditional on being
+#' event-free at \code{prediction_time}. The integrals in both the numerator
+#' (event within the window) and denominator (survival to
+#' \code{prediction_time}, used for normalization) are evaluated on
+#' numerical grids whose resolution is controlled by \code{bandcount1}/
+#' \code{bandcount2}; see Details.
+#'
+#' The time values in the prediction data subset must be less than the
+#' specified \code{prediction_time} which is the prediction time. The time points for
 #' longitudinal repeated measurements must not surpass the prediction time.
-#' 
+#'
 #' @param data_predict_all This involves a collection of \code{data.frame} objects for 
 #' dynamic prediction, each corresponding to a distinct longitudinal outcome. 
 #' These data frames should contain the variables specified in \code{long_sub_fixed} 
@@ -58,7 +73,7 @@
 #' tolerance and doubling count. See also \code{vignette("BJM-intro",
 #' package = "BJM")} for a worked example.
 #' 
-#' @return An object of class \code{"dynamicPrediction.BJM"}, a named list with elements:
+#' @return An object of class \code{"predictRisk.BJM"}, a named list with elements:
 #' \describe{
 #'   \item{risk_prob_1}{A vector of dynamically predicted probabilities, one per patient,
 #'   of experiencing the (first) event within the prediction horizon. \code{0} when
@@ -127,16 +142,49 @@
 #' }
 #' 
 #' # predict risk probability
-#' risk.prob = dynamicPrediction(data_predict_all, long_fit_all, survival_fit_all, 
-#'                               prediction_time = 3, 
+#' risk.prob = predictRisk(data_predict_all, long_fit_all, survival_fit_all,
+#'                               prediction_time = 3,
 #'                               horizon = 3, time_variable = "year",
 #'                               survival_variable_all, survival_trans_function,
 #'                               bandcount1 = 10, bandcount2 = 10)
-#' 
+#'
+#' # poly() in its default orthogonal mode, splines::ns()/bs(), and factor()
+#' # in long_sub_fixed still trigger longitudinalSub()'s warning (see
+#' # ?longitudinalSub), but produce correct dynamic predictions -- including
+#' # when a patient has only a single longitudinal observation to condition
+#' # on -- because the basis/contrasts fit on the full training data are
+#' # cached (via each biomarker's terms object and long_fit_all$xlevels) and
+#' # reused here at prediction time, instead of being recomputed from that
+#' # patient's small per-prediction-time slice:
+#' long_sub_fixed_nonlinear = list(
+#'   "long1" = serBilir ~ poly(year, 2) + age + sex + years,
+#'   "long2" = albumin ~ year + age + sex + years)
+#' long_sub_random_nonlinear = list("long1" = ~ year | id, "long2" = ~ year | id)
+#' long_fit_nonlinear = longitudinalSub(pbc3[pbc3$status3 == 1, ],
+#'                                      long_sub_fixed_nonlinear,
+#'                                      long_sub_random_nonlinear)
+#'
+#' data_predict_normal = data.raw.predict.1[data.raw.predict.1$year <= 3, ]
+#' data_predict_sparse = data.raw.predict.1[1, ]
+#'
+#' risk.prob.normal = predictRisk(data_predict_normal, long_fit_nonlinear,
+#'                                      survival_fit_all, prediction_time = 3,
+#'                                      horizon = 3, time_variable = "year",
+#'                                      survival_variable_all, survival_trans_function,
+#'                                      bandcount1 = 10, bandcount2 = 10)
+#' risk.prob.sparse = predictRisk(data_predict_sparse, long_fit_nonlinear,
+#'                                      survival_fit_all, prediction_time = 3,
+#'                                      horizon = 3, time_variable = "year",
+#'                                      survival_variable_all, survival_trans_function,
+#'                                      bandcount1 = 10, bandcount2 = 10)
+#' # both give a sane, non-degenerate risk_prob_1 (not 0, no error)
+#' risk.prob.normal$risk_prob_1
+#' risk.prob.sparse$risk_prob_1
+#'
 #' }
-#' 
+#'
 #' @export
-dynamicPrediction = function(data_predict_all, long_fit_all, survival_fit_all,
+predictRisk = function(data_predict_all, long_fit_all, survival_fit_all,
                              prediction_time, horizon, time_variable,
                              survival_variable_all, survival_trans_function,
                              bandcount1 = "auto", bandcount2 = "auto"){
@@ -165,7 +213,7 @@ dynamicPrediction = function(data_predict_all, long_fit_all, survival_fit_all,
   call_args <- as.list(environment())
   auto_names <- c("bandcount1", "bandcount2")[c(identical(bandcount1, "auto"), identical(bandcount2, "auto"))]
   if (length(auto_names) > 0) {
-    return(auto_tune_bandcount(dynamicPrediction, call_args, auto_names)$result)
+    return(auto_tune_bandcount(predictRisk, call_args, auto_names)$result)
   }
 
   coxph_fit = survival_fit_all$coxph_fit
@@ -186,7 +234,7 @@ dynamicPrediction = function(data_predict_all, long_fit_all, survival_fit_all,
   #### handle horizon = 0 edge case: probability of event in zero-length window is 0
   if(horizon <= 0){
     out <- list(risk_prob_1 = 0, risk_prob_2 = NULL)
-    class(out) <- "dynamicPrediction.BJM"
+    class(out) <- "predictRisk.BJM"
     return(out)
   }
 
@@ -205,47 +253,59 @@ dynamicPrediction = function(data_predict_all, long_fit_all, survival_fit_all,
   ### marginal probability T
   S_T_all_predict = marginalT(data_predict_all, long_fit_all, survival_fit_all, l_i = predict.time.horizon.1, upper_bound)
 
+  ### Mixed continuous/ordinal (Gaussian-copula) fits -- see
+  ### longitudinalSubCopula() -- need conditionalYTCopula()/
+  ### conditionalYDTCopula() instead of conditionalYT()/conditionalYDT(),
+  ### since the latter assume every biomarker is continuous (an exact
+  ### Gaussian density evaluated at the observed value). All-continuous
+  ### fits never set long_fit_all$biomarker_type at all (see
+  ### longitudinalSubGaussian()), so this dispatch is a strict no-op for
+  ### every fit that predates the copula extension.
+  use_copula <- !is.null(long_fit_all$biomarker_type) && any(long_fit_all$biomarker_type == "ordinal")
+  conditionalYT_fun <- if (use_copula) conditionalYTCopula else conditionalYT
+  conditionalYDT_fun <- if (use_copula) conditionalYDTCopula else conditionalYDT
+
   #conditional probability D|T, survival_fit_all$form_conditional_cr == form_conditional_cr
   #with competing risk
   if(length(survival_fit_all$form_conditional_cr) != 0){
     #conditional probability D|T
-    D_T_all_predict = conditionalDT(data_predict_all, long_fit_all, survival_fit_all, 
+    D_T_all_predict = conditionalDT(data_predict_all, long_fit_all, survival_fit_all,
                                     l_i = predict.time.horizon)
-    D_T_all_infinity = conditionalDT(data_predict_all, long_fit_all, survival_fit_all, 
+    D_T_all_infinity = conditionalDT(data_predict_all, long_fit_all, survival_fit_all,
                                      l_i = predict.time.infinity)
     #conditional probability Y|D,T
-    f_y_D_all_predict = conditionalYDT(data_predict_all, long_fit_all, survival_fit_all, 
-                                       l_i = predict.time.horizon, survival_variable, 
-                                       time_variable, survival_variable_all, 
+    f_y_D_all_predict = conditionalYDT_fun(data_predict_all, long_fit_all, survival_fit_all,
+                                       l_i = predict.time.horizon, survival_variable,
+                                       time_variable, survival_variable_all,
                                        survival_trans_function)
-    f_y_D_all_infinity = conditionalYDT(data_predict_all, long_fit_all, survival_fit_all, 
-                                        l_i = predict.time.infinity, survival_variable, 
-                                        time_variable, survival_variable_all, 
+    f_y_D_all_infinity = conditionalYDT_fun(data_predict_all, long_fit_all, survival_fit_all,
+                                        l_i = predict.time.infinity, survival_variable,
+                                        time_variable, survival_variable_all,
                                         survival_trans_function)
     T.surv.predict.0 = t(f_y_D_all_predict[[1]] * D_T_all_predict[[1]] * S_T_all_predict)
     T.surv.infinity.0 = t(f_y_D_all_infinity[[1]] * D_T_all_infinity[[1]] * S_T_all_infinity)
     T.surv.predict.1 = t(f_y_D_all_predict[[2]] * D_T_all_predict[[2]] * S_T_all_predict)
     T.surv.infinity.1 = t(f_y_D_all_infinity[[2]] * D_T_all_infinity[[2]] * S_T_all_infinity)
-    
+
     risk.prob.0 = clamp_risk_prob(rowSums(T.surv.predict.0), rowSums(T.surv.infinity.0 + T.surv.infinity.1))
     risk.prob.1 = clamp_risk_prob(rowSums(T.surv.predict.1), rowSums(T.surv.infinity.0 + T.surv.infinity.1))
 
   }else{
     #without competing risk
     #conditional probability Y|T
-    f_y_D_all_predict = conditionalYT(data_predict_all, long_fit_all, l_i = predict.time.horizon, 
+    f_y_D_all_predict = conditionalYT_fun(data_predict_all, long_fit_all, l_i = predict.time.horizon,
                                       survival_variable, time_variable, survival_variable_all, survival_trans_function)
-    f_y_D_all_infinity = conditionalYT(data_predict_all, long_fit_all, l_i = predict.time.infinity, 
+    f_y_D_all_infinity = conditionalYT_fun(data_predict_all, long_fit_all, l_i = predict.time.infinity,
                                        survival_variable, time_variable, survival_variable_all, survival_trans_function)
-    
+
     T.surv.predict.0 = t(f_y_D_all_predict[[1]]  * S_T_all_predict)
     T.surv.infinity.0 = t(f_y_D_all_infinity[[1]]  * S_T_all_infinity)
-    
+
     risk.prob.0 = clamp_risk_prob(rowSums(T.surv.predict.0), rowSums(T.surv.infinity.0 + 1e-20))
   }
   
   out <- list(risk_prob_1 = risk.prob.0, risk_prob_2 = risk.prob.1)
-  class(out) <- "dynamicPrediction.BJM"
+  class(out) <- "predictRisk.BJM"
   return(out)
 }
 
