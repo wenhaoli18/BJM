@@ -1,12 +1,12 @@
 Package: BJM
-Title: Backward Joint Model for the Dynamic Prediction of Both
-        Time-to-Event and Longitudinal Outcomes
-Version: 0.2.0
+Title: Backward Joint Model for the Dynamic Prediction of Both Time-to-Event and Longitudinal
+    Outcomes
+Version: 0.3.0
 Authors@R: c(
     person("Wenhao", "Li", email = "wenhaoli.jlu@gmail.com", role = c("aut", "cre")),
     person("Liang", "Li", role = c('aut'),email = "LLi15@mdanderson.org"))
 Maintainer: Wenhao Li <wenhaoli.jlu@gmail.com>
-Description: Provides tools to fit joint models of multivariate longitudinal data and time-to-event data for dynamic prediction. It allows the joint prediction of both future time-to-event outcomes and future longitudinal outcomes conditional on survival. The models accommodate irregularly measured longitudinal data and competing risks outcomes. The use of the backward joint model enables fast and efficient computation, especially for applications with large sample sizes and many longitudinal variables.
+Description: Provides tools to fit joint models of multivariate longitudinal data and time-to-event data for dynamic prediction. It allows the joint prediction of both future time-to-event outcomes and future longitudinal outcomes conditional on survival. The models accommodate irregularly measured longitudinal data and competing risks outcomes. The use of the backward joint model enables fast and efficient computation, especially for applications with large sample sizes and many longitudinal variables. Methods without competing risks are described in Shen and Li (2021) <doi:10.1002/sim.9037>, and their extension to competing risks is described in Li et al. (2026) <doi:10.1007/s10985-026-09725-x>.
 License: MIT + file LICENSE
 LazyData: true
 Encoding: UTF-8
@@ -14,7 +14,7 @@ Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
 Depends: R (>= 3.5.0), survival
 Imports: nlme, mvtnorm, ggplot2, Matrix, parallel
-Suggests: testthat (>= 3.0.0), knitr, rmarkdown
+Suggests: testthat (>= 3.0.0), knitr, rmarkdown, torch, ordinal
 Config/testthat/edition: 3
 VignetteBuilder: knitr
 Author: Wenhao Li [aut, cre],

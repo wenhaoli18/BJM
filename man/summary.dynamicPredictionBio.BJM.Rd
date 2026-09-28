@@ -38,3 +38,4 @@ Invisibly returns \code{object}.
 \description{
 Like \code{print} but also shows distribution-level summaries across subjects.
 }
+\keyword{internal}

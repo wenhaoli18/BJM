@@ -1,12 +1,12 @@
 # Characterization (golden-master) test.
 #
-# Captures the full survivalSub -> longitudinalSub -> dynamicPrediction ->
+# Captures the full survivalSub -> longitudinalSub -> predictRisk ->
 # dynamicPredictionBio -> riskPlot/predictPlot/cmtPlot pipeline on the
 # package's own pbc3 data, and compares it against numeric output captured
 # from the package before the 0.2.0 API refactor (see testdata/baseline.rds).
 #
 # This exists to catch numeric drift introduced while extracting shared
-# helpers out of the conditionalYT/conditionalYDT/dynamicPrediction family
+# helpers out of the conditionalYT/conditionalYDT/predictRisk family
 # of functions. It intentionally accesses fitted-model internals positionally
 # via [[ ]] so that it keeps working across the named-list API change.
 
@@ -58,7 +58,7 @@ test_that("full pipeline output matches pre-refactor baseline", {
   data.raw.predict <- pbc3[pbc3$id == i_PID, ]
   data_predict_all <- list(data.raw.predict, data.raw.predict, data.raw.predict)
 
-  risk_pred <- dynamicPrediction(data_predict_all, long_fit_all, survival_fit_all,
+  risk_pred <- predictRisk(data_predict_all, long_fit_all, survival_fit_all,
                                   prediction_time = 5, horizon = 1, time_variable = "year",
                                   survival_variable_all, survival_trans_function,
                                   bandcount1 = 10, bandcount2 = 20)

@@ -102,7 +102,6 @@ conditionalYDT = function(data_predict_all, long_fit_all, survival_fit_all,
     parameter_matrix <- design$parameter_matrix
     det_Var_cov_estep <- design$det_Var_cov_estep
     Sigma_all_solve <- design$Sigma_all_solve
-    long_sigma_long <- design$long_sigma_long
 
     ### Build a reusable model.frame "template" per biomarker/event-type,
     ### once per patient, instead of inside the l_i loop below. Only the
@@ -245,24 +244,32 @@ conditionalYDT = function(data_predict_all, long_fit_all, survival_fit_all,
       LME_all_matrix_1 = do.call(rbind, rows1)
       LME_all_matrix_0 = do.call(rbind, rows0)
       
-      A_matrix_1_1_loop = LME_all_matrix_1 %*% Sigma_all_solve %*% t(LME_all_matrix_1)
-      A_matrix_2_1_loop = LME_all_matrix_1 %*% Sigma_all_solve %*% longitudinal_all_matrix
-      
-      A_matrix_1_0_loop = LME_all_matrix_0 %*% Sigma_all_solve %*% t(LME_all_matrix_0)
-      A_matrix_2_0_loop = LME_all_matrix_0 %*% Sigma_all_solve %*% longitudinal_all_matrix
-      
-      para_matrix_A_21 = t(parameter_matrix) %*% A_matrix_2_1_loop
-      para_matrix_A_20 = t(parameter_matrix) %*% A_matrix_2_0_loop
-      f_Y_T_D_w1[it, iii] = det_Var_cov_estep^{-0.5} * 
-        exp(sum(diag(-0.5*( long_sigma_long + 
-                              t(parameter_matrix) %*% A_matrix_1_1_loop %*% parameter_matrix - 
-                              para_matrix_A_21 - 
-                              t(para_matrix_A_21) ) ))) 
-      f_Y_T_D_w0[it, iii] = det_Var_cov_estep^{-0.5} * 
-        exp(sum(diag(-0.5*( long_sigma_long + 
-                              t(parameter_matrix) %*% A_matrix_1_0_loop %*% parameter_matrix - 
-                              para_matrix_A_20 - 
-                              t(para_matrix_A_20) ) ))) 
+      ### Quadratic form (Y - mu)' Sigma_all_solve (Y - mu) for the FULL
+      ### stacked (across all markers) observation vector, computed
+      ### directly instead of via the "trace trick" that used to reduce it
+      ### to sum(diag(...)) of an M x M matrix. That trace only summed the
+      ### diagonal (i == j) blocks of the reduced matrix and silently
+      ### dropped every cross-marker (i != j) contribution of
+      ### Sigma_all_solve, i.e. it implicitly assumed the biomarkers were
+      ### conditionally independent given the random effects -- see the
+      ### matching comment/fix in conditionalYT.R and NEWS.md.
+      ###
+      ### mean_all_matrix_1/_0 mirror longitudinal_all_matrix's layout:
+      ### column i holds mu_i = X_i %*% beta_i (evaluated at event type 1
+      ### or 0 respectively) at marker i's own block of rows and zero
+      ### elsewhere, so rowSums() collapses the M columns into the single
+      ### stacked mu vector to difference directly against the stacked Y.
+      mean_all_matrix_1 = t(LME_all_matrix_1) %*% parameter_matrix
+      mean_all_matrix_0 = t(LME_all_matrix_0) %*% parameter_matrix
+
+      resid_full_1 = rowSums(longitudinal_all_matrix) - rowSums(mean_all_matrix_1)
+      resid_full_0 = rowSums(longitudinal_all_matrix) - rowSums(mean_all_matrix_0)
+
+      quad_form_1 = as.numeric(t(resid_full_1) %*% Sigma_all_solve %*% resid_full_1)
+      quad_form_0 = as.numeric(t(resid_full_0) %*% Sigma_all_solve %*% resid_full_0)
+
+      f_Y_T_D_w1[it, iii] = det_Var_cov_estep^{-0.5} * exp(-0.5 * quad_form_1)
+      f_Y_T_D_w0[it, iii] = det_Var_cov_estep^{-0.5} * exp(-0.5 * quad_form_0)
     }
     
   }

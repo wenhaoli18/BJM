@@ -2,7 +2,7 @@
 % Please edit documentation in R/predictPlot.R
 \name{predictPlot}
 \alias{predictPlot}
-\title{Plot of risk and future biomarker with density using dynamic prediction}
+\title{Plot risk and future biomarker predictions across a horizon sweep}
 \usage{
 predictPlot(
   data_predict_all_one,
@@ -60,7 +60,7 @@ values give a more accurate but slower estimate. Defaults to \code{"auto"},
 which resolves it once, before looping over \code{horizon} (using the
 largest requested horizon as a representative probe), by doubling from a
 built-in starting value until the predicted risk stabilizes; see
-\code{\link{dynamicPrediction}}'s \code{bandcount1} for details of that
+\code{\link{predictRisk}}'s \code{bandcount1} for details of that
 search. The resolved value is then reused, fixed, for every point in
 \code{horizon} -- it is not re-searched on every iteration.}
 
@@ -77,8 +77,8 @@ the same way, but only when \code{bio_pred} is non-\code{NULL} (it is
 unused otherwise).
 
 Pass explicit numbers instead of \code{"auto"} for full manual control, or
-use \code{checkBandcountConvergence()} (applied to \code{dynamicPrediction()}/
-\code{dynamicPredictionBio()} directly) to inspect the convergence behavior
+use \code{checkBandcountConvergence()} (applied to \code{predictRisk()}/
+\code{predictLongitudinal()} directly) to inspect the convergence behavior
 yourself. See also \code{vignette("BJM-intro", package = "BJM")} for
 further guidance on choosing \code{bandcount1}/\code{bandcount2}/
 \code{bandcount3}.}
@@ -106,7 +106,14 @@ assembled in) changes.}
 Plot of risk and future biomarker with density using dynamic prediction.
 }
 \description{
-This function gives the risk and biomarker prediction plot.
+Fixes the landmark time at \code{prediction_time} and sweeps forward over
+a range of prediction horizons, calling \code{\link{predictRisk}}
+(and, when \code{bio_pred} is supplied, \code{\link{predictLongitudinal}})
+at each horizon to trace out how predicted event risk (and, optionally,
+the predicted density/point-forecast of biomarker \code{bio_pred}) evolves
+the further out the prediction window extends from a single fixed
+landmark. This contrasts with \code{\link{riskPlot}}, which instead fixes
+the horizon and sweeps over a set of landmark times.
 }
 \examples{
 \donttest{

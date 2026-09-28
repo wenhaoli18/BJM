@@ -13,10 +13,13 @@ checkBandcountConvergence(
 )
 }
 \arguments{
-\item{predict_fun}{The prediction function to check: \code{dynamicPrediction}
-or \code{dynamicPredictionBio} themselves (not a string, and not
+\item{predict_fun}{The prediction function to check: \code{predictRisk}
+or \code{predictLongitudinal} themselves (not a string, and not
 \code{predictPlot()}/\code{riskPlot()}, which return a plot rather than
-the underlying numeric predictions this function compares).}
+the underlying numeric predictions this function compares). When passing
+\code{predictLongitudinal}, forward a \code{bio_i} (via \code{...}) that
+names exactly \strong{one} biomarker -- this function only supports
+comparing a single biomarker's prediction at a time (see \code{...}).}
 
 \item{...}{Arguments to forward to \code{predict_fun}, exactly as you
 would call it directly, except for the bandcount argument(s) being
@@ -63,16 +66,16 @@ if not, \code{NA} if there was nothing to compare.}
 Printing the object summarizes these fields.
 }
 \description{
-\code{dynamicPrediction()}/\code{dynamicPredictionBio()}
+\code{predictRisk()}/\code{predictLongitudinal()}
 approximate the integrals behind the predicted risk probabilities (and,
-for \code{dynamicPredictionBio()}, the predicted biomarker density) with a
+for \code{predictLongitudinal()}, the predicted biomarker density) with a
 finite grid, controlled by \code{bandcount1}/\code{bandcount2}/
 \code{bandcount3}. There is no universal correct value: too few grid
 points silently bias the answer, and too many just cost more time, and
 the right value depends on the data (e.g. how wide the follow-up range
 is). Rather than guess, or auto-loop until some tolerance is met --
 which multiplies runtime unpredictably, especially for
-\code{dynamicPredictionBio()}'s nested \code{bandcount2} x
+\code{predictLongitudinal()}'s nested \code{bandcount2} x
 \code{bandcount3} grid -- this runs the prediction once at the
 bandcount value(s) you supply, once more with those value(s) scaled up,
 and reports the largest relative change between the two, so you can see
@@ -98,7 +101,7 @@ data_predict_all = pbc3[pbc3$id == 2 & pbc3$year <= 3, ]
 
 # Check bandcount1/bandcount2 together: are they both already large enough?
 check = checkBandcountConvergence(
-  dynamicPrediction, data_predict_all, long_fit_all, survival_fit_all,
+  predictRisk, data_predict_all, long_fit_all, survival_fit_all,
   prediction_time = 3, horizon = 3, time_variable = "year",
   trans$survival_variable_all, trans$survival_trans_function,
   bandcount_args = list(bandcount1 = 10, bandcount2 = 10)

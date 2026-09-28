@@ -17,11 +17,11 @@ transformed basis variable.}
 \value{
 A named list with elements \code{survival_variable_all} and
 \code{survival_trans_function}, in the format expected by
-\code{dynamicPrediction()}, \code{dynamicPredictionBio()},
+\code{predictRisk()}, \code{dynamicPredictionBio()},
 \code{predictPlot()}, and \code{riskPlot()}.
 }
 \description{
-\code{dynamicPrediction()}, \code{dynamicPredictionBio()},
+\code{predictRisk()}, \code{dynamicPredictionBio()},
 \code{predictPlot()}, and \code{riskPlot()} all take a pair of arguments,
 \code{survival_variable_all}/\code{survival_trans_function}, that describe
 transformed basis variables of the (remaining) survival time; these can
@@ -49,5 +49,21 @@ survival_trans_function <- list(
   fun3 = function(x) abs(x - 5),
   fun4 = function(x) abs(x - 7)
 )
+
+# survivalTrans() only ever builds the abs(x - k) family above. Any other
+# transform -- as long as it is a function of a single numeric time value
+# that returns a single finite numeric value -- is written by hand the
+# same way, one entry of survival_trans_function per entry of
+# survival_variable_all. A few examples that all work equally well with
+# predictRisk()/dynamicPredictionBio()/predictPlot()/riskPlot():
+survival_variable_all <- list("Tlog", "Tsqrt", "Tsq", "Texp", "Tinv")
+survival_trans_function <- list(
+  fun1 = function(x) log(x + 1),        # log(x + 1)
+  fun2 = function(x) sqrt(abs(x)),      # sqrt(abs(x))
+  fun3 = function(x) x^2,               # x^2
+  fun4 = function(x) exp(-x / 10),      # exp(-x / 10)
+  fun5 = function(x) 1 / (x + 1)        # 1 / (x + 1)
+)
+sapply(survival_trans_function, function(f) f(2))
 
 }

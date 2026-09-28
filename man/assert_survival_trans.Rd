@@ -11,7 +11,7 @@ assert_survival_trans(
 )
 }
 \description{
-Shared input-validation helper for \code{dynamicPrediction()},
+Shared input-validation helper for \code{predictRisk()},
 \code{dynamicPredictionBio()}, \code{predictPlot()}, and \code{riskPlot()}:
 the two arguments must have matching length, and every transform must be
 a function. When \code{probe_value} is supplied, every transform is also

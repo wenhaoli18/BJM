@@ -100,7 +100,14 @@ build_conditional_design <- function(rep_num_i_list, data_num_i_list, lfit, Sigm
   for (i in 1:n_longitudinal) {
     Sigma_vector = c(Sigma_vector, rep(sigma.longitudinal[i]^2, dim(data_num_i_list[[i]])[1]))
   }
-  Sigma_all = A_i %*% Sigma %*% t(A_i) + diag(Sigma_vector)
+  ### diag(Sigma_vector) alone is unsafe when Sigma_vector has length 1
+  ### (e.g. a patient with a single longitudinal observation to condition
+  ### on): diag() then treats that single number as a matrix *dimension*
+  ### and returns an n x n identity matrix instead of the intended 1 x 1
+  ### diagonal matrix, corrupting Sigma_all's dimensions downstream (a
+  ### classic base R diag() gotcha -- see ?diag). Passing the length
+  ### explicitly avoids the ambiguity for every length, including 1.
+  Sigma_all = A_i %*% Sigma %*% t(A_i) + diag(Sigma_vector, length(Sigma_vector))
 
   det_Var_cov_estep = det(2 * pi * Sigma_all)
   Sigma_all_solve = solve(Sigma_all)

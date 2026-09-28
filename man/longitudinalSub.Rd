@@ -2,15 +2,14 @@
 % Please edit documentation in R/longitudinalSub.R
 \name{longitudinalSub}
 \alias{longitudinalSub}
-\title{The process involves estimating parameters for a multivariate linear mixed-effects
-model, which simultaneously analyzes multiple dependent variables that may be
-correlated. This approach incorporates both fixed effects, which are consistent
-across the population, and random effects, accounting for variations within
-groups or subjects. By fitting this model, one can assess the influence of
-predictor variables on several longitudinal outcomes while considering the inherent
-variability in the data due to random effects.}
+\title{Fit a multivariate longitudinal sub-model}
 \usage{
-longitudinalSub(data_fit_all, long_sub_fixed, long_sub_random)
+longitudinalSub(
+  data_fit_all,
+  long_sub_fixed,
+  long_sub_random,
+  biomarker_type = NULL
+)
 }
 \arguments{
 \item{data_fit_all}{This process requires a set of \code{data.frame} objects
@@ -32,7 +31,7 @@ a conventional univariate joint model is being constructed.
 Terms whose basis/contrasts depend on the data they are computed from --
 \code{poly()} in its default orthogonal mode, \code{splines::ns()}/
 \code{splines::bs()}, and \code{factor()} -- trigger a warning, because
-\code{dynamicPrediction()}/\code{dynamicPredictionBio()} rebuild the
+\code{predictRisk()}/\code{dynamicPredictionBio()} rebuild the
 design matrix from a small, patient-specific slice of data at every point
 on the prediction grid, so the basis recomputed at prediction time can
 silently disagree with the one used to fit the model (or fail outright
@@ -43,6 +42,21 @@ depend on the surrounding data.}
 \item{long_sub_random}{A list of one-sided formulas that define the model for the
 random effects of each longitudinal outcome.
 The number of items in this \code{list} should match the length of \code{formLongFixed}.}
+
+\item{biomarker_type}{Optional character vector, one entry per
+longitudinal outcome, each either \code{"continuous"} or \code{"ordinal"}.
+When supplied, it always takes priority. When \code{NULL} (the default),
+each biomarker's type is auto-detected from its own response column in
+\code{data_fit_all}: a \code{factor}/\code{ordered factor} response is
+treated as \code{"ordinal"}, anything else as \code{"continuous"}. If
+every biomarker is continuous (the original use case), fitting proceeds
+exactly as before with no behavior change whatsoever. If at least one
+biomarker is ordinal, that biomarker is instead fit with
+\code{ordinal::clmm()} (a probit cumulative link mixed model, requiring
+the optional \pkg{ordinal} package) and folded into the shared
+random-effects covariance matrix via a Gaussian-copula extension of the
+EM algorithm -- see \code{longitudinalSubCopula()} for implementation
+details.}
 }
 \value{
 An object of class \code{"longitudinalSub.BJM"}, a named list with elements:
@@ -63,13 +77,23 @@ data.}
 }
 }
 \description{
-The process involves estimating parameters for a multivariate linear mixed-effects
-model, which simultaneously analyzes multiple dependent variables that may be
-correlated. This approach incorporates both fixed effects, which are consistent
-across the population, and random effects, accounting for variations within
-groups or subjects. By fitting this model, one can assess the influence of
-predictor variables on several longitudinal outcomes while considering the inherent
-variability in the data due to random effects.
+Fits one linear mixed-effects model per longitudinal biomarker separately
+(via \code{\link[nlme]{lme}}), keeping each biomarker's own fixed-effects
+and residual-variance estimates from that separate fit. The \code{M}
+separate fits are then combined into a single multivariate model by
+re-estimating the full random-effects variance-covariance matrix jointly
+across all \code{M} biomarkers, via an EM algorithm initialized from the
+block-diagonal covariance implied by the separate fits -- so correlation
+between biomarkers' random effects is captured, even though the fixed
+effects and residual variances themselves are not re-estimated jointly
+and remain exactly what each biomarker's own \code{lme()} fit produced.
+This lets you assess the effect of predictor variables on several
+longitudinal outcomes at once while accounting for both population-level
+(fixed) effects and subject-level (random) variability, and for how the
+outcomes covary within a subject. The result is one of the two sub-models
+-- together with \code{\link{survivalSub}} -- that
+\code{\link{predictRisk}}/\code{\link{dynamicPredictionBio}}
+combine to produce dynamic risk/biomarker predictions.
 }
 \examples{
 \donttest{
@@ -90,17 +114,6 @@ long_sub_random =list(
   "long5" =  ~ year| id,    
   "long6" =  ~ year| id)
 
-survival_variable_all = list(
-  "Tyears1",  "Tyears2", "Tyears3", "Tyears4"
-)
-
-survival_trans_function = list(
-  fun1 = function(x){abs(x - 1)}, 
-  fun2 = function(x){abs(x - 3)}, 
-  fun3 = function(x){abs(x - 5)}, 
-  fun4 = function(x){abs(x - 7)}
-)
-
 # Complete case analysis
 data_fit_all = list()
 for(i in seq_len(length(long_sub_fixed))){
@@ -119,6 +132,34 @@ long_fit_poly = longitudinalSub(
   pbc3[pbc3$status3 == 1, ],
   serBilir ~ year + poly(age, 2) + factor(sex) + years,
   ~ year | id)
+
+# A few more nonlinear-term styles. None of these ever trigger the
+# warning above, because their basis doesn't depend on the surrounding
+# data at all -- there's simply nothing that could disagree between the
+# full training data and the small per-patient slice used at prediction
+# time.
+data_fit_extra_terms = pbc3[pbc3$status3 == 1, ]
+# A transformed-time column can also be built once with survivalTrans()
+# and merged onto the fitting data ahead of time -- by the time
+# long_sub_fixed sees it, it is just an ordinary numeric column, same as
+# any of the other terms below.
+data_fit_extra_terms$Tyears1 = survivalTrans(c(1, 3, 5, 7))$survival_trans_function[[1]](
+  data_fit_extra_terms$year)
+
+long_fit_nonlinear = list(
+  longitudinalSub(data_fit_extra_terms, serBilir ~ year + I(year^2) + age + sex,
+                   ~ year | id),
+  longitudinalSub(data_fit_extra_terms, serBilir ~ year + I(year^2) * age + sex,
+                   ~ year | id),
+  longitudinalSub(data_fit_extra_terms, serBilir ~ year + log(year + 1) + age + sex,
+                   ~ year | id),
+  longitudinalSub(data_fit_extra_terms, serBilir ~ year + sqrt(year) + age + sex,
+                   ~ year | id),
+  longitudinalSub(data_fit_extra_terms, serBilir ~ poly(year, 2, raw = TRUE) + age + sex,
+                   ~ year | id),
+  longitudinalSub(data_fit_extra_terms, serBilir ~ year + Tyears1 + age + sex,
+                   ~ year | id)
+)
 
 }
 

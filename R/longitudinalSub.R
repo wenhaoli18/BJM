@@ -1,11 +1,24 @@
-#' The process involves estimating parameters for a multivariate linear mixed-effects 
-#' model, which simultaneously analyzes multiple dependent variables that may be 
-#' correlated. This approach incorporates both fixed effects, which are consistent 
-#' across the population, and random effects, accounting for variations within 
-#' groups or subjects. By fitting this model, one can assess the influence of 
-#' predictor variables on several longitudinal outcomes while considering the inherent 
-#' variability in the data due to random effects.
-#' 
+#' Fit a multivariate longitudinal sub-model
+#'
+#' @description
+#' Fits one linear mixed-effects model per longitudinal biomarker separately
+#' (via \code{\link[nlme]{lme}}), keeping each biomarker's own fixed-effects
+#' and residual-variance estimates from that separate fit. The \code{M}
+#' separate fits are then combined into a single multivariate model by
+#' re-estimating the full random-effects variance-covariance matrix jointly
+#' across all \code{M} biomarkers, via an EM algorithm initialized from the
+#' block-diagonal covariance implied by the separate fits -- so correlation
+#' between biomarkers' random effects is captured, even though the fixed
+#' effects and residual variances themselves are not re-estimated jointly
+#' and remain exactly what each biomarker's own \code{lme()} fit produced.
+#' This lets you assess the effect of predictor variables on several
+#' longitudinal outcomes at once while accounting for both population-level
+#' (fixed) effects and subject-level (random) variability, and for how the
+#' outcomes covary within a subject. The result is one of the two sub-models
+#' -- together with \code{\link{survivalSub}} -- that
+#' \code{\link{predictRisk}}/\code{\link{dynamicPredictionBio}}
+#' combine to produce dynamic risk/biomarker predictions.
+#'
 #' @param data_fit_all This process requires a set of \code{data.frame} objects 
 #' designated for model fitting, with each \code{data.frame} representing a 
 #' separate longitudinal outcome. These \code{data.frame} objects must include the 
@@ -25,7 +38,7 @@
 #' Terms whose basis/contrasts depend on the data they are computed from --
 #' \code{poly()} in its default orthogonal mode, \code{splines::ns()}/
 #' \code{splines::bs()}, and \code{factor()} -- trigger a warning, because
-#' \code{dynamicPrediction()}/\code{dynamicPredictionBio()} rebuild the
+#' \code{predictRisk()}/\code{dynamicPredictionBio()} rebuild the
 #' design matrix from a small, patient-specific slice of data at every point
 #' on the prediction grid, so the basis recomputed at prediction time can
 #' silently disagree with the one used to fit the model (or fail outright
@@ -73,17 +86,6 @@
 #'   "long5" =  ~ year| id,    
 #'   "long6" =  ~ year| id)
 #' 
-#' survival_variable_all = list(
-#'   "Tyears1",  "Tyears2", "Tyears3", "Tyears4"
-#' )
-#' 
-#' survival_trans_function = list(
-#'   fun1 = function(x){abs(x - 1)}, 
-#'   fun2 = function(x){abs(x - 3)}, 
-#'   fun3 = function(x){abs(x - 5)}, 
-#'   fun4 = function(x){abs(x - 7)}
-#' )
-#' 
 #' # Complete case analysis
 #' data_fit_all = list()
 #' for(i in seq_len(length(long_sub_fixed))){
@@ -103,10 +105,110 @@
 #'   serBilir ~ year + poly(age, 2) + factor(sex) + years,
 #'   ~ year | id)
 #'
+#' # A few more nonlinear-term styles. None of these ever trigger the
+#' # warning above, because their basis doesn't depend on the surrounding
+#' # data at all -- there's simply nothing that could disagree between the
+#' # full training data and the small per-patient slice used at prediction
+#' # time.
+#' data_fit_extra_terms = pbc3[pbc3$status3 == 1, ]
+#' # A transformed-time column can also be built once with survivalTrans()
+#' # and merged onto the fitting data ahead of time -- by the time
+#' # long_sub_fixed sees it, it is just an ordinary numeric column, same as
+#' # any of the other terms below.
+#' data_fit_extra_terms$Tyears1 = survivalTrans(c(1, 3, 5, 7))$survival_trans_function[[1]](
+#'   data_fit_extra_terms$year)
+#'
+#' long_fit_nonlinear = list(
+#'   longitudinalSub(data_fit_extra_terms, serBilir ~ year + I(year^2) + age + sex,
+#'                    ~ year | id),
+#'   longitudinalSub(data_fit_extra_terms, serBilir ~ year + I(year^2) * age + sex,
+#'                    ~ year | id),
+#'   longitudinalSub(data_fit_extra_terms, serBilir ~ year + log(year + 1) + age + sex,
+#'                    ~ year | id),
+#'   longitudinalSub(data_fit_extra_terms, serBilir ~ year + sqrt(year) + age + sex,
+#'                    ~ year | id),
+#'   longitudinalSub(data_fit_extra_terms, serBilir ~ poly(year, 2, raw = TRUE) + age + sex,
+#'                    ~ year | id),
+#'   longitudinalSub(data_fit_extra_terms, serBilir ~ year + Tyears1 + age + sex,
+#'                    ~ year | id)
+#' )
+#'
 #' }
 #'
+#' @param biomarker_type Optional character vector, one entry per
+#' longitudinal outcome, each either \code{"continuous"} or \code{"ordinal"}.
+#' When supplied, it always takes priority. When \code{NULL} (the default),
+#' each biomarker's type is auto-detected from its own response column in
+#' \code{data_fit_all}: a \code{factor}/\code{ordered factor} response is
+#' treated as \code{"ordinal"}, anything else as \code{"continuous"}. If
+#' every biomarker is continuous (the original use case), fitting proceeds
+#' exactly as before with no behavior change whatsoever. If at least one
+#' biomarker is ordinal, that biomarker is instead fit with
+#' \code{ordinal::clmm()} (a probit cumulative link mixed model, requiring
+#' the optional \pkg{ordinal} package) and folded into the shared
+#' random-effects covariance matrix via a Gaussian-copula extension of the
+#' EM algorithm -- see \code{longitudinalSubCopula()} for implementation
+#' details.
+#'
 #' @export
-longitudinalSub <- function(data_fit_all, long_sub_fixed, long_sub_random) {
+longitudinalSub <- function(data_fit_all, long_sub_fixed, long_sub_random, biomarker_type = NULL) {
+  long_sub_fixed_check <- if (is.list(long_sub_fixed)) long_sub_fixed else list(long_sub_fixed)
+  long_sub_random_check <- if (is.list(long_sub_random)) long_sub_random else list(long_sub_random)
+  assert_all_formulas(long_sub_fixed_check, "long_sub_fixed")
+  assert_all_formulas(long_sub_random_check, "long_sub_random")
+  if (length(long_sub_fixed_check) != length(long_sub_random_check)) {
+    stop(sprintf(
+      "`long_sub_fixed` has %d element(s) but `long_sub_random` has %d; they must describe the same number of longitudinal outcomes.",
+      length(long_sub_fixed_check), length(long_sub_random_check)
+    ), call. = FALSE)
+  }
+  M <- length(long_sub_fixed_check)
+
+  assert_data_list(data_fit_all, "data_fit_all", M, allow_bare_df = TRUE)
+  data_fit_all_norm <- if (!is.list(data_fit_all) || is.data.frame(data_fit_all)) {
+    rep(list(data_fit_all), M)
+  } else {
+    data_fit_all
+  }
+
+  biomarker_type_resolved <- resolve_biomarker_type(biomarker_type, data_fit_all_norm, long_sub_fixed_check, M)
+
+  ### Hard requirement: an all-continuous input must behave exactly as
+  ### before. longitudinalSubGaussian() is a verbatim copy of this
+  ### function's original body, called here with the *pristine, unmodified*
+  ### arguments as supplied by the caller -- not the normalized-to-list
+  ### copies above -- so the all-continuous code path is byte-for-byte
+  ### identical to what ran prior to biomarker_type existing at all.
+  if (all(biomarker_type_resolved == "continuous")) {
+    return(longitudinalSubGaussian(data_fit_all, long_sub_fixed, long_sub_random))
+  }
+
+  warn_unsafe_formula_terms(long_sub_fixed_check, "long_sub_fixed")
+
+  id <- as.character(nlme::splitFormula(long_sub_random_check[[1]], "|")[[2]])[2]
+  for (m in seq_len(M)) {
+    assert_vars_in_data(unique(c(all.vars(long_sub_fixed_check[[m]]), all.vars(long_sub_random_check[[m]]), id)),
+                         data_fit_all_norm[[m]],
+                         sprintf("long_sub_fixed[[%d]]/long_sub_random[[%d]]", m, m),
+                         sprintf("data_fit_all[[%d]]", m))
+  }
+
+  longitudinalSubCopula(data_fit_all_norm, long_sub_fixed_check, long_sub_random_check,
+                         biomarker_type_resolved, M)
+}
+
+#' Fit a multivariate longitudinal sub-model (all-continuous biomarkers)
+#'
+#' @description Internal workhorse for \code{\link{longitudinalSub}} when
+#' every biomarker is continuous. This is the original \code{longitudinalSub}
+#' implementation, kept verbatim and called with the caller's pristine,
+#' unmodified arguments, so that the all-continuous case behaves exactly as
+#' it always has -- see \code{\link{longitudinalSub}} for the argument
+#' documentation, and \code{longitudinalSubCopula()} for the mixed
+#' continuous/ordinal extension used when at least one biomarker is
+#' categorical.
+#' @keywords internal
+longitudinalSubGaussian <- function(data_fit_all, long_sub_fixed, long_sub_random) {
   long_sub_fixed_check <- if (is.list(long_sub_fixed)) long_sub_fixed else list(long_sub_fixed)
   long_sub_random_check <- if (is.list(long_sub_random)) long_sub_random else list(long_sub_random)
   assert_all_formulas(long_sub_fixed_check, "long_sub_fixed")

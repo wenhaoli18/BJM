@@ -39,7 +39,7 @@ test_that("no-competing-risk pipeline output matches pre-refactor baseline", {
   data.raw.predict <- pbc3[pbc3$id == 2, ]
   data_predict_all <- list(data.raw.predict, data.raw.predict)
 
-  risk_pred <- dynamicPrediction(data_predict_all, long_fit_all, survival_fit_all,
+  risk_pred <- predictRisk(data_predict_all, long_fit_all, survival_fit_all,
                                   prediction_time = 5, horizon = 1, time_variable = "year",
                                   survival_variable_all, survival_trans_function,
                                   bandcount1 = 10, bandcount2 = 20)

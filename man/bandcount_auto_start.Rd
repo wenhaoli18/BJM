@@ -15,7 +15,7 @@ The built-in starting point \code{auto_tune_bandcount()}
 doubles from for each bandcount argument. \code{bandcount1}/
 \code{bandcount2}/\code{bandcount3} used to default to fixed numbers
 (\code{10}, \code{40}, and \code{300} respectively, across
-\code{dynamicPrediction()}/\code{dynamicPredictionBio()}); those same
+\code{predictRisk()}/\code{dynamicPredictionBio()}); those same
 numbers are reused here as the starting point for auto-tuning, so that
 the first call \code{auto_tune_bandcount()} makes matches what a caller
 relying on the old fixed defaults would have gotten. This cannot instead

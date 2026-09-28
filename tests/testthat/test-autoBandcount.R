@@ -2,7 +2,7 @@
 # doubling-until-stable search in auto_tune_bandcount() (unit-tested directly
 # here against deterministic fake predict_fun()s, since real convergence
 # behavior on real data is not something a test can pin down exactly), and
-# its wiring into dynamicPrediction()/dynamicPredictionBio()/predictPlot()/
+# its wiring into predictRisk()/dynamicPredictionBio()/predictPlot()/
 # riskPlot().
 
 test_that("auto_tune_bandcount stops after the first doubling when already converged, without warning", {
@@ -62,29 +62,29 @@ test_that("auto_tune_bandcount never makes more than max_rounds + 1 calls", {
   expect_length(calls, 4)
 })
 
-test_that("dynamicPrediction defaults to auto bandcount1/bandcount2 and returns valid risk probabilities", {
+test_that("predictRisk defaults to auto bandcount1/bandcount2 and returns valid risk probabilities", {
   f <- setup_dp_fixture()
 
-  risk <- suppressWarnings(dynamicPrediction(
+  risk <- suppressWarnings(predictRisk(
     f$data_predict_all, f$long_fit_all, f$survival_fit_all,
     prediction_time = 5, horizon = 1, time_variable = "year",
     f$survival_variable_all, f$survival_trans_function
   ))
 
-  expect_s3_class(risk, "dynamicPrediction.BJM")
+  expect_s3_class(risk, "predictRisk.BJM")
   expect_true(risk$risk_prob_1 >= 0 && risk$risk_prob_1 <= 1)
   expect_true(risk$risk_prob_2 >= 0 && risk$risk_prob_2 <= 1)
 })
 
-test_that("dynamicPrediction with explicit numeric bandcount1/bandcount2 still bypasses auto-tuning (backward compatible)", {
+test_that("predictRisk with explicit numeric bandcount1/bandcount2 still bypasses auto-tuning (backward compatible)", {
   f <- setup_dp_fixture()
 
-  risk <- dynamicPrediction(f$data_predict_all, f$long_fit_all, f$survival_fit_all,
+  risk <- predictRisk(f$data_predict_all, f$long_fit_all, f$survival_fit_all,
                              prediction_time = 5, horizon = 1, time_variable = "year",
                              f$survival_variable_all, f$survival_trans_function,
                              bandcount1 = 10, bandcount2 = 20)
 
-  expect_s3_class(risk, "dynamicPrediction.BJM")
+  expect_s3_class(risk, "predictRisk.BJM")
 })
 
 test_that("dynamicPredictionBio defaults to auto bandcount2/bandcount3 and returns a MAP estimate", {
@@ -107,10 +107,10 @@ test_that("predictPlot resolves auto bandcount1/bandcount2/bandcount3 once, not 
   ns <- asNamespace("BJM")
   n_calls <- 0
   trace_env <- environment()
-  trace("dynamicPrediction", tracer = function() {
+  trace("predictRisk", tracer = function() {
     assign("n_calls", get("n_calls", envir = trace_env) + 1, envir = trace_env)
   }, where = ns, print = FALSE)
-  on.exit(suppressMessages(untrace("dynamicPrediction", where = ns)), add = TRUE)
+  on.exit(suppressMessages(untrace("predictRisk", where = ns)), add = TRUE)
 
   plot_obj <- suppressWarnings(predictPlot(
     f$data_predict_all, f$long_fit_all, f$survival_fit_all,
@@ -121,7 +121,7 @@ test_that("predictPlot resolves auto bandcount1/bandcount2/bandcount3 once, not 
 
   expect_s3_class(plot_obj, "ggplot")
   # If bandcount1/bandcount2 were re-resolved via "auto" on every horizon
-  # point (2 points here) instead of once up front, dynamicPrediction()
+  # point (2 points here) instead of once up front, predictRisk()
   # would be called many more times than this.
   expect_lte(n_calls, 2 + 3)
 })

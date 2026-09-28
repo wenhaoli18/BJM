@@ -1,7 +1,24 @@
-#' Plot of risk using dynamic prediction
-#' 
-#' @description This function gives the risk prediction plot.
-#' 
+#' Plot predicted risk across a sweep of landmark times
+#'
+#' @description
+#' Fixes the prediction horizon and sweeps backward/forward over a set of
+#' landmark times, calling \code{\link{predictRisk}} at each landmark
+#' in \code{prediction_time} to trace out how predicted event risk over that
+#' fixed-length window changes as the landmark moves -- i.e. as more (or
+#' less) of the subject's longitudinal history is used to update their
+#' risk. \code{prediction_time} may be a vector of landmark times to use
+#' directly; a single value, which is expanded to three landmarks
+#' (\code{prediction_time}, \code{1.5 * prediction_time},
+#' \code{2 * prediction_time}); or \code{NULL}, which uses every observed
+#' longitudinal measurement time (across subjects, from the first
+#' biomarker's data) as a landmark. This contrasts with
+#' \code{\link{predictPlot}}, which instead fixes the landmark and sweeps
+#' over a range of horizons. The optional \code{bio_i} argument only selects
+#' which biomarker's observed trajectory is overlaid on the plot for visual
+#' reference -- it does not affect the risk computation itself (unlike
+#' \code{\link{predictPlot}}'s \code{bio_pred}, which drives a biomarker
+#' density prediction).
+#'
 #' @param data_predict_all_pre This involves a collection of \code{data.frame} objects for
 #' dynamic prediction, each corresponding to a distinct longitudinal outcome. These data
 #' frames should contain the variables specified in \code{long_sub_fixed} and
@@ -30,7 +47,7 @@
 #' which resolves it once, before looping over the landmark times, (using
 #' the first landmark time as a representative probe) by doubling from a
 #' built-in starting value until the predicted risk stabilizes; see
-#' \code{\link{dynamicPrediction}}'s \code{bandcount1} for details of that
+#' \code{\link{predictRisk}}'s \code{bandcount1} for details of that
 #' search. The resolved value is then reused, fixed, for every landmark
 #' time -- it is not re-searched on every iteration.
 #' @param bandcount2 The number of grid points used to approximate
@@ -40,7 +57,7 @@
 #' \code{bandcount1} (jointly with it, when both are \code{"auto"}).
 #'
 #' Pass explicit numbers instead of \code{"auto"} for full manual control, or
-#' use \code{checkBandcountConvergence()} (applied to \code{dynamicPrediction()}
+#' use \code{checkBandcountConvergence()} (applied to \code{predictRisk()}
 #' directly) to inspect the convergence behavior yourself. See also
 #' \code{vignette("BJM-intro", package = "BJM")} for further guidance on
 #' choosing \code{bandcount1}/\code{bandcount2}.
@@ -140,7 +157,7 @@ riskPlot = function(data_predict_all_pre, long_fit_all, survival_fit_all,
                         survival_variable_all = survival_variable_all,
                         survival_trans_function = survival_trans_function,
                         bandcount1 = bandcount1, bandcount2 = bandcount2)
-    resolved_1_2 <- auto_tune_bandcount(dynamicPrediction, probe_args, auto_names_1_2)$bandcount
+    resolved_1_2 <- auto_tune_bandcount(predictRisk, probe_args, auto_names_1_2)$bandcount
     if (!is.null(resolved_1_2$bandcount1)) bandcount1 <- resolved_1_2$bandcount1
     if (!is.null(resolved_1_2$bandcount2)) bandcount2 <- resolved_1_2$bandcount2
   }
@@ -161,7 +178,7 @@ riskPlot = function(data_predict_all_pre, long_fit_all, survival_fit_all,
       data_predict_all[[i]] = data_predict_all_pre[[i]][data_predict_all_pre[[i]][time_variable] <= time.cutoff,]
     }
 
-    risk.prob = dynamicPrediction(data_predict_all, long_fit_all, survival_fit_all,
+    risk.prob = predictRisk(data_predict_all, long_fit_all, survival_fit_all,
                                   prediction_time = time.cutoff,
                                   horizon, time_variable,
                                   survival_variable_all, survival_trans_function,

@@ -105,7 +105,14 @@ process_variance <- function(num_i, time_new, bio_i, data_predict_all,
   for(i in 1:n_longitudinal){
     Sigma_vector = c(Sigma_vector, rep(sigma.longitudinal[i]^2, dim(data_num_i_list[[i]])[1]))
   }
-  Sigma_all =  A_i %*% Sigma %*% t(A_i) + diag(Sigma_vector)
+  ### diag(Sigma_vector) alone is unsafe when Sigma_vector has length 1
+  ### (e.g. a patient with a single longitudinal observation to condition
+  ### on): diag() then treats that single number as a matrix *dimension*
+  ### and returns an n x n identity matrix instead of the intended 1 x 1
+  ### diagonal matrix, corrupting Sigma_all's dimensions downstream (a
+  ### classic base R diag() gotcha -- see ?diag). Passing the length
+  ### explicitly avoids the ambiguity for every length, including 1.
+  Sigma_all =  A_i %*% Sigma %*% t(A_i) + diag(Sigma_vector, length(Sigma_vector))
   #Sigma_all <- diag(diag(Sigma_all))
   
   return(Sigma_all) # Return the computed Sigma_all for this iteration

@@ -125,7 +125,7 @@ assert_string <- function(x, arg_name) {
 #' Assert that a bandcount argument is a positive number or "auto"
 #'
 #' @description Shared input-validation helper for the \code{bandcount1}/
-#' \code{bandcount2}/\code{bandcount3} arguments of \code{dynamicPrediction()},
+#' \code{bandcount2}/\code{bandcount3} arguments of \code{predictRisk()},
 #' \code{dynamicPredictionBio()}, \code{predictPlot()}, and \code{riskPlot()},
 #' which now accept either an explicit positive number (the original
 #' behavior) or the literal string \code{"auto"} to have the value chosen
@@ -220,7 +220,7 @@ warn_unsafe_formula_terms <- function(formula_list, arg_name) {
 
 #' Assert that survival_variable_all/survival_trans_function are consistent
 #'
-#' @description Shared input-validation helper for \code{dynamicPrediction()},
+#' @description Shared input-validation helper for \code{predictRisk()},
 #' \code{dynamicPredictionBio()}, \code{predictPlot()}, and \code{riskPlot()}:
 #' the two arguments must have matching length, and every transform must be
 #' a function. When \code{probe_value} is supplied, every transform is also
@@ -274,6 +274,28 @@ assert_survival_trans <- function(survival_variable_all, survival_trans_function
   invisible(TRUE)
 }
 
+#' Assert that an optional (Suggests-only) package is installed
+#'
+#' @description Shared input-validation helper for functions that depend on
+#' a package listed in \code{Suggests} rather than \code{Imports} (so that
+#' most users -- and CRAN's own checks -- are unaffected by a large,
+#' optional dependency they never call). Every call site into that package
+#' must still be fully namespaced (\code{pkg::fun()}), never
+#' \code{@importFrom}; this helper just turns a missing package into a
+#' clear, actionable error instead of a cryptic "could not find function"
+#' failure deep inside the calling code.
+#' @keywords internal
+assert_package_installed <- function(pkg, context) {
+  if (!requireNamespace(pkg, quietly = TRUE)) {
+    stop(sprintf(
+      "%s requires the '%s' package, which is not installed. Install it with install.packages(\"%s\")%s.",
+      context, pkg, pkg,
+      if (pkg == "torch") ' and then run torch::install_torch() once to download LibTorch' else ""
+    ), call. = FALSE)
+  }
+  invisible(TRUE)
+}
+
 #' Call a single survival_trans_function element and validate its output
 #'
 #' @description \code{assert_survival_trans()} only probes each transform
@@ -298,4 +320,80 @@ apply_survival_trans <- function(fun, x, surv_i) {
     ), surv_i, format(x), class(value)[1], length(value)), call. = FALSE)
   }
   value
+}
+
+#' Assert that biomarker_type is a valid per-biomarker type vector
+#'
+#' @description Shared input-validation helper for the \code{biomarker_type}
+#' argument of \code{\link{longitudinalSub}}: when supplied explicitly (as
+#' opposed to being auto-detected from each biomarker's response column),
+#' it must be a character vector with exactly one entry per longitudinal
+#' outcome, and every entry must be one of \code{"continuous"} or
+#' \code{"ordinal"}.
+#' @keywords internal
+assert_biomarker_type <- function(biomarker_type, M, valid_types = c("continuous", "ordinal")) {
+  if (!is.character(biomarker_type) || length(biomarker_type) != M || anyNA(biomarker_type)) {
+    stop(sprintf(
+      "`biomarker_type` must be a character vector of length %d (one entry per longitudinal outcome, in the same order as `long_sub_fixed`), with no missing values.",
+      M
+    ), call. = FALSE)
+  }
+  bad <- setdiff(biomarker_type, valid_types)
+  if (length(bad) > 0) {
+    stop(sprintf(
+      "`biomarker_type` must only contain %s; found invalid value(s): %s.",
+      paste(sprintf('"%s"', valid_types), collapse = ", "),
+      paste(sprintf('"%s"', unique(bad)), collapse = ", ")
+    ), call. = FALSE)
+  }
+  invisible(TRUE)
+}
+
+#' Assert that a list of longitudinalSub.BJM fits is poolable with Rubin's rules
+#'
+#' @description Shared input-validation helper for
+#' \code{\link{poolLongitudinalSub}}: checks that \code{long_fit_all_list}
+#' is a list of at least two \code{longitudinalSub.BJM} objects (the S3
+#' class \code{\link{longitudinalSub}} attaches to its return value), and
+#' that every one of them was fit for the same set of biomarkers with the
+#' same fixed-effect coefficients -- otherwise "the mean of the estimates"
+#' would be averaging unrelated quantities across completions.
+#' @keywords internal
+assert_poolable_longitudinal_fits <- function(long_fit_all_list, arg_name = "long_fit_all_list") {
+  if (!is.list(long_fit_all_list) || is.data.frame(long_fit_all_list)) {
+    stop(sprintf(
+      "`%s` must be a list of `longitudinalSub.BJM` objects (fit `longitudinalSub()` once per completed dataset in `imputeLongitudinal(..., impute = \"multiple\")`'s `data_fit_all_list`), not %s.",
+      arg_name, class(long_fit_all_list)[1]
+    ), call. = FALSE)
+  }
+  if (length(long_fit_all_list) < 2) {
+    stop(sprintf(
+      "`%s` has %d element(s); Rubin's rules pooling needs at least 2 completed-data fits (use `n_imputations >= 2` and `impute = \"multiple\"` in `imputeLongitudinal()`).",
+      arg_name, length(long_fit_all_list)
+    ), call. = FALSE)
+  }
+  for (i in seq_along(long_fit_all_list)) {
+    assert_class(long_fit_all_list[[i]], "longitudinalSub.BJM",
+                 sprintf("%s[[%d]]", arg_name, i), "longitudinalSub")
+  }
+
+  M1 <- length(long_fit_all_list[[1]]$lfit)
+  coef_names_1 <- lapply(long_fit_all_list[[1]]$lfit, function(f) names(nlme::fixef(f)))
+  for (i in seq_along(long_fit_all_list)[-1]) {
+    fit_i <- long_fit_all_list[[i]]
+    if (length(fit_i$lfit) != M1) {
+      stop(sprintf(
+        "`%s[[%d]]` has %d longitudinal outcome(s), but `%s[[1]]` has %d; every fit must be for the same set of biomarkers (fit `longitudinalSub()` with the same `long_sub_fixed`/`long_sub_random` on each completed dataset).",
+        arg_name, i, length(fit_i$lfit), arg_name, M1
+      ), call. = FALSE)
+    }
+    coef_names_i <- lapply(fit_i$lfit, function(f) names(nlme::fixef(f)))
+    if (!identical(coef_names_i, coef_names_1)) {
+      stop(sprintf(
+        "`%s[[%d]]` has different fixed-effect coefficient names than `%s[[1]]`; every fit must use the same `long_sub_fixed` formula(s).",
+        arg_name, i, arg_name
+      ), call. = FALSE)
+    }
+  }
+  invisible(TRUE)
 }

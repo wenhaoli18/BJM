@@ -84,7 +84,6 @@ conditionalYT = function(data_predict_all, long_fit_all, l_i, survival_variable,
     parameter_matrix <- design$parameter_matrix
     det_Var_cov_estep <- design$det_Var_cov_estep
     Sigma_all_solve <- design$Sigma_all_solve
-    long_sigma_long <- design$long_sigma_long
 
     ### for loop and make prediction probability for all time points in l_i
     for(it in 1: length(l_i)){
@@ -152,15 +151,32 @@ conditionalYT = function(data_predict_all, long_fit_all, l_i, survival_variable,
       # Combine all the rows, combine all individual longitudinal matrix
       LME_all_matrix = do.call(rbind, rows)
       
-      A_matrix_1_1_loop = LME_all_matrix %*% Sigma_all_solve %*% t(LME_all_matrix)
-      A_matrix_2_1_loop = LME_all_matrix %*% Sigma_all_solve %*% longitudinal_all_matrix
-      
-      para_matrix_A_21 = t(parameter_matrix) %*% A_matrix_2_1_loop
-      f_Y_T_D_w1[it, iii] = det_Var_cov_estep^{-0.5} * 
-        exp(sum(diag(-0.5*( long_sigma_long + 
-                              t(parameter_matrix) %*% A_matrix_1_1_loop %*% parameter_matrix - 
-                              para_matrix_A_21 - 
-                              t(para_matrix_A_21) ) ))) 
+      ### Quadratic form (Y - mu)' Sigma_all_solve (Y - mu) for the FULL
+      ### stacked (across all markers) observation vector.
+      ###
+      ### mean_all_matrix mirrors longitudinal_all_matrix's layout exactly:
+      ### t(LME_all_matrix) %*% parameter_matrix is block-diagonal in the
+      ### same way, so its column i holds mu_i = X_i %*% beta_i at marker
+      ### i's own block of rows and zero elsewhere. rowSums() of each then
+      ### collapses the M columns down to the single stacked Y/mu vector
+      ### (safe because each row has a nonzero entry in exactly one column).
+      ###
+      ### NOTE: an earlier version of this function computed this quantity
+      ### via a "trace trick" (sum(diag(...)) of an M x M matrix built from
+      ### parameter_matrix/longitudinal_all_matrix sandwiched through
+      ### Sigma_all_solve). That trace only sums the *diagonal* (i == j)
+      ### blocks of the reduced M x M matrix, which silently discards every
+      ### cross-marker (i != j) contribution of Sigma_all_solve -- i.e. it
+      ### implicitly assumed the biomarkers were conditionally independent
+      ### given the random effects. That contradicts the whole point of
+      ### fitting a joint (possibly correlated) Sigma_fit across markers,
+      ### and was numerically verified to diverge from the true joint
+      ### quadratic form whenever markers are correlated (see NEWS.md).
+      mean_all_matrix = t(LME_all_matrix) %*% parameter_matrix
+      resid_full = rowSums(longitudinal_all_matrix) - rowSums(mean_all_matrix)
+      quad_form = as.numeric(t(resid_full) %*% Sigma_all_solve %*% resid_full)
+
+      f_Y_T_D_w1[it, iii] = det_Var_cov_estep^{-0.5} * exp(-0.5 * quad_form)
     }
     
   }

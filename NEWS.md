@@ -1,3 +1,215 @@
+# BJM 0.3.0
+
+## Breaking changes
+
+* `dynamicPrediction()` has been renamed to `predictRisk()`, to read as a
+  verb-first pair with the new `predictLongitudinal()` (below) rather than
+  as one specifically-named function alongside a generically-named one.
+  Existing code that calls `dynamicPrediction()` positionally or by name
+  needs to switch to `predictRisk()`; the argument list, return value, and
+  `"predictRisk.BJM"` (formerly `"dynamicPrediction.BJM"`) class are
+  otherwise unchanged. `checkBandcountConvergence()`'s `predict_fun`
+  argument accepts `predictRisk` in place of the old `dynamicPrediction`.
+
+## New features
+
+* New `imputeLongitudinal()` fills in missing longitudinal biomarker values
+  before `longitudinalSub()` runs, instead of relying on complete-case
+  analysis. `longitudinalSub()` drops rows missing a biomarker's own
+  covariates, and then keeps only subjects who have at least one
+  observation of *every* biomarker -- so with irregular/interrupted
+  follow-up (missing at random given the observed covariates and
+  biomarkers), a subject missing just one of several biomarkers at a visit,
+  or missing a biomarker's measurements entirely, is dropped from every
+  biomarker's fit, not just the one it is missing. `imputeLongitudinal()`
+  fits a MIWAE (Missing data Importance-Weighted AutoEncoder; Mattei &
+  Frellsen, 2019) jointly across the supplied biomarkers and draws one or
+  more plausible completions via self-normalized importance resampling; the
+  completed data can be passed straight into `longitudinalSub()` in place
+  of the original `data_fit_all`. A second backend, selected with
+  `method = "diffusion"`, fits a conditional denoising diffusion
+  probabilistic model (DDPM; Ho, Jain & Abbeel, 2020) instead of a VAE,
+  trained with the same observed-entries-only masking principle as the
+  MIWAE objective (matching MissDiff, Ouyang et al., 2023), and imputes
+  missing cells with a RePaint-style (Lugmayr et al., 2022) reverse-
+  diffusion sampler that reproduces observed values exactly and only
+  extrapolates the missing ones. Both backends share the same call shape,
+  return shape, and `diagnostics` output, so switching between them is a
+  one-argument change. Requires the optional `torch` package (listed in
+  `Suggests`, not `Imports`, so installing/using BJM without it is
+  unaffected); every call into `torch` is fully namespaced. The returned
+  `diagnostics` also report a classical single-regression-imputation
+  baseline alongside the deep-generative completions, so all of these can
+  be compared on a given dataset -- deep generative imputation needs
+  enough data to fit reliably, and is not automatically the better choice
+  at every sample size.
+* New `poolLongitudinalSub()` combines `longitudinalSub()` fits across the
+  multiple completed datasets returned by `imputeLongitudinal(..., impute =
+  "multiple")`, using Rubin's rules (Rubin, 1987) with the Barnard & Rubin
+  (1999) small-sample degrees-of-freedom adjustment. `impute = "single"`
+  (the default) fills `data_fit_all` with the across-draw mean of the
+  generative model's completions and returns one completed dataset -- fast,
+  but fitting `longitudinalSub()` on it treats every imputed value as if it
+  had been observed, so the resulting standard errors do not reflect the
+  uncertainty from not actually knowing the missing values. Fitting
+  `longitudinalSub()` once per completion in `data_fit_all_list` (`impute =
+  "multiple"`) and combining the fixed-effect estimates with
+  `poolLongitudinalSub()` instead propagates that uncertainty into the
+  pooled standard errors, degrees of freedom, and p-values, and reports a
+  fraction-of-missing-information (`fmi`) per coefficient so it is visible
+  which estimates were affected most by the missingness. `print()`-ing the
+  result shows a coefficient table per biomarker alongside the FMI values.
+* `longitudinalSub()` now accepts categorical (binary/ordinal) biomarkers
+  alongside continuous ones, via a Gaussian-copula extension. Every
+  biomarker's type -- `"continuous"` or `"ordinal"` -- is auto-detected from
+  whether its response column in `data_fit_all` is a factor, or can be set
+  explicitly with the new `biomarker_type` argument (which always takes
+  priority over auto-detection when supplied). If every biomarker is
+  continuous, fitting is completely unchanged: this is the same
+  `nlme::lme()`-based code path as before, byte-for-byte. If at least one
+  biomarker is ordinal, it is instead fit as a probit cumulative link mixed
+  model via `ordinal::clmm()` (requiring the optional `ordinal` package,
+  listed in `Suggests`, not `Imports`), representing each observed category
+  as an interval on an underlying continuous latent Gaussian score --
+  mathematically the same object as a Gaussian copula linking a discrete
+  margin to the model's other (continuous or latent) margins. The shared
+  random-effects covariance matrix across every biomarker, continuous and
+  ordinal alike, is then re-estimated jointly by an ECM
+  (Expectation-Conditional-Maximization) algorithm: one new "inner" E-step
+  imputes each ordinal observation's latent score (its truncated-normal
+  conditional mean given the fitted thresholds and current random-effect
+  prediction) before the existing "outer" E-step/M-step -- unchanged from
+  `longitudinalSub()`'s original EM -- re-estimates the covariance matrix.
+  This inner-imputation step is a deterministic moment-matching plug-in
+  (not a full Bayesian/MCEM draw), a documented v1 simplification.
+  `predictRisk()` now also works directly on a fitted mixed-type
+  model: its internal conditional-density calculation dispatches to a
+  Gaussian-copula-aware variant (`conditionalYTCopula()`/
+  `conditionalYDTCopula()`, internal, not exported) whenever
+  `long_fit_all$biomarker_type` records at least one ordinal marker. Given
+  a patient's observed continuous values and observed ordinal categories,
+  this variant factors the joint density as the exact multivariate-normal
+  density of the continuous sub-vector times the multivariate-normal box
+  probability (`mvtnorm::pmvnorm()`) of the ordinal latent scores falling
+  in their category-implied intervals, evaluated at the ordinal block's
+  distribution conditional on the continuous observations (standard
+  multivariate-normal conditioning). For an all-continuous fit
+  (`biomarker_type` is `NULL`), dispatch falls through unchanged to the
+  original `conditionalYT()`/`conditionalYDT()`, so no existing
+  `predictRisk()` behavior is affected. `predictLongitudinal()`
+  (predicting a future biomarker *value*, rather than event risk) now also
+  dispatches to copula-aware variants the same way -- both its own
+  conditional-density denominator (`conditionalYTCopula()`/
+  `conditionalYDTCopula()`, shared with `predictRisk()`) and new
+  `conditionalYTBioCopula()`/`conditionalYDTBioCopula()` numerators
+  (internal, not exported) -- when predicting either a continuous **or an
+  ordinal** biomarker from a mixed-type fit; the other jointly-fit
+  biomarkers may freely be continuous or ordinal either way. Predicting the
+  future *category* of an ordinal biomarker needs no separate code path:
+  `conditionalYTBioCopula()`/`conditionalYDTBioCopula()` already bracket the
+  candidate category's row between its cumulative-link thresholds via the
+  same `biomarker_type`-driven machinery used for every other ordinal row in
+  the joint density, and `predictLongitudinal()` represents an ordinal
+  `bio_i`'s `Y_all`/`Y_predict` as integer category codes (`1:K`, in
+  threshold order) rather than a numeric grid, with `Y_all` carrying a
+  `"category_labels"` attribute giving the matching level names; `Y_density`
+  is then that category's predicted probability rather than a density.
+  `bandcount3` (the candidate-grid resolution) does not apply to an ordinal
+  `bio_i`, whose grid is fixed at its category count, and is ignored in that
+  case.
+* New `predictLongitudinal()` is now the single entry point for predicting
+  future biomarker value(s), replacing the two previously separate
+  functions `dynamicPredictionBio()`/`dynamicPredictionBioAll()` (now
+  internal, un-exported helpers behind it -- direct calls to either from
+  existing scripts will need to switch to `predictLongitudinal()`). Pass a
+  `bio_i` naming exactly **one** biomarker to predict just that one, which
+  returns a single `dynamicPredictionBio.BJM` object; pass `bio_i` naming
+  **more than one** biomarker, or leave it at the default `NULL` (meaning
+  every biomarker in `long_fit_all`), to predict several at once, which
+  instead returns a named list of such objects (one per biomarker, named by
+  that biomarker's response variable, classed `dynamicPredictionBioAll.BJM`)
+  and computes the bio_i-*independent* pipeline stages (restricting to
+  at-risk patients, the survival-side integration grid, and the denominator
+  conditional density) only **once**, reusing it across every requested
+  biomarker instead of recomputing it once per biomarker -- redundant work
+  that is especially costly under the Gaussian-copula path above, where
+  that denominator involves `mvtnorm::pmvnorm()` Monte-Carlo evaluations.
+  `bio_i` may name continuous and/or ordinal biomarkers, in any
+  combination. `bandcount2` (the shared survival grid) is auto-tuned once,
+  from a single representative biomarker, when left at its default
+  `"auto"`, for the multi-biomarker case; `bandcount3` (each biomarker's
+  own candidate-value grid) is then auto-tuned separately per biomarker,
+  reusing the already-computed shared stage rather than rebuilding it on
+  every doubling round -- except for any ordinal biomarker, whose candidate
+  grid is fixed at its category count rather than controlled by
+  `bandcount3`, so tuning is skipped for it and the returned `"bandcount3"`
+  attribute records `NA` for that biomarker. `checkBandcountConvergence()`'s
+  `predict_fun` argument now accepts `predictLongitudinal` (in place of the
+  now-internal `dynamicPredictionBio`) for the single-biomarker case.
+
+## Bug fixes
+
+* `conditionalYT()` and `conditionalYDT()` -- the internal density functions
+  behind `predictRisk()`'s risk-probability output whenever 2+
+  longitudinal biomarkers are jointly fit -- computed the joint Gaussian
+  density of the stacked observation vector across all markers via a "trace
+  trick": reducing the quadratic form `(Y - mu)' Sigma_all_solve (Y - mu)`
+  to `sum(diag(...))` of a smaller (number-of-markers-sized) matrix. That
+  trace only sums the *diagonal* (same-marker) blocks of the reduced
+  matrix, which silently discarded every *cross*-marker contribution of
+  `Sigma_all_solve` -- i.e. it implicitly treated the biomarkers as
+  conditionally independent given the random effects, even though
+  `Sigma_all` is deliberately built from the fitted joint random-effects
+  covariance (`Sigma_fit`) specifically to capture correlation *between*
+  markers. Since `Sigma_fit` is generally not block-diagonal across
+  markers, this under- or over-stated `predictRisk()`'s risk
+  probabilities whenever the jointly-fit biomarkers had correlated random
+  effects -- the ordinary case for a joint model, not an edge case.
+  `dynamicPredictionBio()` was not affected: `conditionalYTBio()`/
+  `conditionalYDTBio()` already computed this density directly via
+  `mvtnorm::dmvnorm()` on the full covariance. Fixed by computing the
+  quadratic form directly on the full stacked mean/observation vectors
+  instead of via the trace reduction; verified against an independent
+  `mvtnorm::dmvnorm()` reference on a real two-biomarker `pbc3` fit with
+  correlated random effects (`test-conditional-density-correctness.R`).
+  This changes the numeric value (but not the sign, scale of magnitude, or
+  validity) of `predictRisk()`'s output for any existing multi-marker
+  fit with correlated random effects; the golden-master regression
+  baselines (`testdata/baseline.rds`, `testdata/baseline_noCR.rds`) have
+  been regenerated to reflect the corrected values.
+
+* `survivalSub()`'s internal `coxph()` call did not pass `x = TRUE, y =
+  TRUE`, so the fitted model did not carry its own design matrix and
+  response. Downstream functions that call `survival::basehaz()` or
+  `survival::survfit()` on this fit (e.g. `predictRisk()` at
+  prediction time) can, in that case, need to reconstruct the model frame
+  by re-evaluating the fit's captured call -- but they do so in the
+  environment of the fit's *formula*, i.e. the caller's environment, not
+  `survivalSub()`'s own execution environment. Since `survivalSub()`
+  passes its `data_survival_fitting` argument to `coxph()` by that same
+  name, this happened to work whenever the caller's data object was also
+  literally named `data_survival_fitting` (as in every example, vignette,
+  and test shipped with the package) and failed with `object
+  'data_survival_fitting' not found` for any other variable name. Fixed
+  by passing `x = TRUE, y = TRUE` to the internal `coxph()` call, so the
+  fit is self-contained and this reconstruction is never needed.
+
+* `predictRisk()`/`dynamicPredictionBio()` failed with `"non-conformable
+  arrays"` when predicting for a subject who had exactly one longitudinal
+  observation to condition on, in a single-biomarker (univariate) model.
+  The internal helpers `build_conditional_design()` (`R/conditionalDesign.R`)
+  and `process_variance()` (`R/processVariance.R`) both built the residual
+  covariance piece of the conditional variance as `diag(Sigma_vector)`,
+  where `Sigma_vector` holds one residual variance per observed row for
+  that subject. Base R's `diag()` is ambiguous on a length-1 numeric
+  vector: instead of returning the intended 1x1 diagonal matrix, it
+  interprets the single number as a *dimension* and returns an NxN
+  identity matrix, which silently corrupted the dimensions of the
+  downstream covariance matrix for exactly this one-observation case (any
+  subject with 2+ observations was unaffected). Fixed by calling
+  `diag(Sigma_vector, length(Sigma_vector))` in both places, which is
+  unambiguous for every length, including 1.
+
 # BJM 0.2.0
 
 ## Breaking changes

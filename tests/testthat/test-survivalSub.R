@@ -27,6 +27,19 @@ test_that("survivalSub fits the competing-risks logistic sub-model when requeste
   expect_equal(nrow(fit[[3]]$data), sum(data_survival_fitting$status3 != 0))
 })
 
+test_that("the fitted coxph model does not depend on the caller's data variable being named data_survival_fitting", {
+  data(pbc3, envir = environment())
+  # Deliberately not named `data_survival_fitting` (survivalSub()'s own
+  # parameter name), to catch model.frame.coxph() re-evaluating the fit's
+  # captured call in the formula's environment, where this object would not
+  # exist under any other name.
+  surv_train_data <- pbc3[!duplicated(pbc3$id), ]
+
+  fit <- survivalSub(surv_train_data, Surv(years, status3) ~ age + sex, NULL)
+
+  expect_no_error(survival::basehaz(fit$coxph_fit, centered = FALSE))
+})
+
 test_that("print and summary methods run without error", {
   data(pbc3, envir = environment())
   data_survival_fitting <- pbc3[!duplicated(pbc3$id), ]

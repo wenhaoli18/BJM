@@ -1,7 +1,15 @@
-#' Plot of risk and future biomarker with density using dynamic prediction
-#' 
-#' @description This function gives the risk and biomarker prediction plot.
-#' 
+#' Plot risk and future biomarker predictions across a horizon sweep
+#'
+#' @description
+#' Fixes the landmark time at \code{prediction_time} and sweeps forward over
+#' a range of prediction horizons, calling \code{\link{predictRisk}}
+#' (and, when \code{bio_pred} is supplied, \code{\link{predictLongitudinal}})
+#' at each horizon to trace out how predicted event risk (and, optionally,
+#' the predicted density/point-forecast of biomarker \code{bio_pred}) evolves
+#' the further out the prediction window extends from a single fixed
+#' landmark. This contrasts with \code{\link{riskPlot}}, which instead fixes
+#' the horizon and sweeps over a set of landmark times.
+#'
 #' @param data_predict_all_one This involves a collection of \code{data.frame} one object for
 #' dynamic prediction and making plots, each corresponding to a distinct longitudinal outcome. 
 #' These data frames should contain the variables specified in \code{long_sub_fixed} 
@@ -32,7 +40,7 @@
 #' which resolves it once, before looping over \code{horizon} (using the
 #' largest requested horizon as a representative probe), by doubling from a
 #' built-in starting value until the predicted risk stabilizes; see
-#' \code{\link{dynamicPrediction}}'s \code{bandcount1} for details of that
+#' \code{\link{predictRisk}}'s \code{bandcount1} for details of that
 #' search. The resolved value is then reused, fixed, for every point in
 #' \code{horizon} -- it is not re-searched on every iteration.
 #' @param bandcount2 The number of grid points used to approximate
@@ -47,8 +55,8 @@
 #' unused otherwise).
 #'
 #' Pass explicit numbers instead of \code{"auto"} for full manual control, or
-#' use \code{checkBandcountConvergence()} (applied to \code{dynamicPrediction()}/
-#' \code{dynamicPredictionBio()} directly) to inspect the convergence behavior
+#' use \code{checkBandcountConvergence()} (applied to \code{predictRisk()}/
+#' \code{predictLongitudinal()} directly) to inspect the convergence behavior
 #' yourself. See also \code{vignette("BJM-intro", package = "BJM")} for
 #' further guidance on choosing \code{bandcount1}/\code{bandcount2}/
 #' \code{bandcount3}.
@@ -192,7 +200,7 @@ predictPlot = function(data_predict_all_one, long_fit_all, survival_fit_all,
                         survival_variable_all = survival_variable_all,
                         survival_trans_function = survival_trans_function,
                         bandcount1 = bandcount1, bandcount2 = bandcount2)
-    resolved_1_2 <- auto_tune_bandcount(dynamicPrediction, probe_args, auto_names_1_2)$bandcount
+    resolved_1_2 <- auto_tune_bandcount(predictRisk, probe_args, auto_names_1_2)$bandcount
     if (!is.null(resolved_1_2$bandcount1)) bandcount1 <- resolved_1_2$bandcount1
     if (!is.null(resolved_1_2$bandcount2)) bandcount2 <- resolved_1_2$bandcount2
   }
@@ -219,7 +227,7 @@ predictPlot = function(data_predict_all_one, long_fit_all, survival_fit_all,
   has_cr <- length(survival_fit_all$form_conditional_cr) != 0
 
   compute_one_horizon <- function(prediction.horizon) {
-    risk.prob = dynamicPrediction(data_predict_all, long_fit_all, survival_fit_all,
+    risk.prob = predictRisk(data_predict_all, long_fit_all, survival_fit_all,
                                   prediction_time,
                                   horizon = prediction.horizon, time_variable,
                                   survival_variable_all, survival_trans_function,

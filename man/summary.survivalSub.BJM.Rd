@@ -32,3 +32,4 @@ survival_fit_all  <- survivalSub(data_survival_fitting,
 summary(survival_fit_all)
 
 }
+\keyword{internal}

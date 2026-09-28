@@ -1,6 +1,6 @@
 #' Restrict prediction data to patients still at risk
 #'
-#' @description Shared helper for \code{dynamicPrediction} and
+#' @description Shared helper for \code{predictRisk} and
 #' \code{dynamicPredictionBio}: drops rows whose survival-time variable is
 #' below \code{prediction_time} from every biomarker's data frame.
 #'
@@ -15,7 +15,7 @@ subset_at_risk <- function(data_predict_all, survival_variable, prediction_time)
 
 #' Build the prediction-to-infinity integration grid and marginal survival
 #'
-#' @description Shared helper for \code{dynamicPrediction} and
+#' @description Shared helper for \code{predictRisk} and
 #' \code{dynamicPredictionBio}: builds the numerical-integration grid from
 #' \code{prediction_time} out to \code{upper_bound}, and evaluates the
 #' marginal survival function \code{S(T)} over it.
@@ -39,7 +39,7 @@ prepare_infinity_grid <- function(data_predict_all, long_fit_all, survival_fit_a
 
 #' Normalize a risk-probability ratio into a valid probability
 #'
-#' @description Shared helper for \code{dynamicPrediction} and
+#' @description Shared helper for \code{predictRisk} and
 #' \code{dynamicPredictionBio}: divides summed predicted-event mass by
 #' summed total mass and clamps the result to \code{[0, 1]}.
 #'
@@ -55,7 +55,7 @@ clamp_risk_prob <- function(numerator_sum, denominator_sum) {
 #' Compare two prediction results' plain numeric-vector fields
 #'
 #' @description Shared comparison logic for \code{checkBandcountConvergence()}
-#' and the \code{"auto"} bandcount support in \code{dynamicPrediction()}/
+#' and the \code{"auto"} bandcount support in \code{predictRisk()}/
 #' \code{dynamicPredictionBio()}: only plain numeric vectors (no \code{dim})
 #' that have the same length in both results are compared. This naturally
 #' skips fields whose *size* is itself controlled by the bandcount being
@@ -90,7 +90,7 @@ max_relative_diff <- function(result_a, result_b) {
 #' doubles from for each bandcount argument. \code{bandcount1}/
 #' \code{bandcount2}/\code{bandcount3} used to default to fixed numbers
 #' (\code{10}, \code{40}, and \code{300} respectively, across
-#' \code{dynamicPrediction()}/\code{dynamicPredictionBio()}); those same
+#' \code{predictRisk()}/\code{dynamicPredictionBio()}); those same
 #' numbers are reused here as the starting point for auto-tuning, so that
 #' the first call \code{auto_tune_bandcount()} makes matches what a caller
 #' relying on the old fixed defaults would have gotten. This cannot instead
@@ -103,7 +103,7 @@ bandcount_auto_start <- c(bandcount1 = 10, bandcount2 = 40, bandcount3 = 300)
 #'
 #' @description Shared implementation backing \code{bandcount1}/
 #' \code{bandcount2}/\code{bandcount3 = "auto"} support in
-#' \code{dynamicPrediction()}/\code{dynamicPredictionBio()}, and the
+#' \code{predictRisk()}/\code{dynamicPredictionBio()}, and the
 #' bandcount pre-resolution done once, up front, by \code{predictPlot()}/
 #' \code{riskPlot()} (so their internal horizon/landmark loops do not repeat
 #' the auto-tuning search on every iteration).
@@ -119,7 +119,7 @@ bandcount_auto_start <- c(bandcount1 = 10, bandcount2 = 40, bandcount3 = 300)
 #' the largest value tried is returned anyway, rather than erroring, so
 #' automated pipelines are not interrupted.
 #'
-#' @param predict_fun \code{dynamicPrediction} or \code{dynamicPredictionBio}.
+#' @param predict_fun \code{predictRisk} or \code{dynamicPredictionBio}.
 #' @param args A named list of all of \code{predict_fun}'s arguments
 #' (typically \code{as.list(environment())} captured right after argument
 #' validation, before any other local variables are created).
@@ -165,4 +165,64 @@ auto_tune_bandcount <- function(predict_fun, args, auto_names, tol = 0.01, max_r
     }
   }
   list(result = prev_result, bandcount = args[auto_names])
+}
+
+#' Auto-select "auto" bandcount3 for a single biomarker's per-marker step
+#'
+#' @description \code{dynamicPredictionBioAll()}'s counterpart to
+#' \code{auto_tune_bandcount()}: \code{bandcount3} only controls
+#' \code{compute_bio_marker_step()}'s own candidate-value grid (\code{Y_all}),
+#' not the shared step, so it is tuned per biomarker by re-calling
+#' \code{compute_bio_marker_step()} directly against an already-computed
+#' \code{shared} object (from \code{compute_bio_shared_step()}), rather than
+#' re-running the whole \code{dynamicPredictionBio()} pipeline -- which would
+#' recompute the shared denominator on every doubling round, for every
+#' biomarker, exactly the redundant work \code{dynamicPredictionBioAll()} is
+#' meant to avoid. Same doubling-until-stable check as
+#' \code{auto_tune_bandcount()} (compares \code{Y_predict} via
+#' \code{max_relative_diff()}, capped at \code{max_rounds} doublings, warns
+#' instead of erroring if not converged by then).
+#'
+#' @param shared Output of \code{compute_bio_shared_step()}.
+#' @inheritParams compute_bio_marker_step
+#' @return A list with \code{result} (\code{compute_bio_marker_step()}'s
+#' return value at the resolved \code{bandcount3}) and \code{bandcount3}
+#' (the resolved numeric value).
+#' @keywords internal
+auto_tune_marker_bandcount3 <- function(shared, bio_i, long_fit_all, survival_fit_all,
+                                         prediction_time, horizon, time_variable,
+                                         survival_variable_all, survival_trans_function,
+                                         tol = 0.01, max_rounds = 2, multiplier = 2) {
+  bandcount3 <- unname(bandcount_auto_start["bandcount3"])
+  prev_result <- compute_bio_marker_step(shared, bio_i, long_fit_all, survival_fit_all,
+                                          prediction_time, horizon, time_variable,
+                                          survival_variable_all, survival_trans_function, bandcount3)
+  round_i <- 0
+  repeat {
+    bandcount3 <- bandcount3 * multiplier
+    new_result <- compute_bio_marker_step(shared, bio_i, long_fit_all, survival_fit_all,
+                                           prediction_time, horizon, time_variable,
+                                           survival_variable_all, survival_trans_function, bandcount3)
+    round_i <- round_i + 1
+
+    comparison <- max_relative_diff(prev_result, new_result)
+    converged <- !is.na(comparison$max) && comparison$max < tol
+
+    prev_result <- new_result
+
+    if (converged || round_i >= max_rounds) {
+      if (!converged) {
+        warning(sprintf(paste0(
+          "Auto-selected bandcount3 for biomarker %d had not converged (max relative change %s) ",
+          "after %d doubling(s) from the default; returning the result at the largest value tried ",
+          "(bandcount3 = %s). Pass an explicit, larger bandcount3 if you need tighter convergence."
+        ), bio_i,
+           if (is.na(comparison$max)) "NA" else format(comparison$max, digits = 3),
+           round_i, bandcount3
+        ), call. = FALSE)
+      }
+      break
+    }
+  }
+  list(result = prev_result, bandcount3 = bandcount3)
 }

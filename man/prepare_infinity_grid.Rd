@@ -18,7 +18,7 @@ A list with \code{predict.time.infinity},
 \code{predict.time.infinity.1}, and \code{S_T_all_infinity}.
 }
 \description{
-Shared helper for \code{dynamicPrediction} and
+Shared helper for \code{predictRisk} and
 \code{dynamicPredictionBio}: builds the numerical-integration grid from
 \code{prediction_time} out to \code{upper_bound}, and evaluates the
 marginal survival function \code{S(T)} over it.
