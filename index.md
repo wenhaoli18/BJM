@@ -110,3 +110,15 @@ For the full walkthrough — including how to choose the `bandcount1`/
 convergence check, and what the input-validation error messages look
 like — see
 [`vignette("BJM-intro", package = "BJM")`](https://wenhaoli18.github.io/BJM/articles/BJM-intro.md).
+
+## References
+
+- Shen F, Li L (2021). Backward joint model and dynamic prediction of
+  survival with multivariate longitudinal data. *Statistics in
+  Medicine*, 40(20), 4395–4409.
+  [doi:10.1002/sim.9037](https://onlinelibrary.wiley.com/doi/10.1002/sim.9037)
+- Li W, Wang S, Yin Z, Astor BC, Yang W, Greene TH, Li L (2026).
+  Backward joint model for the joint dynamic prediction of time-to-event
+  and longitudinal data: basic formulation and new developments.
+  *Lifetime Data Analysis*, 32(3), 46.
+  [doi:10.1007/s10985-026-09725-x](https://link.springer.com/article/10.1007/s10985-026-09725-x)
