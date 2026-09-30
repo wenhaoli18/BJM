@@ -18,6 +18,11 @@ reference:
   - checkBandcountConvergence
   - survivalTrans
 
+- title: Recurrent events (experimental)
+  desc: Reshape recurrent-event data for the gap-time extension of the backward joint model.
+  contents:
+  - buildRecurrentEpisodes
+
 - title: Missing data imputation
   desc: Impute missing longitudinal biomarker values and pool sub-model fits across imputations.
   contents:

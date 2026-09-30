@@ -13,6 +13,23 @@
 
 ## New features
 
+* New `buildRecurrentEpisodes()` -- **experimental** -- extends the
+  backward-time trick behind `survivalSub()`/`longitudinalSub()`/
+  `predictRisk()` from a single terminal event to *recurrent* events, via a
+  gap-time (renewal) reformulation: it splits a subject's event history
+  into episodes (gap-time-clock reset to 0 at each event) and re-clocks any
+  accompanying longitudinal measurements onto the same per-episode
+  timeline, so the result plugs directly into the existing
+  `survivalSub()`/`longitudinalSub()`/`predictRisk()` pipeline -- none of
+  those functions needed to change -- to predict, for a subject currently
+  at risk within an ongoing episode, whether their *next* event (within a
+  horizon) is another recurrence or a terminal event. Unlike the
+  single-event and competing-risks cases (Shen and Li, 2021; Li et al.,
+  2026), this gap-time extension is unpublished and has not been validated
+  by simulation; see `?buildRecurrentEpisodes` for what it does and does
+  not support (in particular, it predicts only the *next* event, not the
+  total number of future recurrences).
+
 * New `imputeLongitudinal()` fills in missing longitudinal biomarker values
   before `longitudinalSub()` runs, instead of relying on complete-case
   analysis. `longitudinalSub()` drops rows missing a biomarker's own
@@ -148,6 +165,19 @@
   now-internal `dynamicPredictionBio`) for the single-biomarker case.
 
 ## Bug fixes
+
+* `marginalT()`'s baseline-hazard extrapolation extrapolated forward from
+  `max(cum_basehaz_weibull)`, i.e. the max over *both* the `hazard` and
+  `time` columns of `basehaz()`'s output combined, rather than
+  specifically `max(cum_basehaz_weibull$time)` -- the intended "last
+  observed time point". Since a cumulative hazard estimate can exceed its
+  own time axis numerically (a thin risk set at later times inflates it;
+  more likely with `buildRecurrentEpisodes()`'s gap-time data, where risk
+  sets shrink fast across episodes, but not specific to it), this could
+  silently extrapolate from the wrong column and fail with "wrong sign in
+  'by' argument" inside `predictRisk()`/`dynamicPredictionBio()`. Fixed to
+  use `cum_basehaz_weibull$time` explicitly, and to skip extrapolation
+  entirely when the observed table already reaches far enough.
 
 * `conditionalYT()` and `conditionalYDT()` -- the internal density functions
   behind `predictRisk()`'s risk-probability output whenever 2+

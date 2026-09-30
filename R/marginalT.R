@@ -38,9 +38,23 @@ marginalT = function(data_predict_all, long_fit_all, survival_fit_all, l_i, uppe
   cum_basehaz_weibull = basehaz(coxph_fit, centered = FALSE)
   ## extrapolation
   cum_base_lm = lm(hazard ~ time, cum_basehaz_weibull)
-  new_data <-  data.frame(time = seq(max(cum_basehaz_weibull), 2 * upper_bound, 0.005))
-  new_data_all = data.frame(hazard = c(predict(cum_base_lm, new_data)), time =  new_data)
-  cum_basehaz_weibull = rbind(cum_basehaz_weibull, new_data_all)
+  ### extrapolate forward from the table's last *time* point, not from
+  ### max(cum_basehaz_weibull) -- which takes the max over the hazard column
+  ### too, and silently picks that instead whenever the cumulative hazard
+  ### happens to exceed the largest observed time (a thin risk set inflates
+  ### the cumulative-hazard estimate, e.g. with few subjects remaining at
+  ### later gap times in a recurrent-event/gap-time application). That
+  ### previously made seq()'s `to` (2 * upper_bound, a time-scale quantity)
+  ### smaller than its `from`, erroring with "wrong sign in 'by' argument".
+  ### only extrapolate if the table does not already reach 2 * upper_bound
+  ### (it can, e.g. when this patient's own at-risk window is short relative
+  ### to the training cohort's range) -- otherwise seq()'s `to` would again
+  ### be smaller than its `from`.
+  if (2 * upper_bound > max(cum_basehaz_weibull$time)) {
+    new_data <-  data.frame(time = seq(max(cum_basehaz_weibull$time), 2 * upper_bound, 0.005))
+    new_data_all = data.frame(hazard = c(predict(cum_base_lm, new_data)), time =  new_data)
+    cum_basehaz_weibull = rbind(cum_basehaz_weibull, new_data_all)
+  }
   #haz_weibull = cbind(diff(cum_basehaz_weibull[,1])/diff(cum_basehaz_weibull[,2]), cum_basehaz_weibull[,2][-1])
   
   ## covariates * parameter matrix
