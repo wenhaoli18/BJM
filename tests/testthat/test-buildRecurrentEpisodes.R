@@ -113,22 +113,31 @@ test_that("buildRecurrentEpisodes re-clocks data_long onto per-episode gap time"
   out <- buildRecurrentEpisodes(data_events, data_long, time_variable_long = "year")
   ld <- out$long_data
 
-  # the final row (year = 3.5) is after the process ended (2 episodes only)
-  expect_equal(nrow(ld), 6)
-  expect_equal(ld$year, c(0, 0.5, 1.0, 1.5, 2.9, 3.0))
+  # the final row (year = 3.5) is after the process ended (2 episodes only).
+  # year = 1.0 sits exactly on the shared boundary between episode 1 (ending
+  # there) and episode 2 (starting there) and is genuinely ambiguous, so it
+  # is kept *twice* -- once per episode -- rather than arbitrarily assigned
+  # to only one of them (see ?buildRecurrentEpisodes).
+  expect_equal(nrow(ld), 7)
+  expect_equal(sort(ld$year), sort(c(0, 0.5, 1.0, 1.0, 1.5, 2.9, 3.0)))
 
-  ep1 <- ld[ld$year <= 1.0, ]
-  expect_true(all(ep1$episode == 1))
+  ep1 <- ld[ld$episode == 1, ]
+  expect_equal(sort(ep1$year), c(0, 0.5, 1.0))
   expect_true(all(ep1$gap == 1.0))
   expect_equal(ep1$time_in_episode, ep1$year) # episode 1 starts at t = 0
   expect_true(all(ep1$event_any == 1))
   expect_true(all(ep1$event_type == 0)) # episode 1 ended in a recurrence
 
-  ep2 <- ld[ld$year > 1.0, ]
-  expect_true(all(ep2$episode == 2))
+  ep2 <- ld[ld$episode == 2, ]
+  expect_equal(sort(ep2$year), c(1.0, 1.5, 2.9, 3.0))
   expect_true(all(ep2$gap == 2.0))
   expect_equal(ep2$time_in_episode, ep2$year - 1.0) # episode 2 starts at t = 1
   expect_true(all(ep2$event_type == 1)) # episode 2 ended in the terminal event
+
+  # the duplicated boundary row itself: time_in_episode = 1.0 (the full gap)
+  # as episode 1's last point, and 0 (fresh start) as episode 2's first
+  boundary_rows <- ld[ld$year == 1.0, ]
+  expect_equal(sort(boundary_rows$time_in_episode), c(0, 1.0))
 
   # baseline covariate (age) carried from episode_data onto every long_data row
   expect_true(all(ld$age == 58))

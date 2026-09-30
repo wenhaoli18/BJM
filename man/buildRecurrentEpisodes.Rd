@@ -36,7 +36,16 @@ same per-episode timeline, in the same format \code{longitudinalSub()}/
 longitudinal outcome). Must contain \code{id_variable} and
 \code{time_variable_long}. Rows whose \code{time_variable_long} falls
 before \code{0} or after the subject's process has already ended (per
-\code{data_events}) are dropped, with a message reporting how many.}
+\code{data_events}) are dropped, with a message reporting how many. A
+row whose \code{time_variable_long} falls exactly on the shared
+boundary between two episodes (e.g. a biomarker drawn at the same
+visit an event is recorded) is genuinely ambiguous -- it is at once
+"the last measurement of the ending episode" and "the first
+(\code{time_in_episode = 0}) measurement of the next one" -- so it is
+kept \emph{twice}, once per episode, rather than silently assigned to
+only one (which would systematically discard every fresh-episode
+baseline measurement that happens to coincide with the previous
+episode's event time, and bias the fitted backward-covariate effect).}
 
 \item{id_variable, time_variable, status_variable}{Column names in
 \code{data_events} (defaults \code{"id"}, \code{"time"}, \code{"status"}).}
@@ -138,6 +147,31 @@ open episode, add a trailing \code{status = 0} row to \code{data_events}
 at the current data-cutoff time, and call \code{predictRisk()} with
 \code{prediction_time} set to that subject's elapsed
 \code{time_in_episode} at the cutoff.
+
+\strong{Important: override the open episode's \code{gap} placeholder
+before calling \code{predictRisk()}.} The \code{gap} value
+\code{buildRecurrentEpisodes()} records for that still-open episode is
+just elapsed time so far (there is nothing else it could honestly be --
+the episode has not ended yet). But \code{predictRisk()} separately uses
+\code{2 * max(gap)} across the prediction data as \code{upper_bound}, the
+point out to which it integrates when normalizing the risk probability
+(effectively treating it as "infinity"). Left as elapsed-time-so-far,
+that upper bound has no relationship to how much further the episode
+could actually run, starves the normalizing integral, and silently
+inflates both \code{risk_prob_1} and \code{risk_prob_2} toward 1 --
+worse the earlier the landmark is in the episode. Overwrite \code{gap}
+on the at-risk episode's rows with something comfortably larger than the
+training cohort's observed gap range (e.g. \code{1.2 *
+max(built$episode_data$gap)}) right before calling \code{predictRisk()};
+this is safe because that column is only ever used for the
+\code{subset_at_risk()} eligibility check (\code{gap >= prediction_time})
+and for sizing \code{upper_bound} -- never as the value actually being
+predicted, which \code{predictRisk()} sweeps over its own candidate grid
+regardless of what is in this column. Do not push it further than
+necessary, though: an excessively large override forces
+\code{marginalT()}'s baseline-hazard extrapolation to run over a much
+wider range than the fit ever observed, trading one source of bias for
+another.
 }
 \examples{
 ## A minimal example: reshaping alone (no model fitting).
@@ -205,9 +239,15 @@ long_fit_recur <- longitudinalSub(
 data_predict <- built$long_data[built$long_data$id == 9999, ]
 cur_episode <- max(data_predict$episode)
 landmark <- max(data_predict$time_in_episode[data_predict$episode == cur_episode])
+data_predict <- data_predict[data_predict$episode == cur_episode, ]
+
+## Override the open episode's gap placeholder (see Details above) --
+## otherwise predictRisk()'s upper_bound = 2 * max(gap) collapses to
+## ~2 * landmark and both risk probabilities come out badly overconfident.
+data_predict$gap <- 1.2 * max(built$episode_data$gap)
 
 risk <- predictRisk(
-  data_predict[data_predict$episode == cur_episode, ],
+  data_predict,
   long_fit_recur, survival_fit_recur,
   prediction_time = landmark, horizon = 1, time_variable = "time_in_episode",
   survival_variable_all = list(), survival_trans_function = list(),

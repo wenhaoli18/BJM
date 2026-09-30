@@ -64,6 +64,31 @@
 #' \code{prediction_time} set to that subject's elapsed
 #' \code{time_in_episode} at the cutoff.
 #'
+#' \strong{Important: override the open episode's \code{gap} placeholder
+#' before calling \code{predictRisk()}.} The \code{gap} value
+#' \code{buildRecurrentEpisodes()} records for that still-open episode is
+#' just elapsed time so far (there is nothing else it could honestly be --
+#' the episode has not ended yet). But \code{predictRisk()} separately uses
+#' \code{2 * max(gap)} across the prediction data as \code{upper_bound}, the
+#' point out to which it integrates when normalizing the risk probability
+#' (effectively treating it as "infinity"). Left as elapsed-time-so-far,
+#' that upper bound has no relationship to how much further the episode
+#' could actually run, starves the normalizing integral, and silently
+#' inflates both \code{risk_prob_1} and \code{risk_prob_2} toward 1 --
+#' worse the earlier the landmark is in the episode. Overwrite \code{gap}
+#' on the at-risk episode's rows with something comfortably larger than the
+#' training cohort's observed gap range (e.g. \code{1.2 *
+#' max(built$episode_data$gap)}) right before calling \code{predictRisk()};
+#' this is safe because that column is only ever used for the
+#' \code{subset_at_risk()} eligibility check (\code{gap >= prediction_time})
+#' and for sizing \code{upper_bound} -- never as the value actually being
+#' predicted, which \code{predictRisk()} sweeps over its own candidate grid
+#' regardless of what is in this column. Do not push it further than
+#' necessary, though: an excessively large override forces
+#' \code{marginalT()}'s baseline-hazard extrapolation to run over a much
+#' wider range than the fit ever observed, trading one source of bias for
+#' another.
+#'
 #' @param data_events One row per subject per event-or-censoring occurrence,
 #'   in calendar time (i.e. not yet re-clocked to gap time -- this function
 #'   does that). Must contain \code{id_variable}, \code{time_variable}
@@ -80,7 +105,16 @@
 #'   longitudinal outcome). Must contain \code{id_variable} and
 #'   \code{time_variable_long}. Rows whose \code{time_variable_long} falls
 #'   before \code{0} or after the subject's process has already ended (per
-#'   \code{data_events}) are dropped, with a message reporting how many.
+#'   \code{data_events}) are dropped, with a message reporting how many. A
+#'   row whose \code{time_variable_long} falls exactly on the shared
+#'   boundary between two episodes (e.g. a biomarker drawn at the same
+#'   visit an event is recorded) is genuinely ambiguous -- it is at once
+#'   "the last measurement of the ending episode" and "the first
+#'   (\code{time_in_episode = 0}) measurement of the next one" -- so it is
+#'   kept \emph{twice}, once per episode, rather than silently assigned to
+#'   only one (which would systematically discard every fresh-episode
+#'   baseline measurement that happens to coincide with the previous
+#'   episode's event time, and bias the fitted backward-covariate effect).
 #' @param id_variable,time_variable,status_variable Column names in
 #'   \code{data_events} (defaults \code{"id"}, \code{"time"}, \code{"status"}).
 #' @param time_variable_long Column name of the measurement time in
@@ -182,9 +216,15 @@
 #' data_predict <- built$long_data[built$long_data$id == 9999, ]
 #' cur_episode <- max(data_predict$episode)
 #' landmark <- max(data_predict$time_in_episode[data_predict$episode == cur_episode])
+#' data_predict <- data_predict[data_predict$episode == cur_episode, ]
+#'
+#' ## Override the open episode's gap placeholder (see Details above) --
+#' ## otherwise predictRisk()'s upper_bound = 2 * max(gap) collapses to
+#' ## ~2 * landmark and both risk probabilities come out badly overconfident.
+#' data_predict$gap <- 1.2 * max(built$episode_data$gap)
 #'
 #' risk <- predictRisk(
-#'   data_predict[data_predict$episode == cur_episode, ],
+#'   data_predict,
 #'   long_fit_recur, survival_fit_recur,
 #'   prediction_time = landmark, horizon = 1, time_variable = "time_in_episode",
 #'   survival_variable_all = list(), survival_trans_function = list(),
@@ -319,50 +359,37 @@ buildRecurrentEpisodes <- function(data_events,
       }
 
       carry_new <- setdiff(carry_cols, names(df))
-
       n <- nrow(df)
-      ep <- rep(NA_integer_, n); gp <- rep(NA_real_, n); tie <- rep(NA_real_, n)
-      ev_any <- rep(NA_integer_, n); ev_type <- rep(NA_integer_, n)
-      keep <- rep(FALSE, n)
-      carried <- if (length(carry_new) > 0) {
-        tmpl <- episode_data[rep(1, n), carry_new, drop = FALSE]
-        tmpl[] <- NA
-        rownames(tmpl) <- NULL
-        tmpl
-      } else {
-        NULL
-      }
 
+      # Which episode(s) each row's timestamp falls into, using a CLOSED
+      # [t_start, t_end] interval for every episode. A timestamp strictly
+      # inside exactly one episode matches only that episode, as expected.
+      # A timestamp exactly AT a shared boundary between episode k (ending
+      # there) and episode k + 1 (starting there) matches *both* -- this is
+      # a genuine ambiguity, not an error to resolve one way: that instant
+      # is simultaneously "the last measurement of the ending episode" and
+      # "the first measurement (time_in_episode = 0) of the next one", and
+      # both readings are informative for the backward-time trick, so both
+      # rows are kept (i.e. the input row is duplicated, once per episode
+      # it borders). Silently keeping only one (e.g. always the ending
+      # episode) would systematically discard every fresh-start measurement
+      # taken exactly when a new episode begins -- plausible in real data
+      # whenever a biomarker is recorded at the same visit an event is
+      # recorded -- and bias the fitted backward covariate's effect instead
+      # of just losing a documented edge case.
+      row_idx <- integer(0); hit_idx <- integer(0)
       for (r in seq_len(n)) {
         pid <- as.character(df[[id_variable]][r])
         tm <- df[[tv_long]][r]
         b <- boundaries[[pid]]
         if (is.null(b) || is.na(tm)) next
-        hit <- which(tm > b$t_start & tm <= b$t_end)
-        if (length(hit) == 0) {
-          # A measurement taken exactly at time 0 (e.g. a baseline visit)
-          # belongs to episode 1, whose (t_start, t_end] interval above is
-          # otherwise open at t_start = 0 -- this is the only boundary case
-          # that needs the closed end, since every later episode's t_start
-          # is itself the strictly-earlier episode's event time, already
-          # "used up" by that earlier episode.
-          first_idx <- which.min(b$episode)
-          if (isTRUE(tm == b$t_start[first_idx])) hit <- first_idx
-        }
-        if (length(hit) == 0) next
-        hit <- hit[1]
-        ep[r] <- b$episode[hit]
-        gp[r] <- b$gap[hit]
-        tie[r] <- tm - b$t_start[hit]
-        erow <- ep_lookup[[pid]]
-        erow <- erow[erow[[episode_variable]] == b$episode[hit], , drop = FALSE]
-        ev_any[r] <- erow[[event_any_variable]][1]
-        ev_type[r] <- erow[[event_type_variable]][1]
-        if (!is.null(carried)) carried[r, ] <- erow[1, carry_new]
-        keep[r] <- TRUE
+        hits <- which(tm >= b$t_start & tm <= b$t_end)
+        if (length(hits) == 0) next
+        row_idx <- c(row_idx, rep(r, length(hits)))
+        hit_idx <- c(hit_idx, hits)
       }
 
-      dropped <- sum(!keep)
+      dropped <- n - length(unique(row_idx))
       if (dropped > 0) {
         message(sprintf(
           "buildRecurrentEpisodes(): dropped %d row(s) of `data_long` whose %s fell outside every modeled episode (before time 0, or after the subject's recurrent-event process had already ended).",
@@ -370,13 +397,41 @@ buildRecurrentEpisodes <- function(data_events,
         ))
       }
 
-      df[[episode_variable]] <- ep
-      df[[gap_variable]] <- gp
-      df[[time_in_episode_variable]] <- tie
-      df[[event_any_variable]] <- ev_any
-      df[[event_type_variable]] <- ev_type
-      if (!is.null(carried)) df[carry_new] <- carried
-      df[keep, , drop = FALSE]
+      out <- df[row_idx, , drop = FALSE]
+      rownames(out) <- NULL
+      m <- nrow(out)
+      ep <- rep(NA_integer_, m); gp <- rep(NA_real_, m); tie <- rep(NA_real_, m)
+      ev_any <- rep(NA_integer_, m); ev_type <- rep(NA_integer_, m)
+      carried <- if (length(carry_new) > 0) {
+        tmpl <- episode_data[rep(1, max(m, 1)), carry_new, drop = FALSE][seq_len(m), , drop = FALSE]
+        tmpl[] <- NA
+        rownames(tmpl) <- NULL
+        tmpl
+      } else {
+        NULL
+      }
+
+      for (j in seq_len(m)) {
+        pid <- as.character(out[[id_variable]][j])
+        b <- boundaries[[pid]]
+        hit <- hit_idx[j]
+        ep[j] <- b$episode[hit]
+        gp[j] <- b$gap[hit]
+        tie[j] <- out[[tv_long]][j] - b$t_start[hit]
+        erow <- ep_lookup[[pid]]
+        erow <- erow[erow[[episode_variable]] == b$episode[hit], , drop = FALSE]
+        ev_any[j] <- erow[[event_any_variable]][1]
+        ev_type[j] <- erow[[event_type_variable]][1]
+        if (!is.null(carried)) carried[j, ] <- erow[1, carry_new]
+      }
+
+      out[[episode_variable]] <- ep
+      out[[gap_variable]] <- gp
+      out[[time_in_episode_variable]] <- tie
+      out[[event_any_variable]] <- ev_any
+      out[[event_type_variable]] <- ev_type
+      if (!is.null(carried)) out[carry_new] <- carried
+      out
     }
 
     out_list <- lapply(data_long_list, augment_one)

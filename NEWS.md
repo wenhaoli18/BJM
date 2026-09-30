@@ -25,10 +25,22 @@
   at risk within an ongoing episode, whether their *next* event (within a
   horizon) is another recurrence or a terminal event. Unlike the
   single-event and competing-risks cases (Shen and Li, 2021; Li et al.,
-  2026), this gap-time extension is unpublished and has not been validated
-  by simulation; see `?buildRecurrentEpisodes` for what it does and does
-  not support (in particular, it predicts only the *next* event, not the
-  total number of future recurrences).
+  2026), this gap-time extension is unpublished. `validation/
+  recurrent-event-calibration.R` checks it under a correctly-specified
+  simulated DGP (not part of the installed package): predicted and
+  realized "next event" probabilities land close to the diagonal on a
+  binned calibration plot, with a logistic calibration slope around 0.86
+  for both the recurrence and the terminal-event probability -- reasonable
+  but not perfect, and this only checks that the code correctly implements
+  the intended Bayes combination under a correctly-specified model, not
+  robustness to real-world model misspecification. See
+  `?buildRecurrentEpisodes` for what it does and does not support (in
+  particular, it predicts only the *next* event, not the total number of
+  future recurrences), and for why the open (not-yet-resolved) episode's
+  `gap` placeholder needs to be overridden with a value well beyond the
+  training cohort's observed range before calling `predictRisk()` --
+  otherwise `predictRisk()`'s own `upper_bound` sizing silently produces
+  overconfident probabilities.
 
 * New `imputeLongitudinal()` fills in missing longitudinal biomarker values
   before `longitudinalSub()` runs, instead of relying on complete-case
