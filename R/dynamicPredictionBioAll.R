@@ -92,6 +92,7 @@ dynamicPredictionBioAll <- function(bio_i = NULL, data_predict_all, long_fit_all
   assert_bandcount(bandcount3, "bandcount3")
   assert_survival_trans(survival_variable_all, survival_trans_function, probe_value = prediction_time)
   data_predict_all <- drop_after_prediction_time(data_predict_all, time_variable, prediction_time)
+  data_predict_all <- align_ordinal_levels(data_predict_all, long_fit_all)
   data_predict_all <- drop_missing_longitudinal(data_predict_all, long_fit_all,
                                                as.character(formula(survival_fit_all$coxph_fit)[[2]])[2],
                                                survival_variable_all)

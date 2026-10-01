@@ -134,6 +134,10 @@ conditionalYDT = function(data_predict_all, long_fit_all, survival_fit_all,
     terms_i_list = list()
     mf_1_list = list()
     mf_0_list = list()
+    data_1_list = list()
+    data_0_list = list()
+    xlev_list = list()
+    in_place = logical(n_longitudinal)
     n_expected_1 = integer(n_longitudinal)
     n_expected_0 = integer(n_longitudinal)
     for(i in 1:n_longitudinal){
@@ -167,6 +171,12 @@ conditionalYDT = function(data_predict_all, long_fit_all, survival_fit_all,
       xlev_i = if (!is.null(long_fit_all$xlevels)) long_fit_all$xlevels[[i]] else NULL
       mf_1_list[[i]] = model.frame(terms_i_list[[i]], data_i_1, xlev = xlev_i)
       mf_0_list[[i]] = model.frame(terms_i_list[[i]], data_i_0, xlev = xlev_i)
+      ### see time_columns_bare(): a transformed survival-time term (e.g.
+      ### log(years)) needs the model frame rebuilt at every grid point
+      data_1_list[[i]] = data_i_1
+      data_0_list[[i]] = data_i_0
+      xlev_list[[i]] = xlev_i
+      in_place[i] = time_columns_bare(terms_i_list[[i]], c(survival_variable, unlist(survival_variable_all)))
       n_expected_1[i] = nrow(data_i_1)
       n_expected_0[i] = nrow(data_i_0)
     }
@@ -180,24 +190,13 @@ conditionalYDT = function(data_predict_all, long_fit_all, survival_fit_all,
       for(i in 1:n_longitudinal){
         terms_i = terms_i_list[[i]]
 
-        #survival variable replaced by l_i[it]
-        if(survival_variable %in% names(mf_1_list[[i]])){
-          mf_1_list[[i]][[survival_variable]] = l_i[it]
-          mf_0_list[[i]][[survival_variable]] = l_i[it]
-        }
-
-        #transformed survival variable/basis function of survival variable
-        #replaced by trans_function(l_i[it])
-        if(length(survival_variable_all) != 0){
-          for(surv_i in 1 : length(survival_variable_all)){
-            svar = survival_variable_all[[surv_i]]
-            if(svar %in% names(mf_1_list[[i]])){
-              trans_val = apply_survival_trans(survival_trans_function[[surv_i]], l_i[it], surv_i)
-              mf_1_list[[i]][[svar]] = trans_val
-              mf_0_list[[i]][[svar]] = trans_val
-            }
-          }
-        }
+        #survival variable (and its transformations) at l_i[it]
+        mf_1_list[[i]] = survival_model_frame_at(mf_1_list[[i]], data_1_list[[i]], in_place[i], terms_i,
+                                                 xlev_list[[i]], survival_variable, l_i[it],
+                                                 survival_variable_all, survival_trans_function)
+        mf_0_list[[i]] = survival_model_frame_at(mf_0_list[[i]], data_0_list[[i]], in_place[i], terms_i,
+                                                 xlev_list[[i]], survival_variable, l_i[it],
+                                                 survival_variable_all, survival_trans_function)
 
         ## extract data matrix to calcuate the probability
         LME_indi_matrix_1[[i]] = t(model.matrix(terms_i, mf_1_list[[i]], contrasts.arg = lfit[[i]]$contrasts))

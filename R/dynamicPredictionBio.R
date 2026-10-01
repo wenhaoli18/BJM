@@ -136,8 +136,17 @@ compute_bio_marker_step <- function(shared, bio_i, long_fit_all, survival_fit_al
   } else {
     Y_upper = max(shared$data_predict_all[[bio_i]][bio_i_name], na.rm = TRUE)
     Y_lower = min(shared$data_predict_all[[bio_i]][bio_i_name], na.rm = TRUE)
-    Y_all = seq(Y_lower - 5 * (Y_upper - Y_lower), Y_upper + 5 * (Y_upper - Y_lower),
-                11 * (Y_upper - Y_lower) / bandcount3) #seq(0, 100, 5)
+    ### the grid extends 5 spans either side of the observed values; the
+    ### span is their range, but at least the biomarker's SD in the training
+    ### data -- with a single observation (or all values equal) the range is
+    ### 0 and the grid collapsed to one point, which was then returned as
+    ### the prediction
+    span = max(Y_upper - Y_lower,
+               stats::sd(nlme::getResponse(long_fit_all$lfit[[bio_i]]), na.rm = TRUE),
+               na.rm = TRUE)
+    if (!is.finite(span) || span <= 0) span = max(abs(Y_upper), 1)
+    Y_all = seq(Y_lower - 5 * span, Y_upper + 5 * span,
+                (Y_upper - Y_lower + 10 * span) / bandcount3)
     Y_query <- Y_all
   }
 
@@ -361,6 +370,7 @@ dynamicPredictionBio = function(bio_i, data_predict_all, long_fit_all, survival_
   assert_bandcount(bandcount3, "bandcount3")
   assert_survival_trans(survival_variable_all, survival_trans_function, probe_value = prediction_time)
   data_predict_all <- drop_after_prediction_time(data_predict_all, time_variable, prediction_time)
+  data_predict_all <- align_ordinal_levels(data_predict_all, long_fit_all)
   data_predict_all <- drop_missing_longitudinal(data_predict_all, long_fit_all,
                                                as.character(formula(survival_fit_all$coxph_fit)[[2]])[2],
                                                survival_variable_all)
