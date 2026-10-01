@@ -149,6 +149,30 @@
 
 ## Bug fixes
 
+* With an ordinal biomarker, `predictRisk()` and `predictLongitudinal()`
+  took each observation's category code from the prediction data's own
+  factor levels, not the categories the model was fit with. Dropping unused
+  levels (e.g. `droplevels()`), reordering them, or passing a character
+  column therefore bracketed the latent score between the wrong thresholds,
+  silently: in one check a risk of 0.53 instead of 0.10. Ordinal responses
+  are now matched to the fitted categories by label, and a value that is
+  not one of them is an error.
+
+* Under competing risks, a survival time entering a biomarker's
+  `long_sub_fixed` through a transformation (e.g. `log(years)`,
+  `I(years^2)`, `poly(years, 2)`) was evaluated at the first integration
+  grid point for the whole integral, so `predictRisk()` and
+  `predictLongitudinal()` were wrong for such models (without competing
+  risks they were correct). Plain `years` and interactions such as
+  `years:year` were not affected.
+
+* `predictLongitudinal()`'s candidate grid for a continuous biomarker spans
+  the observed values plus five times their range on either side. With a
+  single observation, or all observed values equal, the range is 0, the grid
+  was a single point, and that point -- the observed value -- was returned
+  as the prediction. The grid now uses at least the biomarker's standard
+  deviation in the training data as its span.
+
 * `predictRisk()`, `predictLongitudinal()`, and `dynamicPredictionBio()`
   now drop rows of `data_predict_all` measured after `prediction_time`
   (`time_variable > prediction_time`), with a warning, instead of silently

@@ -146,3 +146,50 @@ test_that("conditionalYDT matches an independent mvtnorm::dmvnorm ground truth f
     expect_equal(exp(out[[1]][it, 1]), ref0, tolerance = 1e-8)
   }
 })
+
+test_that("conditionalYDT/conditionalYDTBio re-evaluate transformed survival-time terms at every grid point", {
+  data(pbc3, envir = environment())
+  data_fit <- pbc3[pbc3$status3 == 1, ]
+  # The event type is not in these formulas, so Y | D, T does not depend
+  # on D and both of conditionalYDT()'s densities must equal
+  # conditionalYT()'s, which rebuilds its model frame at every grid point.
+  long_fit_all <- longitudinalSub(
+    list(data_fit, data_fit),
+    list(serBilir ~ year + age + sex + log(years),
+         albumin ~ year + age + sex + I(years^2) + years),
+    list(~ year | id, ~ year | id))
+  survival_fit_all <- survivalSub(pbc3[!duplicated(pbc3$id), ],
+                                  Surv(years, status3) ~ age + sex,
+                                  status4 ~ years + age + sex)
+  d <- pbc3[pbc3$id %in% c(2, 9) & pbc3$year <= 5, ]
+  data_predict_all <- list(d, d)
+  l_i <- c(6, 9, 12)
+
+  ydt <- conditionalYDT(data_predict_all, long_fit_all, survival_fit_all, l_i,
+                        "years", "year", list(), list())
+  yt <- conditionalYT(data_predict_all, long_fit_all, l_i, "years", "year", list(), list())
+  expect_equal(ydt[[1]], yt[[1]])
+  expect_equal(ydt[[2]], yt[[1]])
+
+  # The same for the biomarker-prediction numerator: a grid point's value
+  # must not depend on which grid point came first.
+  y_all <- c(0.5, 1)
+  bio_grid <- conditionalYDTBio(y_all, 6, 1, data_predict_all, long_fit_all, survival_fit_all,
+                                l_i, "years", "year", list(), list())
+  bio_last <- conditionalYDTBio(y_all, 6, 1, data_predict_all, long_fit_all, survival_fit_all,
+                                l_i[3], "years", "year", list(), list())
+  for (k in 1:2) {
+    for (y in seq_along(y_all)) {
+      expect_equal(bio_grid[[k]][[y]][3, ], bio_last[[k]][[y]][1, ])
+    }
+  }
+})
+
+test_that("time_columns_bare distinguishes bare and transformed survival-time columns", {
+  bare <- terms(y ~ year + years + years:year + Tyears1)
+  expect_true(time_columns_bare(bare, c("years", "Tyears1")))
+  expect_false(time_columns_bare(terms(y ~ year + log(years)), "years"))
+  expect_false(time_columns_bare(terms(y ~ year + I(Tyears1^2)), c("years", "Tyears1")))
+  # the response is not a model-frame column that gets overwritten
+  expect_true(time_columns_bare(terms(log(years) ~ year), "years"))
+})

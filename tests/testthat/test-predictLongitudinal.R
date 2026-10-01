@@ -90,3 +90,24 @@ test_that("auto bandcount tuning converges for predictLongitudinal on pbc3", {
     predictLongitudinal(NULL, f$data_predict_all, f$long_fit_all, f$survival_fit_all,
                         5, 1, "year", f$survival_variable_all, f$survival_trans_function))
 })
+
+test_that("a single observed value does not collapse the candidate grid", {
+  f <- setup_dp_fixture()
+  # Only the baseline measurement: the observed range is 0, which used to
+  # make Y_all a single point and return the observed value as the
+  # prediction.
+  baseline <- pbc3[pbc3$id == 2 & pbc3$year == 0, ]
+  pred <- predictLongitudinal(1, list(baseline, baseline), f$long_fit_all, f$survival_fit_all,
+                              0.5, 1, "year", f$survival_variable_all, f$survival_trans_function,
+                              bandcount2 = 20, bandcount3 = 50)
+  expect_gt(length(pred$Y_all), 40)
+  expect_true(is.finite(pred$Y_predict))
+  expect_false(isTRUE(all.equal(unname(pred$Y_predict), baseline$serBilir)))
+  # the predictive density is negligible at the edges of the grid
+  expect_lt(max(pred$Y_density[c(1, nrow(pred$Y_density)), ]), 1e-3 * max(pred$Y_density))
+
+  fine <- predictLongitudinal(1, list(baseline, baseline), f$long_fit_all, f$survival_fit_all,
+                              0.5, 1, "year", f$survival_variable_all, f$survival_trans_function,
+                              bandcount2 = 20, bandcount3 = 1000)
+  expect_equal(pred$Y_predict, fine$Y_predict, tolerance = 5e-3)
+})

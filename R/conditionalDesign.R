@@ -211,3 +211,74 @@ build_longitudinal_matrix_bio <- function(data_num_i_list, lfit, bio_i, Y_select
   }
   longitudinal_all_matrix
 }
+
+#' Can a model frame's survival-time columns be overwritten in place?
+#'
+#' @description \code{conditionalYDT()} and \code{conditionalYDTBio()}
+#' build each biomarker's model frame once per patient and, for every
+#' integration grid point, overwrite its survival-time columns in place
+#' instead of rebuilding it. That is only valid when the survival time (and
+#' every \code{survival_variable_all} column) enters the model frame as a
+#' bare column: a model-frame column such as \code{log(years)},
+#' \code{I(years^2)} or \code{poly(years, 2)} is named by its expression, so
+#' it was never found and kept its value at the first grid point for the
+#' whole integral. This reports whether every model-frame variable that
+#' refers to one of \code{time_vars} is one of those bare columns.
+#'
+#' @param terms_model The fitted model's \code{terms}.
+#' @param time_vars Names of the survival-time column and its user-supplied
+#'   transformations.
+#' @return \code{TRUE} if in-place updating is valid.
+#' @keywords internal
+time_columns_bare <- function(terms_model, time_vars) {
+  variables <- as.list(attr(terms_model, "variables"))[-1]
+  response <- attr(terms_model, "response")
+  if (response > 0) variables <- variables[-response]
+  all(vapply(variables, function(v) {
+    !any(all.vars(v) %in% time_vars) || (is.name(v) && as.character(v) %in% time_vars)
+  }, logical(1)))
+}
+
+#' Set a patient's survival-time columns to one integration grid point
+#'
+#' @description Sets the survival-time column and each
+#' \code{survival_variable_all} column (through its
+#' \code{survival_trans_function}) to their values at event time
+#' \code{l}. With \code{only_existing = TRUE} (for a model frame updated in
+#' place, see \code{time_columns_bare()}) columns not already present are
+#' left out.
+#'
+#' @return \code{df}, updated.
+#' @keywords internal
+set_survival_columns <- function(df, survival_variable, l, survival_variable_all,
+                                 survival_trans_function, only_existing = FALSE) {
+  if (!only_existing || survival_variable %in% names(df)) df[[survival_variable]] <- l
+  for (surv_i in seq_along(survival_variable_all)) {
+    svar <- survival_variable_all[[surv_i]]
+    if (!only_existing || svar %in% names(df)) {
+      df[[svar]] <- apply_survival_trans(survival_trans_function[[surv_i]], l, surv_i)
+    }
+  }
+  df
+}
+
+#' A biomarker's model frame at one integration grid point
+#'
+#' @description Overwrites the survival-time columns of the per-patient
+#' template \code{mf} in place when \code{in_place} (see
+#' \code{time_columns_bare()}); otherwise rebuilds the model frame from
+#' \code{data} with those columns set, so that transformed terms such as
+#' \code{log(years)} are re-evaluated at \code{l}.
+#'
+#' @return The model frame.
+#' @keywords internal
+survival_model_frame_at <- function(mf, data, in_place, terms_model, xlev, survival_variable, l,
+                                    survival_variable_all, survival_trans_function) {
+  if (in_place) {
+    return(set_survival_columns(mf, survival_variable, l, survival_variable_all,
+                                survival_trans_function, only_existing = TRUE))
+  }
+  data <- set_survival_columns(data, survival_variable, l, survival_variable_all,
+                               survival_trans_function)
+  model.frame(terms_model, data, xlev = xlev)
+}

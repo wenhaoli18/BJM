@@ -75,6 +75,47 @@ drop_missing_longitudinal <- function(data_predict_all, long_fit_all, survival_v
   data_predict_all
 }
 
+#' Recode ordinal biomarker responses onto the training categories
+#'
+#' @description Shared helper for \code{predictRisk},
+#' \code{dynamicPredictionBio}, and \code{dynamicPredictionBioAll}. The
+#' copula densities turn an ordinal response into its category code with
+#' \code{as.numeric()} and index the fitted thresholds with it, and the
+#' candidate categories of an ordinal \code{bio_i} are read off
+#' \code{levels()}. Both used to come from the prediction data itself, so
+#' any difference from the training categories -- unused levels dropped
+#' (e.g. by \code{droplevels()} or subsetting and re-creating the factor),
+#' a different level order, or a character column -- silently bracketed the
+#' latent score between the wrong thresholds (in one check, a risk of 0.53
+#' instead of 0.10). Each ordinal response is now rebuilt as an ordered
+#' factor on the categories the \code{clmm()} fit was estimated with,
+#' matching by label; a value that is not one of those categories is an
+#' error. Missing values stay missing (\code{drop_missing_longitudinal()}
+#' removes them afterwards).
+#'
+#' @return \code{data_predict_all}, with each ordinal response recoded.
+#' @keywords internal
+align_ordinal_levels <- function(data_predict_all, long_fit_all) {
+  biomarker_type <- long_fit_all$biomarker_type
+  if (is.null(biomarker_type)) return(data_predict_all)
+  for (i in which(biomarker_type == "ordinal")) {
+    resp_name <- all.vars(long_fit_all$long_sub_fixed[[i]])[1]
+    training_levels <- long_fit_all$lfit[[i]]$y.levels
+    if (is.null(training_levels) || !resp_name %in% names(data_predict_all[[i]])) next
+    values <- as.character(data_predict_all[[i]][[resp_name]])
+    unknown <- setdiff(unique(values[!is.na(values)]), training_levels)
+    if (length(unknown) > 0) {
+      stop(sprintf(paste0(
+        "Ordinal biomarker '%s' in data_predict_all[[%d]] has value(s) %s that are not ",
+        "categories of the fitted model (%s)."),
+        resp_name, i, paste(sQuote(unknown, FALSE), collapse = ", "),
+        paste(training_levels, collapse = " < ")), call. = FALSE)
+    }
+    data_predict_all[[i]][[resp_name]] <- factor(values, levels = training_levels, ordered = TRUE)
+  }
+  data_predict_all
+}
+
 #' Patient ids, in the order predictions are returned
 #'
 #' @description The density helpers (\code{marginalT()},
