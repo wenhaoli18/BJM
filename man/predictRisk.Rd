@@ -56,23 +56,31 @@ slower estimate. Defaults to \code{"auto"} (see Details).}
 
 \item{bandcount2}{The number of grid points spanning
 \code{[prediction_time, upper_bound]}, where \code{upper_bound} is set
-internally to twice the longest observed survival/censoring time among
-at-risk patients; this approximates integrating out to infinity for the
-denominator that normalizes the risk probability. A wider follow-up range
+internally as the earliest time by which every at-risk patient's
+model-based probability of still being event-free (given event-free at
+\code{prediction_time}) has dropped below \code{1e-4}; this approximates
+integrating out to infinity for the denominator that normalizes the risk probability. A wider follow-up range
 needs a larger \code{bandcount2} to keep the grid spacing comparable.
 Defaults to \code{"auto"} (see Details).}
 }
 \value{
 An object of class \code{"predictRisk.BJM"}, a named list with elements:
 \describe{
-\item{risk_prob_1}{A vector of dynamically predicted probabilities, one per patient,
-of experiencing the (first) event within the prediction horizon. \code{0} when
-\code{horizon <= 0}.}
+\item{risk_prob_1}{A vector of dynamically predicted probabilities, one per at-risk
+patient, of experiencing the (first) event within the prediction horizon, named by
+patient id. All \code{0} when \code{horizon <= 0}.}
 \item{risk_prob_2}{When \code{survival_fit_all} was fit with competing risks, a vector
-of dynamically predicted probabilities, one per patient, of experiencing the competing
-event within the prediction horizon. \code{NULL} when there is no competing risk, or
-when \code{horizon <= 0}.}
+of dynamically predicted probabilities, one per at-risk patient, of experiencing the
+competing event within the prediction horizon, named by patient id (all \code{0} when
+\code{horizon <= 0}). \code{NULL} when there is no competing risk.}
 }
+Only patients still at risk at \code{prediction_time} are predicted: a patient whose
+recorded survival time is before \code{prediction_time} is left out (one with a missing
+survival time is kept). The names show which patients each value belongs to.
+The numerical integration grids are shared by all patients predicted in one
+call, so a patient's value can differ slightly (within the grid's
+discretization error, which shrinks as \code{bandcount1}/\code{bandcount2}
+grow) depending on which other patients are predicted alongside it.
 }
 \description{
 Combines a fitted longitudinal sub-model (\code{\link{longitudinalSub}})
@@ -89,9 +97,10 @@ event-free at \code{prediction_time}. The integrals in both the numerator
 numerical grids whose resolution is controlled by \code{bandcount1}/
 \code{bandcount2}; see Details.
 
-The time values in the prediction data subset must be less than the
-specified \code{prediction_time} which is the prediction time. The time points for
-longitudinal repeated measurements must not surpass the prediction time.
+The prediction is conditional on the longitudinal history observed up to
+\code{prediction_time}: rows of \code{data_predict_all} whose
+\code{time_variable} is later than \code{prediction_time} are dropped,
+with a warning, before predicting.
 }
 \details{
 There is no universal correct value for \code{bandcount1}/\code{bandcount2}:
@@ -176,8 +185,8 @@ risk.prob = predictRisk(data_predict_all, long_fit_all, survival_fit_all,
                               bandcount1 = 10, bandcount2 = 10)
 
 # poly() in its default orthogonal mode, splines::ns()/bs(), and factor()
-# in long_sub_fixed still trigger longitudinalSub()'s warning (see
-# ?longitudinalSub), but produce correct dynamic predictions -- including
+# in a continuous biomarker's long_sub_fixed produce correct dynamic
+# predictions (see ?longitudinalSub) -- including
 # when a patient has only a single longitudinal observation to condition
 # on -- because the basis/contrasts fit on the full training data are
 # cached (via each biomarker's terms object and long_fit_all$xlevels) and

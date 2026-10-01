@@ -23,7 +23,9 @@
 #' @param survival_trans_function The transformation function used for time-to-event outcomes, 
 #' in the order of \code{survival_variable_all}.
 #' 
-#' @return The output is a list containing probability matrices. In the presence of 
+#' @return The output is a list containing probability matrices of \strong{log} densities
+#' (so that they neither overflow nor underflow; see \code{predictRisk()} for how they
+#' are exponentiated). In the presence of 
 #' competing risks, this list includes two elements; otherwise, 
 #' it contains only one element. Each element within the list is a probability matrix, 
 #' with the number of rows (l_i) corresponding to specific time points and 
@@ -97,10 +99,11 @@ conditionalYDT = function(data_predict_all, long_fit_all, survival_fit_all,
     data_num_i_list <- patient_data$data_num_i_list
 
     design <- build_conditional_design(rep_num_i_list, data_num_i_list, lfit, Sigma,
-                                        sigma.longitudinal, time_variable, n_longitudinal)
+                                        sigma.longitudinal, time_variable, n_longitudinal,
+                                        long_fit_all$long_sub_random)
     longitudinal_all_matrix <- design$longitudinal_all_matrix
     parameter_matrix <- design$parameter_matrix
-    det_Var_cov_estep <- design$det_Var_cov_estep
+    log_det_Var_cov_estep <- design$log_det_Var_cov_estep
     Sigma_all_solve <- design$Sigma_all_solve
 
     ### Build a reusable model.frame "template" per biomarker/event-type,
@@ -268,8 +271,9 @@ conditionalYDT = function(data_predict_all, long_fit_all, survival_fit_all,
       quad_form_1 = as.numeric(t(resid_full_1) %*% Sigma_all_solve %*% resid_full_1)
       quad_form_0 = as.numeric(t(resid_full_0) %*% Sigma_all_solve %*% resid_full_0)
 
-      f_Y_T_D_w1[it, iii] = det_Var_cov_estep^{-0.5} * exp(-0.5 * quad_form_1)
-      f_Y_T_D_w0[it, iii] = det_Var_cov_estep^{-0.5} * exp(-0.5 * quad_form_0)
+      ### log densities (see predictRisk() for how they are exponentiated safely)
+      f_Y_T_D_w1[it, iii] = -0.5 * log_det_Var_cov_estep - 0.5 * quad_form_1
+      f_Y_T_D_w0[it, iii] = -0.5 * log_det_Var_cov_estep - 0.5 * quad_form_0
     }
     
   }

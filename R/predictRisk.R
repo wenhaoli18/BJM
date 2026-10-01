@@ -15,9 +15,10 @@
 #' numerical grids whose resolution is controlled by \code{bandcount1}/
 #' \code{bandcount2}; see Details.
 #'
-#' The time values in the prediction data subset must be less than the
-#' specified \code{prediction_time} which is the prediction time. The time points for
-#' longitudinal repeated measurements must not surpass the prediction time.
+#' The prediction is conditional on the longitudinal history observed up to
+#' \code{prediction_time}: rows of \code{data_predict_all} whose
+#' \code{time_variable} is later than \code{prediction_time} are dropped,
+#' with a warning, before predicting.
 #'
 #' @param data_predict_all This involves a collection of \code{data.frame} objects for 
 #' dynamic prediction, each corresponding to a distinct longitudinal outcome. 
@@ -49,9 +50,10 @@
 #' slower estimate. Defaults to \code{"auto"} (see Details).
 #' @param bandcount2 The number of grid points spanning
 #' \code{[prediction_time, upper_bound]}, where \code{upper_bound} is set
-#' internally to twice the longest observed survival/censoring time among
-#' at-risk patients; this approximates integrating out to infinity for the
-#' denominator that normalizes the risk probability. A wider follow-up range
+#' internally as the earliest time by which every at-risk patient's
+#' model-based probability of still being event-free (given event-free at
+#' \code{prediction_time}) has dropped below \code{1e-4}; this approximates
+#' integrating out to infinity for the denominator that normalizes the risk probability. A wider follow-up range
 #' needs a larger \code{bandcount2} to keep the grid spacing comparable.
 #' Defaults to \code{"auto"} (see Details).
 #'
@@ -75,14 +77,21 @@
 #' 
 #' @return An object of class \code{"predictRisk.BJM"}, a named list with elements:
 #' \describe{
-#'   \item{risk_prob_1}{A vector of dynamically predicted probabilities, one per patient,
-#'   of experiencing the (first) event within the prediction horizon. \code{0} when
-#'   \code{horizon <= 0}.}
+#'   \item{risk_prob_1}{A vector of dynamically predicted probabilities, one per at-risk
+#'   patient, of experiencing the (first) event within the prediction horizon, named by
+#'   patient id. All \code{0} when \code{horizon <= 0}.}
 #'   \item{risk_prob_2}{When \code{survival_fit_all} was fit with competing risks, a vector
-#'   of dynamically predicted probabilities, one per patient, of experiencing the competing
-#'   event within the prediction horizon. \code{NULL} when there is no competing risk, or
-#'   when \code{horizon <= 0}.}
+#'   of dynamically predicted probabilities, one per at-risk patient, of experiencing the
+#'   competing event within the prediction horizon, named by patient id (all \code{0} when
+#'   \code{horizon <= 0}). \code{NULL} when there is no competing risk.}
 #' }
+#' Only patients still at risk at \code{prediction_time} are predicted: a patient whose
+#' recorded survival time is before \code{prediction_time} is left out (one with a missing
+#' survival time is kept). The names show which patients each value belongs to.
+#' The numerical integration grids are shared by all patients predicted in one
+#' call, so a patient's value can differ slightly (within the grid's
+#' discretization error, which shrinks as \code{bandcount1}/\code{bandcount2}
+#' grow) depending on which other patients are predicted alongside it.
 #'
 #' @examples 
 #' 
@@ -149,8 +158,8 @@
 #'                               bandcount1 = 10, bandcount2 = 10)
 #'
 #' # poly() in its default orthogonal mode, splines::ns()/bs(), and factor()
-#' # in long_sub_fixed still trigger longitudinalSub()'s warning (see
-#' # ?longitudinalSub), but produce correct dynamic predictions -- including
+#' # in a continuous biomarker's long_sub_fixed produce correct dynamic
+#' # predictions (see ?longitudinalSub) -- including
 #' # when a patient has only a single longitudinal observation to condition
 #' # on -- because the basis/contrasts fit on the full training data are
 #' # cached (via each biomarker's terms object and long_fit_all$xlevels) and
@@ -201,6 +210,10 @@ predictRisk = function(data_predict_all, long_fit_all, survival_fit_all,
   assert_bandcount(bandcount1, "bandcount1")
   assert_bandcount(bandcount2, "bandcount2")
   assert_survival_trans(survival_variable_all, survival_trans_function, probe_value = prediction_time)
+  data_predict_all <- drop_after_prediction_time(data_predict_all, time_variable, prediction_time)
+  data_predict_all <- drop_missing_longitudinal(data_predict_all, long_fit_all,
+                                               as.character(formula(survival_fit_all$coxph_fit)[[2]])[2],
+                                               survival_variable_all)
 
   # bandcount1/bandcount2 = "auto" (the default): resolve them by doubling
   # from their built-in starting values until the returned risk
@@ -228,20 +241,30 @@ predictRisk = function(data_predict_all, long_fit_all, survival_fit_all,
 
   ## at risk sample
   data_predict_all = subset_at_risk(data_predict_all, survival_variable, prediction_time)
-
-  upper_bound = 2 * max(data_predict_all[[1]][survival_variable])
+  patient_ids <- prediction_patient_ids(data_predict_all, long_fit_all)
+  has_cr <- length(survival_fit_all$form_conditional_cr) != 0
 
   #### handle horizon = 0 edge case: probability of event in zero-length window is 0
   if(horizon <= 0){
-    out <- list(risk_prob_1 = 0, risk_prob_2 = NULL)
+    zeros <- stats::setNames(rep(0, length(patient_ids)), patient_ids)
+    out <- list(risk_prob_1 = zeros, risk_prob_2 = if (has_cr) zeros else NULL)
     class(out) <- "predictRisk.BJM"
     return(out)
   }
 
+  upper_bound = integration_upper_bound(data_predict_all, long_fit_all, survival_fit_all,
+                                        prediction_time, min_upper = prediction_time + horizon)
+
   #### time frame used to do the integral
-  bandwidth1 = horizon/bandcount1
-  predict.time.horizon = seq(prediction_time, prediction_time + horizon, bandwidth1)
-  predict.time.horizon.1 = seq(prediction_time - bandwidth1/2, prediction_time + horizon + bandwidth1/2, bandwidth1)
+  ### bandcount1 intervals tiling exactly (prediction_time, prediction_time +
+  ### horizon], each evaluated at its midpoint. The previous grid's edges ran
+  ### from half an interval before prediction_time to half an interval after
+  ### the horizon, so the window it integrated over was horizon + 1 interval
+  ### long, inflating the risk by roughly 1 / bandcount1 (about 10% at
+  ### bandcount1 = 10) -- the main reason "auto" bandcount tuning kept
+  ### reporting non-convergence.
+  predict.time.horizon.1 = seq(prediction_time, prediction_time + horizon, length.out = bandcount1 + 1)
+  predict.time.horizon = (predict.time.horizon.1[-1] + predict.time.horizon.1[-(bandcount1 + 1)]) / 2
 
   infinity_grid <- prepare_infinity_grid(data_predict_all, long_fit_all, survival_fit_all,
                                           prediction_time, upper_bound, bandcount2)
@@ -282,10 +305,15 @@ predictRisk = function(data_predict_all, long_fit_all, survival_fit_all,
                                         l_i = predict.time.infinity, survival_variable,
                                         time_variable, survival_variable_all,
                                         survival_trans_function)
-    T.surv.predict.0 = t(f_y_D_all_predict[[1]] * D_T_all_predict[[1]] * S_T_all_predict)
-    T.surv.infinity.0 = t(f_y_D_all_infinity[[1]] * D_T_all_infinity[[1]] * S_T_all_infinity)
-    T.surv.predict.1 = t(f_y_D_all_predict[[2]] * D_T_all_predict[[2]] * S_T_all_predict)
-    T.surv.infinity.1 = t(f_y_D_all_infinity[[2]] * D_T_all_infinity[[2]] * S_T_all_infinity)
+    ### the conditional densities are log densities: shift each patient's
+    ### by that patient's largest value before exponentiating, so they
+    ### neither underflow to 0 nor overflow (the shift cancels in the ratio)
+    shift = patient_log_shift(f_y_D_all_predict[[1]], f_y_D_all_predict[[2]],
+                              f_y_D_all_infinity[[1]], f_y_D_all_infinity[[2]])
+    T.surv.predict.0 = t(exp_shifted(f_y_D_all_predict[[1]], shift) * D_T_all_predict[[1]] * S_T_all_predict)
+    T.surv.infinity.0 = t(exp_shifted(f_y_D_all_infinity[[1]], shift) * D_T_all_infinity[[1]] * S_T_all_infinity)
+    T.surv.predict.1 = t(exp_shifted(f_y_D_all_predict[[2]], shift) * D_T_all_predict[[2]] * S_T_all_predict)
+    T.surv.infinity.1 = t(exp_shifted(f_y_D_all_infinity[[2]], shift) * D_T_all_infinity[[2]] * S_T_all_infinity)
 
     risk.prob.0 = clamp_risk_prob(rowSums(T.surv.predict.0), rowSums(T.surv.infinity.0 + T.surv.infinity.1))
     risk.prob.1 = clamp_risk_prob(rowSums(T.surv.predict.1), rowSums(T.surv.infinity.0 + T.surv.infinity.1))
@@ -298,12 +326,20 @@ predictRisk = function(data_predict_all, long_fit_all, survival_fit_all,
     f_y_D_all_infinity = conditionalYT_fun(data_predict_all, long_fit_all, l_i = predict.time.infinity,
                                        survival_variable, time_variable, survival_variable_all, survival_trans_function)
 
-    T.surv.predict.0 = t(f_y_D_all_predict[[1]]  * S_T_all_predict)
-    T.surv.infinity.0 = t(f_y_D_all_infinity[[1]]  * S_T_all_infinity)
+    ### see the competing-risk branch: shifted log densities. This also
+    ### replaces a "+ 1e-20" added to the denominator to avoid dividing by
+    ### 0, which, being absolute, swamped the denominator whenever the
+    ### densities were small (biomarkers on a large scale or many
+    ### observations) and drove the risk towards 0.
+    shift = patient_log_shift(f_y_D_all_predict[[1]], f_y_D_all_infinity[[1]])
+    T.surv.predict.0 = t(exp_shifted(f_y_D_all_predict[[1]], shift) * S_T_all_predict)
+    T.surv.infinity.0 = t(exp_shifted(f_y_D_all_infinity[[1]], shift) * S_T_all_infinity)
 
-    risk.prob.0 = clamp_risk_prob(rowSums(T.surv.predict.0), rowSums(T.surv.infinity.0 + 1e-20))
+    risk.prob.0 = clamp_risk_prob(rowSums(T.surv.predict.0), rowSums(T.surv.infinity.0))
   }
   
+  names(risk.prob.0) <- patient_ids
+  if (!is.null(risk.prob.1)) names(risk.prob.1) <- patient_ids
   out <- list(risk_prob_1 = risk.prob.0, risk_prob_2 = risk.prob.1)
   class(out) <- "predictRisk.BJM"
   return(out)

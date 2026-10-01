@@ -4,3 +4,6 @@
 ^Meta$
 ^cran-comments\.md$
 ^\.github$
+^\.claude$
+^\.Rhistory$
+^\.Rd2pdf

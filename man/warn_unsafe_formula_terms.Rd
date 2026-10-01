@@ -11,13 +11,16 @@ warn_unsafe_formula_terms(formula_list, arg_name)
 \code{poly()} (in its default orthogonal mode),
 \code{splines::ns()}/\code{splines::bs()}, and \code{factor()} compute
 their basis/contrasts from whatever data is passed to \code{model.matrix()}.
-BJM's prediction functions rebuild the design matrix from a small,
-patient-specific slice of data at every point on the internal prediction
-grid, which is not the data the model was fit on, so the basis
-recomputed at prediction time silently does not match the one used at
-fitting time (or, with too few distinct values, \code{model.matrix()}
-fails outright). \code{poly(..., raw = TRUE)}, \code{I(x^2)}, \code{log()},
+For a continuous biomarker's \code{long_sub_fixed} formula this is
+handled: the basis \code{lme()} was fit with (its \code{terms}'
+\code{predvars}) and the training factor levels are reused both when
+estimating \code{Sigma_fit} and at prediction time, so such terms are not
+flagged there. They are still rebuilt from the data at hand -- a single
+patient's rows at prediction time, the retained subjects when estimating
+\code{Sigma_fit} -- for \code{long_sub_random} formulas and for an
+ordinal biomarker's \code{long_sub_fixed} formula, which is where this
+warns. \code{poly(..., raw = TRUE)}, \code{I(x^2)}, \code{log()},
 \code{sqrt()}, and similar terms that do not depend on the surrounding
-data are unaffected and are not flagged.
+data are never flagged.
 }
 \keyword{internal}

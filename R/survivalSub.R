@@ -62,6 +62,7 @@ survivalSub = function(data_survival_fitting, form_marginal_surv, form_condition
     }
     assert_vars_in_data(all.vars(form_conditional_cr), data_survival_fitting,
                          "form_conditional_cr", "data_survival_fitting")
+    assert_linear_time_term(form_conditional_cr, all.vars(form_marginal_surv[[2]])[1])
   }
 
   ### fit cox weibull model

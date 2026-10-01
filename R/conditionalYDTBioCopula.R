@@ -105,10 +105,12 @@ conditionalYDTBioCopula <- function(Y_all, time_new, bio_i, data_predict_all, lo
         ### build_conditional_design_copula()).
         design_1 <- build_conditional_design_copula(rep_num_i_list, data_it_1_Y, lfit, Sigma,
                                                       sigma.longitudinal, time_variable, n_longitudinal,
-                                                      biomarker_type, long_sub_fixed, thresholds)
+                                                      biomarker_type, long_sub_fixed, thresholds,
+                                                  long_fit_all$long_sub_random)
         design_0 <- build_conditional_design_copula(rep_num_i_list, data_it_0_Y, lfit, Sigma,
                                                       sigma.longitudinal, time_variable, n_longitudinal,
-                                                      biomarker_type, long_sub_fixed, thresholds)
+                                                      biomarker_type, long_sub_fixed, thresholds,
+                                                  long_fit_all$long_sub_random)
 
         LME_indi_matrix_1 <- lapply(seq_len(n_longitudinal), function(i) {
           build_LME_indi_matrix_copula(i, data_it_1_Y[[i]], lfit, long_fit_all, long_sub_fixed)

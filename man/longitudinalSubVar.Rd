@@ -5,10 +5,12 @@
 \title{Variance-covariance matrix
 Reference: package "lmm" and package "joineRML" function \code{mvlme}.}
 \usage{
-longitudinalSubVar(thetaLong, l, tol.em, verbose)
+longitudinalSubVar(thetaLong, l, tol.em, verbose, max.iter = 1000)
 }
 \description{
-Variance-covariance matrix
-Reference: package "lmm" and package "joineRML" function \code{mvlme}.
+The EM loop stops after \code{max.iter} iterations even if the relative
+change in \code{D} is still above \code{tol.em} (previously it had no
+limit, so a fit that never met the tolerance never returned), and warns
+when that happens.
 }
 \keyword{internal}

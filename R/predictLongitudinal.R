@@ -39,10 +39,10 @@
 #' that biomarker, since its candidate grid is fixed at its category count
 #' (see Details).
 #'
-#' The time values in the prediction data subset must be less than the
-#' specified \code{prediction_time} which is the prediction time. The time
-#' points for longitudinal repeated measurements must not surpass the
-#' prediction time.
+#' The prediction is conditional on the longitudinal history observed up to
+#' \code{prediction_time}: rows of \code{data_predict_all} whose
+#' \code{time_variable} is later than \code{prediction_time} are dropped,
+#' with a warning, before predicting.
 #'
 #' \code{bandcount2} (controlling the shared survival-integration grid) and
 #' \code{bandcount3} (controlling each biomarker's own candidate-value grid)
@@ -106,9 +106,10 @@
 #' time-to-event outcomes, in the order of \code{survival_variable_all}.
 #' @param bandcount2 The number of grid points spanning
 #' \code{[prediction_time, upper_bound]}, where \code{upper_bound} is set
-#' internally to twice the longest observed survival/censoring time among
-#' at-risk patients; this approximates integrating out to infinity for the
-#' denominator that normalizes the predicted density. A wider follow-up
+#' internally as the earliest time by which every at-risk patient's
+#' model-based probability of still being event-free (given event-free at
+#' \code{prediction_time}) has dropped below \code{1e-4}; this approximates
+#' integrating out to infinity for the denominator that normalizes the predicted density. A wider follow-up
 #' range needs a larger \code{bandcount2} to keep the grid spacing
 #' comparable. Defaults to \code{"auto"} (see Details).
 #' @param bandcount3 The number of points in the candidate-biomarker-value
@@ -123,7 +124,8 @@
 #' @return If \code{bio_i} names exactly one biomarker: an object of class
 #' \code{"dynamicPredictionBio.BJM"}, a named list with elements:
 #' \describe{
-#'   \item{Y_predict}{A vector, one entry per patient, giving the MAP (most
+#'   \item{Y_predict}{A vector, one entry per at-risk patient (named by
+#'   patient id), giving the MAP (most
 #'   likely) predicted value of the biomarker at \code{prediction_time +
 #'   horizon}. For an ordinal biomarker, this is an integer category code
 #'   (see Details), not a raw value.}

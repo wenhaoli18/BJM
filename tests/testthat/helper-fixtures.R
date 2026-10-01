@@ -26,7 +26,8 @@ setup_dp_fixture <- function() {
     fun4 = function(x) abs(x - 7)
   )
 
-  data.raw.predict <- pbc3[pbc3$id == 2, ]
+  # Patient 2's history up to year 5, the prediction_time most tests use.
+  data.raw.predict <- pbc3[pbc3$id == 2 & pbc3$year <= 5, ]
   data_predict_all <- list(data.raw.predict, data.raw.predict)
 
   list(survival_fit_all = survival_fit_all, long_fit_all = long_fit_all,

@@ -378,6 +378,7 @@ printBJM <- function(long_fit_all, survival_fit_all, digits = 4) {
   has_cr <- !is.null(risk1)
   n_subj <- length(risk0)
   ids    <- if (!is.null(subject_ids)) as.character(subject_ids) else
+            if (!is.null(names(risk0))) names(risk0) else
               paste0("S", seq_len(n_subj))
 
   cat("\n", sep_line, "\n", sep = "")
@@ -506,6 +507,7 @@ summary.predictRisk.BJM <- function(object, prediction_time = NULL,
   Y_all     <- x$Y_all
   n_subj    <- length(Y_predict)
   ids       <- if (!is.null(subject_ids)) as.character(subject_ids) else
+               if (!is.null(names(Y_predict))) names(Y_predict) else
                  paste0("S", seq_len(n_subj))
 
   bio_name <- if (!is.null(bio_i) && !is.null(long_fit_all)) {

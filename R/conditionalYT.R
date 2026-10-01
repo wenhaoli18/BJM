@@ -23,7 +23,9 @@
 #' @param survival_trans_function The transformation function used for time-to-event outcomes, 
 #' in the order of \code{survival_variable_all}.
 #' 
-#' @return The output is a list containing probability matrices. In the presence of 
+#' @return The output is a list containing probability matrices of \strong{log} densities
+#' (so that they neither overflow nor underflow; see \code{predictRisk()} for how they
+#' are exponentiated). In the presence of 
 #' competing risks, this list includes two elements; otherwise, 
 #' it contains only one element. Each element within the list is a probability matrix, 
 #' with the number of rows (l_i) corresponding to specific time points and 
@@ -79,10 +81,11 @@ conditionalYT = function(data_predict_all, long_fit_all, l_i, survival_variable,
     data_num_i_list <- patient_data$data_num_i_list
 
     design <- build_conditional_design(rep_num_i_list, data_num_i_list, lfit, Sigma,
-                                        sigma.longitudinal, time_variable, n_longitudinal)
+                                        sigma.longitudinal, time_variable, n_longitudinal,
+                                        long_fit_all$long_sub_random)
     longitudinal_all_matrix <- design$longitudinal_all_matrix
     parameter_matrix <- design$parameter_matrix
-    det_Var_cov_estep <- design$det_Var_cov_estep
+    log_det_Var_cov_estep <- design$log_det_Var_cov_estep
     Sigma_all_solve <- design$Sigma_all_solve
 
     ### for loop and make prediction probability for all time points in l_i
@@ -176,7 +179,8 @@ conditionalYT = function(data_predict_all, long_fit_all, l_i, survival_variable,
       resid_full = rowSums(longitudinal_all_matrix) - rowSums(mean_all_matrix)
       quad_form = as.numeric(t(resid_full) %*% Sigma_all_solve %*% resid_full)
 
-      f_Y_T_D_w1[it, iii] = det_Var_cov_estep^{-0.5} * exp(-0.5 * quad_form)
+      ### log density (see predictRisk() for how it is exponentiated safely)
+      f_Y_T_D_w1[it, iii] = -0.5 * log_det_Var_cov_estep - 0.5 * quad_form
     }
     
   }
