@@ -121,7 +121,8 @@ test_that("poolLongitudinalSub reproduces textbook Rubin's rules / Barnard-Rubin
   df_old <- (m - 1) / lambda^2
   df_obs <- (dfcom + 1) / (dfcom + 3) * dfcom * (1 - lambda)
   df_expected <- df_old * df_obs / (df_old + df_obs)
-  fmi_expected <- (riv_expected + 2 / (dfcom + 3)) / (riv_expected + 1)
+  # Barnard-Rubin FMI uses the pooled (adjusted) df, as in mice::pool()
+  fmi_expected <- (riv_expected + 2 / (df_expected + 3)) / (riv_expected + 1)
   stat_expected <- qbar / se_expected
   p_expected <- 2 * stats::pt(-abs(stat_expected), df = df_expected)
 
@@ -208,3 +209,44 @@ test_that("poolLongitudinalSub(imputeLongitudinal(impute = 'multiple') completio
 
   expect_output(print(pooled), "poolLongitudinalSub")
 })
+
+test_that("each coefficient is pooled with its own complete-data df", {
+  # lme() gives a between-subject covariate (age) far fewer df than the
+  # within-subject time term; the intercept's df used to be applied to all.
+  data(pbc3, envir = environment())
+  d <- pbc3[pbc3$status3 == 1, ]
+  fits <- lapply(1:2, function(s) {
+    set.seed(s)
+    di <- d
+    di$serBilir <- di$serBilir + rnorm(nrow(di), sd = 0.05)
+    longitudinalSub(di, serBilir ~ year + age, ~ year | id)
+  })
+  tab <- poolLongitudinalSub(fits)$pooled[[1]]
+  df_X <- fits[[1]]$lfit[[1]]$fixDF$X
+  expect_lt(df_X[["age"]], df_X[["year"]])
+  expect_lt(tab["age", "df"], tab["year", "df"])
+})
+
+test_that("the pooled fit can be used for prediction", {
+  data(pbc3, envir = environment())
+  d <- pbc3[pbc3$status3 == 1, ]
+  fx <- list(serBilir ~ year + age + sex + years, albumin ~ year + age + sex + years)
+  rd <- list(~ year | id, ~ year | id)
+  fits <- lapply(1:2, function(s) {
+    set.seed(s)
+    di <- d
+    di$serBilir <- di$serBilir + rnorm(nrow(di), sd = 0.05)
+    longitudinalSub(di, fx, rd)
+  })
+  pooled <- poolLongitudinalSub(fits)
+  fit <- pooled$long_fit_all
+  expect_s3_class(fit, "longitudinalSub.BJM")
+  expect_equal(unname(nlme::fixef(fit$lfit[[1]])), pooled$pooled[[1]]$estimate)
+  expect_equal(fit$Sigma_fit, (fits[[1]]$Sigma_fit + fits[[2]]$Sigma_fit) / 2)
+
+  surv <- survivalSub(pbc3[!duplicated(pbc3$id), ], Surv(years, status3) ~ age + sex, NULL)
+  risk <- predictRisk(pbc3[pbc3$id == 2 & pbc3$year <= 3, ], fit, surv, 3, 3, "year",
+                      list(), list(), 10, 20)
+  expect_true(is.finite(risk$risk_prob_1) && risk$risk_prob_1 > 0 && risk$risk_prob_1 < 1)
+})
+

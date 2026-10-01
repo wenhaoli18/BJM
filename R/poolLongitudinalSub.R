@@ -54,6 +54,13 @@
 #'   \item{m}{The number of completed-data fits pooled.}
 #'   \item{long_sub_fixed}{The \code{long_sub_fixed} used by every fit (taken
 #'   from the first element of \code{long_fit_all_list}).}
+#'   \item{long_fit_all}{A \code{longitudinalSub.BJM} object usable for
+#'   prediction (e.g. as \code{long_fit_all} in \code{\link{predictRisk}}):
+#'   the first fit, with each biomarker's fixed effects replaced by their
+#'   pooled estimates, its residual variance by the average across
+#'   completions, and \code{Sigma_fit} by the average of the \code{m} fits'
+#'   \code{Sigma_fit} (Rubin's rules point estimates). Averaging the \code{m}
+#'   fits' predictions instead is a common alternative.}
 #' }
 #'
 #' @references Rubin, D. B. (1987). \emph{Multiple Imputation for
@@ -114,7 +121,15 @@ poolLongitudinalSub <- function(long_fit_all_list) {
                        nrow = n_coef, dimnames = list(coef_names, NULL))
     se_mat <- matrix(vapply(fits_k, function(f) sqrt(diag(f$varFix)), numeric(n_coef)),
                       nrow = n_coef, dimnames = list(coef_names, NULL))
-    dfcom_vec <- vapply(fits_k, function(f) f$fixDF$terms[1], numeric(1))
+    ### complete-data df per coefficient: lme() gives each fixed effect its
+    ### own df (fixDF$X) -- e.g. a between-subject covariate such as age has
+    ### far fewer than the within-subject time terms. The intercept's df
+    ### used to be applied to every coefficient, overstating the df (and
+    ### understating the p-value) of between-subject effects.
+    dfcom_mat <- matrix(vapply(fits_k, function(f) {
+      d <- f$fixDF$X
+      if (is.null(d)) rep(f$fixDF$terms[1], n_coef) else as.numeric(d[coef_names])
+    }, numeric(n_coef)), nrow = n_coef)
 
     ### the m completions from a single imputeLongitudinal(impute =
     ### "multiple") call fill the same missing cells (never drop/add rows),
@@ -122,19 +137,18 @@ poolLongitudinalSub <- function(long_fit_all_list) {
     ### mismatch usually means these fits came from differently-shaped
     ### data (e.g. a caller mixing in an unrelated fit) -- use the smallest
     ### (most conservative) value and warn, rather than silently picking one
-    dfcom <- dfcom_vec[1]
-    if (!all(dfcom_vec == dfcom_vec[1])) {
-      dfcom <- min(dfcom_vec)
+    dfcom <- apply(dfcom_mat, 1, min)
+    if (any(apply(dfcom_mat, 1, function(d) any(d != d[1])))) {
       warning(sprintf(paste0(
         "Outcome %d ('%s'): complete-data degrees of freedom differ across ",
         "`long_fit_all_list` (%s); using the smallest (most conservative) ",
-        "value, %d. This is expected only if the completed datasets do not ",
+        "value per coefficient. This is expected only if the completed datasets do not ",
         "all have the same number of retained subjects/observations."
-      ), k, biomarker_names[k], paste(dfcom_vec, collapse = ", "), dfcom), call. = FALSE)
+      ), k, biomarker_names[k], paste(unique(c(dfcom_mat)), collapse = ", ")), call. = FALSE)
     }
 
     rows <- lapply(seq_along(coef_names), function(j) {
-      rubin_pool_scalar(est_mat[j, ], se_mat[j, ], dfcom = dfcom)
+      rubin_pool_scalar(est_mat[j, ], se_mat[j, ], dfcom = dfcom[j])
     })
     tab <- do.call(rbind, rows)
     rownames(tab) <- coef_names
@@ -143,7 +157,8 @@ poolLongitudinalSub <- function(long_fit_all_list) {
   names(pooled) <- biomarker_names
 
   out <- list(pooled = pooled, m = m,
-              long_sub_fixed = long_fit_all_list[[1]]$long_sub_fixed)
+              long_sub_fixed = long_fit_all_list[[1]]$long_sub_fixed,
+              long_fit_all = pooled_longitudinal_fit(long_fit_all_list, pooled))
   class(out) <- "poolLongitudinalSub.BJM"
   out
 }
@@ -177,7 +192,9 @@ rubin_pool_scalar <- function(estimates, std_errors, dfcom) {
   lambda <- (1 + 1 / m) * b / t_var
 
   df <- barnard_rubin_df(m, lambda, dfcom)
-  fmi <- if (is.finite(riv)) (riv + 2 / (dfcom + 3)) / (riv + 1) else 1
+  ### Barnard-Rubin FMI uses the pooled (adjusted) df, as in mice::pool();
+  ### it used the complete-data df dfcom before
+  fmi <- if (is.finite(riv)) (riv + 2 / (df + 3)) / (riv + 1) else 1
 
   statistic <- qbar / se
   p_value <- 2 * stats::pt(-abs(statistic), df = df)
@@ -284,4 +301,31 @@ print.poolLongitudinalSub.BJM <- function(x, digits = 4, ...) {
 
   cat(sep_line, "\n", sep = "")
   invisible(x)
+}
+
+#' A prediction-ready fit from Rubin's-rules point estimates
+#'
+#' @description Helper for \code{poolLongitudinalSub()}: see its
+#' \code{long_fit_all} return element.
+#' @param long_fit_all_list The completed-data fits.
+#' @param pooled \code{poolLongitudinalSub()}'s per-outcome pooled tables.
+#' @return A \code{longitudinalSub.BJM} object.
+#' @keywords internal
+pooled_longitudinal_fit <- function(long_fit_all_list, pooled) {
+  fit <- long_fit_all_list[[1]]
+  for (k in seq_along(fit$lfit)) {
+    est <- pooled[[k]]$estimate
+    names(est) <- rownames(pooled[[k]])
+    fit$lfit[[k]]$coefficients$fixed <- est
+    sigmas <- vapply(long_fit_all_list, function(f) {
+      s <- f$lfit[[k]]$sigma
+      if (is.null(s)) NA_real_ else s
+    }, numeric(1))
+    if (all(is.finite(sigmas))) fit$lfit[[k]]$sigma <- sqrt(mean(sigmas^2))
+  }
+  Sigmas <- lapply(long_fit_all_list, `[[`, "Sigma_fit")
+  if (!any(vapply(Sigmas, is.null, logical(1)))) {
+    fit$Sigma_fit <- Reduce(`+`, Sigmas) / length(Sigmas)
+  }
+  fit
 }

@@ -14,13 +14,25 @@ prepare_infinity_grid(
 )
 }
 \value{
-A list with \code{predict.time.infinity},
-\code{predict.time.infinity.1}, and \code{S_T_all_infinity}.
+A list with \code{predict.time.infinity} (the grid points),
+\code{predict.time.infinity.1} (the interval edges), and
+\code{S_T_all_infinity}.
 }
 \description{
 Shared helper for \code{predictRisk} and
 \code{dynamicPredictionBio}: builds the numerical-integration grid from
 \code{prediction_time} out to \code{upper_bound}, and evaluates the
 marginal survival function \code{S(T)} over it.
+
+The \code{bandcount2 + 1} intervals are spaced by probability, not by
+time: each holds an equal share of the at-risk patients' (averaged)
+model-based conditional survival mass beyond \code{prediction_time}. The
+upper bound sits far out in the tail (see
+\code{integration_upper_bound()}), so equally spaced intervals would spend
+most of the grid where there is almost no mass and converge more slowly
+as \code{bandcount2} grows. The first interval starts exactly at
+\code{prediction_time}; the previous equally spaced grid started half an
+interval earlier, counting mass from before the prediction time. Each
+grid point is its interval's midpoint.
 }
 \keyword{internal}

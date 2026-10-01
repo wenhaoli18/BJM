@@ -12,6 +12,8 @@ subset_at_risk(data_predict_all, survival_variable, prediction_time)
 \description{
 Shared helper for \code{predictRisk} and
 \code{dynamicPredictionBio}: drops rows whose survival-time variable is
-below \code{prediction_time} from every biomarker's data frame.
+below \code{prediction_time} from every biomarker's data frame. Rows
+whose survival time is missing (e.g. a new patient whose event time is
+not yet known) are kept: they are treated as at risk.
 }
 \keyword{internal}

@@ -184,7 +184,7 @@ impute_latent_ordinal <- function(m, l, beta, alpha_m, Eb_prev, beta_idx_m, r_id
 #' \code{D} is re-estimated.
 #' @keywords internal
 longitudinalSubVarCopula <- function(thetaLong, l, biomarker_type, thresholds,
-                                      tol.em = 1e-04, max.iter = 100, verbose = FALSE) {
+                                      tol.em = 1e-04, max.iter = 500, verbose = FALSE) {
   beta   <- thetaLong$beta
   D      <- thetaLong$D
   sigma2 <- thetaLong$sigma2
@@ -231,6 +231,12 @@ longitudinalSubVarCopula <- function(thetaLong, l, biomarker_type, thresholds,
 
     if (verbose) message(sprintf("ECM iter %d, max|D change| = %.6f", iter, diff))
     if (diff < tol.em) break
+    if (iter == max.iter) {
+      warning(sprintf(paste0(
+        "The ECM estimate of the joint random-effects covariance (Sigma_fit) did not converge ",
+        "within %d iterations (last max change %.3g, tolerance %g); returning the last iterate."),
+        max.iter, diff, tol.em), call. = FALSE)
+    }
   }
 
   list(D = D_current, Eb = Eb_prev, yik = yik_current)
@@ -255,7 +261,6 @@ longitudinalSubVarCopula <- function(thetaLong, l, biomarker_type, thresholds,
 #' @keywords internal
 longitudinalSubCopula <- function(data_fit_all, long_sub_fixed, long_sub_random, biomarker_type, M) {
   id <- as.character(nlme::splitFormula(long_sub_random[[1]], "|")[[2]])[2]
-  n  <- length(unlist(unique(data_fit_all[[1]][, id])))
 
   lfit       <- list()
   mf.fixed   <- list()
@@ -293,15 +298,19 @@ longitudinalSubCopula <- function(data_fit_all, long_sub_fixed, long_sub_random,
                              data = data.fit.one, method = "ML",
                              control = nlme::lmeControl(opt = "optim"), na.action = na.omit)
       lfit[[m]]$call$fixed <- eval(lfit[[m]]$call$fixed)
+      ### see longitudinalSubGaussian(): levels from the full fitting data,
+      ### and the EM design built from lme()'s own terms (training basis)
+      xlevels[[m]]  <- training_xlevels(lfit[[m]]$terms, data.fit.one, long_sub_fixed[[m]])
 
       data.fit.one <- data.fit.one[!as.logical(rowSums(data.frame(is.na(data.fit.one[all.vars(formula(lfit[[m]]))])))), ]
       data.fit.one <- data.fit.one[unlist(data.fit.one[id]) %in% unlist(all_biomarker_num), ]
 
-      mf.fixed[[m]] <- model.frame(lfit[[m]]$terms, data.fit.one[, all.vars(long_sub_fixed[[m]])])
-      xlevels[[m]]  <- .getXlevels(lfit[[m]]$terms, mf.fixed[[m]])
-      yik[[m]] <- by(model.response(mf.fixed[[m]], "numeric"), droplevels(data.fit.one[, id]), as.vector)
-      Xik[[m]] <- data.frame("id2" = droplevels(data.fit.one[, id]),
-                             model.matrix(long_sub_fixed[[m]], data.fit.one))
+      mf.fixed[[m]] <- model.frame(lfit[[m]]$terms, data.fit.one[, all.vars(long_sub_fixed[[m]])],
+                                   xlev = xlevels[[m]])
+      yik[[m]] <- by(model.response(mf.fixed[[m]], "numeric"), factor(data.fit.one[[id]]), as.vector)
+      Xik[[m]] <- data.frame("id2" = factor(data.fit.one[[id]]),
+                             model.matrix(lfit[[m]]$terms, mf.fixed[[m]],
+                                          contrasts.arg = lfit[[m]]$contrasts))
     } else {
       lfit[[m]] <- fit_marginal_ordinal(long_sub_fixed[[m]], long_sub_random[[m]], data.fit.one)
 
@@ -312,11 +321,11 @@ longitudinalSubCopula <- function(data_fit_all, long_sub_fixed, long_sub_random,
       xlevels[[m]]  <- .getXlevels(stats::terms(long_sub_fixed[[m]]), mf.fixed[[m]])
       ### category codes (1..K), not the latent score -- longitudinalSubVarCopula()'s
       ### inner E-step turns these into imputed latent Gaussian scores every iteration.
-      yik[[m]] <- by(as.numeric(model.response(mf.fixed[[m]])), droplevels(data.fit.one[, id]), as.vector)
+      yik[[m]] <- by(as.numeric(model.response(mf.fixed[[m]])), factor(data.fit.one[[id]]), as.vector)
 
       beta_names_m <- names(lfit[[m]]$beta)
       full_mm <- model.matrix(long_sub_fixed[[m]], data.fit.one)
-      Xik[[m]] <- data.frame("id2" = droplevels(data.fit.one[, id]), full_mm[, beta_names_m, drop = FALSE])
+      Xik[[m]] <- data.frame("id2" = factor(data.fit.one[[id]]), full_mm[, beta_names_m, drop = FALSE])
       thresholds[[m]] <- lfit[[m]]$alpha
     }
 
@@ -325,7 +334,7 @@ longitudinalSubCopula <- function(data_fit_all, long_sub_fixed, long_sub_random,
     nik.list[[m]] <- by(Xik[[m]], Xik[[m]]$id2, nrow)
 
     ffk <- nlme::splitFormula(long_sub_random[[m]], "|")[[1]]
-    Zik[[m]] <- data.frame("id2" = droplevels(data.fit.one[, id]), model.matrix(ffk, data.fit.one))
+    Zik[[m]] <- data.frame("id2" = factor(data.fit.one[[id]]), model.matrix(ffk, data.fit.one))
     Zik.list[[m]] <- by(Zik[[m]], c(Zik[[m]]$id2), function(u) as.matrix(u[, -1]))
   }
 
@@ -359,7 +368,7 @@ longitudinalSubCopula <- function(data_fit_all, long_sub_fixed, long_sub_random,
 
   l <- list(yi = yi, Xi = Xi, Zi = Zi, Zit = Zit, nik = nik, yik = yik,
             Xik.list = Xik.list, Zik.list = Zik.list, XtX.inv = XtX.inv,
-            Xtyi = Xtyi, XtZi = XtZi, p = p, r = r, M = M, n = n, nk = nk)
+            Xtyi = Xtyi, XtZi = XtZi, p = p, r = r, M = M, n = n_subjects(yi), nk = nk)
 
   get_vc <- function(m) {
     if (biomarker_type[m] == "continuous") nlme::getVarCov(lfit[[m]]) else nlme::VarCorr(lfit[[m]])[[1]]
@@ -388,22 +397,18 @@ longitudinalSubCopula <- function(data_fit_all, long_sub_fixed, long_sub_random,
   ### never updates sigma2 for continuous biomarkers either.
   sigma2 <- sapply(1:M, function(m) if (biomarker_type[m] == "continuous") lfit[[m]]$sigma^2 else 1)
 
-  result.solve.D <- tryCatch({
-    solve(D)
-  }, error = function(e) {
-    message("An error occurred: ", conditionMessage(e))
-    NULL
+  ### see longitudinalSubGaussian(): identity starting value if the
+  ### per-biomarker D is singular, with a warning rather than a bare message
+  D_start <- tryCatch({ solve(D); D }, error = function(e) {
+    warning(sprintf(paste0(
+      "The random-effects covariance from the separate per-biomarker fits is singular (%s); ",
+      "starting the joint EM from the identity matrix instead. Sigma_fit may be unreliable: ",
+      "consider simplifying the random-effects structure."), conditionMessage(e)), call. = FALSE)
+    diag(1, dim(D)[1])
   })
-
-  if (!is.null(result.solve.D)) {
-    out <- longitudinalSubVarCopula(thetaLong = list("beta" = beta.1, "D" = D, "sigma2" = sigma2),
-                                     l = l, biomarker_type = biomarker_type, thresholds = thresholds,
-                                     tol.em = 1e-04, verbose = FALSE)
-  } else {
-    out <- longitudinalSubVarCopula(thetaLong = list("beta" = beta.1, "D" = diag(1, dim(D)[1]), "sigma2" = sigma2),
-                                     l = l, biomarker_type = biomarker_type, thresholds = thresholds,
-                                     tol.em = 1e-04, verbose = FALSE)
-  }
+  out <- longitudinalSubVarCopula(thetaLong = list("beta" = beta.1, "D" = D_start, "sigma2" = sigma2),
+                                   l = l, biomarker_type = biomarker_type, thresholds = thresholds,
+                                   tol.em = 1e-04, verbose = FALSE)
 
   Sigma_fit <- out$D
 

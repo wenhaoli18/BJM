@@ -23,7 +23,9 @@
 #' @param survival_trans_function The transformation function used for time-to-event outcomes, 
 #' in the order of \code{survival_variable_all}.
 #' 
-#' @return The output is a list containing probability matrices. In the presence of 
+#' @return The output is a list containing probability matrices of \strong{log} densities
+#' (so that they neither overflow nor underflow; see \code{predictRisk()} for how they
+#' are exponentiated). In the presence of 
 #' competing risks, this list includes two elements; otherwise, 
 #' it contains only one element. Each element within the list is a probability matrix, 
 #' with the number of rows (l_i) corresponding to specific time points and 
@@ -63,7 +65,7 @@ conditionalYDTBio = function(Y_all, time_new, bio_i, data_predict_all,
  
   # MVN variance 
   # Apply the function over each unique num using lapply for variance list
-  Sigma_all <- lapply(as.numeric(unlist(unique(data.long[[1]][num]))), process_variance, 
+  Sigma_all <- lapply(unique(data.long[[1]][[num]]), process_variance, 
                       time_new, bio_i, data_predict_all, long_fit_all, time_variable)
   
   # A probability matrix, 
@@ -224,10 +226,10 @@ conditionalYDTBio = function(Y_all, time_new, bio_i, data_predict_all,
     }
     
     results_lapply1 <- lapply(seq_along(Amean_list1), function(it) {
-      mvtnorm::dmvnorm(x = longitudinal_all_matrix, mean = c(Amean_list1[[it]]), sigma = Sigma_all[[iii]])
+      mvtnorm::dmvnorm(x = longitudinal_all_matrix, mean = c(Amean_list1[[it]]), sigma = Sigma_all[[iii]], log = TRUE)
     })
     results_lapply0 <- lapply(seq_along(Amean_list0), function(it) {
-      mvtnorm::dmvnorm(x = longitudinal_all_matrix, mean = c(Amean_list0[[it]]), sigma = Sigma_all[[iii]])
+      mvtnorm::dmvnorm(x = longitudinal_all_matrix, mean = c(Amean_list0[[it]]), sigma = Sigma_all[[iii]], log = TRUE)
     })
     
     for(Y_i in 1 : length(Y_all)){

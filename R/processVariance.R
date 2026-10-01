@@ -8,6 +8,7 @@ process_variance <- function(num_i, time_new, bio_i, data_predict_all,
   lfit = long_fit_all$lfit
   #variance-covariance matrix
   Sigma = long_fit_all$Sigma_fit
+  long_sub_random = long_fit_all$long_sub_random
   #patient ID
   num <- as.character(nlme::splitFormula(long_fit_all$long_sub_random[[1]], "|")[[2]])[2]
   ### event type variable name
@@ -46,7 +47,7 @@ process_variance <- function(num_i, time_new, bio_i, data_predict_all,
   for (i in 1:n_longitudinal) {
     df <- data.long[[i]]
     # Extract data for patient ID of 'num_i',  where 'num' equals 'num_i'
-    selected_data <- df[df[num] == num_i, ]
+    selected_data <- df[which(as.character(df[[num]]) == as.character(num_i)), , drop = FALSE]
     
     # the biomarker used to predict,
     if(i == bio_i){
@@ -74,33 +75,8 @@ process_variance <- function(num_i, time_new, bio_i, data_predict_all,
     return(NA)
   }
   
-  A_i_ = list()
-  ###random intercept or slope, depend on variance-covariance matrix
-  if(dim(Sigma)[1] == n_longitudinal){
-    ###random intercept
-    for(i in 1:n_longitudinal){
-      A_i_[[i]] = rbind(rep_num_i_list[[i]])
-    }
-  }else{
-    ###random slope
-    for(i in 1:n_longitudinal){
-      A_i_[[i]] = rbind(rep_num_i_list[[i]], unlist(data_num_i_list[[i]][time_variable]))
-    }
-  }
-  
-  A_i <- matrix(0, nrow = sum(sapply(A_i_, ncol)), ncol = sum(sapply(A_i_, nrow)))
-  length_A = rep(0, n_longitudinal + 1)
-  for (i in 1:n_longitudinal) {
-    length_A[i + 1] = length_A[i] + dim(A_i_[[i]])[2]
-    if(dim(Sigma)[1] == n_longitudinal){
-      ###random intercept
-      A_i[c((length_A[i] + 1) : length_A[i + 1]), i]  <- t(A_i_[[i]])
-    }else{
-      ###random slope
-      A_i[c((length_A[i] + 1) : length_A[i + 1]), (2*i-1):(2*i)]  <- t(A_i_[[i]])
-    }
-  }
-  
+  A_i <- random_effects_design(data_num_i_list, long_sub_random, Sigma)
+
   Sigma_vector = c()
   for(i in 1:n_longitudinal){
     Sigma_vector = c(Sigma_vector, rep(sigma.longitudinal[i]^2, dim(data_num_i_list[[i]])[1]))

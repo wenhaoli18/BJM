@@ -61,71 +61,6 @@
 #' \code{bandcount3} for each biomarker, or \code{NA} for an ordinal
 #' biomarker). Classed \code{"dynamicPredictionBioAll.BJM"}.
 #'
-#' @examples
-#'
-#' \donttest{
-#' data(pbc3)
-#'
-#' data_survival_fitting =  pbc3[!duplicated(pbc3$id), ]
-#'
-#' form_marginal_surv = Surv(years, status3) ~ age + sex
-#' form_conditional_cr = NULL
-#'
-#' survival_fit_all = survivalSub(data_survival_fitting, form_marginal_surv,
-#'                                form_conditional_cr)
-#'
-#' long_sub_fixed = list(
-#'   "long1" = serBilir ~ year + age + sex +  (years) + (years) * year,
-#'   "long2" = prothrombin ~ year + age + sex + (years) + (years) * year,
-#'   "long3" = albumin ~ year + age + age * year + sex + (years) + (years) * year,
-#'   "long4" = alkaline ~ year + age + sex + (years) + (years) * year,
-#'   "long5" = SGOT ~ year + age + sex + (years) + (years) * year,
-#'   "long6" = platelets ~ year + age + sex + (years)  + (years) * year)
-#'
-#' long_sub_random =list(
-#'   "long1" =  ~ year| id,
-#'   "long2" =  ~ year| id,
-#'   "long3" =  ~ year| id,
-#'   "long4" =  ~ year| id,
-#'   "long5" =  ~ year| id,
-#'   "long6" =  ~ year| id)
-#'
-#' survival_variable_all = list(
-#'   "Tyears1",  "Tyears2", "Tyears3", "Tyears4"
-#' )
-#'
-#' survival_trans_function = list(
-#'   fun1 = function(x){abs(x - 1)},
-#'   fun2 = function(x){abs(x - 3)},
-#'   fun3 = function(x){abs(x - 5)},
-#'   fun4 = function(x){abs(x - 7)}
-#' )
-#'
-#' # Complete case analysis
-#' data_fit_all = list()
-#' for(i in seq_len(length(long_sub_fixed))){
-#'   data_fit_all[[i]] = pbc3[pbc3$status3 == 1, ]
-#' }
-#'
-#' # fitting longitudinal submodel
-#' long_fit_all = longitudinalSub(data_fit_all, long_sub_fixed, long_sub_random)
-#'
-#' i_PID = 2
-#' data.raw.predict.1 = pbc3[pbc3$id == i_PID, ]
-#'
-#' data_predict_all = list()
-#' for(i in seq_len(length(long_sub_fixed))){
-#'   data_predict_all[[i]] = data.raw.predict.1[data.raw.predict.1$year <= 3,]
-#' }
-#'
-#' Y_predict_all = dynamicPredictionBioAll(bio_i = NULL, data_predict_all, long_fit_all,
-#'                                         survival_fit_all, prediction_time = 3,
-#'                                         horizon = 3, time_variable = "year",
-#'                                         survival_variable_all, survival_trans_function,
-#'                                         bandcount2 = 40, bandcount3 = 400)
-#'
-#' }
-#'
 #' @keywords internal
 dynamicPredictionBioAll <- function(bio_i = NULL, data_predict_all, long_fit_all, survival_fit_all,
                                      prediction_time, horizon, time_variable,
@@ -156,6 +91,10 @@ dynamicPredictionBioAll <- function(bio_i = NULL, data_predict_all, long_fit_all
   assert_bandcount(bandcount2, "bandcount2")
   assert_bandcount(bandcount3, "bandcount3")
   assert_survival_trans(survival_variable_all, survival_trans_function, probe_value = prediction_time)
+  data_predict_all <- drop_after_prediction_time(data_predict_all, time_variable, prediction_time)
+  data_predict_all <- drop_missing_longitudinal(data_predict_all, long_fit_all,
+                                               as.character(formula(survival_fit_all$coxph_fit)[[2]])[2],
+                                               survival_variable_all)
 
   coxph_fit = survival_fit_all$coxph_fit
   survival_variable = as.character(formula(coxph_fit)[[2]])[2]

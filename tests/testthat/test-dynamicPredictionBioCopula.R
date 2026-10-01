@@ -120,7 +120,7 @@ test_that("conditionalYTBioCopula matches an independent from-scratch reconstruc
   for (Y_i in seq_along(Y_all)) {
     ref <- reference_bio_density(fx$long_fit_all, fx$long_sub_fixed, num_i, data_predict_all,
                                   bio_i, l_i, time_new, Y_all[Y_i])
-    expect_equal(out[[1]][[Y_i]][1, 1], ref, tolerance = 1e-2)
+    expect_equal(exp(out[[1]][[Y_i]][1, 1]), ref, tolerance = 1e-2)
   }
 })
 
@@ -154,8 +154,8 @@ test_that("conditionalYDTBioCopula matches an independent from-scratch reconstru
   for (Y_i in seq_along(Y_all)) {
     ref <- reference_bio_density(fx$long_fit_all, fx$long_sub_fixed, num_i, data_predict_all,
                                   bio_i, l_i, time_new, Y_all[Y_i])
-    expect_equal(out[[1]][[Y_i]][1, 1], ref, tolerance = 1e-2)
-    expect_equal(out[[2]][[Y_i]][1, 1], ref, tolerance = 1e-2)
+    expect_equal(exp(out[[1]][[Y_i]][1, 1]), ref, tolerance = 1e-2)
+    expect_equal(exp(out[[2]][[Y_i]][1, 1]), ref, tolerance = 1e-2)
   }
 })
 

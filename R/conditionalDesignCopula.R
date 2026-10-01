@@ -35,7 +35,8 @@
 #' @keywords internal
 build_conditional_design_copula <- function(rep_num_i_list, data_num_i_list, lfit, Sigma,
                                              sigma.longitudinal, time_variable, n_longitudinal,
-                                             biomarker_type, long_sub_fixed, thresholds) {
+                                             biomarker_type, long_sub_fixed, thresholds,
+                                             long_sub_random) {
   n_total <- sum(sapply(data_num_i_list, nrow))
   y_all_vec <- rep(NA_real_, n_total)
   alpha_lower_vec <- rep(NA_real_, n_total)
@@ -82,25 +83,8 @@ build_conditional_design_copula <- function(rep_num_i_list, data_num_i_list, lfi
   }
 
   ### random-effects design (A_i) / Sigma_all -- identical in form to
-  ### build_conditional_design(); see that function for the random
-  ### intercept-only vs. intercept+slope branching logic.
-  A_i_ <- list()
-  if (dim(Sigma)[1] == n_longitudinal) {
-    for (i in 1:n_longitudinal) A_i_[[i]] <- rbind(rep_num_i_list[[i]])
-  } else {
-    for (i in 1:n_longitudinal) A_i_[[i]] <- rbind(rep_num_i_list[[i]], unlist(data_num_i_list[[i]][time_variable]))
-  }
-
-  A_i <- matrix(0, nrow = sum(sapply(A_i_, ncol)), ncol = sum(sapply(A_i_, nrow)))
-  length_A <- rep(0, n_longitudinal + 1)
-  for (i in 1:n_longitudinal) {
-    length_A[i + 1] <- length_A[i] + dim(A_i_[[i]])[2]
-    if (dim(Sigma)[1] == n_longitudinal) {
-      A_i[(length_A[i] + 1):length_A[i + 1], i] <- t(A_i_[[i]])
-    } else {
-      A_i[(length_A[i] + 1):length_A[i + 1], (2 * i - 1):(2 * i)] <- t(A_i_[[i]])
-    }
-  }
+  ### build_conditional_design(); see random_effects_design().
+  A_i <- random_effects_design(data_num_i_list, long_sub_random, Sigma)
 
   Sigma_vector <- c()
   for (i in 1:n_longitudinal) {
@@ -198,6 +182,9 @@ build_block_diagonal_matrix <- function(matrix_list) {
 #' conditional density -- see \code{R/conditionalYTBio.R}'s analogous
 #' all-continuous computation, which keeps its own constant for the same
 #' reason).
+#' Returns the \strong{log} of that density/probability, so that it neither
+#' overflows nor underflows (see \code{predictRisk()} for how it is
+#' exponentiated); \code{-Inf} if the ordinal box probability is 0.
 #' @param Sigma_all Full stacked covariance matrix for this patient (as
 #' returned by \code{build_conditional_design_copula()}).
 #' @param mu_full Full stacked mean vector, same row order as \code{Sigma_all}.
@@ -217,13 +204,16 @@ mixed_density_prob_copula <- function(Sigma_all, mu_full, y_all_vec, alpha_lower
     resid_c <- y_c - mu_c
     Sigma_cc_solve <- solve(Sigma_cc)
     quad_c <- as.numeric(t(resid_c) %*% Sigma_cc_solve %*% resid_c)
-    dens_c <- (2 * pi)^(-length(cc_idx) / 2) * det(Sigma_cc)^(-0.5) * exp(-0.5 * quad_c)
+    ### on the log scale: det() and exp() over/underflow with many
+    ### observations or large-scale biomarkers
+    log_dens_c <- -length(cc_idx) / 2 * log(2 * pi) -
+      0.5 * as.numeric(determinant(Sigma_cc, logarithm = TRUE)$modulus) - 0.5 * quad_c
   } else {
-    dens_c <- 1
+    log_dens_c <- 0
   }
 
   if (length(oo_idx) == 0) {
-    return(dens_c)
+    return(log_dens_c)
   }
 
   mu_o <- mu_full[oo_idx]
@@ -242,5 +232,5 @@ mixed_density_prob_copula <- function(Sigma_all, mu_full, y_all_vec, alpha_lower
   upper <- alpha_upper_vec[oo_idx]
   prob_o <- as.numeric(mvtnorm::pmvnorm(lower = lower, upper = upper,
                                          mean = cond_mean_o, sigma = as.matrix(cond_cov_o)))
-  dens_c * prob_o
+  log_dens_c + log(prob_o)
 }

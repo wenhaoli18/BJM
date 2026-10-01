@@ -75,7 +75,8 @@ conditionalYTCopula <- function(data_predict_all, long_fit_all, l_i, survival_va
 
       design <- build_conditional_design_copula(rep_num_i_list, data_it, lfit, Sigma,
                                                   sigma.longitudinal, time_variable, n_longitudinal,
-                                                  biomarker_type, long_sub_fixed, thresholds)
+                                                  biomarker_type, long_sub_fixed, thresholds,
+                                                  long_fit_all$long_sub_random)
 
       LME_indi_matrix <- lapply(seq_len(n_longitudinal), function(i) {
         build_LME_indi_matrix_copula(i, data_it[[i]], lfit, long_fit_all, long_sub_fixed)

@@ -8,7 +8,6 @@
 #' @importFrom nlme lme lmeControl splitFormula getVarCov fixef
 #' @importFrom Matrix bdiag
 #' @importFrom mvtnorm dmvnorm
-#' @importFrom parallel mclapply
 NULL
 
 utils::globalVariables(c(

@@ -11,12 +11,13 @@ build_conditional_design(
   Sigma,
   sigma.longitudinal,
   time_variable,
-  n_longitudinal
+  n_longitudinal,
+  long_sub_random
 )
 }
 \value{
 A list with \code{longitudinal_all_matrix}, \code{parameter_matrix},
-\code{Sigma_all}, \code{det_Var_cov_estep}, \code{Sigma_all_solve}, and
+\code{Sigma_all}, \code{log_det_Var_cov_estep}, \code{Sigma_all_solve}, and
 \code{long_sigma_long}.
 }
 \description{

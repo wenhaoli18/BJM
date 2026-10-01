@@ -25,6 +25,13 @@ with one row per fixed-effect coefficient and columns \code{estimate},
 \item{m}{The number of completed-data fits pooled.}
 \item{long_sub_fixed}{The \code{long_sub_fixed} used by every fit (taken
 from the first element of \code{long_fit_all_list}).}
+\item{long_fit_all}{A \code{longitudinalSub.BJM} object usable for
+prediction (e.g. as \code{long_fit_all} in \code{\link{predictRisk}}):
+the first fit, with each biomarker's fixed effects replaced by their
+pooled estimates, its residual variance by the average across
+completions, and \code{Sigma_fit} by the average of the \code{m} fits'
+\code{Sigma_fit} (Rubin's rules point estimates). Averaging the \code{m}
+fits' predictions instead is a common alternative.}
 }
 }
 \description{

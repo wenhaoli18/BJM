@@ -105,7 +105,7 @@ test_that("conditionalYTCopula matches an independent from-scratch reconstructio
   set.seed(20260927)
   for (it in seq_along(l_i)) {
     ref <- reference_mixed_density(fx$long_fit_all, fx$long_sub_fixed, num_i, data_predict_all, l_i[it])
-    expect_equal(out[[1]][it, 1], ref, tolerance = 1e-2)
+    expect_equal(exp(out[[1]][it, 1]), ref, tolerance = 1e-2)
   }
 })
 
@@ -134,8 +134,8 @@ test_that("conditionalYDTCopula matches an independent from-scratch reconstructi
   set.seed(20260927)
   for (it in seq_along(l_i)) {
     ref <- reference_mixed_density(fx$long_fit_all, fx$long_sub_fixed, num_i, data_predict_all, l_i[it])
-    expect_equal(out[[1]][it, 1], ref, tolerance = 1e-2)
-    expect_equal(out[[2]][it, 1], ref, tolerance = 1e-2)
+    expect_equal(exp(out[[1]][it, 1]), ref, tolerance = 1e-2)
+    expect_equal(exp(out[[2]][it, 1]), ref, tolerance = 1e-2)
   }
 })
 

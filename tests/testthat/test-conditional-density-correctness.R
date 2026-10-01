@@ -90,15 +90,15 @@ test_that("conditionalYT matches an independent mvtnorm::dmvnorm ground truth fo
   design <- build_conditional_design(patient_data$rep_num_i_list, patient_data$data_num_i_list,
                                       long_fit_all$lfit, long_fit_all$Sigma_fit,
                                       sapply(long_fit_all$lfit, function(u) u$sigma),
-                                      "year", n_longitudinal)
+                                      "year", n_longitudinal, long_fit_all$long_sub_random)
 
   for (it in seq_along(l_i)) {
     ref <- dmvnorm_reference(long_fit_all, patient_data$data_num_i_list, design$Sigma_all,
                               l_i[it], "years")
     # conditionalYT() returns an unnamed list (return(f_Y_T_D = list(...))
     # discards the argument name since return() takes a single value), so
-    # the density matrix is out[[1]], not out$f_Y_T_D.
-    expect_equal(out[[1]][it, 1], ref, tolerance = 1e-8)
+    # the (log) density matrix is out[[1]], not out$f_Y_T_D.
+    expect_equal(exp(out[[1]][it, 1]), ref, tolerance = 1e-8)
   }
 })
 
@@ -126,7 +126,7 @@ test_that("conditionalYDT matches an independent mvtnorm::dmvnorm ground truth f
   design <- build_conditional_design(patient_data$rep_num_i_list, patient_data$data_num_i_list,
                                       long_fit_all$lfit, long_fit_all$Sigma_fit,
                                       sapply(long_fit_all$lfit, function(u) u$sigma),
-                                      "year", n_longitudinal)
+                                      "year", n_longitudinal, long_fit_all$long_sub_random)
 
   for (it in seq_along(l_i)) {
     data_num_i_list_1 <- lapply(patient_data$data_num_i_list, function(d) {
@@ -142,7 +142,7 @@ test_that("conditionalYDT matches an independent mvtnorm::dmvnorm ground truth f
 
     # conditionalYDT() returns an unnamed list(f_Y_T_D_w0, f_Y_T_D_w1) (see
     # note above on return()'s argument name being discarded).
-    expect_equal(out[[2]][it, 1], ref1, tolerance = 1e-8)
-    expect_equal(out[[1]][it, 1], ref0, tolerance = 1e-8)
+    expect_equal(exp(out[[2]][it, 1]), ref1, tolerance = 1e-8)
+    expect_equal(exp(out[[1]][it, 1]), ref0, tolerance = 1e-8)
   }
 })

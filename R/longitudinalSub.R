@@ -37,14 +37,16 @@
 #' a conventional univariate joint model is being constructed.
 #' Terms whose basis/contrasts depend on the data they are computed from --
 #' \code{poly()} in its default orthogonal mode, \code{splines::ns()}/
-#' \code{splines::bs()}, and \code{factor()} -- trigger a warning, because
-#' \code{predictRisk()}/\code{dynamicPredictionBio()} rebuild the
-#' design matrix from a small, patient-specific slice of data at every point
-#' on the prediction grid, so the basis recomputed at prediction time can
-#' silently disagree with the one used to fit the model (or fail outright
-#' with too few distinct values). Prefer \code{poly(..., raw = TRUE)},
-#' \code{I(x^2)}, \code{log()}, \code{sqrt()}, or other terms that do not
-#' depend on the surrounding data.
+#' \code{splines::bs()}, and \code{factor()} -- are fine in a continuous
+#' biomarker's \code{long_sub_fixed} formula: the basis and factor levels the
+#' model was fit with are reused when estimating \code{Sigma_fit} and at
+#' prediction time. In \code{long_sub_random}, or in an ordinal biomarker's
+#' \code{long_sub_fixed}, they trigger a warning, because there the design
+#' matrix is still rebuilt from the data at hand (a single patient's rows at
+#' prediction time), so the basis can silently disagree with the one used to
+#' fit the model. Prefer \code{poly(..., raw = TRUE)}, \code{I(x^2)},
+#' \code{log()}, \code{sqrt()}, or other terms that do not depend on the
+#' surrounding data there.
 #' 
 #' @param long_sub_random A list of one-sided formulas that define the model for the 
 #' random effects of each longitudinal outcome. 
@@ -96,17 +98,17 @@
 #' long_fit_all = longitudinalSub(data_fit_all, long_sub_fixed, long_sub_random)
 #'
 #' # poly() in its default orthogonal mode, splines::ns()/bs(), and
-#' # factor() trigger a warning (see the long_sub_fixed argument above),
-#' # but are still safe to use: the terms/xlevels/contrasts fit on the
-#' # full training data are cached and reused at prediction time, instead
-#' # of being recomputed from each patient's small per-prediction slice.
+#' # factor() are safe in a continuous biomarker's long_sub_fixed: the
+#' # terms/xlevels/contrasts fit on the full training data are cached and
+#' # reused when estimating Sigma_fit and at prediction time, instead of
+#' # being recomputed from each patient's small per-prediction slice.
 #' long_fit_poly = longitudinalSub(
 #'   pbc3[pbc3$status3 == 1, ],
 #'   serBilir ~ year + poly(age, 2) + factor(sex) + years,
 #'   ~ year | id)
 #'
-#' # A few more nonlinear-term styles. None of these ever trigger the
-#' # warning above, because their basis doesn't depend on the surrounding
+#' # A few more nonlinear-term styles. None of these would trigger the
+#' # warning even in long_sub_random, because their basis doesn't depend on the surrounding
 #' # data at all -- there's simply nothing that could disagree between the
 #' # full training data and the small per-patient slice used at prediction
 #' # time.
@@ -183,7 +185,10 @@ longitudinalSub <- function(data_fit_all, long_sub_fixed, long_sub_random, bioma
     return(longitudinalSubGaussian(data_fit_all, long_sub_fixed, long_sub_random))
   }
 
-  warn_unsafe_formula_terms(long_sub_fixed_check, "long_sub_fixed")
+  ordinal_fixed <- long_sub_fixed_check
+  ordinal_fixed[biomarker_type_resolved != "ordinal"] <- list(~ 1)
+  warn_unsafe_formula_terms(ordinal_fixed, "long_sub_fixed")
+  warn_unsafe_formula_terms(long_sub_random_check, "long_sub_random")
 
   id <- as.character(nlme::splitFormula(long_sub_random_check[[1]], "|")[[2]])[2]
   for (m in seq_len(M)) {
@@ -213,7 +218,7 @@ longitudinalSubGaussian <- function(data_fit_all, long_sub_fixed, long_sub_rando
   long_sub_random_check <- if (is.list(long_sub_random)) long_sub_random else list(long_sub_random)
   assert_all_formulas(long_sub_fixed_check, "long_sub_fixed")
   assert_all_formulas(long_sub_random_check, "long_sub_random")
-  warn_unsafe_formula_terms(long_sub_fixed_check, "long_sub_fixed")
+  warn_unsafe_formula_terms(long_sub_random_check, "long_sub_random")
   if (length(long_sub_fixed_check) != length(long_sub_random_check)) {
     stop(sprintf(
       "`long_sub_fixed` has %d element(s) but `long_sub_random` has %d; they must describe the same number of longitudinal outcomes.",
@@ -246,9 +251,6 @@ longitudinalSubGaussian <- function(data_fit_all, long_sub_fixed, long_sub_rando
                          sprintf("long_sub_fixed[[%d]]/long_sub_random[[%d]]", m, m),
                          sprintf("data_fit_all[[%d]]", m))
   }
-  ### number of patients, should be the same for each biomarker list
-  ### changed and add unlist
-  n <- length(unlist(unique(data_fit_all[[1]][, id])))
   
   lfit <- list()
   lfit_0 <- list()
@@ -290,6 +292,10 @@ longitudinalSubGaussian <- function(data_fit_all, long_sub_fixed, long_sub_rando
                            data = data.fit.one, method = "ML",
                            control = nlme::lmeControl(opt = "optim"), na.action = na.omit)
     lfit[[m]]$call$fixed <- eval(lfit[[m]]$call$fixed)
+
+    ### factor levels of the data lme() was fit on (before restricting to
+    ### the subjects retained in the joint fit, which may lack some levels)
+    xlevels[[m]] <- training_xlevels(lfit[[m]]$terms, data.fit.one, long_sub_fixed[[m]])
     
     ##exclude NA 
     data.fit.one <- data.fit.one[!as.logical(rowSums(data.frame(is.na(data.fit.one[all.vars(formula(lfit[[m]]))])) )),]
@@ -299,7 +305,8 @@ longitudinalSubGaussian <- function(data_fit_all, long_sub_fixed, long_sub_rando
     
     # Model frames
     mf.fixed[[m]] <- model.frame(lfit[[m]]$terms,
-                                 data.fit.one[, all.vars(long_sub_fixed[[m]])])
+                                 data.fit.one[, all.vars(long_sub_fixed[[m]])],
+                                 xlev = xlevels[[m]])
 
     ### factor levels observed in the full training data, cached so that
     ### prediction-time code can rebuild a model.frame() from a small,
@@ -308,14 +315,19 @@ longitudinalSubGaussian <- function(data_fit_all, long_sub_fixed, long_sub_rando
     ### factor() error with "contrasts can be applied only to factors with 2
     ### or more levels", or -- for poly()/splines::ns()/bs() -- recompute a
     ### different basis than the one the model was fit with).
-    xlevels[[m]] <- .getXlevels(lfit[[m]]$terms, mf.fixed[[m]])
 
     # Longitudinal outcomes by using "model.response" to get the response variable
-    yik[[m]] <- by(model.response(mf.fixed[[m]], "numeric"), droplevels(data.fit.one[, id]), as.vector)
+    yik[[m]] <- by(model.response(mf.fixed[[m]], "numeric"), factor(data.fit.one[[id]]), as.vector)
     
     # X design matrix, fixed effects design matrix
-    Xik[[m]] <- data.frame("id2" = droplevels(data.fit.one[, id]),
-                           model.matrix(long_sub_fixed[[m]], data.fit.one))
+    ### built from lme()'s own terms (which carry the training-data basis of
+    ### poly()/ns()/bs() via predvars) and levels, not re-derived from the
+    ### formula on the retained subjects only -- that recomputed a different
+    ### basis than the one beta was estimated on whenever subjects were
+    ### excluded, corrupting the EM residuals behind Sigma_fit.
+    Xik[[m]] <- data.frame("id2" = factor(data.fit.one[[id]]),
+                           model.matrix(lfit[[m]]$terms, mf.fixed[[m]],
+                                        contrasts.arg = lfit[[m]]$contrasts))
     
     # n_k (number of observations per each m)
     nk[m] <- nrow(Xik[[m]])
@@ -332,7 +344,7 @@ longitudinalSubGaussian <- function(data_fit_all, long_sub_fixed, long_sub_rando
     
     # Z design matrix, random effects design matrix
     ffk <- nlme::splitFormula(long_sub_random[[m]], "|")[[1]]
-    Zik[[m]] <- data.frame("id2" = droplevels(data.fit.one[, id]), model.matrix(ffk, data.fit.one))
+    Zik[[m]] <- data.frame("id2" = factor(data.fit.one[[id]]), model.matrix(ffk, data.fit.one))
     
     # Z design matrix (list), list by subjects
     #Zik.list[[m]] <- by(Zik[[m]], c(unlist(Zik[[m]][id])), function(u) {
@@ -396,7 +408,7 @@ longitudinalSubGaussian <- function(data_fit_all, long_sub_fixed, long_sub_rando
   
   l <- list(yi = yi, Xi = Xi, Zi = Zi, Zit = Zit, nik = nik, yik = yik,
             Xik.list = Xik.list, Zik.list = Zik.list, XtX.inv = XtX.inv,
-            Xtyi = Xtyi, XtZi = XtZi, p = p, r = r, M = M, n = n, nk = nk)
+            Xtyi = Xtyi, XtZi = XtZi, p = p, r = r, M = M, n = n_subjects(yi), nk = nk)
   
   #variance-covariance matrices without correlation
   #bdiag stands for block diagonal, and it constructs a block diagonal matrix f
@@ -415,27 +427,18 @@ longitudinalSubGaussian <- function(data_fit_all, long_sub_fixed, long_sub_rando
   
   sigma2 <- unlist(lapply(lfit, function(u) u$sigma))^2
   
-  result.solve.D <- tryCatch({
-    solve(D)
-    # code that may produce an error
-  }, error = function(e) {
-    # code to handle the error, such as printing a message
-    message("An error occurred: ", conditionMessage(e))
-    NULL  # return NULL to indicate that an error occurred
+  ### starting value for the joint EM: the block-diagonal D from the
+  ### separate per-biomarker fits, or the identity if that is singular
+  ### (previously reported only as a bare message()).
+  D_start <- tryCatch({ solve(D); D }, error = function(e) {
+    warning(sprintf(paste0(
+      "The random-effects covariance from the separate per-biomarker fits is singular (%s); ",
+      "starting the joint EM from the identity matrix instead. Sigma_fit may be unreliable: ",
+      "consider simplifying the random-effects structure."), conditionMessage(e)), call. = FALSE)
+    diag(1, dim(D)[1])
   })
-  
-  if (!is.null(result.solve.D)) {
-    # code to execute if no error occurs
-    # use the 'result' variable here, if necessary
-    # ...
-    out <- longitudinalSubVar(thetaLong = list("beta" = beta.1, "D" = D, "sigma2" = sigma2),
-                              l = l, tol.em = 1e-04, verbose = FALSE)
-  } else {
-    # code to execute if an error occurs
-    # ...
-    out <- longitudinalSubVar(thetaLong = list("beta" = beta.1, "D" = diag(1, dim(D)[1]), "sigma2" = sigma2),
-                              l = l, tol.em = 1e-04, verbose = FALSE)
-  }
+  out <- longitudinalSubVar(thetaLong = list("beta" = beta.1, "D" = D_start, "sigma2" = sigma2),
+                            l = l, tol.em = 1e-04, verbose = FALSE)
   ###**** need to changed back to Sigma_fit = out$D
   Sigma_fit = out$D
   #Sigma_fit = matrix(0,3,3)
@@ -448,3 +451,36 @@ longitudinalSubGaussian <- function(data_fit_all, long_sub_fixed, long_sub_rando
   class(long_fit_all) <- "longitudinalSub.BJM"
   return(long_fit_all)
 }
+
+#' Number of subjects the random-effects covariance is estimated from
+#'
+#' @description The EM update for \code{Sigma_fit} averages each subject's
+#' \eqn{E[b b^T]} over the subjects that are actually in the fit -- those with
+#' at least one complete observation of every biomarker (\code{yi} has one
+#' element per such subject). It used to divide by the number of subjects
+#' in the first biomarker's raw data instead, which underestimated
+#' \code{Sigma_fit} (badly, since EM compounds it over iterations) whenever
+#' some subject was excluded, e.g. one never measured for some biomarker.
+#'
+#' @param yi The per-subject list of stacked responses.
+#' @return The number of subjects.
+#' @keywords internal
+n_subjects <- function(yi) length(yi)
+
+#' Factor levels of the data a biomarker's sub-model was fit on
+#'
+#' @description Used by \code{longitudinalSub()} to cache, per biomarker,
+#' the factor levels seen by \code{lme()} -- computed from the full fitting
+#' data before it is restricted to the subjects retained in the joint fit,
+#' which may lack some levels.
+#'
+#' @param terms_model The fitted model's \code{terms}.
+#' @param data The data the model was fit on.
+#' @param fixed_formula The fixed-effects formula (for its variables).
+#' @return A named list of factor levels, as from \code{.getXlevels()}.
+#' @keywords internal
+training_xlevels <- function(terms_model, data, fixed_formula) {
+  mf <- model.frame(terms_model, data[, all.vars(fixed_formula), drop = FALSE], na.action = na.omit)
+  .getXlevels(terms_model, mf)
+}
+

@@ -49,3 +49,14 @@ test_that("print and summary methods run without error", {
   expect_output(print(fit), "Cox PH")
   expect_output(summary(fit), "Baseline cumulative hazard")
 })
+
+test_that("the survival time may only enter the event-type model as a main effect", {
+  data(pbc3, envir = environment())
+  d <- pbc3[!duplicated(pbc3$id), ]
+  expect_error(survivalSub(d, Surv(years, status3) ~ age + sex, status4 ~ log(years) + age),
+               "`log\\(years\\)`")
+  expect_error(survivalSub(d, Surv(years, status3) ~ age + sex, status4 ~ years * age),
+               "`years:age`")
+  expect_no_error(survivalSub(d, Surv(years, status3) ~ age + sex, status4 ~ years + age))
+  expect_no_error(survivalSub(d, Surv(years, status3) ~ age + sex, status4 ~ age + sex))
+})

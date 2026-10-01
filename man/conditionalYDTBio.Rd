@@ -45,7 +45,9 @@ encompassing the results and parameters obtained from the analysis.}
 in the order of \code{survival_variable_all}.}
 }
 \value{
-The output is a list containing probability matrices. In the presence of
+The output is a list containing probability matrices of \strong{log} densities
+(so that they neither overflow nor underflow; see \code{predictRisk()} for how they
+are exponentiated). In the presence of
 competing risks, this list includes two elements; otherwise,
 it contains only one element. Each element within the list is a probability matrix,
 with the number of rows (l_i) corresponding to specific time points and

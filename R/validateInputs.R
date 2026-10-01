@@ -178,14 +178,17 @@ assert_index <- function(x, max_value, arg_name, context) {
 #' @description \code{poly()} (in its default orthogonal mode),
 #' \code{splines::ns()}/\code{splines::bs()}, and \code{factor()} compute
 #' their basis/contrasts from whatever data is passed to \code{model.matrix()}.
-#' BJM's prediction functions rebuild the design matrix from a small,
-#' patient-specific slice of data at every point on the internal prediction
-#' grid, which is not the data the model was fit on, so the basis
-#' recomputed at prediction time silently does not match the one used at
-#' fitting time (or, with too few distinct values, \code{model.matrix()}
-#' fails outright). \code{poly(..., raw = TRUE)}, \code{I(x^2)}, \code{log()},
+#' For a continuous biomarker's \code{long_sub_fixed} formula this is
+#' handled: the basis \code{lme()} was fit with (its \code{terms}'
+#' \code{predvars}) and the training factor levels are reused both when
+#' estimating \code{Sigma_fit} and at prediction time, so such terms are not
+#' flagged there. They are still rebuilt from the data at hand -- a single
+#' patient's rows at prediction time, the retained subjects when estimating
+#' \code{Sigma_fit} -- for \code{long_sub_random} formulas and for an
+#' ordinal biomarker's \code{long_sub_fixed} formula, which is where this
+#' warns. \code{poly(..., raw = TRUE)}, \code{I(x^2)}, \code{log()},
 #' \code{sqrt()}, and similar terms that do not depend on the surrounding
-#' data are unaffected and are not flagged.
+#' data are never flagged.
 #' @keywords internal
 warn_unsafe_formula_terms <- function(formula_list, arg_name) {
   find_unsafe_calls <- function(expr) {
@@ -210,7 +213,7 @@ warn_unsafe_formula_terms <- function(formula_list, arg_name) {
     hits <- unique(find_unsafe_calls(formula_list[[i]]))
     if (length(hits) > 0) {
       warning(sprintf(
-        "`%s[[%d]]` uses %s. Its basis/contrasts depend on the data it is computed from, but BJM rebuilds the design matrix from a small, patient-specific slice of data at every point on the prediction grid -- so this can silently produce incorrect predictions, or fail outright when there are too few distinct values, instead of reusing the basis fit at training time. Prefer poly(..., raw = TRUE), I(x^2), log(), sqrt(), or other terms that do not depend on the surrounding data.",
+        "`%s[[%d]]` uses %s. Its basis/contrasts depend on the data it is computed from, and for this formula BJM rebuilds the design matrix from the data at hand (a single patient's rows at prediction time) instead of reusing the training-time basis -- so this can silently produce incorrect predictions, or fail outright when there are too few distinct values. Prefer poly(..., raw = TRUE), I(x^2), log(), sqrt(), or other terms that do not depend on the surrounding data.",
         arg_name, i, paste(hits, collapse = ", ")
       ), call. = FALSE)
     }
@@ -394,6 +397,41 @@ assert_poolable_longitudinal_fits <- function(long_fit_all_list, arg_name = "lon
         arg_name, i, arg_name
       ), call. = FALSE)
     }
+  }
+  invisible(TRUE)
+}
+
+#' Check that the survival time enters the event-type model linearly
+#'
+#' @description Used by \code{survivalSub()}: at prediction time the
+#' event-type model \code{form_conditional_cr} is evaluated at every point of
+#' the survival-time integration grid by multiplying the survival time's
+#' coefficient by the grid value. That is only correct when the survival
+#' time appears as a plain main effect (\code{status ~ time + ...}); a
+#' transformation (\code{log(time)}, \code{I(time^2)}) or an interaction
+#' (\code{time:age}) would silently be evaluated at the wrong value, so it is
+#' rejected here. Leaving the survival time out entirely is allowed (event
+#' type then does not depend on event time).
+#'
+#' @param form_conditional_cr The event-type formula.
+#' @param survival_variable Name of the survival-time variable.
+#' @keywords internal
+assert_linear_time_term <- function(form_conditional_cr, survival_variable) {
+  tt <- stats::terms(form_conditional_cr)
+  factors <- attr(tt, "factors")
+  if (length(factors) == 0) return(invisible(TRUE))
+  uses_time <- vapply(rownames(factors),
+                      function(r) survival_variable %in% all.vars(str2lang(r)), logical(1))
+  uses_time[1] <- FALSE  # the response row
+  if (!any(uses_time)) return(invisible(TRUE))
+  time_terms <- colnames(factors)[colSums(factors[uses_time, , drop = FALSE] > 0) > 0]
+  bad <- setdiff(time_terms, survival_variable)
+  if (length(bad) > 0) {
+    stop(sprintf(paste0(
+      "`form_conditional_cr` uses the survival time `%s` in %s. It may only enter as a ",
+      "plain main effect (e.g. status ~ %s + age), since prediction evaluates it ",
+      "linearly at each point of the integration grid."),
+      survival_variable, paste(sprintf("`%s`", bad), collapse = ", "), survival_variable), call. = FALSE)
   }
   invisible(TRUE)
 }

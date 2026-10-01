@@ -14,7 +14,7 @@ select_patient_longitudinal_data <- function(data.long, num, num_i, n_longitudin
 
   for (i in 1:n_longitudinal) {
     df <- data.long[[i]]
-    selected_data <- df[df[num] == num_i, ]
+    selected_data <- df[which(as.character(df[[num]]) == as.character(num_i)), , drop = FALSE]
     rep_num_i_list[[i]] <- rep(1, length(unlist(selected_data[time_variable])))
     data_num_i_list[[i]] <- selected_data
   }
@@ -32,6 +32,40 @@ select_patient_longitudinal_data <- function(data.long, num, num_i, n_longitudin
   list(rep_num_i_list = rep_num_i_list, data_num_i_list = data_num_i_list)
 }
 
+#' Random-effects design matrix for one patient, across all biomarkers
+#'
+#' @description Shared helper for \code{build_conditional_design()},
+#' \code{build_conditional_design_copula()}, and \code{process_variance()}:
+#' builds each biomarker's random-effects design from the left-hand side of
+#' its own \code{long_sub_random} formula (e.g. \code{~ 1}, \code{~ year},
+#' \code{~ year + I(year^2)}) and stacks them block-diagonally, matching the
+#' block-diagonal \code{Sigma_fit} built by \code{longitudinalSub()}.
+#' Previously this assumed every biomarker had either a random intercept
+#' only, or a random intercept plus a slope on \code{time_variable}, so a
+#' mix of the two (or any other random-effects formula) failed with
+#' "non-conformable arguments".
+#'
+#' @param data_num_i_list One patient's data, one data frame per biomarker.
+#' @param long_sub_random The list of random-effects formulas.
+#' @param Sigma The random-effects covariance matrix (\code{Sigma_fit}).
+#' @return A matrix with one row per observation (stacked across
+#' biomarkers) and one column per random effect.
+#' @keywords internal
+random_effects_design <- function(data_num_i_list, long_sub_random, Sigma) {
+  blocks <- lapply(seq_along(data_num_i_list), function(i) {
+    ffk <- nlme::splitFormula(long_sub_random[[i]], "|")[[1]]
+    mf <- model.frame(ffk, data_num_i_list[[i]], na.action = stats::na.pass)
+    model.matrix(ffk, mf)
+  })
+  A_i <- as.matrix(Matrix::bdiag(blocks))
+  if (ncol(A_i) != nrow(Sigma)) {
+    stop(sprintf(
+      "The random-effects formulas in long_fit_all$long_sub_random give %d random effect(s), but long_fit_all$Sigma_fit is %d x %d.",
+      ncol(A_i), nrow(Sigma), ncol(Sigma)), call. = FALSE)
+  }
+  A_i
+}
+
 #' Build the per-patient longitudinal design matrices
 #'
 #' @description Shared helper for \code{conditionalYT} and \code{conditionalYDT}:
@@ -40,11 +74,12 @@ select_patient_longitudinal_data <- function(data.long, num, num_i, n_longitudin
 #' density quadratic form, for a single patient.
 #'
 #' @return A list with \code{longitudinal_all_matrix}, \code{parameter_matrix},
-#' \code{Sigma_all}, \code{det_Var_cov_estep}, \code{Sigma_all_solve}, and
+#' \code{Sigma_all}, \code{log_det_Var_cov_estep}, \code{Sigma_all_solve}, and
 #' \code{long_sigma_long}.
 #' @keywords internal
 build_conditional_design <- function(rep_num_i_list, data_num_i_list, lfit, Sigma,
-                                      sigma.longitudinal, time_variable, n_longitudinal) {
+                                      sigma.longitudinal, time_variable, n_longitudinal,
+                                      long_sub_random) {
   ####Initialize longitudinal matrix for all biomarkers
   longitudinal_all_matrix <- matrix(0, nrow = sum(sapply(data_num_i_list, nrow)), ncol = n_longitudinal)
   ####Constructing the longitudinal matrix for all biomarkers
@@ -69,32 +104,7 @@ build_conditional_design <- function(rep_num_i_list, data_num_i_list, lfit, Sigm
     parameter_matrix[c((length_p[i] + 1):length_p[i + 1]), i] <- lfit[[i]]$coefficients$fixed
   }
 
-  A_i_ = list()
-  ###random intercept or slope, depend on variance-covariance matrix
-  if (dim(Sigma)[1] == n_longitudinal) {
-    ###random intercept
-    for (i in 1:n_longitudinal) {
-      A_i_[[i]] = rbind(rep_num_i_list[[i]])
-    }
-  } else {
-    ###random slope
-    for (i in 1:n_longitudinal) {
-      A_i_[[i]] = rbind(rep_num_i_list[[i]], unlist(data_num_i_list[[i]][time_variable]))
-    }
-  }
-
-  A_i <- matrix(0, nrow = sum(sapply(A_i_, ncol)), ncol = sum(sapply(A_i_, nrow)))
-  length_A = rep(0, n_longitudinal + 1)
-  for (i in 1:n_longitudinal) {
-    length_A[i + 1] = length_A[i] + dim(A_i_[[i]])[2]
-    if (dim(Sigma)[1] == n_longitudinal) {
-      ###random intercept
-      A_i[c((length_A[i] + 1):length_A[i + 1]), i] <- t(A_i_[[i]])
-    } else {
-      ###random slope
-      A_i[c((length_A[i] + 1):length_A[i + 1]), (2 * i - 1):(2 * i)] <- t(A_i_[[i]])
-    }
-  }
+  A_i <- random_effects_design(data_num_i_list, long_sub_random, Sigma)
 
   Sigma_vector = c()
   for (i in 1:n_longitudinal) {
@@ -109,7 +119,9 @@ build_conditional_design <- function(rep_num_i_list, data_num_i_list, lfit, Sigm
   ### explicitly avoids the ambiguity for every length, including 1.
   Sigma_all = A_i %*% Sigma %*% t(A_i) + diag(Sigma_vector, length(Sigma_vector))
 
-  det_Var_cov_estep = det(2 * pi * Sigma_all)
+  ### log-determinant: det() itself overflows to Inf (and the density to 0)
+  ### once there are many observations or biomarkers on a large scale
+  log_det_Var_cov_estep = as.numeric(determinant(2 * pi * Sigma_all, logarithm = TRUE)$modulus)
   Sigma_all_solve = solve(Sigma_all)
 
   ### t(Y) %*% Sigma %*% Y
@@ -118,7 +130,7 @@ build_conditional_design <- function(rep_num_i_list, data_num_i_list, lfit, Sigm
   list(longitudinal_all_matrix = longitudinal_all_matrix,
        parameter_matrix = parameter_matrix,
        Sigma_all = Sigma_all,
-       det_Var_cov_estep = det_Var_cov_estep,
+       log_det_Var_cov_estep = log_det_Var_cov_estep,
        Sigma_all_solve = Sigma_all_solve,
        long_sigma_long = long_sigma_long)
 }
@@ -145,7 +157,7 @@ select_patient_longitudinal_data_bio <- function(data.long, num, num_i, n_longit
 
   for (i in 1:n_longitudinal) {
     df <- data.long[[i]]
-    selected_data <- df[df[num] == num_i, ]
+    selected_data <- df[which(as.character(df[[num]]) == as.character(num_i)), , drop = FALSE]
 
     if (i == bio_i) {
       selected_data <- rbind(selected_data, selected_data[nrow(selected_data), ])

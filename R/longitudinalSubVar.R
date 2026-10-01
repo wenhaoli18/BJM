@@ -1,7 +1,12 @@
 #' Variance-covariance matrix
 #' Reference: package "lmm" and package "joineRML" function \code{mvlme}.
+#'
+#' The EM loop stops after \code{max.iter} iterations even if the relative
+#' change in \code{D} is still above \code{tol.em} (previously it had no
+#' limit, so a fit that never met the tolerance never returned), and warns
+#' when that happens.
 #' @keywords internal
-longitudinalSubVar <- function(thetaLong, l, tol.em, verbose) {
+longitudinalSubVar <- function(thetaLong, l, tol.em, verbose, max.iter = 1000) {
   
   # Multivariate longitudinal data
   yi <- l$yi
@@ -24,7 +29,16 @@ longitudinalSubVar <- function(thetaLong, l, tol.em, verbose) {
   delta <- 1
   beta <- thetaLong$beta
   sigma2 <- thetaLong$sigma2
+  iter <- 0
   while (delta > tol.em) {
+    iter <- iter + 1
+    if (iter > max.iter) {
+      warning(sprintf(paste0(
+        "The EM estimate of the joint random-effects covariance (Sigma_fit) did not converge ",
+        "within %d iterations (last max relative change %.3g, tolerance %g); returning the ",
+        "last iterate."), max.iter, delta, tol.em), call. = FALSE)
+      break
+    }
     
     # Input parameter estimates
     D <- thetaLong$D
@@ -37,30 +51,16 @@ longitudinalSubVar <- function(thetaLong, l, tol.em, verbose) {
     })
     
     # MVN covariance matrix for [b | y]
-    #if('try-error' %in% class(solve(D))) {
-    #  Dinv = diag(1, 6, 6)
-    #} else{
-    #  Dinv <- solve(D)
-    #}
-    result.solve.D <- tryCatch({
-      solve(D)
-      # code that may produce an error
-    }, error = function(e) {
-      # code to handle the error, such as printing a message
-      message("An error occurred: ", conditionMessage(e))
-      NULL  # return NULL to indicate that an error occurred
+    ### D can become singular (e.g. a random-effect variance collapsing to
+    ### 0); fall back to the identity for this iteration's precision, but say
+    ### so -- this used to be reported only as a bare message().
+    Dinv <- tryCatch(solve(D), error = function(e) {
+      warning(sprintf(paste0(
+        "The joint random-effects covariance became singular during EM (%s); using the ",
+        "identity matrix in its place for this iteration. Sigma_fit may be unreliable: ",
+        "consider simplifying the random-effects structure."), conditionMessage(e)), call. = FALSE)
+      diag(1, dim(D)[1])
     })
-    
-    if (!is.null(result.solve.D)) {
-      # code to execute if no error occurs
-      # use the 'result' variable here, if necessary
-      # ...
-      Dinv <- solve(D)
-    } else {
-      # code to execute if an error occurs
-      # ...
-      Dinv <- diag(1, dim(D)[1])
-    }
     Ai <- mapply(FUN = function(zt, s, z) {
       solve((zt %*% s %*% z) + Dinv)
     },
