@@ -40,7 +40,8 @@ findings and variables derived from the analysis.}
 
 \item{prediction_time}{Time used to make the prediction.}
 
-\item{horizon}{Prediction horizon.}
+\item{horizon}{Prediction horizon: the length of the window after
+\code{prediction_time}, \code{>= 0}.}
 
 \item{time_variable}{The name of time variable in linear mixed model.}
 
@@ -68,11 +69,11 @@ An object of class \code{"predictRisk.BJM"}, a named list with elements:
 \describe{
 \item{risk_prob_1}{A vector of dynamically predicted probabilities, one per at-risk
 patient, of experiencing the (first) event within the prediction horizon, named by
-patient id. All \code{0} when \code{horizon <= 0}.}
+patient id. All \code{0} when \code{horizon = 0}.}
 \item{risk_prob_2}{When \code{survival_fit_all} was fit with competing risks, a vector
 of dynamically predicted probabilities, one per at-risk patient, of experiencing the
 competing event within the prediction horizon, named by patient id (all \code{0} when
-\code{horizon <= 0}). \code{NULL} when there is no competing risk.}
+\code{horizon = 0}). \code{NULL} when there is no competing risk.}
 }
 Only patients still at risk at \code{prediction_time} are predicted: a patient whose
 recorded survival time is before \code{prediction_time} is left out (one with a missing
@@ -119,6 +120,22 @@ fixed value instead (as in previous package versions), or call
 \code{checkBandcountConvergence()} directly for more control over the
 tolerance and doubling count. See also \code{vignette("BJM-intro",
 package = "BJM")} for a worked example.
+
+The denominator integrates over every event time after
+\code{prediction_time}, including times beyond the last follow-up time
+in the data \code{survivalSub()} was fit on. There, the baseline
+cumulative hazard is extrapolated linearly (a constant hazard), and the
+longitudinal sub-model's mean is evaluated at event times it was never
+fit on. When much of an at-risk patient's survival probability lies
+beyond the last follow-up time (e.g. a prediction late in follow-up),
+the prediction depends on this extrapolation; in \code{pbc3} it moved
+the risks checked by less than one percentage point.
+
+For a fit with an ordinal biomarker, each ordinal measurement contributes
+a multivariate normal probability computed by Monte Carlo
+(\code{mvtnorm::pmvnorm()}), so repeated calls differ slightly (around
+the fifth significant digit); call \code{set.seed()} first for exactly
+reproducible results.
 }
 \examples{
 

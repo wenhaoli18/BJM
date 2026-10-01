@@ -77,53 +77,33 @@ marginalT = function(data_predict_all, long_fit_all, survival_fit_all, l_i, uppe
 #' Baseline cumulative hazard at a set of time points
 #'
 #' @description Helper for \code{marginalT} and the integration-grid
-#' helpers: for each element of \code{l_i}, the nearest tabulated value of a
-#' \code{basehaz()} table, or -- past the table's last time -- the
-#' least-squares line through the whole table (a linear extrapolation of the
-#' cumulative hazard, i.e. a constant hazard). The line used to be tabulated
+#' helpers: for each element of \code{l_i}, the Breslow cumulative hazard
+#' as the right-continuous step function it is -- the value at the last
+#' tabulated time \code{<= l_i}, or 0 before the first. Past the table's
+#' last time it is the least-squares line through the whole table (a linear
+#' extrapolation of the cumulative hazard, i.e. a constant hazard). The line
+#' used to be tabulated
 #' on a fixed 0.005 grid out to twice the integration upper limit and then
 #' looked up, which assumed time was measured in years (with time in days
 #' the table ran to millions of rows) and failed with "wrong sign in 'by'"
 #' when the upper limit was below the last training time; it is now
 #' evaluated directly.
+#' The table used to be read at the \emph{nearest} tabulated time, which
+#' for a point just before an event time took that event's jump early.
 #'
-#' @param cum_basehaz A data frame with columns \code{hazard} and \code{time},
-#'   sorted by \code{time}.
+#' @param cum_basehaz A data frame with columns \code{hazard} and \code{time}.
 #' @param l_i Time points.
 #' @return A numeric vector, one cumulative hazard per element of \code{l_i}.
 #' @keywords internal
 cumulative_baseline_at <- function(cum_basehaz, l_i) {
   cum_basehaz = cum_basehaz[, c("hazard", "time")]
-  out <- cum_basehaz$hazard[nearest_index(cum_basehaz$time, l_i)]
+  cum_basehaz = cum_basehaz[order(cum_basehaz$time), ]
+  at_or_before <- findInterval(l_i, cum_basehaz$time)
+  out <- c(0, cum_basehaz$hazard)[at_or_before + 1]
   beyond <- l_i > max(cum_basehaz$time)
   if (any(beyond)) {
     line <- stats::coef(lm(hazard ~ time, cum_basehaz))
     out[beyond] <- line[1] + line[2] * l_i[beyond]
   }
   out
-}
-
-#' Index of the nearest tabulated time
-#'
-#' @description For each element of \code{query}, the index of the closest
-#' element of the non-decreasing vector \code{x}, choosing the earliest index
-#' on ties -- the same answer as \code{which.min(abs(x - q))}, but by binary
-#' search (\code{findInterval()}) instead of building a
-#' \code{length(query) x length(x)} distance matrix, whose cost grew with
-#' the integration upper bound.
-#'
-#' @param x A non-decreasing numeric vector.
-#' @param query Numeric values to look up.
-#' @return An integer vector of indices into \code{x}.
-#' @keywords internal
-nearest_index <- function(x, query) {
-  n <- length(x)
-  lower <- findInterval(query, x)  # x[lower] <= q < x[lower + 1]
-  upper <- pmin(lower + 1L, n)
-  lower_ok <- lower >= 1L
-  d_lower <- ifelse(lower_ok, query - x[pmax(lower, 1L)], Inf)
-  d_upper <- ifelse(lower < n, x[upper] - query, Inf)
-  chosen <- ifelse(d_lower <= d_upper, pmax(lower, 1L), upper)
-  ### map to the first of any run of equal times (which.min's tie rule)
-  match(x[chosen], x)
 }

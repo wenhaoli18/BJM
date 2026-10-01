@@ -349,3 +349,23 @@ test_that("predictions do not depend on the biomarkers' units (no underflow/over
     expect_equal(scaled$y, ref$y, tolerance = 1e-3)
   }
 })
+
+test_that("predictRisk rejects a negative horizon", {
+  f <- setup_dp_fixture()
+  expect_error(predictRisk(f$data_predict_all, f$long_fit_all, f$survival_fit_all,
+                           prediction_time = 5, horizon = -1, time_variable = "year",
+                           f$survival_variable_all, f$survival_trans_function,
+                           bandcount1 = 10, bandcount2 = 20),
+               "must be >= 0")
+})
+
+test_that("the baseline cumulative hazard is read as a right-continuous step function", {
+  table <- data.frame(hazard = c(0.1, 0.3, 0.6), time = c(1, 2, 3))
+  # before the first time, at a jump, just before and just after a jump
+  expect_equal(cumulative_baseline_at(table, c(0.5, 1, 1.99, 2, 2.01)),
+               c(0, 0.1, 0.1, 0.3, 0.3))
+  # order of the table does not matter
+  expect_equal(cumulative_baseline_at(table[3:1, ], 1.99), 0.1)
+  # past the last time: the least-squares line through the table
+  expect_equal(cumulative_baseline_at(table, 4), unname(sum(coef(lm(hazard ~ time, table)) * c(1, 4))))
+})

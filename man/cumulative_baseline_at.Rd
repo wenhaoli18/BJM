@@ -7,8 +7,7 @@
 cumulative_baseline_at(cum_basehaz, l_i)
 }
 \arguments{
-\item{cum_basehaz}{A data frame with columns \code{hazard} and \code{time},
-sorted by \code{time}.}
+\item{cum_basehaz}{A data frame with columns \code{hazard} and \code{time}.}
 
 \item{l_i}{Time points.}
 }
@@ -17,14 +16,18 @@ A numeric vector, one cumulative hazard per element of \code{l_i}.
 }
 \description{
 Helper for \code{marginalT} and the integration-grid
-helpers: for each element of \code{l_i}, the nearest tabulated value of a
-\code{basehaz()} table, or -- past the table's last time -- the
-least-squares line through the whole table (a linear extrapolation of the
-cumulative hazard, i.e. a constant hazard). The line used to be tabulated
+helpers: for each element of \code{l_i}, the Breslow cumulative hazard
+as the right-continuous step function it is -- the value at the last
+tabulated time \code{<= l_i}, or 0 before the first. Past the table's
+last time it is the least-squares line through the whole table (a linear
+extrapolation of the cumulative hazard, i.e. a constant hazard). The line
+used to be tabulated
 on a fixed 0.005 grid out to twice the integration upper limit and then
 looked up, which assumed time was measured in years (with time in days
 the table ran to millions of rows) and failed with "wrong sign in 'by'"
 when the upper limit was below the last training time; it is now
 evaluated directly.
+The table used to be read at the \emph{nearest} tabulated time, which
+for a point just before an event time took that event's jump early.
 }
 \keyword{internal}

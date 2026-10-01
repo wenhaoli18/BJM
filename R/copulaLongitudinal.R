@@ -278,7 +278,7 @@ longitudinalSubCopula <- function(data_fit_all, long_sub_fixed, long_sub_random,
   unique_num <- list()
   for (m in 1:M) {
     data.fit.one <- data_fit_all[[m]]
-    data.fit.one <- data.fit.one[!as.logical(rowSums(data.frame(is.na(data.fit.one[all.vars(long_sub_fixed[[m]])])))), ]
+    data.fit.one <- data.fit.one[!as.logical(rowSums(data.frame(is.na(data.fit.one[model_vars(long_sub_fixed[[m]], long_sub_random[[m]])])))), ]
     unique_num[[m]] <- unique(unlist(data.fit.one[id]))
   }
   if (M != 1) {
@@ -302,7 +302,7 @@ longitudinalSubCopula <- function(data_fit_all, long_sub_fixed, long_sub_random,
       ### and the EM design built from lme()'s own terms (training basis)
       xlevels[[m]]  <- training_xlevels(lfit[[m]]$terms, data.fit.one, long_sub_fixed[[m]])
 
-      data.fit.one <- data.fit.one[!as.logical(rowSums(data.frame(is.na(data.fit.one[all.vars(formula(lfit[[m]]))])))), ]
+      data.fit.one <- data.fit.one[!as.logical(rowSums(data.frame(is.na(data.fit.one[model_vars(long_sub_fixed[[m]], long_sub_random[[m]])])))), ]
       data.fit.one <- data.fit.one[unlist(data.fit.one[id]) %in% unlist(all_biomarker_num), ]
 
       mf.fixed[[m]] <- model.frame(lfit[[m]]$terms, data.fit.one[, all.vars(long_sub_fixed[[m]])],
@@ -314,7 +314,7 @@ longitudinalSubCopula <- function(data_fit_all, long_sub_fixed, long_sub_random,
     } else {
       lfit[[m]] <- fit_marginal_ordinal(long_sub_fixed[[m]], long_sub_random[[m]], data.fit.one)
 
-      data.fit.one <- data.fit.one[!as.logical(rowSums(data.frame(is.na(data.fit.one[all.vars(long_sub_fixed[[m]])])))), ]
+      data.fit.one <- data.fit.one[!as.logical(rowSums(data.frame(is.na(data.fit.one[model_vars(long_sub_fixed[[m]], long_sub_random[[m]])])))), ]
       data.fit.one <- data.fit.one[unlist(data.fit.one[id]) %in% unlist(all_biomarker_num), ]
 
       mf.fixed[[m]] <- model.frame(stats::terms(long_sub_fixed[[m]]), data.fit.one[, all.vars(long_sub_fixed[[m]])])
