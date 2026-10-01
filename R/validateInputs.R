@@ -381,7 +381,7 @@ assert_poolable_longitudinal_fits <- function(long_fit_all_list, arg_name = "lon
   }
 
   M1 <- length(long_fit_all_list[[1]]$lfit)
-  coef_names_1 <- lapply(long_fit_all_list[[1]]$lfit, function(f) names(nlme::fixef(f)))
+  coef_names_1 <- lapply(long_fit_all_list[[1]]$lfit, function(f) names(marker_estimates(f)$estimate))
   for (i in seq_along(long_fit_all_list)[-1]) {
     fit_i <- long_fit_all_list[[i]]
     if (length(fit_i$lfit) != M1) {
@@ -390,7 +390,7 @@ assert_poolable_longitudinal_fits <- function(long_fit_all_list, arg_name = "lon
         arg_name, i, length(fit_i$lfit), arg_name, M1
       ), call. = FALSE)
     }
-    coef_names_i <- lapply(fit_i$lfit, function(f) names(nlme::fixef(f)))
+    coef_names_i <- lapply(fit_i$lfit, function(f) names(marker_estimates(f)$estimate))
     if (!identical(coef_names_i, coef_names_1)) {
       stop(sprintf(
         "`%s[[%d]]` has different fixed-effect coefficient names than `%s[[1]]`; every fit must use the same `long_sub_fixed` formula(s).",

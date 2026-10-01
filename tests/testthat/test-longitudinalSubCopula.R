@@ -119,3 +119,19 @@ test_that("print and summary handle a mixed continuous/ordinal fit without error
   expect_output(print(fit), "Cumulative thresholds")
   expect_output(summary(fit), "Correlations")
 })
+
+test_that("biomarker_type = 'ordinal' accepts a numeric response, ordered by value", {
+  skip_if_not_installed("ordinal")
+  f <- setup_copula_fixture()
+  d <- f$data_fit_all
+  d$albumin_score <- as.integer(d$albumin_cat) - 1L # 0/1/2
+  as_factor <- suppressWarnings(longitudinalSub(d, f$long_sub_fixed, f$long_sub_random))
+  as_number <- suppressWarnings(longitudinalSub(
+    d, list(f$long_sub_fixed[[1]], albumin_score ~ year + age + sex), f$long_sub_random,
+    biomarker_type = c("continuous", "ordinal")))
+
+  expect_equal(as_number$lfit[[2]]$y.levels, c("0", "1", "2"))
+  expect_equal(unname(as_number$thresholds[[2]]), unname(as_factor$thresholds[[2]]))
+  expect_equal(as_number$lfit[[2]]$beta, as_factor$lfit[[2]]$beta)
+  expect_equal(unname(as_number$Sigma_fit), unname(as_factor$Sigma_fit))
+})

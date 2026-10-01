@@ -173,6 +173,26 @@
   as the prediction. The grid now uses at least the biomarker's standard
   deviation in the training data as its span.
 
+* `poolLongitudinalSub()` failed ("no applicable method for 'fixef'") on
+  fits with an ordinal biomarker. An ordinal biomarker's thresholds and
+  slopes are now pooled with Rubin's rules (with an infinite complete-data
+  df, as `ordinal::clmm()`'s inference is asymptotic), and the pooled
+  `long_fit_all` carries them where prediction reads them.
+
+* `longitudinalSub(biomarker_type = "ordinal")` failed ("response needs to
+  be a factor") when the response was numeric, e.g. a 0/1/2 score. A
+  numeric response is now treated as ordered by value.
+
+* `imputeLongitudinal(seed = )` seeded only torch, but the MIWAE backend
+  draws its completions with R's random number generator, so results were
+  not reproducible. `seed` now seeds both, and restores R's random number
+  state afterwards so the caller's own stream is unaffected.
+
+* `imputeLongitudinal()`'s documentation now recommends `impute =
+  "multiple"`, and explains that the `"single"` (mean-of-draws) completion
+  and row-by-row imputation tend to understate the residual and
+  random-effects variances, including the `Sigma_fit` used for prediction.
+
 * `predictRisk()`, `predictLongitudinal()`, and `dynamicPredictionBio()`
   now drop rows of `data_predict_all` measured after `prediction_time`
   (`time_variable > prediction_time`), with a warning, instead of silently

@@ -198,6 +198,21 @@ longitudinalSub <- function(data_fit_all, long_sub_fixed, long_sub_random, bioma
                          sprintf("data_fit_all[[%d]]", m))
   }
 
+  ### biomarker_type = "ordinal" may be given for a response that is not a
+  ### factor (e.g. a 0/1/2 score); clmm() needs a factor, which it used to
+  ### fail on. A numeric (or logical) response is ordered by value; a
+  ### character one becomes an unordered factor, so fit_marginal_ordinal()
+  ### warns that its alphabetical order is taken as the category order.
+  for (m in which(biomarker_type_resolved == "ordinal")) {
+    resp_name <- all.vars(long_sub_fixed_check[[m]])[1]
+    resp <- data_fit_all_norm[[m]][[resp_name]]
+    if (is.numeric(resp) || is.logical(resp)) {
+      data_fit_all_norm[[m]][[resp_name]] <- factor(resp, levels = sort(unique(resp)), ordered = TRUE)
+    } else if (is.character(resp)) {
+      data_fit_all_norm[[m]][[resp_name]] <- factor(resp)
+    }
+  }
+
   longitudinalSubCopula(data_fit_all_norm, long_sub_fixed_check, long_sub_random_check,
                          biomarker_type_resolved, M)
 }

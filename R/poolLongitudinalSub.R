@@ -110,26 +110,20 @@ poolLongitudinalSub <- function(long_fit_all_list) {
   pooled <- vector("list", M)
   for (k in seq_len(M)) {
     fits_k <- lapply(long_fit_all_list, function(f) f$lfit[[k]])
-    coef_names <- names(nlme::fixef(fits_k[[1]]))
+    estimates_k <- lapply(fits_k, marker_estimates)
+    coef_names <- names(estimates_k[[1]]$estimate)
 
     ### vapply() drops the matrix dimension (returning a plain length-m
     ### vector instead of a 1 x m matrix) when there is exactly one
     ### coefficient -- e.g. an intercept-only long_sub_fixed -- so the
     ### shape is forced explicitly rather than relying on vapply's default
     n_coef <- length(coef_names)
-    est_mat <- matrix(vapply(fits_k, function(f) nlme::fixef(f), numeric(n_coef)),
+    est_mat <- matrix(vapply(estimates_k, function(e) e$estimate[coef_names], numeric(n_coef)),
                        nrow = n_coef, dimnames = list(coef_names, NULL))
-    se_mat <- matrix(vapply(fits_k, function(f) sqrt(diag(f$varFix)), numeric(n_coef)),
+    se_mat <- matrix(vapply(estimates_k, function(e) e$std_error[coef_names], numeric(n_coef)),
                       nrow = n_coef, dimnames = list(coef_names, NULL))
-    ### complete-data df per coefficient: lme() gives each fixed effect its
-    ### own df (fixDF$X) -- e.g. a between-subject covariate such as age has
-    ### far fewer than the within-subject time terms. The intercept's df
-    ### used to be applied to every coefficient, overstating the df (and
-    ### understating the p-value) of between-subject effects.
-    dfcom_mat <- matrix(vapply(fits_k, function(f) {
-      d <- f$fixDF$X
-      if (is.null(d)) rep(f$fixDF$terms[1], n_coef) else as.numeric(d[coef_names])
-    }, numeric(n_coef)), nrow = n_coef)
+    dfcom_mat <- matrix(vapply(estimates_k, function(e) e$dfcom[coef_names], numeric(n_coef)),
+                        nrow = n_coef)
 
     ### the m completions from a single imputeLongitudinal(impute =
     ### "multiple") call fill the same missing cells (never drop/add rows),
@@ -303,6 +297,40 @@ print.poolLongitudinalSub.BJM <- function(x, digits = 4, ...) {
   invisible(x)
 }
 
+#' Point estimates, standard errors and complete-data df of one fit
+#'
+#' @description Helper for \code{poolLongitudinalSub()}. For a continuous
+#' biomarker's \code{nlme::lme()} fit: the fixed effects, their standard
+#' errors, and \code{lme()}'s own df per coefficient (\code{fixDF$X}) -- a
+#' between-subject covariate such as age has far fewer than the
+#' within-subject time terms, so applying the intercept's df to every
+#' coefficient would overstate the df of between-subject effects. For an
+#' ordinal biomarker's \code{ordinal::clmm()} fit: the thresholds followed by
+#' the slopes, their Wald standard errors, and an infinite complete-data df
+#' (\code{clmm()}'s inference is asymptotic). Previously only \code{lme()}
+#' fits were handled, and pooling a fit with an ordinal biomarker failed.
+#'
+#' @param fit One biomarker's fitted marginal model.
+#' @return A list with named vectors \code{estimate}, \code{std_error} and
+#'   \code{dfcom}.
+#' @keywords internal
+marker_estimates <- function(fit) {
+  if (inherits(fit, "clmm")) {
+    estimate <- c(fit$alpha, fit$beta)
+    std_error <- sqrt(diag(stats::vcov(fit)))[names(estimate)]
+    dfcom <- stats::setNames(rep(Inf, length(estimate)), names(estimate))
+  } else {
+    estimate <- nlme::fixef(fit)
+    std_error <- sqrt(diag(fit$varFix))
+    if (!is.null(names(std_error))) std_error <- std_error[names(estimate)]
+    names(std_error) <- names(estimate)
+    d <- fit$fixDF$X
+    dfcom <- if (is.null(d)) rep(fit$fixDF$terms[1], length(estimate)) else as.numeric(d[names(estimate)])
+    names(dfcom) <- names(estimate)
+  }
+  list(estimate = estimate, std_error = std_error, dfcom = dfcom)
+}
+
 #' A prediction-ready fit from Rubin's-rules point estimates
 #'
 #' @description Helper for \code{poolLongitudinalSub()}: see its
@@ -316,7 +344,17 @@ pooled_longitudinal_fit <- function(long_fit_all_list, pooled) {
   for (k in seq_along(fit$lfit)) {
     est <- pooled[[k]]$estimate
     names(est) <- rownames(pooled[[k]])
-    fit$lfit[[k]]$coefficients$fixed <- est
+    if (inherits(fit$lfit[[k]], "clmm")) {
+      ### an ordinal biomarker's prediction reads its slopes from
+      ### lfit$beta and its cut-points from long_fit_all$thresholds
+      alpha_names <- names(fit$lfit[[k]]$alpha)
+      beta_names <- names(fit$lfit[[k]]$beta)
+      fit$lfit[[k]]$alpha <- est[alpha_names]
+      fit$lfit[[k]]$beta <- est[beta_names]
+      fit$thresholds[[k]] <- est[alpha_names]
+    } else {
+      fit$lfit[[k]]$coefficients$fixed <- est
+    }
     sigmas <- vapply(long_fit_all_list, function(f) {
       s <- f$lfit[[k]]$sigma
       if (is.null(s)) NA_real_ else s
