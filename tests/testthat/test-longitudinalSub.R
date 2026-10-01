@@ -127,3 +127,15 @@ test_that("the joint EM stops at max.iter, and a singular covariance is reported
                       })
   expect_true(any(grepl("became singular", msgs)))
 })
+
+test_that("a missing value in a variable used only in long_sub_random drops that row", {
+  data(pbc3, envir = environment())
+  d <- pbc3[pbc3$status3 == 1, ]
+  d$visit_time <- d$year
+  d$visit_time[c(5, 50, 300)] <- NA
+  # this used to fail with "arguments imply differing number of rows"
+  with_na <- longitudinalSub(d, serBilir ~ year + age + years, ~ visit_time | id)
+  dropped <- longitudinalSub(d[!is.na(d$visit_time), ], serBilir ~ year + age + years, ~ visit_time | id)
+  expect_equal(with_na$Sigma_fit, dropped$Sigma_fit)
+  expect_equal(nlme::fixef(with_na$lfit[[1]]), nlme::fixef(dropped$lfit[[1]]))
+})

@@ -177,6 +177,28 @@ argument to skip auto-tuning it and use a fixed value instead, or call
 \code{checkBandcountConvergence()} directly for more control over the
 tolerance and doubling count. See also
 \code{vignette("BJM-intro", package = "BJM")} for a worked example.
+
+The integration grid, and the candidate-value grid of a continuous
+biomarker (which spans the observed values of every patient predicted),
+are shared by all patients predicted in one call, so a patient's value
+can differ slightly, within the grids' discretization error, depending
+on which other patients are predicted alongside it.
+
+The denominator integrates over every event time after
+\code{prediction_time}, including times beyond the last follow-up time
+in the data \code{survivalSub()} was fit on. There, the baseline
+cumulative hazard is extrapolated linearly (a constant hazard), and the
+longitudinal sub-model's mean is evaluated at event times it was never
+fit on. When much of an at-risk patient's survival probability lies
+beyond the last follow-up time (e.g. a prediction late in follow-up),
+the prediction depends on this extrapolation; in \code{pbc3} it moved
+the risks checked by less than one percentage point.
+
+For a fit with an ordinal biomarker, each ordinal measurement contributes
+a multivariate normal probability computed by Monte Carlo
+(\code{mvtnorm::pmvnorm()}), so repeated calls differ slightly (around
+the fifth significant digit); call \code{set.seed()} first for exactly
+reproducible results.
 }
 \examples{
 

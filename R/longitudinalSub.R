@@ -284,7 +284,7 @@ longitudinalSubGaussian <- function(data_fit_all, long_sub_fixed, long_sub_rando
   for (m in 1:M) {
     data.fit.one = data_fit_all[[m]]
     ##exclude NA 
-    data.fit.one <- data.fit.one[!as.logical(rowSums(data.frame(is.na(data.fit.one[all.vars(long_sub_fixed[[m]])])) )),]
+    data.fit.one <- data.fit.one[!as.logical(rowSums(data.frame(is.na(data.fit.one[model_vars(long_sub_fixed[[m]], long_sub_random[[m]])])) )),]
     unique_num[[m]] = unique(unlist(data.fit.one[id])) 
   }
   
@@ -313,7 +313,7 @@ longitudinalSubGaussian <- function(data_fit_all, long_sub_fixed, long_sub_rando
     xlevels[[m]] <- training_xlevels(lfit[[m]]$terms, data.fit.one, long_sub_fixed[[m]])
     
     ##exclude NA 
-    data.fit.one <- data.fit.one[!as.logical(rowSums(data.frame(is.na(data.fit.one[all.vars(formula(lfit[[m]]))])) )),]
+    data.fit.one <- data.fit.one[!as.logical(rowSums(data.frame(is.na(data.fit.one[model_vars(long_sub_fixed[[m]], long_sub_random[[m]])])) )),]
     
     ##interaction among different biomarkers
     data.fit.one = data.fit.one[unlist(data.fit.one[id]) %in% unlist(all_biomarker_num),]
@@ -481,6 +481,24 @@ longitudinalSubGaussian <- function(data_fit_all, long_sub_fixed, long_sub_rando
 #' @return The number of subjects.
 #' @keywords internal
 n_subjects <- function(yi) length(yi)
+
+#' Variables a biomarker's sub-model uses
+#'
+#' @description The rows \code{longitudinalSub()} keeps for the joint EM
+#' must be the rows \code{lme()} was fit on, i.e. complete in every
+#' variable of both the fixed- and the random-effects formula (including
+#' the id). Only the fixed-effects variables used to be checked, so a
+#' missing value in a variable used only in \code{long_sub_random} left a
+#' row in the fixed-effects design but not in the random-effects one, and
+#' failed with "arguments imply differing number of rows".
+#'
+#' @param fixed_formula,random_formula The biomarker's
+#'   \code{long_sub_fixed} and \code{long_sub_random} formulas.
+#' @return A character vector of variable names.
+#' @keywords internal
+model_vars <- function(fixed_formula, random_formula) {
+  unique(c(all.vars(fixed_formula), all.vars(random_formula)))
+}
 
 #' Factor levels of the data a biomarker's sub-model was fit on
 #'

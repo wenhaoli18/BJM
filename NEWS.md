@@ -193,6 +193,29 @@
   and row-by-row imputation tend to understate the residual and
   random-effects variances, including the `Sigma_fit` used for prediction.
 
+* The Breslow baseline cumulative hazard was read at the tabulated time
+  *nearest* to each integration grid point instead of as the step function
+  it is. An event just after `prediction_time` (e.g. at 5.002 for
+  `prediction_time = 5`) was then counted before the prediction window
+  instead of inside it. With few events per unit of time this matters: in
+  `pbc3`, patient 2's one-year risk from year 5 rises from 0.037 to 0.039,
+  and the two readings converge to these different values as the grid is
+  refined, so the difference is not discretization error.
+
+* `longitudinalSub()` failed with "arguments imply differing number of
+  rows" when a variable used only in `long_sub_random` had a missing value.
+  Such rows are now dropped, as `lme()` already did.
+
+* `predictRisk()` returned zero risks for a negative `horizon`; it is now
+  an error.
+
+* `predictRisk()` and `predictLongitudinal()` now document that
+  predictions extrapolate the baseline hazard and the longitudinal
+  sub-model beyond the last follow-up time, that ordinal biomarkers add
+  small Monte Carlo variation (use `set.seed()` for exact reproducibility),
+  and that results depend slightly on which patients are predicted
+  together.
+
 * `predictRisk()`, `predictLongitudinal()`, and `dynamicPredictionBio()`
   now drop rows of `data_predict_all` measured after `prediction_time`
   (`time_variable > prediction_time`), with a warning, instead of silently

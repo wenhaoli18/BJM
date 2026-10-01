@@ -32,6 +32,12 @@
 # All three then moved in the 6th significant digit when the baseline hazard
 # past the last follow-up time stopped being tabulated on a 0.005 grid and
 # was evaluated directly.
+# risk_pred then rose about 6% (and Y_predict_mode/Y_density_summary moved
+# in the 4th significant digit) when the Breslow cumulative hazard began to
+# be read as a step function instead of at the nearest tabulated time: the
+# nearest time to prediction_time = 5 is an event at 5.002, whose jump was
+# counted before the window instead of inside it. The two readings converge
+# to different values, so this is a correction, not grid noise.
 
 test_that("full pipeline output matches pre-refactor baseline", {
   skip_on_cran()
