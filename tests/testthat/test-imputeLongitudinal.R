@@ -247,3 +247,25 @@ test_that("imputeLongitudinal(method = 'diffusion', impute = 'multiple') returns
     expect_false(anyNA(completion[[2]]$albumin))
   }
 })
+
+test_that("imputeLongitudinal(seed =) is reproducible and leaves the caller's RNG stream alone (requires torch)", {
+  skip_if_not_installed("torch")
+  f <- setup_impute_fixture()
+  impute <- function() {
+    imputeLongitudinal(f$data_fit_all, f$long_sub_fixed, f$long_sub_random,
+                       f$time_variable, n_imputations = 2, latent_dim = 4,
+                       hidden_units = c(16, 8), epochs = 10,
+                       importance_samples = 5, impute = "multiple", seed = 3)
+  }
+  # MIWAE's importance resampling draws with R's RNG; seeding torch alone
+  # used to leave these completions different from run to run.
+  set.seed(10)
+  first <- impute()
+  after_first <- runif(1)
+  set.seed(20)
+  second <- impute()
+  expect_equal(second$data_fit_all_list, first$data_fit_all_list)
+
+  set.seed(10)
+  expect_equal(runif(1), after_first)
+})

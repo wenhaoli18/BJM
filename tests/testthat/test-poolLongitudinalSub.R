@@ -250,3 +250,41 @@ test_that("the pooled fit can be used for prediction", {
   expect_true(is.finite(risk$risk_prob_1) && risk$risk_prob_1 > 0 && risk$risk_prob_1 < 1)
 })
 
+
+test_that("fits with an ordinal biomarker pool its thresholds and slopes, and the pooled fit predicts with them", {
+  skip_if_not_installed("ordinal")
+  data(pbc3, envir = environment())
+  d <- pbc3[pbc3$status3 == 1, ]
+  breaks <- stats::quantile(d$albumin, c(0, 1 / 3, 2 / 3, 1), na.rm = TRUE)
+  categorize <- function(x) cut(x, breaks = breaks, include.lowest = TRUE,
+                                labels = c("low", "mid", "high"), ordered_result = TRUE)
+  long_sub_fixed <- list("m1" = serBilir ~ year + age + sex + years,
+                         "m2" = albumin_cat ~ year + age + sex + years)
+  long_sub_random <- list("m1" = ~ year | id, "m2" = ~ year | id)
+  fit_with <- function(shift) {
+    dd <- d
+    dd$serBilir <- dd$serBilir + shift
+    dd$albumin_cat <- categorize(dd$albumin + shift)
+    suppressWarnings(longitudinalSub(dd, long_sub_fixed, long_sub_random))
+  }
+  fits <- list(fit_with(0), fit_with(0.05))
+
+  pooled <- poolLongitudinalSub(fits)
+  ordinal_names <- c(names(fits[[1]]$lfit[[2]]$alpha), names(fits[[1]]$lfit[[2]]$beta))
+  expect_equal(rownames(pooled$pooled[[2]]), ordinal_names)
+  expect_true(all(is.finite(as.matrix(pooled$pooled[[2]][, c("estimate", "std_error", "df")]))))
+
+  mean_of <- function(get) (get(fits[[1]]) + get(fits[[2]])) / 2
+  expect_equal(pooled$long_fit_all$lfit[[2]]$beta, mean_of(function(f) f$lfit[[2]]$beta))
+  expect_equal(pooled$long_fit_all$thresholds[[2]], mean_of(function(f) f$thresholds[[2]]))
+  expect_equal(pooled$long_fit_all$lfit[[2]]$alpha, pooled$long_fit_all$thresholds[[2]])
+
+  survival_fit_all <- survivalSub(pbc3[!duplicated(pbc3$id), ], Surv(years, status3) ~ age + sex, NULL)
+  raw <- pbc3[pbc3$id == 2 & pbc3$year <= 3, ]
+  raw$albumin_cat <- categorize(raw$albumin)
+  risk <- predictRisk(list(raw, raw), pooled$long_fit_all, survival_fit_all,
+                      prediction_time = 3, horizon = 3, time_variable = "year",
+                      survival_variable_all = list(), survival_trans_function = list(),
+                      bandcount1 = 10, bandcount2 = 10)
+  expect_true(is.finite(risk$risk_prob_1) && risk$risk_prob_1 > 0 && risk$risk_prob_1 < 1)
+})

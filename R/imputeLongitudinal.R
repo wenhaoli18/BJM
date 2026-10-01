@@ -96,10 +96,24 @@
 #' \code{n_imputations} draws -- a drop-in replacement for the original
 #' \code{data_fit_all}) or \code{"multiple"} (also returns
 #' \code{n_imputations} separately-drawn completed datasets in
-#' \code{data_fit_all_list}, for callers who want to fit
-#' \code{longitudinalSub()} once per completion and pool the results with
-#' Rubin's rules themselves).
-#' @param seed Optional integer seed for reproducibility.
+#' \code{data_fit_all_list}, to fit \code{longitudinalSub()} once per
+#' completion and pool the fits with \code{\link{poolLongitudinalSub}}).
+#' Prefer \code{"multiple"} unless only a little data is missing. The mean
+#' of several draws is less variable than the values it stands in for, so a
+#' model fit to the \code{"single"} completion treats the imputed cells as
+#' exactly known: its standard errors are too small, and its residual and
+#' random-effects variances -- including \code{Sigma_fit}, which
+#' \code{\link{predictRisk}} and \code{\link{predictLongitudinal}} use
+#' directly -- tend to be underestimated, more so the larger the share of
+#' imputed cells. Note also that each row (subject-visit) is imputed from
+#' that row's covariates and observed biomarkers only, not from the same
+#' subject's other visits, so imputed values do not carry a subject's own
+#' level or trend; this too pulls the estimated between-subject
+#' (random-effects) variation towards zero.
+#' @param seed Optional integer seed for reproducibility. It seeds both
+#' \pkg{torch} and R's random number generator for the duration of the
+#' call; R's random number state from before the call is restored
+#' afterwards.
 #'
 #' @return A named list with elements:
 #' \describe{
@@ -317,7 +331,14 @@ imputeLongitudinal <- function(data_fit_all, long_sub_fixed, long_sub_random,
   ### torch to actually fit the model
   assert_package_installed("torch", "imputeLongitudinal()")
 
-  if (!is.null(seed)) torch::torch_manual_seed(seed)
+  ### the MIWAE's importance resampling draws with R's own RNG
+  ### (sample.int()/rnorm()), not torch's, so `seed` has to seed both --
+  ### seeding torch alone left MIWAE completions irreproducible. The
+  ### caller's R RNG state is restored on exit.
+  if (!is.null(seed)) {
+    torch::torch_manual_seed(seed)
+    local_r_seed(seed)
+  }
 
   X_cov <- torch::torch_tensor(cov_std$z, dtype = torch::torch_float())
   X_resp <- torch::torch_tensor(resp_z, dtype = torch::torch_float())
@@ -711,4 +732,29 @@ diffusion_impute <- function(net, X_cov, X_resp, X_mask, resp_mean, resp_sd,
   })
 
   imputations
+}
+
+#' Seed R's RNG until the calling function returns
+#'
+#' @description Calls \code{set.seed(seed)} and registers, in the calling
+#' function's frame, an exit handler that puts back the
+#' \code{.Random.seed} that existed before (or removes it if there was
+#' none), so a \code{seed} argument does not change the caller's random
+#' number stream.
+#'
+#' @param seed Integer seed.
+#' @param frame The frame whose exit restores the RNG state.
+#' @keywords internal
+local_r_seed <- function(seed, frame = parent.frame()) {
+  had_seed <- exists(".Random.seed", envir = globalenv(), inherits = FALSE)
+  old_seed <- if (had_seed) get(".Random.seed", envir = globalenv(), inherits = FALSE)
+  restore <- function() {
+    if (had_seed) {
+      assign(".Random.seed", old_seed, envir = globalenv())
+    } else if (exists(".Random.seed", envir = globalenv(), inherits = FALSE)) {
+      rm(".Random.seed", envir = globalenv())
+    }
+  }
+  do.call(on.exit, list(as.call(list(restore)), add = TRUE), envir = frame)
+  set.seed(seed)
 }
