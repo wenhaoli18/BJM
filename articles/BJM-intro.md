@@ -399,7 +399,7 @@ survival_trans_function <- list(
   fun4 = function(x) abs(x - 7)
 )
 
-data_raw_predict <- pbc3[pbc3$id == 2, ]
+data_raw_predict <- pbc3[pbc3$id == 2 & pbc3$year <= 5, ]
 data_predict_all <- list(data_raw_predict, data_raw_predict)
 
 risk <- predictRisk(
@@ -419,7 +419,7 @@ risk
 #> -----------------------------------------------------------------
 #> 
 #>  Subject Cause 1 Risk Cause 2 Risk Total Risk
-#>       S1       0.0353       0.0016     0.0369
+#>        2       0.0378       0.0017     0.0394
 #> 
 #> =================================================================
 ```
@@ -468,7 +468,8 @@ bio_pred <- predictLongitudinal(
 )
 
 bio_pred$Y_predict
-#> [1] 1.03628
+#>        2 
+#> 1.203231
 ```
 
 `Y_predict` is the MAP (most likely) predicted value;
@@ -530,9 +531,11 @@ risk_doubled <- predictRisk(
 )
 
 abs(risk_default$risk_prob_1 - risk_doubled$risk_prob_1)
-#> [1] 0.003635748
+#>            2 
+#> 0.0004035606
 abs(risk_default$risk_prob_2 - risk_doubled$risk_prob_2)
-#> [1] 0.0001577366
+#>            2 
+#> 1.776141e-05
 ```
 
 If doubling the `bandcount*` values changes the result by more than you
@@ -569,7 +572,7 @@ predictRisk(
 #> -----------------------------------------------------------------
 #> 
 #>  Subject Cause 1 Risk Cause 2 Risk Total Risk
-#>       S1       0.0353       0.0016     0.0369
+#>        2       0.0378       0.0017     0.0394
 #> 
 #> =================================================================
 ```

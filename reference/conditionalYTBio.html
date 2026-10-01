@@ -113,7 +113,9 @@ in the order of <code>survival_variable_all</code>.</p></dd>
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>The output is a list containing probability matrices. In the presence of
+    <p>The output is a list containing probability matrices of <strong>log</strong> densities
+(so that they neither overflow nor underflow; see <code><a href="predictRisk.html">predictRisk()</a></code> for how they
+are exponentiated). In the presence of
 competing risks, this list includes two elements; otherwise,
 it contains only one element. Each element within the list is a probability matrix,
 with the number of rows (l_i) corresponding to specific time points and

@@ -48,10 +48,10 @@ than a numeric grid, with `Y_all` additionally carrying a
 `bandcount3` is ignored in that case, since the candidate grid is fixed
 at the biomarker's category count (see Details).
 
-The time values in the prediction data subset must be less than the
-specified `prediction_time` which is the prediction time. The time
-points for longitudinal repeated measurements must not surpass the
-prediction time.
+The prediction is conditional on the longitudinal history observed up to
+`prediction_time`: rows of `data_predict_all` whose `time_variable` is
+later than `prediction_time` are dropped, with a warning, before
+predicting.
 
 ## Usage
 
@@ -128,12 +128,13 @@ dynamicPredictionBio(
 - bandcount2:
 
   The number of grid points spanning `[prediction_time, upper_bound]`,
-  where `upper_bound` is set internally to twice the longest observed
-  survival/censoring time among at-risk patients; this approximates
-  integrating out to infinity for the denominator that normalizes the
-  predicted density. A wider follow-up range needs a larger `bandcount2`
-  to keep the grid spacing comparable. Defaults to `"auto"` (see
-  Details).
+  where `upper_bound` is set internally as the earliest time by which
+  every at-risk patient's model-based probability of still being
+  event-free (given event-free at `prediction_time`) has dropped below
+  `1e-4`; this approximates integrating out to infinity for the
+  denominator that normalizes the predicted density. A wider follow-up
+  range needs a larger `bandcount2` to keep the grid spacing comparable.
+  Defaults to `"auto"` (see Details).
 
 - bandcount3:
 
@@ -152,10 +153,10 @@ elements:
 
 - Y_predict:
 
-  A vector, one entry per patient, giving the MAP (most likely)
-  predicted value of biomarker `bio_i` at `prediction_time + horizon`.
-  For an ordinal `bio_i`, this is an integer category code (see
-  Details), not a raw value.
+  A vector, one entry per at-risk patient (named by patient id), giving
+  the MAP (most likely) predicted value of biomarker `bio_i` at
+  `prediction_time + horizon`. For an ordinal `bio_i`, this is an
+  integer category code (see Details), not a raw value.
 
 - Y_density:
 
@@ -192,72 +193,3 @@ directly for more control over the tolerance and doubling count. See
 also
 [`vignette("BJM-intro", package = "BJM")`](https://wenhaoli18.github.io/BJM/articles/BJM-intro.md)
 for a worked example.
-
-## Examples
-
-``` r
-
-# \donttest{
-data(pbc3)
-
-data_survival_fitting =  pbc3[!duplicated(pbc3$id), ]
-
-form_marginal_surv = Surv(years, status3) ~ age + sex
-form_conditional_cr = NULL
-
-survival_fit_all = survivalSub(data_survival_fitting, form_marginal_surv,
-                               form_conditional_cr)
-
-long_sub_fixed = list(
-  "long1" = serBilir ~ year + age + sex +  (years) + (years) * year,
-  "long2" = prothrombin ~ year + age + sex + (years) + (years) * year,
-  "long3" = albumin ~ year + age + age * year + sex + (years) + (years) * year,
-  "long4" = alkaline ~ year + age + sex + (years) + (years) * year,
-  "long5" = SGOT ~ year + age + sex + (years) + (years) * year,
-  "long6" = platelets ~ year + age + sex + (years)  + (years) * year)
-
-long_sub_random =list(
-  "long1" =  ~ year| id,
-  "long2" =  ~ year| id,
-  "long3" =  ~ year| id,
-  "long4" =  ~ year| id,
-  "long5" =  ~ year| id,
-  "long6" =  ~ year| id)
-
-survival_variable_all = list(
-  "Tyears1",  "Tyears2", "Tyears3", "Tyears4"
-)
-
-survival_trans_function = list(
-  fun1 = function(x){abs(x - 1)},
-  fun2 = function(x){abs(x - 3)},
-  fun3 = function(x){abs(x - 5)},
-  fun4 = function(x){abs(x - 7)}
-)
-
-# Complete case analysis
-data_fit_all = list()
-for(i in seq_len(length(long_sub_fixed))){
-  data_fit_all[[i]] = pbc3[pbc3$status3 == 1, ]
-}
-
-# fitting longitudinal submodel
-long_fit_all = longitudinalSub(data_fit_all, long_sub_fixed, long_sub_random)
-
-i_PID = 2
-data.raw.predict.1 = pbc3[pbc3$id == i_PID, ]
-
-data_predict_all = list()
-for(i in seq_len(length(long_sub_fixed))){
-  data_predict_all[[i]] = data.raw.predict.1[data.raw.predict.1$year <= 3,]
-}
-
-Y_predict = dynamicPredictionBio(bio_i = 1, data_predict_all, long_fit_all,
-                                 survival_fit_all, prediction_time = 3,
-                                 horizon = 3, time_variable = "year",
-                                 survival_variable_all, survival_trans_function,
-                                 bandcount2 = 40, bandcount3 = 400)
-#> Error in dynamicPredictionBio(bio_i = 1, data_predict_all, long_fit_all,     survival_fit_all, prediction_time = 3, horizon = 3, time_variable = "year",     survival_variable_all, survival_trans_function, bandcount2 = 40,     bandcount3 = 400): could not find function "dynamicPredictionBio"
-
-# }
-```

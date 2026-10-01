@@ -25,7 +25,11 @@ so the constant must be correct in absolute terms, not just consistent
 within one call, for `Y_density` to remain a genuine, correctly-scaled
 conditional density – see `R/conditionalYTBio.R`'s analogous
 all-continuous computation, which keeps its own constant for the same
-reason).
+reason). Returns the **log** of that density/probability, so that it
+neither overflows nor underflows (see
+[`predictRisk()`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md)
+for how it is exponentiated); `-Inf` if the ordinal box probability is
+0.
 
 ## Usage
 

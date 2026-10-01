@@ -12,9 +12,10 @@ event-free at prediction_time. The integrals in both the numerator
 prediction_time, used for normalization) are evaluated on
 numerical grids whose resolution is controlled by bandcount1/
 bandcount2; see Details.
-The time values in the prediction data subset must be less than the
-specified prediction_time which is the prediction time. The time points for
-longitudinal repeated measurements must not surpass the prediction time."><meta property="og:description" content="Combines a fitted longitudinal sub-model (longitudinalSub)
+The prediction is conditional on the longitudinal history observed up to
+prediction_time: rows of data_predict_all whose
+time_variable is later than prediction_time are dropped,
+with a warning, before predicting."><meta property="og:description" content="Combines a fitted longitudinal sub-model (longitudinalSub)
 and survival sub-model (survivalSub) into a backward joint
 model prediction: for each at-risk subject at prediction_time, the
 subject's observed longitudinal history up to that time is used to update
@@ -27,9 +28,10 @@ event-free at prediction_time. The integrals in both the numerator
 prediction_time, used for normalization) are evaluated on
 numerical grids whose resolution is controlled by bandcount1/
 bandcount2; see Details.
-The time values in the prediction data subset must be less than the
-specified prediction_time which is the prediction time. The time points for
-longitudinal repeated measurements must not surpass the prediction time."></head><body>
+The prediction is conditional on the longitudinal history observed up to
+prediction_time: rows of data_predict_all whose
+time_variable is later than prediction_time are dropped,
+with a warning, before predicting."></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -81,9 +83,10 @@ event-free at <code>prediction_time</code>. The integrals in both the numerator
 <code>prediction_time</code>, used for normalization) are evaluated on
 numerical grids whose resolution is controlled by <code>bandcount1</code>/
 <code>bandcount2</code>; see Details.</p>
-<p>The time values in the prediction data subset must be less than the
-specified <code>prediction_time</code> which is the prediction time. The time points for
-longitudinal repeated measurements must not surpass the prediction time.</p>
+<p>The prediction is conditional on the longitudinal history observed up to
+<code>prediction_time</code>: rows of <code>data_predict_all</code> whose
+<code>time_variable</code> is later than <code>prediction_time</code> are dropped,
+with a warning, before predicting.</p>
     </div>
 
     <div class="section level2">
@@ -137,7 +140,8 @@ findings and variables derived from the analysis.</p></dd>
 
 
 <dt id="arg-horizon">horizon<a class="anchor" aria-label="anchor" href="#arg-horizon"></a></dt>
-<dd><p>Prediction horizon.</p></dd>
+<dd><p>Prediction horizon: the length of the window after
+<code>prediction_time</code>, <code>&gt;= 0</code>.</p></dd>
 
 
 <dt id="arg-time-variable">time_variable<a class="anchor" aria-label="anchor" href="#arg-time-variable"></a></dt>
@@ -163,9 +167,10 @@ slower estimate. Defaults to <code>"auto"</code> (see Details).</p></dd>
 <dt id="arg-bandcount-">bandcount2<a class="anchor" aria-label="anchor" href="#arg-bandcount-"></a></dt>
 <dd><p>The number of grid points spanning
 <code>[prediction_time, upper_bound]</code>, where <code>upper_bound</code> is set
-internally to twice the longest observed survival/censoring time among
-at-risk patients; this approximates integrating out to infinity for the
-denominator that normalizes the risk probability. A wider follow-up range
+internally as the earliest time by which every at-risk patient's
+model-based probability of still being event-free (given event-free at
+<code>prediction_time</code>) has dropped below <code>1e-4</code>; this approximates
+integrating out to infinity for the denominator that normalizes the risk probability. A wider follow-up range
 needs a larger <code>bandcount2</code> to keep the grid spacing comparable.
 Defaults to <code>"auto"</code> (see Details).</p></dd>
 
@@ -173,18 +178,25 @@ Defaults to <code>"auto"</code> (see Details).</p></dd>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>An object of class <code>"predictRisk.BJM"</code>, a named list with elements:</p><dl><dt>risk_prob_1</dt>
-<dd><p>A vector of dynamically predicted probabilities, one per patient,
-of experiencing the (first) event within the prediction horizon. <code>0</code> when
-<code>horizon &lt;= 0</code>.</p></dd>
+<dd><p>A vector of dynamically predicted probabilities, one per at-risk
+patient, of experiencing the (first) event within the prediction horizon, named by
+patient id. All <code>0</code> when <code>horizon = 0</code>.</p></dd>
 
 <dt>risk_prob_2</dt>
 <dd><p>When <code>survival_fit_all</code> was fit with competing risks, a vector
-of dynamically predicted probabilities, one per patient, of experiencing the competing
-event within the prediction horizon. <code>NULL</code> when there is no competing risk, or
-when <code>horizon &lt;= 0</code>.</p></dd>
+of dynamically predicted probabilities, one per at-risk patient, of experiencing the
+competing event within the prediction horizon, named by patient id (all <code>0</code> when
+<code>horizon = 0</code>). <code>NULL</code> when there is no competing risk.</p></dd>
 
 
-</dl></div>
+</dl><p>Only patients still at risk at <code>prediction_time</code> are predicted: a patient whose
+recorded survival time is before <code>prediction_time</code> is left out (one with a missing
+survival time is kept). The names show which patients each value belongs to.
+The numerical integration grids are shared by all patients predicted in one
+call, so a patient's value can differ slightly (within the grid's
+discretization error, which shrinks as <code>bandcount1</code>/<code>bandcount2</code>
+grow) depending on which other patients are predicted alongside it.</p>
+    </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p>There is no universal correct value for <code>bandcount1</code>/<code>bandcount2</code>:
@@ -203,6 +215,20 @@ fixed value instead (as in previous package versions), or call
 <code><a href="checkBandcountConvergence.html">checkBandcountConvergence()</a></code> directly for more control over the
 tolerance and doubling count. See also <code><a href="../articles/BJM-intro.html">vignette("BJM-intro",
 package = "BJM")</a></code> for a worked example.</p>
+<p>The denominator integrates over every event time after
+<code>prediction_time</code>, including times beyond the last follow-up time
+in the data <code><a href="survivalSub.html">survivalSub()</a></code> was fit on. There, the baseline
+cumulative hazard is extrapolated linearly (a constant hazard), and the
+longitudinal sub-model's mean is evaluated at event times it was never
+fit on. When much of an at-risk patient's survival probability lies
+beyond the last follow-up time (e.g. a prediction late in follow-up),
+the prediction depends on this extrapolation; in <code>pbc3</code> it moved
+the risks checked by less than one percentage point.</p>
+<p>For a fit with an ordinal biomarker, each ordinal measurement contributes
+a multivariate normal probability computed by Monte Carlo
+(<code><a href="https://rdrr.io/pkg/mvtnorm/man/pmvnorm.html" class="external-link">mvtnorm::pmvnorm()</a></code>), so repeated calls differ slightly (around
+the fifth significant digit); call <code><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed()</a></code> first for exactly
+reproducible results.</p>
     </div>
 
     <div class="section level2">
@@ -271,8 +297,8 @@ package = "BJM")</a></code> for a worked example.</p>
 <span class="r-in"><span>                              bandcount1 <span class="op">=</span> <span class="fl">10</span>, bandcount2 <span class="op">=</span> <span class="fl">10</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># poly() in its default orthogonal mode, splines::ns()/bs(), and factor()</span></span></span>
-<span class="r-in"><span><span class="co"># in long_sub_fixed still trigger longitudinalSub()'s warning (see</span></span></span>
-<span class="r-in"><span><span class="co"># ?longitudinalSub), but produce correct dynamic predictions -- including</span></span></span>
+<span class="r-in"><span><span class="co"># in a continuous biomarker's long_sub_fixed produce correct dynamic</span></span></span>
+<span class="r-in"><span><span class="co"># predictions (see ?longitudinalSub) -- including</span></span></span>
 <span class="r-in"><span><span class="co"># when a patient has only a single longitudinal observation to condition</span></span></span>
 <span class="r-in"><span><span class="co"># on -- because the basis/contrasts fit on the full training data are</span></span></span>
 <span class="r-in"><span><span class="co"># cached (via each biomarker's terms object and long_fit_all$xlevels) and</span></span></span>
@@ -285,7 +311,6 @@ package = "BJM")</a></code> for a worked example.</p>
 <span class="r-in"><span><span class="va">long_fit_nonlinear</span> <span class="op">=</span> <span class="fu"><a href="longitudinalSub.html">longitudinalSub</a></span><span class="op">(</span><span class="va">pbc3</span><span class="op">[</span><span class="va">pbc3</span><span class="op">$</span><span class="va">status3</span> <span class="op">==</span> <span class="fl">1</span>, <span class="op">]</span>,</span></span>
 <span class="r-in"><span>                                     <span class="va">long_sub_fixed_nonlinear</span>,</span></span>
 <span class="r-in"><span>                                     <span class="va">long_sub_random_nonlinear</span><span class="op">)</span></span></span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>`long_sub_fixed[[1]]` uses poly(year, 2). Its basis/contrasts depend on the data it is computed from, but BJM rebuilds the design matrix from a small, patient-specific slice of data at every point on the prediction grid -- so this can silently produce incorrect predictions, or fail outright when there are too few distinct values, instead of reusing the basis fit at training time. Prefer poly(..., raw = TRUE), I(x^2), log(), sqrt(), or other terms that do not depend on the surrounding data.</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="va">data_predict_normal</span> <span class="op">=</span> <span class="va">data.raw.predict.1</span><span class="op">[</span><span class="va">data.raw.predict.1</span><span class="op">$</span><span class="va">year</span> <span class="op">&lt;=</span> <span class="fl">3</span>, <span class="op">]</span></span></span>
 <span class="r-in"><span><span class="va">data_predict_sparse</span> <span class="op">=</span> <span class="va">data.raw.predict.1</span><span class="op">[</span><span class="fl">1</span>, <span class="op">]</span></span></span>
@@ -302,9 +327,11 @@ package = "BJM")</a></code> for a worked example.</p>
 <span class="r-in"><span>                                     bandcount1 <span class="op">=</span> <span class="fl">10</span>, bandcount2 <span class="op">=</span> <span class="fl">10</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="co"># both give a sane, non-degenerate risk_prob_1 (not 0, no error)</span></span></span>
 <span class="r-in"><span><span class="va">risk.prob.normal</span><span class="op">$</span><span class="va">risk_prob_1</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.09769897</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>          2 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 0.09509746 </span>
 <span class="r-in"><span><span class="va">risk.prob.sparse</span><span class="op">$</span><span class="va">risk_prob_1</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.1281518</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>         2 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 0.1252496 </span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># }</span></span></span>
 <span class="r-in"><span></span></span>

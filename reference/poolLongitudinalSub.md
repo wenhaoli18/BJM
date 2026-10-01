@@ -55,6 +55,17 @@ elements:
   The `long_sub_fixed` used by every fit (taken from the first element
   of `long_fit_all_list`).
 
+- long_fit_all:
+
+  A `longitudinalSub.BJM` object usable for prediction (e.g. as
+  `long_fit_all` in
+  [`predictRisk`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md)):
+  the first fit, with each biomarker's fixed effects replaced by their
+  pooled estimates, its residual variance by the average across
+  completions, and `Sigma_fit` by the average of the `m` fits'
+  `Sigma_fit` (Rubin's rules point estimates). Averaging the `m` fits'
+  predictions instead is a common alternative.
+
 ## Details
 
 For each fixed-effect coefficient, across the `m` fits in

@@ -15,11 +15,12 @@ build_conditional_design(
   Sigma,
   sigma.longitudinal,
   time_variable,
-  n_longitudinal
+  n_longitudinal,
+  long_sub_random
 )
 ```
 
 ## Value
 
 A list with `longitudinal_all_matrix`, `parameter_matrix`, `Sigma_all`,
-`det_Var_cov_estep`, `Sigma_all_solve`, and `long_sigma_long`.
+`log_det_Var_cov_estep`, `Sigma_all_solve`, and `long_sigma_long`.

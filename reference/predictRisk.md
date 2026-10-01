@@ -16,10 +16,10 @@ numerator (event within the window) and denominator (survival to
 grids whose resolution is controlled by `bandcount1`/ `bandcount2`; see
 Details.
 
-The time values in the prediction data subset must be less than the
-specified `prediction_time` which is the prediction time. The time
-points for longitudinal repeated measurements must not surpass the
-prediction time.
+The prediction is conditional on the longitudinal history observed up to
+`prediction_time`: rows of `data_predict_all` whose `time_variable` is
+later than `prediction_time` are dropped, with a warning, before
+predicting.
 
 ## Usage
 
@@ -72,7 +72,8 @@ predictRisk(
 
 - horizon:
 
-  Prediction horizon.
+  Prediction horizon: the length of the window after `prediction_time`,
+  `>= 0`.
 
 - time_variable:
 
@@ -97,12 +98,13 @@ predictRisk(
 - bandcount2:
 
   The number of grid points spanning `[prediction_time, upper_bound]`,
-  where `upper_bound` is set internally to twice the longest observed
-  survival/censoring time among at-risk patients; this approximates
-  integrating out to infinity for the denominator that normalizes the
-  risk probability. A wider follow-up range needs a larger `bandcount2`
-  to keep the grid spacing comparable. Defaults to `"auto"` (see
-  Details).
+  where `upper_bound` is set internally as the earliest time by which
+  every at-risk patient's model-based probability of still being
+  event-free (given event-free at `prediction_time`) has dropped below
+  `1e-4`; this approximates integrating out to infinity for the
+  denominator that normalizes the risk probability. A wider follow-up
+  range needs a larger `bandcount2` to keep the grid spacing comparable.
+  Defaults to `"auto"` (see Details).
 
 ## Value
 
@@ -110,16 +112,26 @@ An object of class `"predictRisk.BJM"`, a named list with elements:
 
 - risk_prob_1:
 
-  A vector of dynamically predicted probabilities, one per patient, of
-  experiencing the (first) event within the prediction horizon. `0` when
-  `horizon <= 0`.
+  A vector of dynamically predicted probabilities, one per at-risk
+  patient, of experiencing the (first) event within the prediction
+  horizon, named by patient id. All `0` when `horizon = 0`.
 
 - risk_prob_2:
 
   When `survival_fit_all` was fit with competing risks, a vector of
-  dynamically predicted probabilities, one per patient, of experiencing
-  the competing event within the prediction horizon. `NULL` when there
-  is no competing risk, or when `horizon <= 0`.
+  dynamically predicted probabilities, one per at-risk patient, of
+  experiencing the competing event within the prediction horizon, named
+  by patient id (all `0` when `horizon = 0`). `NULL` when there is no
+  competing risk.
+
+Only patients still at risk at `prediction_time` are predicted: a
+patient whose recorded survival time is before `prediction_time` is left
+out (one with a missing survival time is kept). The names show which
+patients each value belongs to. The numerical integration grids are
+shared by all patients predicted in one call, so a patient's value can
+differ slightly (within the grid's discretization error, which shrinks
+as `bandcount1`/`bandcount2` grow) depending on which other patients are
+predicted alongside it.
 
 ## Details
 
@@ -141,6 +153,25 @@ directly for more control over the tolerance and doubling count. See
 also
 [`vignette("BJM-intro", package = "BJM")`](https://wenhaoli18.github.io/BJM/articles/BJM-intro.md)
 for a worked example.
+
+The denominator integrates over every event time after
+`prediction_time`, including times beyond the last follow-up time in the
+data
+[`survivalSub()`](https://wenhaoli18.github.io/BJM/reference/survivalSub.md)
+was fit on. There, the baseline cumulative hazard is extrapolated
+linearly (a constant hazard), and the longitudinal sub-model's mean is
+evaluated at event times it was never fit on. When much of an at-risk
+patient's survival probability lies beyond the last follow-up time (e.g.
+a prediction late in follow-up), the prediction depends on this
+extrapolation; in `pbc3` it moved the risks checked by less than one
+percentage point.
+
+For a fit with an ordinal biomarker, each ordinal measurement
+contributes a multivariate normal probability computed by Monte Carlo
+([`mvtnorm::pmvnorm()`](https://rdrr.io/pkg/mvtnorm/man/pmvnorm.html)),
+so repeated calls differ slightly (around the fifth significant digit);
+call [`set.seed()`](https://rdrr.io/r/base/Random.html) first for
+exactly reproducible results.
 
 ## Examples
 
@@ -209,8 +240,8 @@ risk.prob = predictRisk(data_predict_all, long_fit_all, survival_fit_all,
                               bandcount1 = 10, bandcount2 = 10)
 
 # poly() in its default orthogonal mode, splines::ns()/bs(), and factor()
-# in long_sub_fixed still trigger longitudinalSub()'s warning (see
-# ?longitudinalSub), but produce correct dynamic predictions -- including
+# in a continuous biomarker's long_sub_fixed produce correct dynamic
+# predictions (see ?longitudinalSub) -- including
 # when a patient has only a single longitudinal observation to condition
 # on -- because the basis/contrasts fit on the full training data are
 # cached (via each biomarker's terms object and long_fit_all$xlevels) and
@@ -223,7 +254,6 @@ long_sub_random_nonlinear = list("long1" = ~ year | id, "long2" = ~ year | id)
 long_fit_nonlinear = longitudinalSub(pbc3[pbc3$status3 == 1, ],
                                      long_sub_fixed_nonlinear,
                                      long_sub_random_nonlinear)
-#> Warning: `long_sub_fixed[[1]]` uses poly(year, 2). Its basis/contrasts depend on the data it is computed from, but BJM rebuilds the design matrix from a small, patient-specific slice of data at every point on the prediction grid -- so this can silently produce incorrect predictions, or fail outright when there are too few distinct values, instead of reusing the basis fit at training time. Prefer poly(..., raw = TRUE), I(x^2), log(), sqrt(), or other terms that do not depend on the surrounding data.
 
 data_predict_normal = data.raw.predict.1[data.raw.predict.1$year <= 3, ]
 data_predict_sparse = data.raw.predict.1[1, ]
@@ -240,9 +270,11 @@ risk.prob.sparse = predictRisk(data_predict_sparse, long_fit_nonlinear,
                                      bandcount1 = 10, bandcount2 = 10)
 # both give a sane, non-degenerate risk_prob_1 (not 0, no error)
 risk.prob.normal$risk_prob_1
-#> [1] 0.09769897
+#>          2 
+#> 0.09509746 
 risk.prob.sparse$risk_prob_1
-#> [1] 0.1281518
+#>         2 
+#> 0.1252496 
 
 # }
 ```

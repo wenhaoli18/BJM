@@ -229,13 +229,27 @@ improve sample quality at proportionally higher training/sampling cost.</p></dd>
 <code>n_imputations</code> draws – a drop-in replacement for the original
 <code>data_fit_all</code>) or <code>"multiple"</code> (also returns
 <code>n_imputations</code> separately-drawn completed datasets in
-<code>data_fit_all_list</code>, for callers who want to fit
-<code><a href="longitudinalSub.html">longitudinalSub()</a></code> once per completion and pool the results with
-Rubin's rules themselves).</p></dd>
+<code>data_fit_all_list</code>, to fit <code><a href="longitudinalSub.html">longitudinalSub()</a></code> once per
+completion and pool the fits with <code><a href="poolLongitudinalSub.html">poolLongitudinalSub</a></code>).
+Prefer <code>"multiple"</code> unless only a little data is missing. The mean
+of several draws is less variable than the values it stands in for, so a
+model fit to the <code>"single"</code> completion treats the imputed cells as
+exactly known: its standard errors are too small, and its residual and
+random-effects variances – including <code>Sigma_fit</code>, which
+<code><a href="predictRisk.html">predictRisk</a></code> and <code><a href="predictLongitudinal.html">predictLongitudinal</a></code> use
+directly – tend to be underestimated, more so the larger the share of
+imputed cells. Note also that each row (subject-visit) is imputed from
+that row's covariates and observed biomarkers only, not from the same
+subject's other visits, so imputed values do not carry a subject's own
+level or trend; this too pulls the estimated between-subject
+(random-effects) variation towards zero.</p></dd>
 
 
 <dt id="arg-seed">seed<a class="anchor" aria-label="anchor" href="#arg-seed"></a></dt>
-<dd><p>Optional integer seed for reproducibility.</p></dd>
+<dd><p>Optional integer seed for reproducibility. It seeds both
+<span class="pkg">torch</span> and R's random number generator for the duration of the
+call; R's random number state from before the call is restored
+afterwards.</p></dd>
 
 </dl></div>
     <div class="section level2">

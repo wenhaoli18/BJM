@@ -2,7 +2,9 @@
 
 Shared helper for `predictRisk` and `dynamicPredictionBio`: drops rows
 whose survival-time variable is below `prediction_time` from every
-biomarker's data frame.
+biomarker's data frame. Rows whose survival time is missing (e.g. a new
+patient whose event time is not yet known) are kept: they are treated as
+at risk.
 
 ## Usage
 

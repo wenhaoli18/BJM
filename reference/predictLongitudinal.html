@@ -33,10 +33,10 @@ Y_all additionally carrying a &quot;category_labels&quot; attribute
 giving the matching level-label strings; bandcount3 is ignored for
 that biomarker, since its candidate grid is fixed at its category count
 (see Details).
-The time values in the prediction data subset must be less than the
-specified prediction_time which is the prediction time. The time
-points for longitudinal repeated measurements must not surpass the
-prediction time.
+The prediction is conditional on the longitudinal history observed up to
+prediction_time: rows of data_predict_all whose
+time_variable is later than prediction_time are dropped,
+with a warning, before predicting.
 bandcount2 (controlling the shared survival-integration grid) and
 bandcount3 (controlling each biomarker's own candidate-value grid)
 are auto-tuned separately when left at their default &quot;auto&quot;, via
@@ -81,10 +81,10 @@ Y_all additionally carrying a &quot;category_labels&quot; attribute
 giving the matching level-label strings; bandcount3 is ignored for
 that biomarker, since its candidate grid is fixed at its category count
 (see Details).
-The time values in the prediction data subset must be less than the
-specified prediction_time which is the prediction time. The time
-points for longitudinal repeated measurements must not surpass the
-prediction time.
+The prediction is conditional on the longitudinal history observed up to
+prediction_time: rows of data_predict_all whose
+time_variable is later than prediction_time are dropped,
+with a warning, before predicting.
 bandcount2 (controlling the shared survival-integration grid) and
 bandcount3 (controlling each biomarker's own candidate-value grid)
 are auto-tuned separately when left at their default &quot;auto&quot;, via
@@ -167,10 +167,10 @@ integer <em>category codes</em> (<code>1:K</code>, in the fitted factor's
 giving the matching level-label strings; <code>bandcount3</code> is ignored for
 that biomarker, since its candidate grid is fixed at its category count
 (see Details).</p>
-<p>The time values in the prediction data subset must be less than the
-specified <code>prediction_time</code> which is the prediction time. The time
-points for longitudinal repeated measurements must not surpass the
-prediction time.</p>
+<p>The prediction is conditional on the longitudinal history observed up to
+<code>prediction_time</code>: rows of <code>data_predict_all</code> whose
+<code>time_variable</code> is later than <code>prediction_time</code> are dropped,
+with a warning, before predicting.</p>
 <p><code>bandcount2</code> (controlling the shared survival-integration grid) and
 <code>bandcount3</code> (controlling each biomarker's own candidate-value grid)
 are auto-tuned separately when left at their default <code>"auto"</code>, via
@@ -266,9 +266,10 @@ time-to-event outcomes, in the order of <code>survival_variable_all</code>.</p><
 <dt id="arg-bandcount-">bandcount2<a class="anchor" aria-label="anchor" href="#arg-bandcount-"></a></dt>
 <dd><p>The number of grid points spanning
 <code>[prediction_time, upper_bound]</code>, where <code>upper_bound</code> is set
-internally to twice the longest observed survival/censoring time among
-at-risk patients; this approximates integrating out to infinity for the
-denominator that normalizes the predicted density. A wider follow-up
+internally as the earliest time by which every at-risk patient's
+model-based probability of still being event-free (given event-free at
+<code>prediction_time</code>) has dropped below <code>1e-4</code>; this approximates
+integrating out to infinity for the denominator that normalizes the predicted density. A wider follow-up
 range needs a larger <code>bandcount2</code> to keep the grid spacing
 comparable. Defaults to <code>"auto"</code> (see Details).</p></dd>
 
@@ -288,7 +289,8 @@ biomarker's fixed category count.</p></dd>
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>If <code>bio_i</code> names exactly one biomarker: an object of class
 <code>"dynamicPredictionBio.BJM"</code>, a named list with elements:</p><dl><dt>Y_predict</dt>
-<dd><p>A vector, one entry per patient, giving the MAP (most
+<dd><p>A vector, one entry per at-risk patient (named by
+patient id), giving the MAP (most
 likely) predicted value of the biomarker at <code>prediction_time +
   horizon</code>. For an ordinal biomarker, this is an integer category code
 (see Details), not a raw value.</p></dd>
@@ -332,6 +334,25 @@ argument to skip auto-tuning it and use a fixed value instead, or call
 <code><a href="checkBandcountConvergence.html">checkBandcountConvergence()</a></code> directly for more control over the
 tolerance and doubling count. See also
 <code><a href="../articles/BJM-intro.html">vignette("BJM-intro", package = "BJM")</a></code> for a worked example.</p>
+<p>The integration grid, and the candidate-value grid of a continuous
+biomarker (which spans the observed values of every patient predicted),
+are shared by all patients predicted in one call, so a patient's value
+can differ slightly, within the grids' discretization error, depending
+on which other patients are predicted alongside it.</p>
+<p>The denominator integrates over every event time after
+<code>prediction_time</code>, including times beyond the last follow-up time
+in the data <code><a href="survivalSub.html">survivalSub()</a></code> was fit on. There, the baseline
+cumulative hazard is extrapolated linearly (a constant hazard), and the
+longitudinal sub-model's mean is evaluated at event times it was never
+fit on. When much of an at-risk patient's survival probability lies
+beyond the last follow-up time (e.g. a prediction late in follow-up),
+the prediction depends on this extrapolation; in <code>pbc3</code> it moved
+the risks checked by less than one percentage point.</p>
+<p>For a fit with an ordinal biomarker, each ordinal measurement contributes
+a multivariate normal probability computed by Monte Carlo
+(<code><a href="https://rdrr.io/pkg/mvtnorm/man/pmvnorm.html" class="external-link">mvtnorm::pmvnorm()</a></code>), so repeated calls differ slightly (around
+the fifth significant digit); call <code><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed()</a></code> first for exactly
+reproducible results.</p>
     </div>
 
     <div class="section level2">

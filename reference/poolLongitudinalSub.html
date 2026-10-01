@@ -108,6 +108,15 @@ with one row per fixed-effect coefficient and columns <code>estimate</code>,
 <dd><p>The <code>long_sub_fixed</code> used by every fit (taken
 from the first element of <code>long_fit_all_list</code>).</p></dd>
 
+<dt>long_fit_all</dt>
+<dd><p>A <code>longitudinalSub.BJM</code> object usable for
+prediction (e.g. as <code>long_fit_all</code> in <code><a href="predictRisk.html">predictRisk</a></code>):
+the first fit, with each biomarker's fixed effects replaced by their
+pooled estimates, its residual variance by the average across
+completions, and <code>Sigma_fit</code> by the average of the <code>m</code> fits'
+<code>Sigma_fit</code> (Rubin's rules point estimates). Averaging the <code>m</code>
+fits' predictions instead is a common alternative.</p></dd>
+
 
 </dl></div>
     <div class="section level2">

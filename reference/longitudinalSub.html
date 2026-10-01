@@ -124,14 +124,16 @@ as a list with one item or as a standalone formula - it is inferred that
 a conventional univariate joint model is being constructed.
 Terms whose basis/contrasts depend on the data they are computed from –
 <code><a href="https://rdrr.io/r/stats/poly.html" class="external-link">poly()</a></code> in its default orthogonal mode, <code><a href="https://rdrr.io/r/splines/ns.html" class="external-link">splines::ns()</a></code>/
-<code><a href="https://rdrr.io/r/splines/bs.html" class="external-link">splines::bs()</a></code>, and <code><a href="https://rdrr.io/r/base/factor.html" class="external-link">factor()</a></code> – trigger a warning, because
-<code><a href="predictRisk.html">predictRisk()</a></code>/<code><a href="dynamicPredictionBio.html">dynamicPredictionBio()</a></code> rebuild the
-design matrix from a small, patient-specific slice of data at every point
-on the prediction grid, so the basis recomputed at prediction time can
-silently disagree with the one used to fit the model (or fail outright
-with too few distinct values). Prefer <code>poly(..., raw = TRUE)</code>,
-<code>I(x^2)</code>, <code><a href="https://rdrr.io/r/base/Log.html" class="external-link">log()</a></code>, <code><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">sqrt()</a></code>, or other terms that do not
-depend on the surrounding data.</p></dd>
+<code><a href="https://rdrr.io/r/splines/bs.html" class="external-link">splines::bs()</a></code>, and <code><a href="https://rdrr.io/r/base/factor.html" class="external-link">factor()</a></code> – are fine in a continuous
+biomarker's <code>long_sub_fixed</code> formula: the basis and factor levels the
+model was fit with are reused when estimating <code>Sigma_fit</code> and at
+prediction time. In <code>long_sub_random</code>, or in an ordinal biomarker's
+<code>long_sub_fixed</code>, they trigger a warning, because there the design
+matrix is still rebuilt from the data at hand (a single patient's rows at
+prediction time), so the basis can silently disagree with the one used to
+fit the model. Prefer <code>poly(..., raw = TRUE)</code>, <code>I(x^2)</code>,
+<code><a href="https://rdrr.io/r/base/Log.html" class="external-link">log()</a></code>, <code><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">sqrt()</a></code>, or other terms that do not depend on the
+surrounding data there.</p></dd>
 
 
 <dt id="arg-long-sub-random">long_sub_random<a class="anchor" aria-label="anchor" href="#arg-long-sub-random"></a></dt>
@@ -215,18 +217,17 @@ data.</p></dd>
 <span class="r-in"><span><span class="va">long_fit_all</span> <span class="op">=</span> <span class="fu">longitudinalSub</span><span class="op">(</span><span class="va">data_fit_all</span>, <span class="va">long_sub_fixed</span>, <span class="va">long_sub_random</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># poly() in its default orthogonal mode, splines::ns()/bs(), and</span></span></span>
-<span class="r-in"><span><span class="co"># factor() trigger a warning (see the long_sub_fixed argument above),</span></span></span>
-<span class="r-in"><span><span class="co"># but are still safe to use: the terms/xlevels/contrasts fit on the</span></span></span>
-<span class="r-in"><span><span class="co"># full training data are cached and reused at prediction time, instead</span></span></span>
-<span class="r-in"><span><span class="co"># of being recomputed from each patient's small per-prediction slice.</span></span></span>
+<span class="r-in"><span><span class="co"># factor() are safe in a continuous biomarker's long_sub_fixed: the</span></span></span>
+<span class="r-in"><span><span class="co"># terms/xlevels/contrasts fit on the full training data are cached and</span></span></span>
+<span class="r-in"><span><span class="co"># reused when estimating Sigma_fit and at prediction time, instead of</span></span></span>
+<span class="r-in"><span><span class="co"># being recomputed from each patient's small per-prediction slice.</span></span></span>
 <span class="r-in"><span><span class="va">long_fit_poly</span> <span class="op">=</span> <span class="fu">longitudinalSub</span><span class="op">(</span></span></span>
 <span class="r-in"><span>  <span class="va">pbc3</span><span class="op">[</span><span class="va">pbc3</span><span class="op">$</span><span class="va">status3</span> <span class="op">==</span> <span class="fl">1</span>, <span class="op">]</span>,</span></span>
 <span class="r-in"><span>  <span class="va">serBilir</span> <span class="op">~</span> <span class="va">year</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/stats/poly.html" class="external-link">poly</a></span><span class="op">(</span><span class="va">age</span>, <span class="fl">2</span><span class="op">)</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html" class="external-link">factor</a></span><span class="op">(</span><span class="va">sex</span><span class="op">)</span> <span class="op">+</span> <span class="va">years</span>,</span></span>
 <span class="r-in"><span>  <span class="op">~</span> <span class="va">year</span> <span class="op">|</span> <span class="va">id</span><span class="op">)</span></span></span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>`long_sub_fixed[[1]]` uses poly(age, 2), factor(sex). Its basis/contrasts depend on the data it is computed from, but BJM rebuilds the design matrix from a small, patient-specific slice of data at every point on the prediction grid -- so this can silently produce incorrect predictions, or fail outright when there are too few distinct values, instead of reusing the basis fit at training time. Prefer poly(..., raw = TRUE), I(x^2), log(), sqrt(), or other terms that do not depend on the surrounding data.</span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># A few more nonlinear-term styles. None of these ever trigger the</span></span></span>
-<span class="r-in"><span><span class="co"># warning above, because their basis doesn't depend on the surrounding</span></span></span>
+<span class="r-in"><span><span class="co"># A few more nonlinear-term styles. None of these would trigger the</span></span></span>
+<span class="r-in"><span><span class="co"># warning even in long_sub_random, because their basis doesn't depend on the surrounding</span></span></span>
 <span class="r-in"><span><span class="co"># data at all -- there's simply nothing that could disagree between the</span></span></span>
 <span class="r-in"><span><span class="co"># full training data and the small per-patient slice used at prediction</span></span></span>
 <span class="r-in"><span><span class="co"># time.</span></span></span>

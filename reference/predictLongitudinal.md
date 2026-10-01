@@ -46,10 +46,10 @@ order) rather than a numeric grid, with `Y_all` additionally carrying a
 `bandcount3` is ignored for that biomarker, since its candidate grid is
 fixed at its category count (see Details).
 
-The time values in the prediction data subset must be less than the
-specified `prediction_time` which is the prediction time. The time
-points for longitudinal repeated measurements must not surpass the
-prediction time.
+The prediction is conditional on the longitudinal history observed up to
+`prediction_time`: rows of `data_predict_all` whose `time_variable` is
+later than `prediction_time` are dropped, with a warning, before
+predicting.
 
 `bandcount2` (controlling the shared survival-integration grid) and
 `bandcount3` (controlling each biomarker's own candidate-value grid) are
@@ -140,12 +140,13 @@ predictLongitudinal(
 - bandcount2:
 
   The number of grid points spanning `[prediction_time, upper_bound]`,
-  where `upper_bound` is set internally to twice the longest observed
-  survival/censoring time among at-risk patients; this approximates
-  integrating out to infinity for the denominator that normalizes the
-  predicted density. A wider follow-up range needs a larger `bandcount2`
-  to keep the grid spacing comparable. Defaults to `"auto"` (see
-  Details).
+  where `upper_bound` is set internally as the earliest time by which
+  every at-risk patient's model-based probability of still being
+  event-free (given event-free at `prediction_time`) has dropped below
+  `1e-4`; this approximates integrating out to infinity for the
+  denominator that normalizes the predicted density. A wider follow-up
+  range needs a larger `bandcount2` to keep the grid spacing comparable.
+  Defaults to `"auto"` (see Details).
 
 - bandcount3:
 
@@ -164,10 +165,10 @@ If `bio_i` names exactly one biomarker: an object of class
 
 - Y_predict:
 
-  A vector, one entry per patient, giving the MAP (most likely)
-  predicted value of the biomarker at `prediction_time + horizon`. For
-  an ordinal biomarker, this is an integer category code (see Details),
-  not a raw value.
+  A vector, one entry per at-risk patient (named by patient id), giving
+  the MAP (most likely) predicted value of the biomarker at
+  `prediction_time + horizon`. For an ordinal biomarker, this is an
+  integer category code (see Details), not a raw value.
 
 - Y_density:
 
@@ -210,6 +211,31 @@ directly for more control over the tolerance and doubling count. See
 also
 [`vignette("BJM-intro", package = "BJM")`](https://wenhaoli18.github.io/BJM/articles/BJM-intro.md)
 for a worked example.
+
+The integration grid, and the candidate-value grid of a continuous
+biomarker (which spans the observed values of every patient predicted),
+are shared by all patients predicted in one call, so a patient's value
+can differ slightly, within the grids' discretization error, depending
+on which other patients are predicted alongside it.
+
+The denominator integrates over every event time after
+`prediction_time`, including times beyond the last follow-up time in the
+data
+[`survivalSub()`](https://wenhaoli18.github.io/BJM/reference/survivalSub.md)
+was fit on. There, the baseline cumulative hazard is extrapolated
+linearly (a constant hazard), and the longitudinal sub-model's mean is
+evaluated at event times it was never fit on. When much of an at-risk
+patient's survival probability lies beyond the last follow-up time (e.g.
+a prediction late in follow-up), the prediction depends on this
+extrapolation; in `pbc3` it moved the risks checked by less than one
+percentage point.
+
+For a fit with an ordinal biomarker, each ordinal measurement
+contributes a multivariate normal probability computed by Monte Carlo
+([`mvtnorm::pmvnorm()`](https://rdrr.io/pkg/mvtnorm/man/pmvnorm.html)),
+so repeated calls differ slightly (around the fifth significant digit);
+call [`set.seed()`](https://rdrr.io/r/base/Random.html) first for
+exactly reproducible results.
 
 ## Examples
 

@@ -68,7 +68,7 @@ survival_trans_function <- list(
   fun4 = function(x) abs(x - 7)
 )
 
-data_raw_predict <- pbc3[pbc3$id == 2, ]
+data_raw_predict <- pbc3[pbc3$id == 2 & pbc3$year <= 5, ]
 data_predict_all <- list(data_raw_predict, data_raw_predict)
 
 risk <- predictRisk(

@@ -132,14 +132,30 @@ imputeLongitudinal(
   filling each missing cell with the mean of the `n_imputations` draws –
   a drop-in replacement for the original `data_fit_all`) or `"multiple"`
   (also returns `n_imputations` separately-drawn completed datasets in
-  `data_fit_all_list`, for callers who want to fit
+  `data_fit_all_list`, to fit
   [`longitudinalSub()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md)
-  once per completion and pool the results with Rubin's rules
-  themselves).
+  once per completion and pool the fits with
+  [`poolLongitudinalSub`](https://wenhaoli18.github.io/BJM/reference/poolLongitudinalSub.md)).
+  Prefer `"multiple"` unless only a little data is missing. The mean of
+  several draws is less variable than the values it stands in for, so a
+  model fit to the `"single"` completion treats the imputed cells as
+  exactly known: its standard errors are too small, and its residual and
+  random-effects variances – including `Sigma_fit`, which
+  [`predictRisk`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md)
+  and
+  [`predictLongitudinal`](https://wenhaoli18.github.io/BJM/reference/predictLongitudinal.md)
+  use directly – tend to be underestimated, more so the larger the share
+  of imputed cells. Note also that each row (subject-visit) is imputed
+  from that row's covariates and observed biomarkers only, not from the
+  same subject's other visits, so imputed values do not carry a
+  subject's own level or trend; this too pulls the estimated
+  between-subject (random-effects) variation towards zero.
 
 - seed:
 
-  Optional integer seed for reproducibility.
+  Optional integer seed for reproducibility. It seeds both torch and R's
+  random number generator for the duration of the call; R's random
+  number state from before the call is restored afterwards.
 
 ## Value
 

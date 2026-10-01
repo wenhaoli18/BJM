@@ -432,7 +432,7 @@ integration grid; see <code><a href="../reference/predictRisk.html">?predictRisk
 <span>  fun4 <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">x</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="va">x</span> <span class="op">-</span> <span class="fl">7</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">data_raw_predict</span> <span class="op">&lt;-</span> <span class="va">pbc3</span><span class="op">[</span><span class="va">pbc3</span><span class="op">$</span><span class="va">id</span> <span class="op">==</span> <span class="fl">2</span>, <span class="op">]</span></span>
+<span><span class="va">data_raw_predict</span> <span class="op">&lt;-</span> <span class="va">pbc3</span><span class="op">[</span><span class="va">pbc3</span><span class="op">$</span><span class="va">id</span> <span class="op">==</span> <span class="fl">2</span> <span class="op">&amp;</span> <span class="va">pbc3</span><span class="op">$</span><span class="va">year</span> <span class="op">&lt;=</span> <span class="fl">5</span>, <span class="op">]</span></span>
 <span><span class="va">data_predict_all</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">data_raw_predict</span>, <span class="va">data_raw_predict</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">risk</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/predictRisk.html">predictRisk</a></span><span class="op">(</span></span>
@@ -452,7 +452,7 @@ integration grid; see <code><a href="../reference/predictRisk.html">?predictRisk
 <span><span class="co">#&gt; -----------------------------------------------------------------</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  Subject Cause 1 Risk Cause 2 Risk Total Risk</span></span>
-<span><span class="co">#&gt;       S1       0.0353       0.0016     0.0369</span></span>
+<span><span class="co">#&gt;        2       0.0378       0.0017     0.0394</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; =================================================================</span></span></code></pre></div>
 <p><code>survival_variable_all</code>/<code>survival_trans_function</code>
@@ -498,7 +498,8 @@ every biomarker.</p>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">bio_pred</span><span class="op">$</span><span class="va">Y_predict</span></span>
-<span><span class="co">#&gt; [1] 1.03628</span></span></code></pre></div>
+<span><span class="co">#&gt;        2 </span></span>
+<span><span class="co">#&gt; 1.203231</span></span></code></pre></div>
 <p><code>Y_predict</code> is the MAP (most likely) predicted value;
 <code>Y_density</code>/<code>Y_all</code> give the full predicted
 density over a grid of candidate values, which is what
@@ -558,9 +559,11 @@ and confirm the results barely move.</p>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="va">risk_default</span><span class="op">$</span><span class="va">risk_prob_1</span> <span class="op">-</span> <span class="va">risk_doubled</span><span class="op">$</span><span class="va">risk_prob_1</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 0.003635748</span></span>
+<span><span class="co">#&gt;            2 </span></span>
+<span><span class="co">#&gt; 0.0004035606</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="va">risk_default</span><span class="op">$</span><span class="va">risk_prob_2</span> <span class="op">-</span> <span class="va">risk_doubled</span><span class="op">$</span><span class="va">risk_prob_2</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 0.0001577366</span></span></code></pre></div>
+<span><span class="co">#&gt;            2 </span></span>
+<span><span class="co">#&gt; 1.776141e-05</span></span></code></pre></div>
 <p>If doubling the <code>bandcount*</code> values changes the result by
 more than you can tolerate, keep doubling until it doesn’t; if it barely
 changes anything (as above), the smaller, cheaper value is fine to use.
@@ -592,7 +595,7 @@ example, passing a single <code>data.frame</code> instead of a list to
 <span><span class="co">#&gt; -----------------------------------------------------------------</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  Subject Cause 1 Risk Cause 2 Risk Total Risk</span></span>
-<span><span class="co">#&gt;       S1       0.0353       0.0016     0.0369</span></span>
+<span><span class="co">#&gt;        2       0.0378       0.0017     0.0394</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; =================================================================</span></span></code></pre></div>
 <p>or a formula referencing a column that doesn’t exist:</p>

@@ -26,7 +26,7 @@ longitudinalSubVarCopula(
   biomarker_type,
   thresholds,
   tol.em = 1e-04,
-  max.iter = 100,
+  max.iter = 500,
   verbose = FALSE
 )
 ```

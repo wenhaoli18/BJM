@@ -59,17 +59,17 @@ longitudinalSub(
   its default orthogonal mode,
   [`splines::ns()`](https://rdrr.io/r/splines/ns.html)/
   [`splines::bs()`](https://rdrr.io/r/splines/bs.html), and
-  [`factor()`](https://rdrr.io/r/base/factor.html) – trigger a warning,
-  because
-  [`predictRisk()`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md)/[`dynamicPredictionBio()`](https://wenhaoli18.github.io/BJM/reference/dynamicPredictionBio.md)
-  rebuild the design matrix from a small, patient-specific slice of data
-  at every point on the prediction grid, so the basis recomputed at
-  prediction time can silently disagree with the one used to fit the
-  model (or fail outright with too few distinct values). Prefer
-  `poly(..., raw = TRUE)`, `I(x^2)`,
-  [`log()`](https://rdrr.io/r/base/Log.html),
+  [`factor()`](https://rdrr.io/r/base/factor.html) – are fine in a
+  continuous biomarker's `long_sub_fixed` formula: the basis and factor
+  levels the model was fit with are reused when estimating `Sigma_fit`
+  and at prediction time. In `long_sub_random`, or in an ordinal
+  biomarker's `long_sub_fixed`, they trigger a warning, because there
+  the design matrix is still rebuilt from the data at hand (a single
+  patient's rows at prediction time), so the basis can silently disagree
+  with the one used to fit the model. Prefer `poly(..., raw = TRUE)`,
+  `I(x^2)`, [`log()`](https://rdrr.io/r/base/Log.html),
   [`sqrt()`](https://rdrr.io/r/base/MathFun.html), or other terms that
-  do not depend on the surrounding data.
+  do not depend on the surrounding data there.
 
 - long_sub_random:
 
@@ -160,18 +160,17 @@ for(i in seq_len(length(long_sub_fixed))){
 long_fit_all = longitudinalSub(data_fit_all, long_sub_fixed, long_sub_random)
 
 # poly() in its default orthogonal mode, splines::ns()/bs(), and
-# factor() trigger a warning (see the long_sub_fixed argument above),
-# but are still safe to use: the terms/xlevels/contrasts fit on the
-# full training data are cached and reused at prediction time, instead
-# of being recomputed from each patient's small per-prediction slice.
+# factor() are safe in a continuous biomarker's long_sub_fixed: the
+# terms/xlevels/contrasts fit on the full training data are cached and
+# reused when estimating Sigma_fit and at prediction time, instead of
+# being recomputed from each patient's small per-prediction slice.
 long_fit_poly = longitudinalSub(
   pbc3[pbc3$status3 == 1, ],
   serBilir ~ year + poly(age, 2) + factor(sex) + years,
   ~ year | id)
-#> Warning: `long_sub_fixed[[1]]` uses poly(age, 2), factor(sex). Its basis/contrasts depend on the data it is computed from, but BJM rebuilds the design matrix from a small, patient-specific slice of data at every point on the prediction grid -- so this can silently produce incorrect predictions, or fail outright when there are too few distinct values, instead of reusing the basis fit at training time. Prefer poly(..., raw = TRUE), I(x^2), log(), sqrt(), or other terms that do not depend on the surrounding data.
 
-# A few more nonlinear-term styles. None of these ever trigger the
-# warning above, because their basis doesn't depend on the surrounding
+# A few more nonlinear-term styles. None of these would trigger the
+# warning even in long_sub_random, because their basis doesn't depend on the surrounding
 # data at all -- there's simply nothing that could disagree between the
 # full training data and the small per-patient slice used at prediction
 # time.

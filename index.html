@@ -108,7 +108,7 @@
 <span>  fun4 <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">x</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="va">x</span> <span class="op">-</span> <span class="fl">7</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">data_raw_predict</span> <span class="op">&lt;-</span> <span class="va">pbc3</span><span class="op">[</span><span class="va">pbc3</span><span class="op">$</span><span class="va">id</span> <span class="op">==</span> <span class="fl">2</span>, <span class="op">]</span></span>
+<span><span class="va">data_raw_predict</span> <span class="op">&lt;-</span> <span class="va">pbc3</span><span class="op">[</span><span class="va">pbc3</span><span class="op">$</span><span class="va">id</span> <span class="op">==</span> <span class="fl">2</span> <span class="op">&amp;</span> <span class="va">pbc3</span><span class="op">$</span><span class="va">year</span> <span class="op">&lt;=</span> <span class="fl">5</span>, <span class="op">]</span></span>
 <span><span class="va">data_predict_all</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">data_raw_predict</span>, <span class="va">data_raw_predict</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">risk</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/predictRisk.html">predictRisk</a></span><span class="op">(</span></span>

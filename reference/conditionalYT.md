@@ -61,11 +61,14 @@ conditionalYT(
 
 ## Value
 
-The output is a list containing probability matrices. In the presence of
-competing risks, this list includes two elements; otherwise, it contains
-only one element. Each element within the list is a probability matrix,
-with the number of rows (l_i) corresponding to specific time points and
-columns representing different patients. Every matrix element represents
-the conditional probability derived from the conditional distribution of
+The output is a list containing probability matrices of **log**
+densities (so that they neither overflow nor underflow; see
+[`predictRisk()`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md)
+for how they are exponentiated). In the presence of competing risks,
+this list includes two elements; otherwise, it contains only one
+element. Each element within the list is a probability matrix, with the
+number of rows (l_i) corresponding to specific time points and columns
+representing different patients. Every matrix element represents the
+conditional probability derived from the conditional distribution of
 longitudinal variable Y given the survival time T without competing risk
 D for a particular patient at a specific time point.
