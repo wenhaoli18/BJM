@@ -5,9 +5,9 @@ template:
 
 authors:
   Wenhao Li:
-    href: mailto:wenhaoli.jlu@gmail.com
+    html: 'Wenhao Li &lt;<a href="mailto:wenhaoli.jlu@gmail.com">wenhaoli.jlu@gmail.com</a>&gt;'
   Liang Li:
-    href: mailto:LLi15@mdanderson.org
+    html: 'Liang Li &lt;<a href="mailto:LLi15@mdanderson.org">LLi15@mdanderson.org</a>&gt;'
 
 reference:
 - title: Fit sub-models
