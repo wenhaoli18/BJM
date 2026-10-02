@@ -17,7 +17,8 @@ prediction_time, and failed when that time was missing.
 Beyond the last time in the data survivalSub() was fit on, the
 baseline hazard is an extrapolation; if it is so flat that the tail
 criterion is not met by max_multiple times that last time, the
-bound is capped there with a warning."><meta property="og:description" content="Shared helper for predictRisk and
+bound is capped there, with a warning if some patient's conditional
+survival at the cap is still above warn_prob."><meta property="og:description" content="Shared helper for predictRisk and
 dynamicPredictionBio. The denominator of a dynamic prediction
 integrates over every event time after prediction_time, out to
 infinity; the grid has to stop somewhere, and it should stop where the
@@ -35,7 +36,8 @@ prediction_time, and failed when that time was missing.
 Beyond the last time in the data survivalSub() was fit on, the
 baseline hazard is an extrapolation; if it is so flat that the tail
 criterion is not met by max_multiple times that last time, the
-bound is capped there with a warning."></head><body>
+bound is capped there, with a warning if some patient's conditional
+survival at the cap is still above warn_prob."></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -93,7 +95,8 @@ and inflated the risk – for a patient whose event came soon after
 <p>Beyond the last time in the data <code><a href="survivalSub.html">survivalSub()</a></code> was fit on, the
 baseline hazard is an extrapolation; if it is so flat that the tail
 criterion is not met by <code>max_multiple</code> times that last time, the
-bound is capped there with a warning.</p>
+bound is capped there, with a warning if some patient's conditional
+survival at the cap is still above <code>warn_prob</code>.</p>
     </div>
 
     <div class="section level2">
@@ -105,7 +108,8 @@ bound is capped there with a warning.</p>
 <span>  <span class="va">prediction_time</span>,</span>
 <span>  min_upper <span class="op">=</span> <span class="va">prediction_time</span>,</span>
 <span>  tail_prob <span class="op">=</span> <span class="fl">1e-04</span>,</span>
-<span>  max_multiple <span class="op">=</span> <span class="fl">20</span></span>
+<span>  max_multiple <span class="op">=</span> <span class="fl">20</span>,</span>
+<span>  warn_prob <span class="op">=</span> <span class="fl">0.01</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -141,6 +145,11 @@ negligible.</p></dd>
 
 <dt id="arg-max-multiple">max_multiple<a class="anchor" aria-label="anchor" href="#arg-max-multiple"></a></dt>
 <dd><p>Cap, as a multiple of the last training time.</p></dd>
+
+
+<dt id="arg-warn-prob">warn_prob<a class="anchor" aria-label="anchor" href="#arg-warn-prob"></a></dt>
+<dd><p>Warn when the cap leaves more than this conditional
+survival probability unintegrated for some patient.</p></dd>
 
 </dl></div>
     <div class="section level2">

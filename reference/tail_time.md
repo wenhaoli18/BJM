@@ -5,9 +5,9 @@ Helper for
 for each linear predictor in `lp`, the earliest time \\t \> s\\ with
 \\\exp(-(H_0(t) - H_0(s)) e^{lp}) \<\\ `tail_prob`, where \\H_0\\ is the
 tabulated baseline cumulative hazard and, past its last time, the same
-least-squares line
-[`marginalT()`](https://wenhaoli18.github.io/BJM/reference/marginalT.md)
-extrapolates with. `Inf` if that line is not increasing.
+linear extrapolation
+[`cumulative_baseline_at()`](https://wenhaoli18.github.io/BJM/reference/cumulative_baseline_at.md)
+uses. `Inf` if the extrapolated hazard is 0.
 
 ## Usage
 

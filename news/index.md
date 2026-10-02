@@ -56,6 +56,7 @@
   completions, so all of these can be compared on a given dataset – deep
   generative imputation needs enough data to fit reliably, and is not
   automatically the better choice at every sample size.
+
 - New
   [`poolLongitudinalSub()`](https://wenhaoli18.github.io/BJM/reference/poolLongitudinalSub.md)
   combines
@@ -63,6 +64,7 @@
   fits across the multiple completed datasets returned by
   `imputeLongitudinal(..., impute = "multiple")`, using Rubin’s rules
   (Rubin, 1987) with the Barnard & Rubin
+
   1999. small-sample degrees-of-freedom adjustment. `impute = "single"`
         (the default) fills `data_fit_all` with the across-draw mean of
         the generative model’s completions and returns one completed
@@ -83,6 +85,7 @@
         [`print()`](https://rdrr.io/r/base/print.html)-ing the result
         shows a coefficient table per biomarker alongside the FMI
         values.
+
 - [`longitudinalSub()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md)
   now accepts categorical (binary/ordinal) biomarkers alongside
   continuous ones, via a Gaussian-copula extension. Every biomarker’s
@@ -159,6 +162,7 @@
   probability rather than a density. `bandcount3` (the candidate-grid
   resolution) does not apply to an ordinal `bio_i`, whose grid is fixed
   at its category count, and is ignored in that case.
+
 - New
   [`predictLongitudinal()`](https://wenhaoli18.github.io/BJM/reference/predictLongitudinal.md)
   is now the single entry point for predicting future biomarker
@@ -197,7 +201,71 @@
   the now-internal `dynamicPredictionBio`) for the single-biomarker
   case.
 
+- [`predictLongitudinal()`](https://wenhaoli18.github.io/BJM/reference/predictLongitudinal.md)
+  now builds a continuous biomarker’s candidate-value grid (`Y_all`) in
+  two passes: a cheap coarse pass (step = the biomarker’s residual SD)
+  over the old wide range finds where any patient’s predictive density
+  is not negligible, and the `bandcount3` points are then placed there
+  only. The grid used to span a fixed 5 times the observed range on
+  either side, so most points (about 90% in a simulated example) fell
+  where every density was practically 0. The same `bandcount3` now gives
+  a 2-5 times finer grid, and the `"auto"` starting value of
+  `bandcount3` was lowered from 300 to 100. `Y_all` is still a single
+  grid shared by all patients predicted, so the returned structure is
+  unchanged.
+
 ### Bug fixes
+
+- Past the last follow-up time, the baseline cumulative hazard used by
+  [`predictRisk()`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md)/[`predictLongitudinal()`](https://wenhaoli18.github.io/BJM/reference/predictLongitudinal.md)
+  now continues from its last tabulated value with the slope of the
+  least-squares line through the table. It used to switch onto that line
+  itself, which does not pass through the last value, so the cumulative
+  hazard jumped at the last follow-up time: up in `pbc3` (risks there
+  move by about 1.5%), and down whenever the hazard increases over
+  follow-up (e.g. Weibull data), which gave the interval spanning the
+  last follow-up time a negative probability mass.
+
+- With competing risks, the event-type variable (the response of
+  `form_conditional_cr`) may now appear in `long_sub_fixed`, as the
+  backward model allows. A patient still at risk necessarily has an
+  unknown (`NA`) event type, and that `NA` used to be treated as a
+  missing covariate: every such patient was dropped and
+  [`predictRisk()`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md)/[`predictLongitudinal()`](https://wenhaoli18.github.io/BJM/reference/predictLongitudinal.md)
+  failed with “replacement has 1 row, data has 0”.
+
+- [`predictRisk()`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md)/[`predictLongitudinal()`](https://wenhaoli18.github.io/BJM/reference/predictLongitudinal.md)
+  now stop with a clear error when no patient in `data_predict_all` is
+  at risk at `prediction_time`, or none has a measurement of every
+  biomarker.
+  [`predictRisk()`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md)
+  used to return an empty result without comment and
+  [`predictLongitudinal()`](https://wenhaoli18.github.io/BJM/reference/predictLongitudinal.md)
+  failed with “‘from’ must be a finite number”.
+
+- The warning that the integration upper limit was capped (at 20 times
+  the last follow-up time) is now only given when some patient’s
+  conditional survival probability beyond the cap exceeds 1%, and
+  reports how much; it used to fire whenever it exceeded 0.01%, e.g. for
+  ordinary simulated Weibull data. The cap is also never below
+  `prediction_time + horizon`.
+
+- [`riskPlot()`](https://wenhaoli18.github.io/BJM/reference/riskPlot.md)
+  failed to draw (“Discrete values supplied to continuous scale”) for a
+  patient whose survival time is unknown (`NA`), the usual case for a
+  new patient: the vertical line marking the event time is now left out
+  then.
+
+- [`riskPlot()`](https://wenhaoli18.github.io/BJM/reference/riskPlot.md)/[`predictPlot()`](https://wenhaoli18.github.io/BJM/reference/predictPlot.md)
+  drew risks on the biomarker’s axis scaled by twice the largest
+  biomarker value, which is negative or zero when every value is `<= 0`
+  (e.g. a log-scale biomarker such as `serBilir`), flipping or
+  collapsing the risk axis. They now scale by twice the largest absolute
+  value. Both also failed (“‘max’ not meaningful for factors”) when the
+  plotted biomarker was ordinal; its history is now plotted as the
+  category codes `1:K` that
+  [`predictLongitudinal()`](https://wenhaoli18.github.io/BJM/reference/predictLongitudinal.md)
+  predicts on.
 
 - With an ordinal biomarker,
   [`predictRisk()`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md)

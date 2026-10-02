@@ -50,6 +50,7 @@
 <url><loc>https://wenhaoli18.github.io/BJM/reference/conditionalYTBioCopula.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/conditionalYTCopula.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/conditional_survival_setup.html</loc></url>
+<url><loc>https://wenhaoli18.github.io/BJM/reference/continuous_value_grid.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/cumulative_baseline_at.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/density_mode.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/diffusion_beta_schedule.html</loc></url>
@@ -59,7 +60,9 @@
 <url><loc>https://wenhaoli18.github.io/BJM/reference/dynamicPredictionBio.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/dynamicPredictionBioAll.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/equal_mass_edges.html</loc></url>
+<url><loc>https://wenhaoli18.github.io/BJM/reference/event_time_vline.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/exp_shifted.html</loc></url>
+<url><loc>https://wenhaoli18.github.io/BJM/reference/extrapolation_slope.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/fit_marginal_ordinal.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/imputeLongitudinal.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/impute_latent_ordinal.html</loc></url>
@@ -80,6 +83,7 @@
 <url><loc>https://wenhaoli18.github.io/BJM/reference/model_vars.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/n_subjects.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/nlme_random_to_lme4_bars.html</loc></url>
+<url><loc>https://wenhaoli18.github.io/BJM/reference/outcome_variables.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/patient_log_shift.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/pbc3.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/poolLongitudinalSub.html</loc></url>

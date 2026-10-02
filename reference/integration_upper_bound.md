@@ -22,7 +22,8 @@ Beyond the last time in the data
 [`survivalSub()`](https://wenhaoli18.github.io/BJM/reference/survivalSub.md)
 was fit on, the baseline hazard is an extrapolation; if it is so flat
 that the tail criterion is not met by `max_multiple` times that last
-time, the bound is capped there with a warning.
+time, the bound is capped there, with a warning if some patient's
+conditional survival at the cap is still above `warn_prob`.
 
 ## Usage
 
@@ -34,7 +35,8 @@ integration_upper_bound(
   prediction_time,
   min_upper = prediction_time,
   tail_prob = 1e-04,
-  max_multiple = 20
+  max_multiple = 20,
+  warn_prob = 0.01
 )
 ```
 
@@ -71,6 +73,11 @@ integration_upper_bound(
 - max_multiple:
 
   Cap, as a multiple of the last training time.
+
+- warn_prob:
+
+  Warn when the cap leaves more than this conditional survival
+  probability unintegrated for some patient.
 
 ## Value
 

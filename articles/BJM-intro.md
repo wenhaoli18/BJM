@@ -419,7 +419,7 @@ risk
 #> -----------------------------------------------------------------
 #> 
 #>  Subject Cause 1 Risk Cause 2 Risk Total Risk
-#>        2       0.0378       0.0017     0.0394
+#>        2       0.0383       0.0017       0.04
 #> 
 #> =================================================================
 ```
@@ -469,7 +469,7 @@ bio_pred <- predictLongitudinal(
 
 bio_pred$Y_predict
 #>        2 
-#> 1.203231
+#> 1.206329
 ```
 
 `Y_predict` is the MAP (most likely) predicted value;
@@ -532,10 +532,10 @@ risk_doubled <- predictRisk(
 
 abs(risk_default$risk_prob_1 - risk_doubled$risk_prob_1)
 #>            2 
-#> 0.0004035606
+#> 0.0005320418
 abs(risk_default$risk_prob_2 - risk_doubled$risk_prob_2)
 #>            2 
-#> 1.776141e-05
+#> 2.343222e-05
 ```
 
 If doubling the `bandcount*` values changes the result by more than you
@@ -572,7 +572,7 @@ predictRisk(
 #> -----------------------------------------------------------------
 #> 
 #>  Subject Cause 1 Risk Cause 2 Risk Total Risk
-#>        2       0.0378       0.0017     0.0394
+#>        2       0.0383       0.0017       0.04
 #> 
 #> =================================================================
 ```

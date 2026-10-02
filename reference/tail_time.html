@@ -3,13 +3,13 @@
 predictor in lp, the earliest time \(t &amp;gt; s\) with
 \(\exp(-(H_0(t) - H_0(s)) e^{lp}) &amp;lt;\) tail_prob, where
 \(H_0\) is the tabulated baseline cumulative hazard and, past its last
-time, the same least-squares line marginalT() extrapolates with.
-Inf if that line is not increasing."><meta property="og:description" content="Helper for integration_upper_bound(): for each linear
+time, the same linear extrapolation cumulative_baseline_at() uses.
+Inf if the extrapolated hazard is 0."><meta property="og:description" content="Helper for integration_upper_bound(): for each linear
 predictor in lp, the earliest time \(t &amp;gt; s\) with
 \(\exp(-(H_0(t) - H_0(s)) e^{lp}) &amp;lt;\) tail_prob, where
 \(H_0\) is the tabulated baseline cumulative hazard and, past its last
-time, the same least-squares line marginalT() extrapolates with.
-Inf if that line is not increasing."></head><body>
+time, the same linear extrapolation cumulative_baseline_at() uses.
+Inf if the extrapolated hazard is 0."></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -53,8 +53,8 @@ Inf if that line is not increasing."></head><body>
 predictor in <code>lp</code>, the earliest time \(t &gt; s\) with
 \(\exp(-(H_0(t) - H_0(s)) e^{lp}) &lt;\) <code>tail_prob</code>, where
 \(H_0\) is the tabulated baseline cumulative hazard and, past its last
-time, the same least-squares line <code><a href="marginalT.html">marginalT()</a></code> extrapolates with.
-<code>Inf</code> if that line is not increasing.</p>
+time, the same linear extrapolation <code><a href="cumulative_baseline_at.html">cumulative_baseline_at()</a></code> uses.
+<code>Inf</code> if the extrapolated hazard is 0.</p>
     </div>
 
     <div class="section level2">

@@ -143,7 +143,7 @@ print(check)
 #> Bandcount convergence check
 #>   base:   bandcount1 = 10, bandcount2 = 10
 #>   scaled: bandcount1 = 20, bandcount2 = 20
-#>   max relative change in risk_prob_1: 0.0472
-#>   NOT converged: max relative change (0.0472) exceeds tol (0.01); consider increasing the checked bandcount(s) and re-running.
+#>   max relative change in risk_prob_1: 0.0474
+#>   NOT converged: max relative change (0.0474) exceeds tol (0.01); consider increasing the checked bandcount(s) and re-running.
 # }
 ```
