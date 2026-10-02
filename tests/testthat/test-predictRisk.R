@@ -175,9 +175,42 @@ test_that("a missing biomarker value only drops that measurement, not the predic
 
 test_that("a patient with no observation of some biomarker is reported", {
   f <- setup_dp_fixture()
+  # alongside a predictable patient: a warning names the unpredictable one
+  other <- pbc3[pbc3$id == 6 & pbc3$year <= 5, ]
+  d <- lapply(f$data_predict_all, function(x) rbind(x, other))
+  d[[2]]$albumin[d[[2]]$id == 2] <- NA
+  expect_warning(out <- predict_fixture_risk(f, d), "Patient\\(s\\) 2 have no non-missing measurement")
+  expect_true(is.na(out$risk_prob_1[["2"]]))
+  expect_true(is.finite(out$risk_prob_1[["6"]]))
+  # on its own: an error, not a failure deeper down
   d <- f$data_predict_all
   d[[2]]$albumin <- NA
-  expect_warning(predict_fixture_risk(f, d), "Patient\\(s\\) 2 have no non-missing measurement")
+  expect_error(suppressWarnings(predict_fixture_risk(f, d)), "No patient in data_predict_all has a non-missing")
+})
+
+test_that("no patient at risk at prediction_time is an error", {
+  f <- setup_dp_fixture()
+  d <- lapply(f$data_predict_all, function(x) { x$years <- 1; x })
+  expect_error(predict_fixture_risk(f, d), "No patient in data_predict_all is at risk")
+  expect_error(predictLongitudinal(1, d, f$long_fit_all, f$survival_fit_all, prediction_time = 5,
+                                   horizon = 1, time_variable = "year", f$survival_variable_all,
+                                   f$survival_trans_function, bandcount2 = 20, bandcount3 = 50),
+               "No patient in data_predict_all is at risk")
+})
+
+test_that("the event type may enter long_sub_fixed and is unknown for a new patient", {
+  f <- setup_dp_fixture()
+  long_fit_all <- longitudinalSub(
+    list(pbc3[pbc3$status3 == 1, ], pbc3[pbc3$status3 == 1, ]),
+    list(serBilir ~ year + age + sex + years + years:year + status4,
+         albumin ~ year + age + sex + years + years:year + status4),
+    list(~ year | id, ~ year | id))
+  d <- lapply(f$data_predict_all, function(x) { x$status4 <- NA; x$years <- NA; x })
+  out <- predictRisk(d, long_fit_all, f$survival_fit_all, prediction_time = 5, horizon = 2,
+                     time_variable = "year", f$survival_variable_all, f$survival_trans_function,
+                     bandcount1 = 10, bandcount2 = 20)
+  expect_valid_risk(out)
+  expect_equal(names(out$risk_prob_1), "2")
 })
 
 pbc3_risk <- function(data, long_fit_all, survival_fit_all) {
@@ -366,6 +399,27 @@ test_that("the baseline cumulative hazard is read as a right-continuous step fun
                c(0, 0.1, 0.1, 0.3, 0.3))
   # order of the table does not matter
   expect_equal(cumulative_baseline_at(table[3:1, ], 1.99), 0.1)
-  # past the last time: the least-squares line through the table
-  expect_equal(cumulative_baseline_at(table, 4), unname(sum(coef(lm(hazard ~ time, table)) * c(1, 4))))
+  # past the last time: continues from the last value with the slope of the
+  # least-squares line through the table
+  slope <- unname(coef(lm(hazard ~ time, table))[2])
+  expect_equal(cumulative_baseline_at(table, 4), 0.6 + slope * 1)
+})
+
+test_that("the extrapolated baseline cumulative hazard is continuous and non-decreasing", {
+  # convex: the least-squares line lies below the last value at the last time
+  convex <- data.frame(hazard = c(0.01, 0.04, 0.09, 0.16, 0.5), time = 1:5)
+  # concave: it lies above
+  concave <- data.frame(hazard = c(0.4, 0.6, 0.7, 0.75, 0.78), time = 1:5)
+  for (table in list(convex, concave)) {
+    H <- cumulative_baseline_at(table, c(5, 5 + 1e-8, 5.5, 8))
+    expect_equal(H[2], H[1], tolerance = 1e-6)
+    expect_true(all(diff(H) >= 0))
+  }
+  # a decreasing least-squares slope cannot occur for a cumulative hazard,
+  # but a single-row table has no slope at all: held constant
+  expect_equal(cumulative_baseline_at(data.frame(hazard = 0.2, time = 1), c(1, 3)), c(0.2, 0.2))
+  # tail_time() inverts the same extrapolation
+  t_hit <- tail_time(convex, lp = 0, s = 2, tail_prob = 0.01)
+  H_s <- cumulative_baseline_at(convex, 2)
+  expect_equal(exp(-(cumulative_baseline_at(convex, t_hit) - H_s)), 0.01, tolerance = 1e-8)
 })

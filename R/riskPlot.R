@@ -131,6 +131,19 @@ riskPlot = function(data_predict_all_pre, long_fit_all, survival_fit_all,
                              longitudinal = unlist(data_predict_all_pre[[bio_i]][bio_i_name]))
     
   }
+  ### an ordinal history is plotted as its category codes 1:K
+  if (is.factor(DP_data_bio$longitudinal)) {
+    training_levels <- long_fit_all$lfit[[if (is.null(bio_i)) 1 else bio_i]]$y.levels
+    DP_data_bio$longitudinal <- if (is.null(training_levels)) as.integer(DP_data_bio$longitudinal) else
+      match(as.character(DP_data_bio$longitudinal), training_levels)
+  }
+  ### risks are drawn on the biomarker's axis, scaled by scale_prob; it has
+  ### to be positive, which 2 * max(biomarker) was not when every value was
+  ### <= 0 (e.g. a log-scale biomarker), collapsing or flipping the risk axis
+  scale_prob_of <- function(v) {
+    out <- 2 * max(abs(v), na.rm = TRUE)
+    if (!is.finite(out) || out <= 0) 1 else out
+  }
   
   
   if(is.null(prediction_time)){
@@ -172,10 +185,19 @@ riskPlot = function(data_predict_all_pre, long_fit_all, survival_fit_all,
   ### accumulation.
   has_cr <- length(survival_fit_all$form_conditional_cr) != 0
 
+  survival_variable <- as.character(formula(survival_fit_all$coxph_fit)[[2]])[2]
   compute_one_landmark <- function(time.cutoff) {
     data_predict_all = list()
     for(i in seq_len(length(long_fit_all$long_sub_fixed))){
       data_predict_all[[i]] = data_predict_all_pre[[i]][data_predict_all_pre[[i]][time_variable] <= time.cutoff,]
+    }
+    ### a landmark time after the patient's event (or censoring) has no
+    ### prediction; skipped here, as predictRisk() stops when no patient is
+    ### at risk
+    s <- data_predict_all[[1]][[survival_variable]]
+    if (!is.null(s) && !any(is.na(s) | s >= time.cutoff)) {
+      return(list(time.cutoff = time.cutoff, risk_prob_1 = numeric(0),
+                  risk_prob_2 = if (has_cr) numeric(0) else NULL, keep = FALSE))
     }
 
     risk.prob = predictRisk(data_predict_all, long_fit_all, survival_fit_all,
@@ -229,8 +251,7 @@ riskPlot = function(data_predict_all_pre, long_fit_all, survival_fit_all,
         scale_y_continuous(sec.axis = sec_axis(~./scale_prob, name="Risk Probabilities")) + 
         ylab("Predicted risk probability") + xlab("Follow-up time") +   
         #0 - 1 black, 1 - 2 red
-        geom_vline(xintercept = unlist(getFirst(data_predict_all_pre)[survival_variable])[1], 
-                   linetype = "solid", color = unlist(getFirst(data_predict_all_pre)[event_type_variable])[1] + 1, size = 2) + 
+        event_time_vline(data_predict_all_pre, survival_variable, event_type_variable) + 
         theme_bw(base_size = 25) +
         theme(panel.grid.major = element_blank(),
               panel.grid.minor = element_blank(),
@@ -240,7 +261,7 @@ riskPlot = function(data_predict_all_pre, long_fit_all, survival_fit_all,
     }else{
       ## plot longitudinal biomarker information with risk prediction
       
-      scale_prob = 2 * max(na.omit(DP_data_bio$longitudinal))
+      scale_prob = scale_prob_of(DP_data_bio$longitudinal)
       dp_risk = ggplot() +
         geom_line(data = DP_data_bio, aes(x = time, y = longitudinal, color = "Longitudinal")) + 
         geom_point(data = DP_data_bio, aes(x = time, y = longitudinal, color = "Longitudinal")) +
@@ -256,8 +277,7 @@ riskPlot = function(data_predict_all_pre, long_fit_all, survival_fit_all,
                                       "Event type1" = "black", "Event type2" = "red"))   +
         scale_y_continuous(sec.axis = sec_axis(~./scale_prob, name="Risk Probabilities")) + 
         ylab("Longitudinal biomarker") + xlab("Follow-up time") +   
-        geom_vline(xintercept = unlist(getFirst(data_predict_all_pre)[survival_variable])[1], 
-                   linetype = "solid", color = unlist(getFirst(data_predict_all_pre)[event_type_variable])[1] + 1, size = 2) + 
+        event_time_vline(data_predict_all_pre, survival_variable, event_type_variable) + 
         theme_bw(base_size = 25)+
         theme(panel.grid.major = element_blank(),
               panel.grid.minor = element_blank(),
@@ -287,7 +307,7 @@ riskPlot = function(data_predict_all_pre, long_fit_all, survival_fit_all,
       
     }else{
       ## plot longitudinal biomarker information
-      scale_prob = 2 * max(na.omit(DP_data_bio$longitudinal))
+      scale_prob = scale_prob_of(DP_data_bio$longitudinal)
       dp_risk = ggplot() +
         geom_line(data = DP_data_bio, aes(x = time, y = longitudinal, color = "Longitudinal")) + 
         geom_point(data = DP_data_bio, aes(x = time, y = longitudinal, color = "Longitudinal")) +
@@ -301,8 +321,7 @@ riskPlot = function(data_predict_all_pre, long_fit_all, survival_fit_all,
                                       "Risk probability" = "black"))   +
         scale_y_continuous(sec.axis = sec_axis(~./scale_prob, name="Risk Probabilities")) + 
         ylab("Longitudinal biomarker") + xlab("Follow-up time") +   
-        geom_vline(xintercept = unlist(getFirst(data_predict_all_pre)[survival_variable])[1], 
-                   linetype = "solid", color = "red", size = 2) + 
+        event_time_vline(data_predict_all_pre, survival_variable) + 
         theme_bw(base_size = 25)+
         theme(panel.grid.major = element_blank(),
               panel.grid.minor = element_blank(),
@@ -314,4 +333,30 @@ riskPlot = function(data_predict_all_pre, long_fit_all, survival_fit_all,
     
   }
  return(dp_risk)
+}
+
+#' Vertical line at a patient's observed event time
+#'
+#' @description Helper for \code{riskPlot()}: a \code{geom_vline()} at the
+#' patient's survival time, coloured by event type (black for 0, red for 1)
+#' with competing risks and red otherwise -- or \code{NULL} (nothing drawn)
+#' when that time is unknown, as for a new patient. A missing time used to
+#' be passed to \code{geom_vline()} as is, and printing the plot failed with
+#' "Discrete values supplied to continuous scale".
+#'
+#' @param data_predict_all_pre The patient's prediction data (list of data frames).
+#' @param survival_variable Name of the survival-time variable.
+#' @param event_type_variable Name of the event-type variable, or \code{NULL}.
+#' @return A ggplot2 layer or \code{NULL}.
+#' @keywords internal
+event_time_vline <- function(data_predict_all_pre, survival_variable, event_type_variable = NULL) {
+  first <- getFirst(data_predict_all_pre)
+  event_time <- suppressWarnings(as.numeric(unlist(first[survival_variable])[1]))
+  if (length(event_time) == 0 || !is.finite(event_time)) return(NULL)
+  colour <- "red"
+  if (!is.null(event_type_variable)) {
+    event_type <- suppressWarnings(as.numeric(unlist(first[event_type_variable])[1]))
+    colour <- if (length(event_type) == 1 && is.finite(event_type)) event_type + 1 else "grey40"
+  }
+  geom_vline(xintercept = event_time, linetype = "solid", color = colour, size = 2)
 }

@@ -111,3 +111,37 @@ test_that("a single observed value does not collapse the candidate grid", {
                               bandcount2 = 20, bandcount3 = 1000)
   expect_equal(pred$Y_predict, fine$Y_predict, tolerance = 5e-3)
 })
+
+test_that("the candidate grid covers every patient's density and little else", {
+  f <- setup_dp_fixture()
+  shared <- list(data_predict_all = list(data.frame(serBilir = c(0, 1))))
+  # two patients with well-separated predictive densities
+  dens <- function(y) cbind(dnorm(y, -1, 0.5), dnorm(y, 3, 0.4))
+  grid <- continuous_value_grid(shared, 1, "serBilir", f$long_fit_all, bandcount3 = 100,
+                                density_fun = dens)
+  expect_length(grid, 101)
+  d <- dens(grid)
+  # both densities essentially fully inside the grid ...
+  expect_equal(colSums(d) * diff(grid)[1], c(1, 1), tolerance = 1e-3)
+  # ... and the grid not much wider than they are (the old fixed range was
+  # 5 spans, here at least the training SD of serBilir, either side)
+  expect_lt(diff(range(grid)), 4 + 2 * 6 * 0.5)
+  # no usable density: falls back to the wide range
+  zero <- continuous_value_grid(shared, 1, "serBilir", f$long_fit_all, bandcount3 = 100,
+                                density_fun = function(y) matrix(0, length(y), 2))
+  expect_length(zero, 101)
+  expect_lt(min(zero), -4)
+})
+
+test_that("the predicted densities integrate to 1 on the adaptive grid", {
+  f <- setup_dp_fixture()
+  two <- lapply(f$data_predict_all, function(x) rbind(x, pbc3[pbc3$id == 6 & pbc3$year <= 5, ]))
+  pred <- predictLongitudinal(1, two, f$long_fit_all, f$survival_fit_all, 5, 1, "year",
+                              f$survival_variable_all, f$survival_trans_function,
+                              bandcount2 = 20, bandcount3 = 50)
+  expect_equal(unname(colSums(pred$Y_density)) * diff(pred$Y_all)[1], c(1, 1), tolerance = 0.01)
+  fine <- predictLongitudinal(1, two, f$long_fit_all, f$survival_fit_all, 5, 1, "year",
+                              f$survival_variable_all, f$survival_trans_function,
+                              bandcount2 = 20, bandcount3 = 2000)
+  expect_equal(pred$Y_predict, fine$Y_predict, tolerance = 1e-4)
+})

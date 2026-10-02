@@ -80,8 +80,13 @@ marginalT = function(data_predict_all, long_fit_all, survival_fit_all, l_i, uppe
 #' helpers: for each element of \code{l_i}, the Breslow cumulative hazard
 #' as the right-continuous step function it is -- the value at the last
 #' tabulated time \code{<= l_i}, or 0 before the first. Past the table's
-#' last time it is the least-squares line through the whole table (a linear
-#' extrapolation of the cumulative hazard, i.e. a constant hazard). The line
+#' last time it continues from the last tabulated value with the slope of
+#' the least-squares line through the whole table (a linear extrapolation
+#' of the cumulative hazard, i.e. a constant hazard). It used to switch to
+#' that line itself, which does not pass through the last tabulated value:
+#' the cumulative hazard jumped there, and when it jumped down (a convex
+#' cumulative hazard, i.e. an increasing hazard) the interval spanning the
+#' last time got a negative probability mass. The line
 #' used to be tabulated
 #' on a fixed 0.005 grid out to twice the integration upper limit and then
 #' looked up, which assumed time was measured in years (with time in days
@@ -102,8 +107,25 @@ cumulative_baseline_at <- function(cum_basehaz, l_i) {
   out <- c(0, cum_basehaz$hazard)[at_or_before + 1]
   beyond <- l_i > max(cum_basehaz$time)
   if (any(beyond)) {
-    line <- stats::coef(lm(hazard ~ time, cum_basehaz))
-    out[beyond] <- line[1] + line[2] * l_i[beyond]
+    last <- nrow(cum_basehaz)
+    out[beyond] <- cum_basehaz$hazard[last] +
+      extrapolation_slope(cum_basehaz) * (l_i[beyond] - cum_basehaz$time[last])
   }
   out
+}
+
+#' Slope of the extrapolated baseline cumulative hazard
+#'
+#' @description The constant hazard \code{cumulative_baseline_at()} uses
+#' past the last tabulated time: the slope of the least-squares line through
+#' the whole table, or 0 if that slope is negative or undefined (a table with
+#' a single time), so the cumulative hazard never decreases.
+#'
+#' @param cum_basehaz A data frame with columns \code{hazard} and \code{time},
+#'   ordered by time.
+#' @return A single non-negative number.
+#' @keywords internal
+extrapolation_slope <- function(cum_basehaz) {
+  slope <- if (nrow(cum_basehaz) < 2) NA_real_ else stats::coef(lm(hazard ~ time, cum_basehaz))[[2]]
+  if (is.na(slope) || slope < 0) 0 else slope
 }

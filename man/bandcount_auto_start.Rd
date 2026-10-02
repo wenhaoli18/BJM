@@ -20,6 +20,10 @@ numbers are reused here as the starting point for auto-tuning, so that
 the first call \code{auto_tune_bandcount()} makes matches what a caller
 relying on the old fixed defaults would have gotten. This cannot instead
 be read off \code{formals(predict_fun)}, because that default is now the
-literal string \code{"auto"} itself.
+literal string \code{"auto"} itself. The \code{bandcount3} start was
+lowered from 300 to 100 when its grid started covering only where the
+predictive densities are not negligible (see
+\code{continuous_value_grid()}): 100 points there are finer than 300
+were over the old fixed, wide range.
 }
 \keyword{internal}

@@ -23,7 +23,7 @@ Helper for \code{integration_upper_bound()}: for each linear
 predictor in \code{lp}, the earliest time \eqn{t > s} with
 \eqn{\exp(-(H_0(t) - H_0(s)) e^{lp}) <} \code{tail_prob}, where
 \eqn{H_0} is the tabulated baseline cumulative hazard and, past its last
-time, the same least-squares line \code{marginalT()} extrapolates with.
-\code{Inf} if that line is not increasing.
+time, the same linear extrapolation \code{cumulative_baseline_at()} uses.
+\code{Inf} if the extrapolated hazard is 0.
 }
 \keyword{internal}

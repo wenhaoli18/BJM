@@ -36,6 +36,17 @@
 # nearest time to prediction_time = 5 is an event at 5.002, whose jump was
 # counted before the window instead of inside it. The two readings converge
 # to different values, so this is a correction, not grid noise.
+# risk_pred then rose about 1.5% (and Y_predict_mode/Y_density_summary moved
+# in the 3rd-4th significant digit) when the extrapolated cumulative hazard
+# past the last follow-up time began to continue from the last tabulated
+# value instead of jumping onto the least-squares line (in pbc3 it jumped up
+# by 0.027 there). This is a correction, not grid noise.
+# Y_predict_mode/Y_density_summary/Y_all_range then changed when the
+# candidate-value grid stopped spanning a fixed 5 spans either side of the
+# observed values and began covering only where the predictive density is
+# not negligible (continuous_value_grid()): the same bandcount3 = 50 points
+# now lie on a narrower range (finer step, so the density values sum higher),
+# the density still integrates to 1, and the mode moved in the 5th digit.
 
 test_that("no-competing-risk pipeline output matches pre-refactor baseline", {
   skip_on_cran()

@@ -133,87 +133,85 @@ compute_bio_marker_step <- function(shared, bio_i, long_fit_all, survival_fit_al
     Y_labels <- levels(shared$data_predict_all[[bio_i]][[bio_i_name]])
     Y_query <- Y_labels
     Y_all <- seq_along(Y_labels)
-  } else {
-    Y_upper = max(shared$data_predict_all[[bio_i]][bio_i_name], na.rm = TRUE)
-    Y_lower = min(shared$data_predict_all[[bio_i]][bio_i_name], na.rm = TRUE)
-    ### the grid extends 5 spans either side of the observed values; the
-    ### span is their range, but at least the biomarker's SD in the training
-    ### data -- with a single observation (or all values equal) the range is
-    ### 0 and the grid collapsed to one point, which was then returned as
-    ### the prediction
-    span = max(Y_upper - Y_lower,
-               stats::sd(nlme::getResponse(long_fit_all$lfit[[bio_i]]), na.rm = TRUE),
-               na.rm = TRUE)
-    if (!is.finite(span) || span <= 0) span = max(abs(Y_upper), 1)
-    Y_all = seq(Y_lower - 5 * span, Y_upper + 5 * span,
-                (Y_upper - Y_lower + 10 * span) / bandcount3)
-    Y_query <- Y_all
   }
 
-  if (shared$has_cr) {
-    f_y_D_all_predict = shared$conditionalYDTBio_fun(Y_query, time_new = prediction_time + horizon,
-                                          bio_i, shared$data_predict_all, long_fit_all,
-                                          survival_fit_all,
-                                          l_i = shared$predict.time.infinity, shared$survival_variable,
-                                          time_variable, survival_variable_all,
-                                          survival_trans_function)
+  ### Y_density at the candidate values Y_query (Y_all holds the matching
+  ### numeric values), one row per candidate value, one column per patient
+  density_on_grid <- function(Y_query, Y_all) {
+    if (shared$has_cr) {
+      f_y_D_all_predict = shared$conditionalYDTBio_fun(Y_query, time_new = prediction_time + horizon,
+                                            bio_i, shared$data_predict_all, long_fit_all,
+                                            survival_fit_all,
+                                            l_i = shared$predict.time.infinity, shared$survival_variable,
+                                            time_variable, survival_variable_all,
+                                            survival_trans_function)
 
-    # Y_density is filled row-by-row into a pre-allocated matrix rather than
-    # grown with rbind() inside the loop: rbind()-in-a-loop reallocates and
-    # copies the whole growing matrix on every iteration (O(bandcount3^2)
-    # copies total), which becomes non-negligible at the large end of
-    # bandcount3's auto-tuned range. The matrix is allocated on the first
-    # iteration once the per-patient row length is known, so this makes no
-    # assumption about that length elsewhere.
-    ### log densities, exponentiated after the per-patient shift computed
-    ### in compute_bio_shared_step(); the denominator does not depend on
-    ### the candidate value, so it is computed once
-    T.surv.infinity.0 = t(exp_shifted(shared$f_y_D_all_infinity[[1]], shared$log_shift) *
-                            shared$D_T_all_infinity[[1]] * shared$S_T_all_infinity)
-    T.surv.infinity.1 = t(exp_shifted(shared$f_y_D_all_infinity[[2]], shared$log_shift) *
-                            shared$D_T_all_infinity[[2]] * shared$S_T_all_infinity)
-    denominator = rowSums(T.surv.infinity.1 + T.surv.infinity.0)
-    Y_density = NULL
-    for (Y_i in seq_len(length(Y_all))) {
-      T.surv.predict.0 = t(exp_shifted(f_y_D_all_predict[[1]][[Y_i]], shared$log_shift) *
-                             shared$D_T_all_infinity[[1]] * shared$S_T_all_infinity)
-      T.surv.predict.1 = t(exp_shifted(f_y_D_all_predict[[2]][[Y_i]], shared$log_shift) *
-                             shared$D_T_all_infinity[[2]] * shared$S_T_all_infinity)
+      # Y_density is filled row-by-row into a pre-allocated matrix rather than
+      # grown with rbind() inside the loop: rbind()-in-a-loop reallocates and
+      # copies the whole growing matrix on every iteration (O(bandcount3^2)
+      # copies total), which becomes non-negligible at the large end of
+      # bandcount3's auto-tuned range. The matrix is allocated on the first
+      # iteration once the per-patient row length is known, so this makes no
+      # assumption about that length elsewhere.
+      ### log densities, exponentiated after the per-patient shift computed
+      ### in compute_bio_shared_step(); the denominator does not depend on
+      ### the candidate value, so it is computed once
+      T.surv.infinity.0 = t(exp_shifted(shared$f_y_D_all_infinity[[1]], shared$log_shift) *
+                              shared$D_T_all_infinity[[1]] * shared$S_T_all_infinity)
+      T.surv.infinity.1 = t(exp_shifted(shared$f_y_D_all_infinity[[2]], shared$log_shift) *
+                              shared$D_T_all_infinity[[2]] * shared$S_T_all_infinity)
+      denominator = rowSums(T.surv.infinity.1 + T.surv.infinity.0)
+      Y_density = NULL
+      for (Y_i in seq_len(length(Y_all))) {
+        T.surv.predict.0 = t(exp_shifted(f_y_D_all_predict[[1]][[Y_i]], shared$log_shift) *
+                               shared$D_T_all_infinity[[1]] * shared$S_T_all_infinity)
+        T.surv.predict.1 = t(exp_shifted(f_y_D_all_predict[[2]][[Y_i]], shared$log_shift) *
+                               shared$D_T_all_infinity[[2]] * shared$S_T_all_infinity)
 
-      ### a density, not a probability: it may exceed 1 (a narrow predictive
-      ### distribution), so it must not go through clamp_risk_prob()
-      Y_density_row = pmax(rowSums(T.surv.predict.1) / denominator, 0) +
-        pmax(rowSums(T.surv.predict.0) / denominator, 0)
-      if (is.null(Y_density)) Y_density = matrix(NA_real_, length(Y_all), length(Y_density_row))
-      Y_density[Y_i, ] = Y_density_row
+        ### a density, not a probability: it may exceed 1 (a narrow predictive
+        ### distribution), so it must not go through clamp_risk_prob()
+        Y_density_row = pmax(rowSums(T.surv.predict.1) / denominator, 0) +
+          pmax(rowSums(T.surv.predict.0) / denominator, 0)
+        if (is.null(Y_density)) Y_density = matrix(NA_real_, length(Y_all), length(Y_density_row))
+        Y_density[Y_i, ] = Y_density_row
+      }
+    } else { #without competing risk
+
+      f_y_D_all_predict = shared$conditionalYTBio_fun(Y_query, time_new = prediction_time + horizon,
+                                            bio_i, shared$data_predict_all, long_fit_all,
+                                            l_i = shared$predict.time.infinity, shared$survival_variable,
+                                            time_variable, survival_variable_all,
+                                            survival_trans_function)
+
+      # See the competing-risk branch above for why Y_density is filled into a
+      # pre-allocated matrix instead of grown with rbind() in the loop.
+      ### shifted log densities, as in the competing-risk branch; this also
+      ### replaces a "+ 1e-20" in the denominator, which swamped it whenever
+      ### the densities were small and drove the predicted density towards 0
+      denominator = rowSums(t(exp_shifted(shared$f_y_D_all_infinity[[1]], shared$log_shift) *
+                                shared$S_T_all_infinity))
+      Y_density = NULL
+      for (Y_i in seq_len(length(Y_all))) {
+
+        T.surv.predict.0 = t(exp_shifted(f_y_D_all_predict[[1]][[Y_i]], shared$log_shift) *
+                               shared$S_T_all_infinity)
+
+        ### a density, not a probability: see the competing-risk branch
+        Y_density_row = pmax(rowSums(T.surv.predict.0) / denominator, 0)
+        if (is.null(Y_density)) Y_density = matrix(NA_real_, length(Y_all), length(Y_density_row))
+        Y_density[Y_i, ] = Y_density_row
+
+      }
     }
-  } else { #without competing risk
+    Y_density
+  }
 
-    f_y_D_all_predict = shared$conditionalYTBio_fun(Y_query, time_new = prediction_time + horizon,
-                                          bio_i, shared$data_predict_all, long_fit_all,
-                                          l_i = shared$predict.time.infinity, shared$survival_variable,
-                                          time_variable, survival_variable_all,
-                                          survival_trans_function)
-
-    # See the competing-risk branch above for why Y_density is filled into a
-    # pre-allocated matrix instead of grown with rbind() in the loop.
-    ### shifted log densities, as in the competing-risk branch; this also
-    ### replaces a "+ 1e-20" in the denominator, which swamped it whenever
-    ### the densities were small and drove the predicted density towards 0
-    denominator = rowSums(t(exp_shifted(shared$f_y_D_all_infinity[[1]], shared$log_shift) *
-                              shared$S_T_all_infinity))
-    Y_density = NULL
-    for (Y_i in seq_len(length(Y_all))) {
-
-      T.surv.predict.0 = t(exp_shifted(f_y_D_all_predict[[1]][[Y_i]], shared$log_shift) *
-                             shared$S_T_all_infinity)
-
-      ### a density, not a probability: see the competing-risk branch
-      Y_density_row = pmax(rowSums(T.surv.predict.0) / denominator, 0)
-      if (is.null(Y_density)) Y_density = matrix(NA_real_, length(Y_all), length(Y_density_row))
-      Y_density[Y_i, ] = Y_density_row
-
-    }
+  if (is_ordinal_target) {
+    Y_density <- density_on_grid(Y_query, Y_all)
+  } else {
+    Y_all <- continuous_value_grid(shared, bio_i, bio_i_name, long_fit_all, bandcount3,
+                                   density_fun = function(y) density_on_grid(y, y))
+    Y_density <- density_on_grid(Y_all, Y_all)
   }
 
   Y_predict = vapply(seq_len(dim(Y_density)[2]), function(i)
@@ -372,7 +370,7 @@ dynamicPredictionBio = function(bio_i, data_predict_all, long_fit_all, survival_
   data_predict_all <- drop_after_prediction_time(data_predict_all, time_variable, prediction_time)
   data_predict_all <- align_ordinal_levels(data_predict_all, long_fit_all)
   data_predict_all <- drop_missing_longitudinal(data_predict_all, long_fit_all,
-                                               as.character(formula(survival_fit_all$coxph_fit)[[2]])[2],
+                                               outcome_variables(survival_fit_all),
                                                survival_variable_all)
 
   # bandcount2/bandcount3 = "auto" (the default): see predictRisk()
@@ -417,6 +415,76 @@ dynamicPredictionBio = function(bio_i, data_predict_all, long_fit_all, survival_
   out <- list(Y_predict = marker$Y_predict, Y_density = marker$Y_density, Y_all = marker$Y_all)
   class(out) <- "dynamicPredictionBio.BJM"
   return(out)
+}
+
+#' Candidate-value grid for a continuous biomarker
+#'
+#' @description Helper for \code{compute_bio_marker_step()}: the grid of
+#' candidate values (\code{Y_all}) a continuous biomarker's predictive
+#' density is tabulated on, shared by all patients predicted. Built in two
+#' passes:
+#' \enumerate{
+#'   \item A coarse grid over a deliberately wide range -- 5 spans either
+#'   side of the patients' observed values, the span being their range but
+#'   at least the biomarker's SD in the training data -- with a step of the
+#'   biomarker's residual SD \eqn{\sigma}, at least 30 and at most 100
+#'   points. A predicted future measurement includes its measurement error,
+#'   so every predictive density has an SD of at least \eqn{\sigma}: within
+#'   half a step of its mode it is still above 88\% of its peak, far above
+#'   \code{rel_tol}, so no patient's density falls between coarse points.
+#'   \item \code{bandcount3} + 1 equally spaced points over the part of the
+#'   coarse grid where some patient's density exceeds \code{rel_tol} times
+#'   that patient's maximum, widened by \eqn{2\sigma} (and at least one
+#'   coarse step) on either side.
+#' }
+#' The wide range used to be the final grid, so most of the
+#' \code{bandcount3} points (about 90\% in a simulated example) lay where
+#' every density was practically 0. If the coarse pass finds no usable
+#' density, the wide range is returned with \code{bandcount3} + 1 points,
+#' as before.
+#'
+#' @param shared Output of \code{compute_bio_shared_step()}.
+#' @param bio_i Index of the biomarker.
+#' @param bio_i_name Its response variable name.
+#' @param long_fit_all Output of \code{longitudinalSub()}.
+#' @param bandcount3 Number of intervals of the final grid.
+#' @param density_fun Function of a vector of candidate values returning the
+#'   density matrix (one row per value, one column per patient).
+#' @param rel_tol Relative density below which a value is outside the grid.
+#' @return A numeric vector of candidate values.
+#' @keywords internal
+continuous_value_grid <- function(shared, bio_i, bio_i_name, long_fit_all, bandcount3,
+                                  density_fun, rel_tol = 1e-6) {
+  observed <- shared$data_predict_all[[bio_i]][[bio_i_name]]
+  Y_upper <- max(observed, na.rm = TRUE)
+  Y_lower <- min(observed, na.rm = TRUE)
+  ### with a single observation (or all values equal) the range is 0 and the
+  ### grid would collapse to one point, hence at least the training SD
+  span <- max(Y_upper - Y_lower,
+              stats::sd(nlme::getResponse(long_fit_all$lfit[[bio_i]]), na.rm = TRUE),
+              na.rm = TRUE)
+  if (!is.finite(span) || span <= 0) span <- max(abs(Y_upper), 1)
+  wide <- c(Y_lower - 5 * span, Y_upper + 5 * span)
+  wide_grid <- seq(wide[1], wide[2], length.out = bandcount3 + 1)
+
+  sigma <- long_fit_all$lfit[[bio_i]]$sigma
+  if (is.null(sigma) || !is.finite(sigma) || sigma <= 0) sigma <- span / 10
+  n_coarse <- min(max(ceiling(diff(wide) / sigma), 30), 100)
+  coarse <- seq(wide[1], wide[2], length.out = n_coarse)
+  step <- coarse[2] - coarse[1]
+
+  d0 <- as.matrix(density_fun(coarse))
+  inside <- apply(d0, 2, function(d) {
+    top <- suppressWarnings(max(d, na.rm = TRUE))
+    if (!is.finite(top) || top <= 0) return(rep(FALSE, length(d)))
+    !is.na(d) & d > rel_tol * top
+  })
+  inside <- matrix(inside, nrow = length(coarse))
+  if (!any(inside)) return(wide_grid)
+
+  pad <- max(2 * sigma, step)
+  range_in <- range(coarse[rowSums(inside) > 0]) + c(-pad, pad)
+  seq(range_in[1], range_in[2], length.out = bandcount3 + 1)
 }
 
 #' Mode of a density tabulated on a grid
