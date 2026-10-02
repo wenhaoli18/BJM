@@ -7,3 +7,4 @@
 ^\.claude$
 ^\.Rhistory$
 ^\.Rd2pdf
+^vignettes/articles$
