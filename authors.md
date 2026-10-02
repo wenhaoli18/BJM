@@ -2,9 +2,9 @@
 
 ## Authors
 
-- **Wenhao Li**. Author, maintainer.
+- **[Wenhao Li](mailto:wenhaoli.jlu@gmail.com)**. Author, maintainer.
 
-- **Liang Li**. Author.
+- **[Liang Li](mailto:LLi15@mdanderson.org)**. Author.
 
 ## Citation
 
