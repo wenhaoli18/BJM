@@ -157,7 +157,7 @@ group.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/spaghettiPlot.html">spaghettiPlot</a></span><span class="op">(</span><span class="va">pbc3</span>, bio_variable <span class="op">=</span> <span class="st">"serBilir"</span>, time_variable <span class="op">=</span> <span class="st">"year"</span>,</span>
 <span>              event_type_variable <span class="op">=</span> <span class="st">"status2"</span><span class="op">)</span></span></code></pre></div>
-<p><img src="plotting_files/figure-html/spaghetti-1.png" class="r-plt" alt="" width="100%"></p>
+<p><img src="plotting_files/figure-html/spaghetti-1.png" class="r-plt" alt="Spaghetti plot of serum bilirubin against visit year, one thin line per patient, colored by whether the patient died; the smoothed mean of patients who died is higher throughout follow-up and rises over time, while that of the other patients stays near zero." width="100%"></p>
 <p>With <code>align = "event"</code>, the horizontal axis becomes the
 time remaining until each patient’s event or censoring time, so 0 is the
 event and every patient is lined up at their own end of follow-up. This
@@ -168,7 +168,7 @@ death.</p>
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/spaghettiPlot.html">spaghettiPlot</a></span><span class="op">(</span><span class="va">pbc3</span>, bio_variable <span class="op">=</span> <span class="st">"serBilir"</span>, time_variable <span class="op">=</span> <span class="st">"year"</span>,</span>
 <span>              survival_variable <span class="op">=</span> <span class="st">"years"</span>, event_type_variable <span class="op">=</span> <span class="st">"status2"</span>,</span>
 <span>              align <span class="op">=</span> <span class="st">"event"</span><span class="op">)</span></span></code></pre></div>
-<p><img src="plotting_files/figure-html/spaghetti-event-1.png" class="r-plt" alt="" width="100%"></p>
+<p><img src="plotting_files/figure-html/spaghetti-event-1.png" class="r-plt" alt="Spaghetti plot of serum bilirubin against years before each patient's event or censoring time, with the event at 0 on the left; the mean bilirubin of patients who died climbs steeply over the last few years before death, while that of the other patients rises only slightly." width="100%"></p>
 <p>With many patients, <code>n_subjects</code> draws a random
 subset.</p>
 </div>
@@ -183,7 +183,7 @@ for the two competing event types.</p>
 <span>        event_type_variable <span class="op">=</span> <span class="st">"status4"</span>, event_type <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"0"</span>, <span class="st">"1"</span><span class="op">)</span>,</span>
 <span>        bio_variable <span class="op">=</span> <span class="st">"albumin"</span>, time_variable <span class="op">=</span> <span class="st">"year"</span>,</span>
 <span>        survival_variable <span class="op">=</span> <span class="st">"years"</span>, interval_time <span class="op">=</span> <span class="fl">1</span> <span class="op">/</span> <span class="fl">4</span><span class="op">)</span></span></code></pre></div>
-<p><img src="plotting_files/figure-html/cmt-1.png" class="r-plt" alt="" width="100%"></p>
+<p><img src="plotting_files/figure-html/cmt-1.png" class="r-plt" alt="Conditional mean trajectories of albumin for patients with an event around year 5, for the two competing event types; points are the mean albumin at each time point with a fitted line per event type, and both decline over follow-up." width="100%"></p>
 </div>
 <div class="section level3">
 <h3 id="cumulative-incidence-cifplot">Cumulative incidence: <code>cifPlot()</code><a class="anchor" aria-label="anchor" href="#cumulative-incidence-cifplot"></a>
@@ -194,13 +194,13 @@ may be in long format; only each patient’s first row is used.</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/cifPlot.html">cifPlot</a></span><span class="op">(</span><span class="va">pbc3</span>, survival_variable <span class="op">=</span> <span class="st">"years"</span>, event_type_variable <span class="op">=</span> <span class="st">"status5"</span>,</span>
 <span>        event_labels <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"1"</span> <span class="op">=</span> <span class="st">"Death"</span>, <span class="st">"2"</span> <span class="op">=</span> <span class="st">"Transplant"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
-<p><img src="plotting_files/figure-html/cif-1.png" class="r-plt" alt="" width="100%"></p>
+<p><img src="plotting_files/figure-html/cif-1.png" class="r-plt" alt="Cumulative incidence curves with 95% confidence bands for death and transplantation over 15 years of follow-up; death reaches about 0.6 while transplantation levels off near 0.1." width="100%"></p>
 <p><code>group_variable</code> draws one curve per group, e.g. treatment
 arm:</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/cifPlot.html">cifPlot</a></span><span class="op">(</span><span class="va">pbc3</span>, survival_variable <span class="op">=</span> <span class="st">"years"</span>, event_type_variable <span class="op">=</span> <span class="st">"status2"</span>,</span>
 <span>        group_variable <span class="op">=</span> <span class="st">"drug"</span><span class="op">)</span></span></code></pre></div>
-<p><img src="plotting_files/figure-html/cif-group-1.png" class="r-plt" alt="" width="100%"></p>
+<p><img src="plotting_files/figure-html/cif-group-1.png" class="r-plt" alt="Cumulative incidence of death by treatment arm, placebo versus D-penicillamine, with overlapping 95% confidence bands; the two curves are very close over the whole follow-up." width="100%"></p>
 </div>
 </div>
 <div class="section level2">
@@ -232,12 +232,12 @@ competing risks, the odds ratios of the event-type model (here the odds
 of transplantation, <code>status4 = 1</code>, versus death).</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">survival_fit_all</span><span class="op">)</span></span></code></pre></div>
-<p><img src="plotting_files/figure-html/plot-survival-1.png" class="r-plt" alt="" width="100%"></p>
+<p><img src="plotting_files/figure-html/plot-survival-1.png" class="r-plt" alt="Forest plot in two panels: hazard ratios of the survival model, where age is slightly above 1 and sex is below 1 with a wide interval, and odds ratios of the event-type model for age, sex and event time, all close to 1 except age, slightly below 1." width="100%"></p>
 <p><code>which = "basehaz"</code> shows the Cox model’s baseline
 cumulative hazard.</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">survival_fit_all</span>, which <span class="op">=</span> <span class="st">"basehaz"</span><span class="op">)</span></span></code></pre></div>
-<p><img src="plotting_files/figure-html/plot-basehaz-1.png" class="r-plt" alt="" width="100%"></p>
+<p><img src="plotting_files/figure-html/plot-basehaz-1.png" class="r-plt" alt="Step curve of the Cox model's baseline cumulative hazard, increasing steadily from 0 to about 0.65 over 15 years of follow-up." width="100%"></p>
 </div>
 <div class="section level3">
 <h3 id="longitudinal-sub-models-plotlong_fit_all">Longitudinal sub-models: <code>plot(long_fit_all)</code><a class="anchor" aria-label="anchor" href="#longitudinal-sub-models-plotlong_fit_all"></a>
@@ -247,19 +247,19 @@ biomarker. A trend in the red smoother, or a funnel shape, points to a
 misspecified mean or non-constant variance.</p>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">long_fit_all</span><span class="op">)</span></span></code></pre></div>
-<p><img src="plotting_files/figure-html/plot-residuals-1.png" class="r-plt" alt="" width="100%"></p>
+<p><img src="plotting_files/figure-html/plot-residuals-1.png" class="r-plt" alt="Standardized residuals against fitted values for bilirubin and albumin, one panel each; points scatter around zero and the red smoothers stay close to zero, with mild curvature at the extremes." width="100%"></p>
 <p><code>which = "qq"</code> checks the residuals’ normality, and
 <code>which = "ranef"</code> that of the predicted random effects.</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">long_fit_all</span>, which <span class="op">=</span> <span class="st">"ranef"</span><span class="op">)</span></span></code></pre></div>
-<p><img src="plotting_files/figure-html/plot-ranef-1.png" class="r-plt" alt="" width="100%"></p>
+<p><img src="plotting_files/figure-html/plot-ranef-1.png" class="r-plt" alt="Normal Q-Q plots of the predicted random intercepts and slopes of bilirubin and albumin, four panels; the intercepts follow the reference line closely, while the slopes have somewhat heavier tails." width="100%"></p>
 <p><code>which = "corr"</code> shows the correlations of the random
 effects across biomarkers, estimated by the multivariate mixed model:
 here, patients whose bilirubin rises faster tend to have albumin that
 falls faster.</p>
 <div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">long_fit_all</span>, which <span class="op">=</span> <span class="st">"corr"</span><span class="op">)</span></span></code></pre></div>
-<p><img src="plotting_files/figure-html/plot-corr-1.png" class="r-plt" alt="" width="100%"></p>
+<p><img src="plotting_files/figure-html/plot-corr-1.png" class="r-plt" alt="Heat map of the correlations between the random intercepts and slopes of bilirubin and albumin; the strongest is -0.50, between the bilirubin slope and the albumin slope." width="100%"></p>
 </div>
 </div>
 <div class="section level2">
@@ -282,7 +282,7 @@ event type, and the predicted future bilirubin.</p>
 <span>            prediction_time <span class="op">=</span> <span class="fl">5</span>, horizon <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">3</span>, <span class="fl">0.5</span><span class="op">)</span>, time_variable <span class="op">=</span> <span class="st">"year"</span>,</span>
 <span>            <span class="va">trans</span><span class="op">$</span><span class="va">survival_variable_all</span>, <span class="va">trans</span><span class="op">$</span><span class="va">survival_trans_function</span>,</span>
 <span>            bandcount1 <span class="op">=</span> <span class="fl">10</span>, bandcount2 <span class="op">=</span> <span class="fl">20</span>, bandcount3 <span class="op">=</span> <span class="fl">50</span><span class="op">)</span></span></code></pre></div>
-<p><img src="plotting_files/figure-html/predict-plot-1.png" class="r-plt" alt="" width="100%"></p>
+<p><img src="plotting_files/figure-html/predict-plot-1.png" class="r-plt" alt="Prediction plot for patient 2 at year 5: the observed bilirubin history up to year 5, the predicted future bilirubin with widening uncertainty bands from year 5 to 8, and the predicted risk of the two event types growing with the horizon, death to about 0.25 by year 8 and transplantation staying near 0." width="100%"></p>
 </div>
 <div class="section level3">
 <h3 id="risk-as-the-landmark-moves-riskplot">Risk as the landmark moves: <code>riskPlot()</code><a class="anchor" aria-label="anchor" href="#risk-as-the-landmark-moves-riskplot"></a>
@@ -294,7 +294,7 @@ point uses more of the patient’s history.</p>
 <span>         prediction_time <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">2</span>, <span class="fl">3</span>, <span class="fl">4</span>, <span class="fl">5</span><span class="op">)</span>, bio_i <span class="op">=</span> <span class="fl">1</span>, horizon <span class="op">=</span> <span class="fl">1</span>,</span>
 <span>         time_variable <span class="op">=</span> <span class="st">"year"</span>, <span class="va">trans</span><span class="op">$</span><span class="va">survival_variable_all</span>,</span>
 <span>         <span class="va">trans</span><span class="op">$</span><span class="va">survival_trans_function</span>, bandcount1 <span class="op">=</span> <span class="fl">10</span>, bandcount2 <span class="op">=</span> <span class="fl">20</span><span class="op">)</span></span></code></pre></div>
-<p><img src="plotting_files/figure-html/risk-plot-1.png" class="r-plt" alt="" width="100%"></p>
+<p><img src="plotting_files/figure-html/risk-plot-1.png" class="r-plt" alt="Patient 2's bilirubin history from year 0 to 5 together with the predicted one-year risks of the two event types at landmarks 1 to 5; the risk of death rises slowly as bilirubin increases, and the transplantation risk stays near 0." width="100%"></p>
 </div>
 <div class="section level3">
 <h3 id="predicted-biomarker-distribution-plotpredictlongitudinal---">Predicted biomarker distribution:
@@ -312,7 +312,7 @@ line.</p>
 <span>                            <span class="va">trans</span><span class="op">$</span><span class="va">survival_variable_all</span>, <span class="va">trans</span><span class="op">$</span><span class="va">survival_trans_function</span>,</span>
 <span>                            bio_i <span class="op">=</span> <span class="fl">1</span>, bandcount2 <span class="op">=</span> <span class="fl">20</span>, bandcount3 <span class="op">=</span> <span class="fl">50</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">pred</span><span class="op">)</span></span></code></pre></div>
-<p><img src="plotting_files/figure-html/predict-longitudinal-1.png" class="r-plt" alt="" width="100%"></p>
+<p><img src="plotting_files/figure-html/predict-longitudinal-1.png" class="r-plt" alt="Predicted density curves of bilirubin one year after year 3 for patients 2, 4 and 5, each with a dashed line at its most likely value; the curves have similar spread and are centred at increasing values, patient 2 lowest and patient 5 highest." width="100%"></p>
 </div>
 </div>
 <div class="section level2">
@@ -348,7 +348,7 @@ weighting.</p>
 <span>                <span class="va">trans</span><span class="op">$</span><span class="va">survival_variable_all</span>, <span class="va">trans</span><span class="op">$</span><span class="va">survival_trans_function</span>,</span>
 <span>                bandcount1 <span class="op">=</span> <span class="fl">20</span>, bandcount2 <span class="op">=</span> <span class="fl">80</span><span class="op">)</span></span>
 <span><span class="co">#&gt; AUC is undefined (no cases or no event-free subjects in the window) at some landmarks; those points are left out.</span></span></code></pre></div>
-<p><img src="plotting_files/figure-html/performance-1.png" class="r-plt" alt="" width="100%"></p>
+<p><img src="plotting_files/figure-html/performance-1.png" class="r-plt" alt="Time-dependent AUC and Brier score at landmarks 1 to 5 for death and transplantation on the test patients; AUCs are well above the chance line of 0.5 and Brier scores stay below 0.1, with the transplantation AUC missing at landmark 1." width="100%"></p>
 <p>No test patient had a transplant in the two years after year 1, so
 the transplant AUC is undefined there and that point is left out (the
 message above). The returned plot’s <code>data</code> holds the numbers,
@@ -369,7 +369,7 @@ underestimates it.</p>
 <span>                prediction_time <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2</span>, <span class="fl">4</span><span class="op">)</span>, horizon <span class="op">=</span> <span class="fl">2</span>, time_variable <span class="op">=</span> <span class="st">"year"</span>,</span>
 <span>                <span class="va">trans</span><span class="op">$</span><span class="va">survival_variable_all</span>, <span class="va">trans</span><span class="op">$</span><span class="va">survival_trans_function</span>,</span>
 <span>                n_groups <span class="op">=</span> <span class="fl">4</span>, bandcount1 <span class="op">=</span> <span class="fl">20</span>, bandcount2 <span class="op">=</span> <span class="fl">80</span><span class="op">)</span></span></code></pre></div>
-<p><img src="plotting_files/figure-html/calibration-1.png" class="r-plt" alt="" width="100%"></p>
+<p><img src="plotting_files/figure-html/calibration-1.png" class="r-plt" alt="Calibration plots for landmarks 2 and 4 and the two event types: mean predicted against observed risk in four risk groups with 95% confidence intervals; the points lie near the diagonal, with wide intervals where few events occurred." width="100%"></p>
 <p>With only about a hundred test patients, and few transplants among
 them, the observed risks have wide confidence intervals; use more groups
 with larger data.</p>

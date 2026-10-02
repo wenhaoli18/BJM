@@ -44,7 +44,11 @@ spaghettiPlot(pbc3, bio_variable = "serBilir", time_variable = "year",
               event_type_variable = "status2")
 ```
 
-![](plotting_files/figure-html/spaghetti-1.png)
+![Spaghetti plot of serum bilirubin against visit year, one thin line
+per patient, colored by whether the patient died; the smoothed mean of
+patients who died is higher throughout follow-up and rises over time,
+while that of the other patients stays near
+zero.](plotting_files/figure-html/spaghetti-1.png)
 
 With `align = "event"`, the horizontal axis becomes the time remaining
 until each patient’s event or censoring time, so 0 is the event and
@@ -59,7 +63,11 @@ spaghettiPlot(pbc3, bio_variable = "serBilir", time_variable = "year",
               align = "event")
 ```
 
-![](plotting_files/figure-html/spaghetti-event-1.png)
+![Spaghetti plot of serum bilirubin against years before each patient's
+event or censoring time, with the event at 0 on the left; the mean
+bilirubin of patients who died climbs steeply over the last few years
+before death, while that of the other patients rises only
+slightly.](plotting_files/figure-html/spaghetti-event-1.png)
 
 With many patients, `n_subjects` draws a random subset.
 
@@ -77,7 +85,10 @@ cmtPlot(pbc3[!is.na(pbc3$status4), ], condi_time2event = 5,
         survival_variable = "years", interval_time = 1 / 4)
 ```
 
-![](plotting_files/figure-html/cmt-1.png)
+![Conditional mean trajectories of albumin for patients with an event
+around year 5, for the two competing event types; points are the mean
+albumin at each time point with a fitted line per event type, and both
+decline over follow-up.](plotting_files/figure-html/cmt-1.png)
 
 ### Cumulative incidence: `cifPlot()`
 
@@ -91,7 +102,10 @@ cifPlot(pbc3, survival_variable = "years", event_type_variable = "status5",
         event_labels = c("1" = "Death", "2" = "Transplant"))
 ```
 
-![](plotting_files/figure-html/cif-1.png)
+![Cumulative incidence curves with 95% confidence bands for death and
+transplantation over 15 years of follow-up; death reaches about 0.6
+while transplantation levels off near
+0.1.](plotting_files/figure-html/cif-1.png)
 
 `group_variable` draws one curve per group, e.g. treatment arm:
 
@@ -101,7 +115,10 @@ cifPlot(pbc3, survival_variable = "years", event_type_variable = "status2",
         group_variable = "drug")
 ```
 
-![](plotting_files/figure-html/cif-group-1.png)
+![Cumulative incidence of death by treatment arm, placebo versus
+D-penicillamine, with overlapping 95% confidence bands; the two curves
+are very close over the whole
+follow-up.](plotting_files/figure-html/cif-group-1.png)
 
 ## Checking the fitted sub-models
 
@@ -139,7 +156,11 @@ of transplantation, `status4 = 1`, versus death).
 plot(survival_fit_all)
 ```
 
-![](plotting_files/figure-html/plot-survival-1.png)
+![Forest plot in two panels: hazard ratios of the survival model, where
+age is slightly above 1 and sex is below 1 with a wide interval, and
+odds ratios of the event-type model for age, sex and event time, all
+close to 1 except age, slightly below
+1.](plotting_files/figure-html/plot-survival-1.png)
 
 `which = "basehaz"` shows the Cox model’s baseline cumulative hazard.
 
@@ -148,7 +169,9 @@ plot(survival_fit_all)
 plot(survival_fit_all, which = "basehaz")
 ```
 
-![](plotting_files/figure-html/plot-basehaz-1.png)
+![Step curve of the Cox model's baseline cumulative hazard, increasing
+steadily from 0 to about 0.65 over 15 years of
+follow-up.](plotting_files/figure-html/plot-basehaz-1.png)
 
 ### Longitudinal sub-models: `plot(long_fit_all)`
 
@@ -161,7 +184,10 @@ mean or non-constant variance.
 plot(long_fit_all)
 ```
 
-![](plotting_files/figure-html/plot-residuals-1.png)
+![Standardized residuals against fitted values for bilirubin and
+albumin, one panel each; points scatter around zero and the red
+smoothers stay close to zero, with mild curvature at the
+extremes.](plotting_files/figure-html/plot-residuals-1.png)
 
 `which = "qq"` checks the residuals’ normality, and `which = "ranef"`
 that of the predicted random effects.
@@ -171,7 +197,10 @@ that of the predicted random effects.
 plot(long_fit_all, which = "ranef")
 ```
 
-![](plotting_files/figure-html/plot-ranef-1.png)
+![Normal Q-Q plots of the predicted random intercepts and slopes of
+bilirubin and albumin, four panels; the intercepts follow the reference
+line closely, while the slopes have somewhat heavier
+tails.](plotting_files/figure-html/plot-ranef-1.png)
 
 `which = "corr"` shows the correlations of the random effects across
 biomarkers, estimated by the multivariate mixed model: here, patients
@@ -182,7 +211,10 @@ whose bilirubin rises faster tend to have albumin that falls faster.
 plot(long_fit_all, which = "corr")
 ```
 
-![](plotting_files/figure-html/plot-corr-1.png)
+![Heat map of the correlations between the random intercepts and slopes
+of bilirubin and albumin; the strongest is -0.50, between the bilirubin
+slope and the albumin
+slope.](plotting_files/figure-html/plot-corr-1.png)
 
 ## Predictions for one patient
 
@@ -210,7 +242,12 @@ predictPlot(list(patient, patient), long_fit_all, survival_fit_all,
             bandcount1 = 10, bandcount2 = 20, bandcount3 = 50)
 ```
 
-![](plotting_files/figure-html/predict-plot-1.png)
+![Prediction plot for patient 2 at year 5: the observed bilirubin
+history up to year 5, the predicted future bilirubin with widening
+uncertainty bands from year 5 to 8, and the predicted risk of the two
+event types growing with the horizon, death to about 0.25 by year 8 and
+transplantation staying near
+0.](plotting_files/figure-html/predict-plot-1.png)
 
 ### Risk as the landmark moves: `riskPlot()`
 
@@ -225,7 +262,11 @@ riskPlot(list(patient, patient), long_fit_all, survival_fit_all,
          trans$survival_trans_function, bandcount1 = 10, bandcount2 = 20)
 ```
 
-![](plotting_files/figure-html/risk-plot-1.png)
+![Patient 2's bilirubin history from year 0 to 5 together with the
+predicted one-year risks of the two event types at landmarks 1 to 5; the
+risk of death rises slowly as bilirubin increases, and the
+transplantation risk stays near
+0.](plotting_files/figure-html/risk-plot-1.png)
 
 ### Predicted biomarker distribution: `plot(predictLongitudinal(...))`
 
@@ -244,7 +285,11 @@ pred <- predictLongitudinal(list(three, three), long_fit_all, survival_fit_all,
 plot(pred)
 ```
 
-![](plotting_files/figure-html/predict-longitudinal-1.png)
+![Predicted density curves of bilirubin one year after year 3 for
+patients 2, 4 and 5, each with a dashed line at its most likely value;
+the curves have similar spread and are centred at increasing values,
+patient 2 lowest and patient 5
+highest.](plotting_files/figure-html/predict-longitudinal-1.png)
 
 ## Evaluating the predictions
 
@@ -285,7 +330,11 @@ performancePlot(test, long_train, survival_train,
 #> AUC is undefined (no cases or no event-free subjects in the window) at some landmarks; those points are left out.
 ```
 
-![](plotting_files/figure-html/performance-1.png)
+![Time-dependent AUC and Brier score at landmarks 1 to 5 for death and
+transplantation on the test patients; AUCs are well above the chance
+line of 0.5 and Brier scores stay below 0.1, with the transplantation
+AUC missing at landmark
+1.](plotting_files/figure-html/performance-1.png)
 
 No test patient had a transplant in the two years after year 1, so the
 transplant AUC is undefined there and that point is left out (the
@@ -310,7 +359,10 @@ calibrationPlot(test, long_train, survival_train,
                 n_groups = 4, bandcount1 = 20, bandcount2 = 80)
 ```
 
-![](plotting_files/figure-html/calibration-1.png)
+![Calibration plots for landmarks 2 and 4 and the two event types: mean
+predicted against observed risk in four risk groups with 95% confidence
+intervals; the points lie near the diagonal, with wide intervals where
+few events occurred.](plotting_files/figure-html/calibration-1.png)
 
 With only about a hundred test patients, and few transplants among them,
 the observed risks have wide confidence intervals; use more groups with
