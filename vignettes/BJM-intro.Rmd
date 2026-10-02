@@ -418,6 +418,12 @@ longitudinalSub(pbc3, serBilir ~ year + not_a_column, ~ year | id)
 - `?cmtPlot` plots observed longitudinal trajectories stratified by
   eventual outcome, useful for checking whether a biomarker looks
   informative before fitting.
+- `?spaghettiPlot` draws each subject's observed trajectory, optionally
+  aligned at the event time, and `?cifPlot` plots the cumulative
+  incidence of each (competing) event type.
+- `?performancePlot` evaluates the risk predictions (time-dependent AUC
+  and Brier score) across landmark times, ideally on held-out data, and
+  `?calibrationPlot` compares the predicted with the observed risks.
 - `?imputeLongitudinal` fills in missing longitudinal biomarker values due
   to interrupted follow-up before `longitudinalSub()` runs, instead of
   relying on complete-case analysis (see "Optional: imputing interrupted
