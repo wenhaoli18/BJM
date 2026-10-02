@@ -201,6 +201,10 @@
 
 ## Bug fixes
 
+* `predictPlot()` and `riskPlot()` set line widths with `linewidth`
+  instead of `size`, so they no longer trigger ggplot2's "Using `size`
+  aesthetic for lines was deprecated" warning; the plots are unchanged.
+  BJM now requires ggplot2 >= 3.4.0, where `linewidth` was introduced.
 * Past the last follow-up time, the baseline cumulative hazard used by
   `predictRisk()`/`predictLongitudinal()` now continues from its last
   tabulated value with the slope of the least-squares line through the
