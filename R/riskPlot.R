@@ -241,9 +241,9 @@ riskPlot = function(data_predict_all_pre, long_fit_all, survival_fit_all,
     if(is.null(bio_i)){
       ## do not plot longitudinal biomarker information
       dp_risk = ggplot() +
-        geom_line(data = DP_data, aes(x = time, y = probType1, color = "Event type1"), linetype = "solid", size = 1) +
+        geom_line(data = DP_data, aes(x = time, y = probType1, color = "Event type1"), linetype = "solid", linewidth = 1) +
         geom_point(data = DP_data, aes(x = time, y = probType1, color = "Event type1"), size = 3) + 
-        geom_line(data = DP_data, aes(x = time, y = probType2, color = "Event type2"), linetype = "solid", size = 1) +
+        geom_line(data = DP_data, aes(x = time, y = probType2, color = "Event type2"), linetype = "solid", linewidth = 1) +
         geom_point(data = DP_data, aes(x = time, y = probType2, color = "Event type2"), size = 3) +  
         
         scale_color_manual(name = "Lines",
@@ -267,9 +267,9 @@ riskPlot = function(data_predict_all_pre, long_fit_all, survival_fit_all,
         geom_point(data = DP_data_bio, aes(x = time, y = longitudinal, color = "Longitudinal")) +
         geom_text(data = DP_data_bio, aes(x = time, y = longitudinal, color = "Longitudinal"), label = "L", size = 4, vjust = -0.5)    +
         
-        geom_line(data = DP_data, aes(x = time, y = scale_prob * probType1, color = "Event type1"), linetype = "solid", size = 1) +
+        geom_line(data = DP_data, aes(x = time, y = scale_prob * probType1, color = "Event type1"), linetype = "solid", linewidth = 1) +
         geom_point(data = DP_data, aes(x = time, y = scale_prob * probType1, color = "Event type1"), size = 3) + 
-        geom_line(data = DP_data, aes(x = time, y = scale_prob * probType2, color = "Event type2"), linetype = "solid", size = 1) +
+        geom_line(data = DP_data, aes(x = time, y = scale_prob * probType2, color = "Event type2"), linetype = "solid", linewidth = 1) +
         geom_point(data = DP_data, aes(x = time, y = scale_prob * probType2, color = "Event type2"), size = 3) +  
         
         scale_color_manual(name = "Lines",
@@ -294,7 +294,7 @@ riskPlot = function(data_predict_all_pre, long_fit_all, survival_fit_all,
     if(is.null(bio_i)){
       ## do not plot longitudinal biomarker information
       dp_risk = ggplot() +
-        geom_line(data = DP_data, aes(x = time, y = probType1, color = "black"), linetype = "solid", size = 1) +
+        geom_line(data = DP_data, aes(x = time, y = probType1, color = "black"), linetype = "solid", linewidth = 1) +
         geom_point(data = DP_data, aes(x = time, y = probType1, color = "black"), size = 3) + 
         
         ylab("Predicted risk probability") + xlab("Follow-up time") +   
@@ -313,7 +313,7 @@ riskPlot = function(data_predict_all_pre, long_fit_all, survival_fit_all,
         geom_point(data = DP_data_bio, aes(x = time, y = longitudinal, color = "Longitudinal")) +
         geom_text(data = DP_data_bio, aes(x = time, y = longitudinal, color = "Longitudinal"), label = "L", size = 4, vjust = -0.5)    +
         
-        geom_line(data = DP_data, aes(x = time, y = scale_prob * probType1, color = "Risk probability"), linetype = "solid", size = 1) +
+        geom_line(data = DP_data, aes(x = time, y = scale_prob * probType1, color = "Risk probability"), linetype = "solid", linewidth = 1) +
         geom_point(data = DP_data, aes(x = time, y = scale_prob * probType1, color = "Risk probability"), size = 3) + 
 
         scale_color_manual(name = "Lines",
@@ -358,5 +358,5 @@ event_time_vline <- function(data_predict_all_pre, survival_variable, event_type
     event_type <- suppressWarnings(as.numeric(unlist(first[event_type_variable])[1]))
     colour <- if (length(event_type) == 1 && is.finite(event_type)) event_type + 1 else "grey40"
   }
-  geom_vline(xintercept = event_time, linetype = "solid", color = colour, size = 2)
+  geom_vline(xintercept = event_time, linetype = "solid", color = colour, linewidth = 2)
 }
