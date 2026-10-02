@@ -17,8 +17,8 @@ build_conditional_design(
 }
 \value{
 A list with \code{longitudinal_all_matrix}, \code{parameter_matrix},
-\code{Sigma_all}, \code{log_det_Var_cov_estep}, \code{Sigma_all_solve}, and
-\code{long_sigma_long}.
+and \code{cov_fac}, the patient's factored covariance from
+\code{cov_factor()}.
 }
 \description{
 Shared helper for \code{conditionalYT} and \code{conditionalYDT}:

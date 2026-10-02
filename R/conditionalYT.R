@@ -85,8 +85,7 @@ conditionalYT = function(data_predict_all, long_fit_all, l_i, survival_variable,
                                         long_fit_all$long_sub_random)
     longitudinal_all_matrix <- design$longitudinal_all_matrix
     parameter_matrix <- design$parameter_matrix
-    log_det_Var_cov_estep <- design$log_det_Var_cov_estep
-    Sigma_all_solve <- design$Sigma_all_solve
+    cov_fac <- design$cov_fac
 
     ### for loop and make prediction probability for all time points in l_i
     for(it in 1: length(l_i)){
@@ -154,7 +153,7 @@ conditionalYT = function(data_predict_all, long_fit_all, l_i, survival_variable,
       # Combine all the rows, combine all individual longitudinal matrix
       LME_all_matrix = do.call(rbind, rows)
       
-      ### Quadratic form (Y - mu)' Sigma_all_solve (Y - mu) for the FULL
+      ### Quadratic form (Y - mu)' Sigma_all^{-1} (Y - mu) for the FULL
       ### stacked (across all markers) observation vector.
       ###
       ### mean_all_matrix mirrors longitudinal_all_matrix's layout exactly:
@@ -167,9 +166,9 @@ conditionalYT = function(data_predict_all, long_fit_all, l_i, survival_variable,
       ### NOTE: an earlier version of this function computed this quantity
       ### via a "trace trick" (sum(diag(...)) of an M x M matrix built from
       ### parameter_matrix/longitudinal_all_matrix sandwiched through
-      ### Sigma_all_solve). That trace only sums the *diagonal* (i == j)
+      ### Sigma_all^{-1}). That trace only sums the *diagonal* (i == j)
       ### blocks of the reduced M x M matrix, which silently discards every
-      ### cross-marker (i != j) contribution of Sigma_all_solve -- i.e. it
+      ### cross-marker (i != j) contribution of Sigma_all^{-1} -- i.e. it
       ### implicitly assumed the biomarkers were conditionally independent
       ### given the random effects. That contradicts the whole point of
       ### fitting a joint (possibly correlated) Sigma_fit across markers,
@@ -177,10 +176,10 @@ conditionalYT = function(data_predict_all, long_fit_all, l_i, survival_variable,
       ### quadratic form whenever markers are correlated (see NEWS.md).
       mean_all_matrix = t(LME_all_matrix) %*% parameter_matrix
       resid_full = rowSums(longitudinal_all_matrix) - rowSums(mean_all_matrix)
-      quad_form = as.numeric(t(resid_full) %*% Sigma_all_solve %*% resid_full)
-
-      ### log density (see predictRisk() for how it is exponentiated safely)
-      f_Y_T_D_w1[it, iii] = -0.5 * log_det_Var_cov_estep - 0.5 * quad_form
+      ### log density (see predictRisk() for how it is exponentiated safely);
+      ### cov_logdens() evaluates the quadratic form and log-determinant
+      ### from the patient's factored covariance
+      f_Y_T_D_w1[it, iii] = cov_logdens(cov_fac, resid_full)
     }
     
   }

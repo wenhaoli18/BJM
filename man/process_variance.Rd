@@ -2,7 +2,7 @@
 % Please edit documentation in R/processVariance.R
 \name{process_variance}
 \alias{process_variance}
-\title{Construct variance}
+\title{Factor one patient's joint longitudinal covariance for conditionalYTBio()/conditionalYDTBio()}
 \usage{
 process_variance(
   num_i,
@@ -13,7 +13,11 @@ process_variance(
   time_variable
 )
 }
+\value{
+The result of \code{cov_factor()}, or \code{NA} if the patient has
+no rows for some biomarker.
+}
 \description{
-Construct variance
+Factor one patient's joint longitudinal covariance for conditionalYTBio()/conditionalYDTBio()
 }
 \keyword{internal}
