@@ -73,7 +73,7 @@ nearby grid points. Defaults to \code{"auto"} (see Details). Ignored when
 the biomarker's fixed category count.}
 }
 \value{
-An object of class \code{"dynamicPredictionBio.BJM"}, a named list with elements:
+An object of class \code{"predictLongitudinal.BJM"}, a named list with elements:
 \describe{
 \item{Y_predict}{A vector, one entry per at-risk patient (named by patient id), giving the MAP (most likely) predicted
 value of biomarker \code{bio_i} at \code{prediction_time + horizon}. For an ordinal

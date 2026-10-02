@@ -53,13 +53,13 @@
 #' continuous and/or ordinal biomarkers (see
 #' \code{\link{dynamicPredictionBio}}). Defaults to \code{NULL}, meaning
 #' every biomarker in \code{long_fit_all}.
-#' @return A named list of \code{"dynamicPredictionBio.BJM"} objects (see
+#' @return A named list of \code{"predictLongitudinal.BJM"} objects (see
 #' \code{\link{dynamicPredictionBio}}), one per requested biomarker, named
 #' by that biomarker's response-variable name; with attributes
 #' \code{"bandcount2"} (the single resolved/used \code{bandcount2}) and
 #' \code{"bandcount3"} (a named numeric vector of the resolved/used
 #' \code{bandcount3} for each biomarker, or \code{NA} for an ordinal
-#' biomarker). Classed \code{"dynamicPredictionBioAll.BJM"}.
+#' biomarker). Classed \code{"predictLongitudinalAll.BJM"}.
 #'
 #' @keywords internal
 dynamicPredictionBioAll <- function(bio_i = NULL, data_predict_all, long_fit_all, survival_fit_all,
@@ -157,13 +157,13 @@ dynamicPredictionBioAll <- function(bio_i = NULL, data_predict_all, long_fit_all
     }
     out <- list(Y_predict = marker_result$Y_predict, Y_density = marker_result$Y_density,
                 Y_all = marker_result$Y_all)
-    class(out) <- "dynamicPredictionBio.BJM"
+    class(out) <- "predictLongitudinal.BJM"
     bio_name <- as.character(formula(long_fit_all$long_sub_fixed[[b]])[[2]])
     results[[bio_name]] <- out
   }
 
   attr(results, "bandcount2") <- resolved_bandcount2
   attr(results, "bandcount3") <- bandcount3_used
-  class(results) <- "dynamicPredictionBioAll.BJM"
+  class(results) <- "predictLongitudinalAll.BJM"
   results
 }

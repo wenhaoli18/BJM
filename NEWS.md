@@ -10,6 +10,14 @@
   `"predictRisk.BJM"` (formerly `"dynamicPrediction.BJM"`) class are
   otherwise unchanged. `checkBandcountConvergence()`'s `predict_fun`
   argument accepts `predictRisk` in place of the old `dynamicPrediction`.
+* The objects returned by `predictLongitudinal()` are now classed
+  `"predictLongitudinal.BJM"` (one biomarker) and
+  `"predictLongitudinalAll.BJM"` (several biomarkers), formerly
+  `"dynamicPredictionBio.BJM"` and `"dynamicPredictionBioAll.BJM"`, so the
+  class names match the exported function rather than the internal helper
+  behind it. Code that checks `inherits(x, "dynamicPredictionBio.BJM")` (or
+  the `All` variant) needs to switch to the new names; the object contents
+  and the `print()`/`summary()` output are unchanged.
 
 ## New features
 
@@ -123,11 +131,11 @@
   internal, un-exported helpers behind it -- direct calls to either from
   existing scripts will need to switch to `predictLongitudinal()`). Pass a
   `bio_i` naming exactly **one** biomarker to predict just that one, which
-  returns a single `dynamicPredictionBio.BJM` object; pass `bio_i` naming
+  returns a single `predictLongitudinal.BJM` object; pass `bio_i` naming
   **more than one** biomarker, or leave it at the default `NULL` (meaning
   every biomarker in `long_fit_all`), to predict several at once, which
   instead returns a named list of such objects (one per biomarker, named by
-  that biomarker's response variable, classed `dynamicPredictionBioAll.BJM`)
+  that biomarker's response variable, classed `predictLongitudinalAll.BJM`)
   and computes the bio_i-*independent* pipeline stages (restricting to
   at-risk patients, the survival-side integration grid, and the denominator
   conditional density) only **once**, reusing it across every requested

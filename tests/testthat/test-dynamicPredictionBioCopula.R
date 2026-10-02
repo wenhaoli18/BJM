@@ -157,7 +157,7 @@ test_that("dynamicPredictionBio dispatches to the copula path for a mixed fit an
                                  survival_variable_all = list(), survival_trans_function = list(),
                                  bandcount2 = 10, bandcount3 = 15)
 
-  expect_s3_class(ypred, "dynamicPredictionBio.BJM")
+  expect_s3_class(ypred, "predictLongitudinal.BJM")
   expect_true(is.finite(ypred$Y_predict))
   expect_true(all(is.finite(ypred$Y_density)))
 })
@@ -178,7 +178,7 @@ test_that("dynamicPredictionBio dispatches to the copula path under competing ri
                                  survival_variable_all = list(), survival_trans_function = list(),
                                  bandcount2 = 10, bandcount3 = 15)
 
-  expect_s3_class(ypred, "dynamicPredictionBio.BJM")
+  expect_s3_class(ypred, "predictLongitudinal.BJM")
   expect_true(is.finite(ypred$Y_predict))
   expect_true(all(is.finite(ypred$Y_density)))
 })
@@ -202,7 +202,7 @@ test_that("dynamicPredictionBio on an ordinal bio_i predicts its future category
                                  survival_variable_all = list(), survival_trans_function = list(),
                                  bandcount2 = 10, bandcount3 = "auto")
 
-  expect_s3_class(ypred, "dynamicPredictionBio.BJM")
+  expect_s3_class(ypred, "predictLongitudinal.BJM")
   # Y_all/Y_predict are integer category codes (1:3 for low/mid/high), not a
   # numeric grid.
   expect_equal(as.integer(ypred$Y_all), 1:3)
@@ -230,6 +230,6 @@ test_that("an all-continuous fit's dynamicPredictionBio is unaffected by the cop
                                  prediction_time = 3, horizon = 3, time_variable = "year",
                                  survival_variable_all = list(), survival_trans_function = list(),
                                  bandcount2 = 10, bandcount3 = 15)
-  expect_s3_class(ypred, "dynamicPredictionBio.BJM")
+  expect_s3_class(ypred, "predictLongitudinal.BJM")
   expect_true(is.finite(ypred$Y_predict))
 })

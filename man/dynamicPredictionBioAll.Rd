@@ -45,13 +45,13 @@ every biomarker in \code{long_fit_all}.}
 \item{bandcount3}{See \code{\link{dynamicPredictionBio}}.}
 }
 \value{
-A named list of \code{"dynamicPredictionBio.BJM"} objects (see
+A named list of \code{"predictLongitudinal.BJM"} objects (see
 \code{\link{dynamicPredictionBio}}), one per requested biomarker, named
 by that biomarker's response-variable name; with attributes
 \code{"bandcount2"} (the single resolved/used \code{bandcount2}) and
 \code{"bandcount3"} (a named numeric vector of the resolved/used
 \code{bandcount3} for each biomarker, or \code{NA} for an ordinal
-biomarker). Classed \code{"dynamicPredictionBioAll.BJM"}.
+biomarker). Classed \code{"predictLongitudinalAll.BJM"}.
 }
 \description{
 \strong{Internal multi-biomarker engine} behind

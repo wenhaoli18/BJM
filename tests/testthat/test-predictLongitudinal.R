@@ -21,7 +21,7 @@ test_that("predictLongitudinal dispatches to dynamicPredictionBio for a single b
                                       f$survival_variable_all, f$survival_trans_function,
                                       bandcount2 = 10, bandcount3 = 50)
 
-  expect_s3_class(via_wrapper, "dynamicPredictionBio.BJM")
+  expect_s3_class(via_wrapper, "predictLongitudinal.BJM")
   expect_equal(via_wrapper, direct)
 })
 
@@ -40,7 +40,7 @@ test_that("predictLongitudinal dispatches to dynamicPredictionBioAll when bio_i 
                                       f$survival_variable_all, f$survival_trans_function,
                                       bandcount2 = 10, bandcount3 = 50)
 
-  expect_s3_class(via_wrapper, "dynamicPredictionBioAll.BJM")
+  expect_s3_class(via_wrapper, "predictLongitudinalAll.BJM")
   expect_equal(via_wrapper, direct)
 })
 
@@ -61,7 +61,7 @@ test_that("predictLongitudinal dispatches to dynamicPredictionBioAll when bio_i 
                                       survival_trans_function = f$survival_trans_function,
                                       bandcount2 = 10, bandcount3 = 50)
 
-  expect_s3_class(via_wrapper, "dynamicPredictionBioAll.BJM")
+  expect_s3_class(via_wrapper, "predictLongitudinalAll.BJM")
   expect_length(via_wrapper, 2)
   expect_equal(via_wrapper, direct)
 })

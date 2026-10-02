@@ -128,7 +128,7 @@ compute_bio_marker_step <- function(shared, bio_i, long_fit_all, survival_fit_al
     # select_patient_longitudinal_data_bio()/conditionalYTBioCopula()), while
     # Y_all -- what is exposed to the caller -- holds the matching integer
     # category codes (1:K, in threshold order), so that downstream
-    # numeric-only consumers (.format_dynamicPredictionBio(),
+    # numeric-only consumers (.format_predictLongitudinal(),
     # max_relative_diff(), predictPlot()) need no changes.
     Y_labels <- levels(shared$data_predict_all[[bio_i]][[bio_i_name]])
     Y_query <- Y_labels
@@ -334,7 +334,7 @@ compute_bio_marker_step <- function(shared, bio_i, long_fit_all, survival_fit_al
 #' directly for more control over the tolerance and doubling count. See
 #' also \code{vignette("BJM-intro", package = "BJM")} for a worked example.
 #'
-#' @return An object of class \code{"dynamicPredictionBio.BJM"}, a named list with elements:
+#' @return An object of class \code{"predictLongitudinal.BJM"}, a named list with elements:
 #' \describe{
 #'   \item{Y_predict}{A vector, one entry per at-risk patient (named by patient id), giving the MAP (most likely) predicted
 #'   value of biomarker \code{bio_i} at \code{prediction_time + horizon}. For an ordinal
@@ -413,7 +413,7 @@ dynamicPredictionBio = function(bio_i, data_predict_all, long_fit_all, survival_
                                      survival_variable_all, survival_trans_function, bandcount3)
 
   out <- list(Y_predict = marker$Y_predict, Y_density = marker$Y_density, Y_all = marker$Y_all)
-  class(out) <- "dynamicPredictionBio.BJM"
+  class(out) <- "predictLongitudinal.BJM"
   return(out)
 }
 

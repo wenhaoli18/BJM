@@ -37,7 +37,7 @@ test_that("dynamicPredictionBio returns a MAP estimate and a density grid", {
                                   f$survival_variable_all, f$survival_trans_function,
                                   bandcount2 = 20, bandcount3 = 50)
 
-  expect_s3_class(Y_pred, "dynamicPredictionBio.BJM")
+  expect_s3_class(Y_pred, "predictLongitudinal.BJM")
   expect_length(Y_pred, 3)
   expect_true(is.numeric(Y_pred[[1]]))
   expect_equal(nrow(Y_pred[[2]]), length(unlist(Y_pred[[3]])))
