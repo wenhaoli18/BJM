@@ -74,8 +74,8 @@ random_effects_design <- function(data_num_i_list, long_sub_random, Sigma) {
 #' density quadratic form, for a single patient.
 #'
 #' @return A list with \code{longitudinal_all_matrix}, \code{parameter_matrix},
-#' \code{Sigma_all}, \code{log_det_Var_cov_estep}, \code{Sigma_all_solve}, and
-#' \code{long_sigma_long}.
+#' and \code{cov_fac}, the patient's factored covariance from
+#' \code{cov_factor()}.
 #' @keywords internal
 build_conditional_design <- function(rep_num_i_list, data_num_i_list, lfit, Sigma,
                                       sigma.longitudinal, time_variable, n_longitudinal,
@@ -110,29 +110,15 @@ build_conditional_design <- function(rep_num_i_list, data_num_i_list, lfit, Sigm
   for (i in 1:n_longitudinal) {
     Sigma_vector = c(Sigma_vector, rep(sigma.longitudinal[i]^2, dim(data_num_i_list[[i]])[1]))
   }
-  ### diag(Sigma_vector) alone is unsafe when Sigma_vector has length 1
-  ### (e.g. a patient with a single longitudinal observation to condition
-  ### on): diag() then treats that single number as a matrix *dimension*
-  ### and returns an n x n identity matrix instead of the intended 1 x 1
-  ### diagonal matrix, corrupting Sigma_all's dimensions downstream (a
-  ### classic base R diag() gotcha -- see ?diag). Passing the length
-  ### explicitly avoids the ambiguity for every length, including 1.
-  Sigma_all = A_i %*% Sigma %*% t(A_i) + diag(Sigma_vector, length(Sigma_vector))
-
-  ### log-determinant: det() itself overflows to Inf (and the density to 0)
-  ### once there are many observations or biomarkers on a large scale
-  log_det_Var_cov_estep = as.numeric(determinant(2 * pi * Sigma_all, logarithm = TRUE)$modulus)
-  Sigma_all_solve = solve(Sigma_all)
-
-  ### t(Y) %*% Sigma %*% Y
-  long_sigma_long = t(longitudinal_all_matrix) %*% Sigma_all_solve %*% longitudinal_all_matrix
+  ### Sigma_all = A_i %*% Sigma %*% t(A_i) + diag(Sigma_vector), factored
+  ### once per patient without necessarily forming it (see cov_factor()).
+  ### The log-determinant is kept on the log scale: det() overflows to Inf
+  ### (and the density to 0) with many observations or large-scale markers.
+  cov_fac <- cov_factor(A_i, Sigma, Sigma_vector)
 
   list(longitudinal_all_matrix = longitudinal_all_matrix,
        parameter_matrix = parameter_matrix,
-       Sigma_all = Sigma_all,
-       log_det_Var_cov_estep = log_det_Var_cov_estep,
-       Sigma_all_solve = Sigma_all_solve,
-       long_sigma_long = long_sigma_long)
+       cov_fac = cov_fac)
 }
 
 #' Filter longitudinal data down to a single patient, substituting the

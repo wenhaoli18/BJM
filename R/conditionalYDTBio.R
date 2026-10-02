@@ -65,7 +65,7 @@ conditionalYDTBio = function(Y_all, time_new, bio_i, data_predict_all,
  
   # MVN variance 
   # Apply the function over each unique num using lapply for variance list
-  Sigma_all <- lapply(unique(data.long[[1]][[num]]), process_variance, 
+  cov_fac_all <- lapply(unique(data.long[[1]][[num]]), process_variance, 
                       time_new, bio_i, data_predict_all, long_fit_all, time_variable)
   
   # A probability matrix, 
@@ -224,10 +224,10 @@ conditionalYDTBio = function(Y_all, time_new, bio_i, data_predict_all,
       Amean_list0[[it]] = mean_list0
     }
     
-    ### Sigma_all[[iii]] is the same at every grid point and for both event
-    ### types, so factor it once for all of them
-    results_lapply <- dmvnorm_shared_sigma(longitudinal_all_matrix, c(Amean_list1, Amean_list0),
-                                           Sigma_all[[iii]])
+    ### the covariance is the same at every grid point and for both event
+    ### types, so it is factored once per patient (by process_variance())
+    results_lapply <- cov_logdens_means(cov_fac_all[[iii]], longitudinal_all_matrix,
+                                        c(Amean_list1, Amean_list0))
     results_lapply1 <- results_lapply[seq_along(Amean_list1)]
     results_lapply0 <- results_lapply[length(Amean_list1) + seq_along(Amean_list0)]
     
