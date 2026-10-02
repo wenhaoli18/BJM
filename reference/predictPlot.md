@@ -216,10 +216,6 @@ predictPlot(data_predict_all_one, long_fit_all, survival_fit_all,
             horizon = seq(0.5, 3.0, 0.5), time_variable = "year",
             survival_variable_all, survival_trans_function,
            bandcount1 = 10, bandcount2 = 10, bandcount3 = 200)
-#> Warning: Using `size` aesthetic for lines was deprecated in ggplot2 3.4.0.
-#> ℹ Please use `linewidth` instead.
-#> ℹ The deprecated feature was likely used in the BJM package.
-#>   Please report the issue at <https://github.com/wenhaoli18/BJM/issues>.
 
        
 # }

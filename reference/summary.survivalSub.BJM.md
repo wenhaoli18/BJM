@@ -56,7 +56,7 @@ summary(survival_fit_all)
 #>  Marginal Survival Sub-model  [Cox PH]
 #> -----------------------------------------------------------------
 #>  Formula: Surv(years, status3) ~ age + sex
-#> <environment: 0x5586b8e51cd0>
+#> <environment: 0x559288dc44c8>
 #> 
 #>          Coef exp(Coef)        SE      z p-value   
 #> age  0.020411  1.020621  0.007584  2.691 0.00712 **
@@ -77,7 +77,7 @@ summary(survival_fit_all)
 #>  Conditional Competing-Risks Sub-model  [Logistic GLM]
 #> -----------------------------------------------------------------
 #>  Formula: status4 ~ years + age + sex
-#> <environment: 0x5586b8e51cd0>
+#> <environment: 0x559288dc44c8>
 #> 
 #>                 Coef       SE      z  p-value    
 #> (Intercept)  5.65622  1.70478  3.318 0.000907 ***

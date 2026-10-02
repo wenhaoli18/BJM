@@ -275,6 +275,14 @@
 
 ### Bug fixes
 
+- [`predictPlot()`](https://wenhaoli18.github.io/BJM/reference/predictPlot.md)
+  and
+  [`riskPlot()`](https://wenhaoli18.github.io/BJM/reference/riskPlot.md)
+  set line widths with `linewidth` instead of `size`, so they no longer
+  trigger ggplot2’s “Using `size` aesthetic for lines was deprecated”
+  warning; the plots are unchanged. BJM now requires ggplot2 \>= 3.4.0,
+  where `linewidth` was introduced.
+
 - Past the last follow-up time, the baseline cumulative hazard used by
   [`predictRisk()`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md)/[`predictLongitudinal()`](https://wenhaoli18.github.io/BJM/reference/predictLongitudinal.md)
   now continues from its last tabulated value with the slope of the
