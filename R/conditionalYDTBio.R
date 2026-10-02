@@ -224,12 +224,12 @@ conditionalYDTBio = function(Y_all, time_new, bio_i, data_predict_all,
       Amean_list0[[it]] = mean_list0
     }
     
-    results_lapply1 <- lapply(seq_along(Amean_list1), function(it) {
-      mvtnorm::dmvnorm(x = longitudinal_all_matrix, mean = c(Amean_list1[[it]]), sigma = Sigma_all[[iii]], log = TRUE)
-    })
-    results_lapply0 <- lapply(seq_along(Amean_list0), function(it) {
-      mvtnorm::dmvnorm(x = longitudinal_all_matrix, mean = c(Amean_list0[[it]]), sigma = Sigma_all[[iii]], log = TRUE)
-    })
+    ### Sigma_all[[iii]] is the same at every grid point and for both event
+    ### types, so factor it once for all of them
+    results_lapply <- dmvnorm_shared_sigma(longitudinal_all_matrix, c(Amean_list1, Amean_list0),
+                                           Sigma_all[[iii]])
+    results_lapply1 <- results_lapply[seq_along(Amean_list1)]
+    results_lapply0 <- results_lapply[length(Amean_list1) + seq_along(Amean_list0)]
     
     for(Y_i in 1 : length(Y_all)){
       ### get #Y_i from all elements of a list
