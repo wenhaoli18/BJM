@@ -1,0 +1,209 @@
+# Nonlinear terms in longitudinal formulas
+
+## Overview
+
+[`longitudinalSub()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md)
+fits each biomarker’s fixed effects (`long_sub_fixed`) and random
+effects (`long_sub_random`) as ordinary
+[`nlme::lme()`](https://rdrr.io/pkg/nlme/man/lme.html) formulas, so any
+term `lme()` accepts – polynomials, splines, factors, interactions,
+log/sqrt transforms – can appear on the right-hand side. The one thing
+that matters for *correctness*, not just syntax, is whether a term’s
+basis depends on the data it is computed from:
+
+- `poly(x, df, raw = TRUE)`, `I(x^2)`, `log(x)`, `sqrt(x)`, and their
+  interactions compute the same value no matter what other rows are
+  present. These are always safe, everywhere.
+- `poly(x, df)` in its default **orthogonal** mode,
+  [`splines::ns()`](https://rdrr.io/r/splines/ns.html)/
+  [`splines::bs()`](https://rdrr.io/r/splines/bs.html), and
+  [`factor()`](https://rdrr.io/r/base/factor.html) instead compute their
+  basis/contrasts from *whatever data they are given*.
+  [`longitudinalSub()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md)
+  only caches and reuses the training-time basis for a **continuous**
+  biomarker’s `long_sub_fixed` formula. Everywhere else –
+  `long_sub_random`, or an **ordinal** biomarker’s `long_sub_fixed` –
+  the design matrix is rebuilt from a single patient’s rows at
+  prediction time, so the basis can silently disagree with the one the
+  model was fit with.
+  [`longitudinalSub()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md)
+  emits a warning whenever one of these appears somewhere it isn’t
+  cached.
+
+|  | continuous `long_sub_fixed` | ordinal `long_sub_fixed` | `long_sub_random` |
+|----|----|----|----|
+| `poly(x, df, raw = TRUE)`, `I(x^2)`, `log(x)`, `sqrt(x)`, interactions of these | safe | safe | safe |
+| `poly(x, df)` (orthogonal, the default), [`splines::ns()`](https://rdrr.io/r/splines/ns.html)/[`splines::bs()`](https://rdrr.io/r/splines/bs.html), [`factor()`](https://rdrr.io/r/base/factor.html) | safe (basis cached and reused) | warns | warns |
+
+This vignette walks through both groups on `pbc3`, shows what the
+warning looks like when a data-dependent term ends up somewhere unsafe,
+and finishes with a spline term carried all the way through to
+[`predictRisk()`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md).
+
+``` r
+
+library(BJM)
+#> Loading required package: survival
+data(pbc3)
+data_fit <- pbc3[pbc3$status3 == 1, ]
+```
+
+## Terms that are always safe
+
+### Explicit polynomials and transforms
+
+`poly(..., raw = TRUE)` returns the raw powers `x, x^2, ..., x^df`
+instead of an orthogonalized basis, so (unlike the default
+[`poly()`](https://rdrr.io/r/stats/poly.html)) it computes the same
+columns regardless of what other data happen to be present:
+
+``` r
+
+fit_poly_raw <- longitudinalSub(
+  data_fit, serBilir ~ poly(year, 2, raw = TRUE) + age + sex, ~ year | id
+)
+```
+
+`I(x^2)`, `log(x)`, and `sqrt(x)` are even simpler – each is just an
+ordinary arithmetic transform of one column, with nothing to disagree
+about:
+
+``` r
+
+fit_explicit <- longitudinalSub(
+  data_fit, serBilir ~ log(year + 1) + sqrt(year) + age + sex, ~ year | id
+)
+```
+
+### Interactions
+
+Interactions of safe terms are themselves safe – e.g. letting the
+quadratic time trend differ by age:
+
+``` r
+
+fit_interaction <- longitudinalSub(
+  data_fit, serBilir ~ year + I(year^2) * age + sex, ~ year | id
+)
+```
+
+## Terms that are safe only in a continuous biomarker’s `long_sub_fixed`
+
+### Orthogonal `poly()`, splines, and `factor()`
+
+Used in a continuous biomarker’s `long_sub_fixed`, these are fine: the
+basis `lme()` was fit with, and the factor levels observed in the full
+training data, are cached on the returned `longitudinalSub.BJM` object
+and reused both when estimating `Sigma_fit` and at prediction time –
+never recomputed from a smaller slice of data.
+
+``` r
+
+fit_orthogonal_poly <- longitudinalSub(
+  data_fit, serBilir ~ year + poly(age, 2) + factor(sex), ~ year | id
+)
+
+fit_ns <- longitudinalSub(
+  data_fit, serBilir ~ splines::ns(year, df = 3) + age + sex, ~ year | id
+)
+```
+
+## What goes wrong elsewhere
+
+The same [`splines::ns()`](https://rdrr.io/r/splines/ns.html) term in
+`long_sub_random` – instead of `long_sub_fixed` – is not cached, because
+`long_sub_random`’s design matrix is always rebuilt from whatever rows
+are at hand.
+[`longitudinalSub()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md)
+warns rather than silently risking a basis mismatch:
+
+``` r
+
+fit_ns_random <- longitudinalSub(
+  data_fit, serBilir ~ year + age + sex, ~ splines::ns(year, df = 2) | id
+)
+#> Warning: `long_sub_random[[1]]` uses splines::ns(year, df = 2). Its
+#> basis/contrasts depend on the data it is computed from, and for this formula
+#> BJM rebuilds the design matrix from the data at hand (a single patient's rows
+#> at prediction time) instead of reusing the training-time basis -- so this can
+#> silently produce incorrect predictions, or fail outright when there are too few
+#> distinct values. Prefer poly(..., raw = TRUE), I(x^2), log(), sqrt(), or other
+#> terms that do not depend on the surrounding data.
+```
+
+The same warning fires for an **ordinal** biomarker’s `long_sub_fixed`,
+since ordinal fits (via
+[`ordinal::clmm()`](https://rdrr.io/pkg/ordinal/man/clmm.html)) rebuild
+their design matrix from the patient-specific data at prediction time
+the same way `long_sub_random` does. In both cases, switch to
+`poly(..., raw = TRUE)`, `I(x^2)`,
+[`log()`](https://rdrr.io/r/base/Log.html), or
+[`sqrt()`](https://rdrr.io/r/base/MathFun.html).
+
+## Precomputed time transforms with `survivalTrans()`
+
+A transformed-time column built once, ahead of fitting, is just an
+ordinary numeric column by the time `long_sub_fixed` sees it – always
+safe, including in `long_sub_random`:
+
+``` r
+
+trans <- survivalTrans(c(1, 3, 5, 7))
+data_fit_trans <- data_fit
+data_fit_trans$Tyears1 <- trans$survival_trans_function[[1]](data_fit_trans$year)
+
+fit_trans <- longitudinalSub(
+  data_fit_trans, serBilir ~ year + Tyears1 + age + sex, ~ year | id
+)
+```
+
+## Putting it together: a spline term through to prediction
+
+The cached-basis guarantee above means a spline fixed effect is not just
+safe to *fit* – predictions built on it are exactly as valid as with a
+linear term. `years` has to appear in `long_sub_fixed` as well (the
+convention every BJM formula follows, so the model can be evaluated at
+the grid of remaining-survival-time values
+[`predictRisk()`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md)
+integrates over):
+
+``` r
+
+fit_spline <- longitudinalSub(
+  data_fit, serBilir ~ splines::ns(year, df = 3) + age + sex + years, ~ year | id
+)
+
+data_survival_fitting <- pbc3[!duplicated(pbc3$id), ]
+survival_fit <- survivalSub(
+  data_survival_fitting,
+  form_marginal_surv = Surv(years, status3) ~ age + sex,
+  form_conditional_cr = NULL
+)
+
+data_predict <- pbc3[pbc3$id == 2 & pbc3$year <= 5, ]
+risk <- predictRisk(
+  data_predict, fit_spline, survival_fit,
+  prediction_time = 5, horizon = 1, time_variable = "year",
+  survival_variable_all = list(), survival_trans_function = list(),
+  bandcount1 = 10, bandcount2 = 20
+)
+risk
+#> 
+#> =================================================================
+#>  Dynamic Prediction - Event Risk
+#> -----------------------------------------------------------------
+#>   Competing risks   : No
+#>   Subjects          : 1
+#> -----------------------------------------------------------------
+#> 
+#>  Subject Risk Prob
+#>        2    0.0901
+#> 
+#> =================================================================
+```
+
+See
+[`vignette("BJM-intro", package = "BJM")`](https://wenhaoli18.github.io/BJM/articles/BJM-intro.md)
+for the full four-step pipeline, and
+[`?longitudinalSub`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md)
+for the complete list of nonlinear-term examples shown there.
