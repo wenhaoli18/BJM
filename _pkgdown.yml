@@ -3,6 +3,12 @@ url: https://wenhaoli18.github.io/BJM/
 template:
   bootstrap: 5
 
+authors:
+  Wenhao Li:
+    href: mailto:wenhaoli.jlu@gmail.com
+  Liang Li:
+    href: mailto:LLi15@mdanderson.org
+
 reference:
 - title: Fit sub-models
   desc: Fit the survival and longitudinal sub-models that dynamic prediction is built on.
