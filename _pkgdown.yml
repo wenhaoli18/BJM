@@ -47,3 +47,7 @@ reference:
 - title: Data
   contents:
   - pbc3
+
+navbar:
+  structure:
+    left: [intro, articles, reference, news]
