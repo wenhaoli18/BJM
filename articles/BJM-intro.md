@@ -598,6 +598,16 @@ longitudinalSub(pbc3, serBilir ~ year + not_a_column, ~ year | id)
   plots observed longitudinal trajectories stratified by eventual
   outcome, useful for checking whether a biomarker looks informative
   before fitting.
+- [`?spaghettiPlot`](https://wenhaoli18.github.io/BJM/reference/spaghettiPlot.md)
+  draws each subject’s observed trajectory, optionally aligned at the
+  event time, and
+  [`?cifPlot`](https://wenhaoli18.github.io/BJM/reference/cifPlot.md)
+  plots the cumulative incidence of each (competing) event type.
+- [`?performancePlot`](https://wenhaoli18.github.io/BJM/reference/performancePlot.md)
+  evaluates the risk predictions (time-dependent AUC and Brier score)
+  across landmark times, ideally on held-out data, and
+  [`?calibrationPlot`](https://wenhaoli18.github.io/BJM/reference/calibrationPlot.md)
+  compares the predicted with the observed risks.
 - [`?imputeLongitudinal`](https://wenhaoli18.github.io/BJM/reference/imputeLongitudinal.md)
   fills in missing longitudinal biomarker values due to interrupted
   follow-up before

@@ -38,7 +38,8 @@ across imputations.
 
 ## Plots
 
-Visualize predictions and observed longitudinal trajectories.
+Visualize predictions, fitted sub-models, observed longitudinal
+trajectories, and observed event outcomes.
 
 - [`predictPlot()`](https://wenhaoli18.github.io/BJM/reference/predictPlot.md)
   : Plot risk and future biomarker predictions across a horizon sweep
@@ -46,6 +47,20 @@ Visualize predictions and observed longitudinal trajectories.
   : Plot predicted risk across a sweep of landmark times
 - [`cmtPlot()`](https://wenhaoli18.github.io/BJM/reference/cmtPlot.md) :
   Plot conditional mean trajectories (CMT)
+- [`spaghettiPlot()`](https://wenhaoli18.github.io/BJM/reference/spaghettiPlot.md)
+  : Plot individual longitudinal trajectories (spaghetti plot)
+- [`cifPlot()`](https://wenhaoli18.github.io/BJM/reference/cifPlot.md) :
+  Plot cumulative incidence functions
+- [`performancePlot()`](https://wenhaoli18.github.io/BJM/reference/performancePlot.md)
+  : Plot predictive performance across landmark times
+- [`calibrationPlot()`](https://wenhaoli18.github.io/BJM/reference/calibrationPlot.md)
+  : Plot calibration of dynamic risk predictions
+- [`plot(`*`<longitudinalSub.BJM>`*`)`](https://wenhaoli18.github.io/BJM/reference/plot.longitudinalSub.BJM.md)
+  : Plot a fitted longitudinal sub-model
+- [`plot(`*`<survivalSub.BJM>`*`)`](https://wenhaoli18.github.io/BJM/reference/plot.survivalSub.BJM.md)
+  : Plot a fitted survival sub-model
+- [`plot(`*`<predictLongitudinal.BJM>`*`)`](https://wenhaoli18.github.io/BJM/reference/plot.predictLongitudinal.BJM.md)
+  : Plot predicted biomarker distributions
 
 ## Data
 

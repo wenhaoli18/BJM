@@ -148,7 +148,7 @@ dynamicPredictionBio(
 
 ## Value
 
-An object of class `"dynamicPredictionBio.BJM"`, a named list with
+An object of class `"predictLongitudinal.BJM"`, a named list with
 elements:
 
 - Y_predict:

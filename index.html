@@ -37,6 +37,7 @@
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><a class="dropdown-item" href="articles/BJM-intro.html">Getting Started with BJM</a></li>
     <li><a class="dropdown-item" href="articles/nonlinear-terms.html">Nonlinear terms in longitudinal formulas</a></li>
+    <li><a class="dropdown-item" href="articles/plotting.html">Plotting with BJM</a></li>
   </ul>
 </li>
 <li class="nav-item"><a class="nav-link" href="news/index.html">Changelog</a></li>
@@ -129,7 +130,7 @@
 <span><span class="op">)</span></span>
 <span><span class="va">bio_pred</span><span class="op">$</span><span class="va">Y_predict</span></span></code></pre></div>
 <p><code>survival_variable_all</code>/<code>survival_trans_function</code> above follow a common convention (<code>"Tyears1"</code>, <code>"Tyears2"</code>, …, each the absolute distance from a fixed cut point); <code>survivalTrans(c(1, 3, 5, 7))</code> builds that same pair for you instead of hand-writing two matching lists. And every <code>data_*_all</code> argument shown above (<code>data_fit_all</code>, <code>data_predict_all</code>, …) also accepts a single bare <code>data.frame</code> — reused for every biomarker — instead of a repeated list, when all biomarkers share the same measurement data.</p>
-<p><code><a href="reference/predictPlot.html">predictPlot()</a></code> and <code><a href="reference/riskPlot.html">riskPlot()</a></code> visualize these predictions for a single patient; <code><a href="reference/cmtPlot.html">cmtPlot()</a></code> plots observed longitudinal trajectories stratified by eventual outcome.</p>
+<p><code><a href="reference/predictPlot.html">predictPlot()</a></code> and <code><a href="reference/riskPlot.html">riskPlot()</a></code> visualize these predictions for a single patient; <code><a href="reference/cmtPlot.html">cmtPlot()</a></code> plots observed longitudinal trajectories stratified by eventual outcome, <code><a href="reference/spaghettiPlot.html">spaghettiPlot()</a></code> draws every subject’s trajectory (optionally aligned at the event time), and <code><a href="reference/cifPlot.html">cifPlot()</a></code> plots the cumulative incidence of each event type. <code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code> works on the fitted sub-models and on <code><a href="reference/predictLongitudinal.html">predictLongitudinal()</a></code> results, for model diagnostics and predicted biomarker distributions, and <code><a href="reference/performancePlot.html">performancePlot()</a></code> plots the time-dependent AUC and Brier score of the risk predictions across landmark times, and <code><a href="reference/calibrationPlot.html">calibrationPlot()</a></code> compares predicted with observed risks.</p>
 <p>For the full walkthrough — including how to choose the <code>bandcount1</code>/ <code>bandcount2</code>/<code>bandcount3</code> numerical-integration tuning parameters via a convergence check, and what the input-validation error messages look like — see <code><a href="articles/BJM-intro.html">vignette("BJM-intro", package = "BJM")</a></code>.</p>
 </div>
 <div class="section level2">

@@ -24,6 +24,7 @@ for the competing-risks GLM."></head><body>
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/BJM-intro.html">Getting Started with BJM</a></li>
     <li><a class="dropdown-item" href="../articles/nonlinear-terms.html">Nonlinear terms in longitudinal formulas</a></li>
+    <li><a class="dropdown-item" href="../articles/plotting.html">Plotting with BJM</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
@@ -100,7 +101,7 @@ for the competing-risks GLM.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  Marginal Survival Sub-model  [Cox PH]</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> -----------------------------------------------------------------</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  Formula: Surv(years, status3) ~ age + sex</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x5628b3655ca0&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x55841da3ad90&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>          Coef exp(Coef)        SE      z p-value   </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> age  0.020411  1.020621  0.007584  2.691 0.00712 **</span>
@@ -121,7 +122,7 @@ for the competing-risks GLM.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  Conditional Competing-Risks Sub-model  [Logistic GLM]</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> -----------------------------------------------------------------</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  Formula: status4 ~ years + age + sex</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x5628b3655ca0&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x55841da3ad90&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>                 Coef       SE      z  p-value    </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> (Intercept)  5.65622  1.70478  3.318 0.000907 ***</span>

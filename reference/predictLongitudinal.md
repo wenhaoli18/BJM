@@ -15,13 +15,13 @@ event-free at `prediction_time`.
 This is the single, unified entry point for biomarker-value prediction:
 
 - If `bio_i` names **exactly one** biomarker, this predicts just that
-  biomarker and returns a single `"dynamicPredictionBio.BJM"` object.
+  biomarker and returns a single `"predictLongitudinal.BJM"` object.
 
 - If `bio_i` names **more than one** biomarker, or is left at its
   default `NULL` (meaning every biomarker in `long_fit_all`), this
   instead predicts every requested biomarker and returns a named list of
-  `"dynamicPredictionBio.BJM"` objects (classed
-  `"dynamicPredictionBioAll.BJM"`), computing the bio_i-**independent**
+  `"predictLongitudinal.BJM"` objects (classed
+  `"predictLongitudinalAll.BJM"`), computing the bio_i-**independent**
   part of the pipeline (restricting to at-risk patients, the
   survival-side integration grid, and the denominator conditional
   density) only **once** and reusing it across every biomarker, instead
@@ -161,7 +161,7 @@ predictLongitudinal(
 ## Value
 
 If `bio_i` names exactly one biomarker: an object of class
-`"dynamicPredictionBio.BJM"`, a named list with elements:
+`"predictLongitudinal.BJM"`, a named list with elements:
 
 - Y_predict:
 
@@ -190,7 +190,7 @@ list of such objects, one per requested biomarker, named by that
 biomarker's response-variable name; with attributes `"bandcount2"` (the
 single resolved/used `bandcount2`) and `"bandcount3"` (a named numeric
 vector of the resolved/used `bandcount3` for each biomarker, or `NA` for
-an ordinal biomarker). Classed `"dynamicPredictionBioAll.BJM"`.
+an ordinal biomarker). Classed `"predictLongitudinalAll.BJM"`.
 
 ## Details
 
@@ -296,7 +296,7 @@ for(i in seq_len(length(long_sub_fixed))){
   data_predict_all[[i]] = data.raw.predict.1[data.raw.predict.1$year <= 3,]
 }
 
-# A single biomarker -> a single dynamicPredictionBio.BJM result
+# A single biomarker -> a single predictLongitudinal.BJM result
 Y_predict = predictLongitudinal(bio_i = 1, data_predict_all, long_fit_all,
                                 survival_fit_all, prediction_time = 3,
                                 horizon = 3, time_variable = "year",

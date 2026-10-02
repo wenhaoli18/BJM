@@ -35,6 +35,7 @@
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><a class="dropdown-item" href="../articles/BJM-intro.html">Getting Started with BJM</a></li>
     <li><a class="dropdown-item" href="../articles/nonlinear-terms.html">Nonlinear terms in longitudinal formulas</a></li>
+    <li><a class="dropdown-item" href="../articles/plotting.html">Plotting with BJM</a></li>
   </ul>
 </li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -617,6 +618,16 @@ for a single patient.</li>
 <code><a href="../reference/cmtPlot.html">?cmtPlot</a></code> plots observed longitudinal trajectories
 stratified by eventual outcome, useful for checking whether a biomarker
 looks informative before fitting.</li>
+<li>
+<code><a href="../reference/spaghettiPlot.html">?spaghettiPlot</a></code> draws each subject’s observed
+trajectory, optionally aligned at the event time, and
+<code><a href="../reference/cifPlot.html">?cifPlot</a></code> plots the cumulative incidence of each (competing)
+event type.</li>
+<li>
+<code><a href="../reference/performancePlot.html">?performancePlot</a></code> evaluates the risk predictions
+(time-dependent AUC and Brier score) across landmark times, ideally on
+held-out data, and <code><a href="../reference/calibrationPlot.html">?calibrationPlot</a></code> compares the predicted
+with the observed risks.</li>
 <li>
 <code><a href="../reference/imputeLongitudinal.html">?imputeLongitudinal</a></code> fills in missing longitudinal
 biomarker values due to interrupted follow-up before

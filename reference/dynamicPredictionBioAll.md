@@ -124,10 +124,10 @@ dynamicPredictionBioAll(
 
 ## Value
 
-A named list of `"dynamicPredictionBio.BJM"` objects (see
+A named list of `"predictLongitudinal.BJM"` objects (see
 [`dynamicPredictionBio`](https://wenhaoli18.github.io/BJM/reference/dynamicPredictionBio.md)),
 one per requested biomarker, named by that biomarker's response-variable
 name; with attributes `"bandcount2"` (the single resolved/used
 `bandcount2`) and `"bandcount3"` (a named numeric vector of the
 resolved/used `bandcount3` for each biomarker, or `NA` for an ordinal
-biomarker). Classed `"dynamicPredictionBioAll.BJM"`.
+biomarker). Classed `"predictLongitudinalAll.BJM"`.

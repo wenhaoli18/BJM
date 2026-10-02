@@ -103,7 +103,21 @@ and
 [`riskPlot()`](https://wenhaoli18.github.io/BJM/reference/riskPlot.md)
 visualize these predictions for a single patient;
 [`cmtPlot()`](https://wenhaoli18.github.io/BJM/reference/cmtPlot.md)
-plots observed longitudinal trajectories stratified by eventual outcome.
+plots observed longitudinal trajectories stratified by eventual outcome,
+[`spaghettiPlot()`](https://wenhaoli18.github.io/BJM/reference/spaghettiPlot.md)
+draws every subject’s trajectory (optionally aligned at the event time),
+and [`cifPlot()`](https://wenhaoli18.github.io/BJM/reference/cifPlot.md)
+plots the cumulative incidence of each event type.
+[`plot()`](https://rdrr.io/r/graphics/plot.default.html) works on the
+fitted sub-models and on
+[`predictLongitudinal()`](https://wenhaoli18.github.io/BJM/reference/predictLongitudinal.md)
+results, for model diagnostics and predicted biomarker distributions,
+and
+[`performancePlot()`](https://wenhaoli18.github.io/BJM/reference/performancePlot.md)
+plots the time-dependent AUC and Brier score of the risk predictions
+across landmark times, and
+[`calibrationPlot()`](https://wenhaoli18.github.io/BJM/reference/calibrationPlot.md)
+compares predicted with observed risks.
 
 For the full walkthrough — including how to choose the `bandcount1`/
 `bandcount2`/`bandcount3` numerical-integration tuning parameters via a

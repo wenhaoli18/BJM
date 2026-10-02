@@ -17,8 +17,67 @@
   [`checkBandcountConvergence()`](https://wenhaoli18.github.io/BJM/reference/checkBandcountConvergence.md)’s
   `predict_fun` argument accepts `predictRisk` in place of the old
   `dynamicPrediction`.
+- The objects returned by
+  [`predictLongitudinal()`](https://wenhaoli18.github.io/BJM/reference/predictLongitudinal.md)
+  are now classed `"predictLongitudinal.BJM"` (one biomarker) and
+  `"predictLongitudinalAll.BJM"` (several biomarkers), formerly
+  `"dynamicPredictionBio.BJM"` and `"dynamicPredictionBioAll.BJM"`, so
+  the class names match the exported function rather than the internal
+  helper behind it. Code that checks
+  `inherits(x, "dynamicPredictionBio.BJM")` (or the `All` variant) needs
+  to switch to the new names; the object contents and the
+  [`print()`](https://rdrr.io/r/base/print.html)/[`summary()`](https://rdrr.io/r/base/summary.html)
+  output are unchanged.
 
 ### New features
+
+- New
+  [`spaghettiPlot()`](https://wenhaoli18.github.io/BJM/reference/spaghettiPlot.md)
+  draws each subject’s observed biomarker trajectory, optionally colored
+  by eventual outcome with a smoothed mean per group, and with
+  `align = "event"` plots against the time remaining until the event
+  (`survival time - time`, so the event is at 0), matching the backward
+  model’s view of the biomarker.
+
+- New
+  [`performancePlot()`](https://wenhaoli18.github.io/BJM/reference/performancePlot.md)
+  evaluates the dynamic risk predictions at a set of landmark times: at
+  each landmark it predicts every event-free subject’s risk from their
+  history so far with
+  [`predictRisk()`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md)
+  and plots the time-dependent AUC and Brier score of that risk over the
+  prediction window, with inverse probability of censoring weighting,
+  separately per event type under competing risks. Pass held-out data to
+  estimate out-of-sample performance.
+
+- New
+  [`calibrationPlot()`](https://wenhaoli18.github.io/BJM/reference/calibrationPlot.md)
+  checks whether the predicted risks are numerically right: at each
+  landmark it groups the event-free subjects by predicted risk (deciles
+  by default) and plots each group’s mean predicted risk against its
+  observed risk in the window (one minus Kaplan–Meier, or the
+  Aalen–Johansen cumulative incidence per event type under competing
+  risks), with 95% confidence intervals and the diagonal for reference.
+
+- New [`plot()`](https://rdrr.io/r/graphics/plot.default.html) methods
+  for fitted and predicted objects, each returning a `ggplot`:
+  `plot(long_fit_all)` draws residual, Q-Q and random-effect diagnostics
+  per biomarker (`which = "residuals"`, `"qq"`, `"ranef"`) and a heat
+  map of the random-effects correlation across biomarkers
+  (`which = "corr"`); `plot(survival_fit_all)` draws a forest plot of
+  the hazard ratios (and the competing-risks odds ratios) or, with
+  `which = "basehaz"`, the baseline cumulative hazard; and
+  `plot(predictLongitudinal(...))` draws each patient’s predicted
+  biomarker density with the point prediction marked (category
+  probabilities for an ordinal biomarker).
+
+- New
+  [`cifPlot()`](https://wenhaoli18.github.io/BJM/reference/cifPlot.md)
+  plots the Aalen–Johansen cumulative incidence of each event type (one
+  minus Kaplan–Meier for a single event type), with pointwise confidence
+  bands and optional stratification by a subject-level group. It accepts
+  long-format data and either a numeric censoring code or
+  `censor_value = NA` (as in `pbc3$status4`).
 
 - New
   [`imputeLongitudinal()`](https://wenhaoli18.github.io/BJM/reference/imputeLongitudinal.md)
@@ -172,12 +231,12 @@
   from existing scripts will need to switch to
   [`predictLongitudinal()`](https://wenhaoli18.github.io/BJM/reference/predictLongitudinal.md)).
   Pass a `bio_i` naming exactly **one** biomarker to predict just that
-  one, which returns a single `dynamicPredictionBio.BJM` object; pass
+  one, which returns a single `predictLongitudinal.BJM` object; pass
   `bio_i` naming **more than one** biomarker, or leave it at the default
   `NULL` (meaning every biomarker in `long_fit_all`), to predict several
   at once, which instead returns a named list of such objects (one per
   biomarker, named by that biomarker’s response variable, classed
-  `dynamicPredictionBioAll.BJM`) and computes the bio_i-*independent*
+  `predictLongitudinalAll.BJM`) and computes the bio_i-*independent*
   pipeline stages (restricting to at-risk patients, the survival-side
   integration grid, and the denominator conditional density) only
   **once**, reusing it across every requested biomarker instead of
