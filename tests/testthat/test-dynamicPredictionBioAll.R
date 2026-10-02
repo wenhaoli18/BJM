@@ -46,12 +46,12 @@ test_that("dynamicPredictionBioAll matches per-biomarker dynamicPredictionBio ca
                                     fx$survival_variable_all, fx$survival_trans_function,
                                     bandcount2 = 10, bandcount3 = 15)
 
-  expect_s3_class(batch, "dynamicPredictionBioAll.BJM")
+  expect_s3_class(batch, "predictLongitudinalAll.BJM")
   expect_length(batch, 2)
 
   bio_names <- vapply(fx$long_fit_all$long_sub_fixed, function(f) as.character(formula(f)[[2]]), character(1))
   for (b in 1:2) {
-    expect_s3_class(batch[[bio_names[b]]], "dynamicPredictionBio.BJM")
+    expect_s3_class(batch[[bio_names[b]]], "predictLongitudinal.BJM")
     expect_equal(batch[[bio_names[b]]]$Y_predict, individual[[b]]$Y_predict)
     expect_equal(batch[[bio_names[b]]]$Y_density, individual[[b]]$Y_density)
     expect_equal(batch[[bio_names[b]]]$Y_all, individual[[b]]$Y_all)
@@ -156,7 +156,7 @@ test_that("dynamicPredictionBioAll bio_i = NULL default includes ordinal biomark
 
   expect_length(batch, 2)
   expect_setequal(names(batch), c("serBilir", "albumin_cat"))
-  expect_s3_class(batch[["albumin_cat"]], "dynamicPredictionBio.BJM")
+  expect_s3_class(batch[["albumin_cat"]], "predictLongitudinal.BJM")
   expect_true(all(batch[["albumin_cat"]]$Y_predict %in% seq_len(3)))
   # bandcount3 is not applicable to an ordinal marker's fixed category grid.
   expect_true(is.na(unname(attr(batch, "bandcount3")["2"])))
@@ -177,7 +177,7 @@ test_that("dynamicPredictionBioAll on an explicit bio_i vector including an ordi
                                     bandcount2 = 10, bandcount3 = 15)
 
   expect_length(batch, 2)
-  expect_s3_class(batch[["albumin_cat"]], "dynamicPredictionBio.BJM")
+  expect_s3_class(batch[["albumin_cat"]], "predictLongitudinal.BJM")
   expect_true(all(batch[["albumin_cat"]]$Y_predict %in% seq_len(3)))
   expect_equal(attr(batch[["albumin_cat"]]$Y_all, "category_labels"), c("low", "mid", "high"))
 })

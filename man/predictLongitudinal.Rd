@@ -79,7 +79,7 @@ biomarker's fixed category count.}
 }
 \value{
 If \code{bio_i} names exactly one biomarker: an object of class
-\code{"dynamicPredictionBio.BJM"}, a named list with elements:
+\code{"predictLongitudinal.BJM"}, a named list with elements:
 \describe{
 \item{Y_predict}{A vector, one entry per at-risk patient (named by
 patient id), giving the MAP (most
@@ -102,7 +102,7 @@ biomarker's response-variable name; with attributes \code{"bandcount2"}
 (the single resolved/used \code{bandcount2}) and \code{"bandcount3"} (a
 named numeric vector of the resolved/used \code{bandcount3} for each
 biomarker, or \code{NA} for an ordinal biomarker). Classed
-\code{"dynamicPredictionBioAll.BJM"}.
+\code{"predictLongitudinalAll.BJM"}.
 }
 \description{
 Companion to \code{\link{predictRisk}}, using the same
@@ -117,12 +117,12 @@ This is the single, unified entry point for biomarker-value prediction:
 \itemize{
 \item If \code{bio_i} names \strong{exactly one} biomarker, this
 predicts just that biomarker and returns a single
-\code{"dynamicPredictionBio.BJM"} object.
+\code{"predictLongitudinal.BJM"} object.
 \item If \code{bio_i} names \strong{more than one} biomarker, or is left
 at its default \code{NULL} (meaning every biomarker in
 \code{long_fit_all}), this instead predicts every requested biomarker
-and returns a named list of \code{"dynamicPredictionBio.BJM"} objects
-(classed \code{"dynamicPredictionBioAll.BJM"}), computing the
+and returns a named list of \code{"predictLongitudinal.BJM"} objects
+(classed \code{"predictLongitudinalAll.BJM"}), computing the
 bio_i-\strong{independent} part of the pipeline (restricting to at-risk
 patients, the survival-side integration grid, and the denominator
 conditional density) only \strong{once} and reusing it across every
@@ -257,7 +257,7 @@ for(i in seq_len(length(long_sub_fixed))){
   data_predict_all[[i]] = data.raw.predict.1[data.raw.predict.1$year <= 3,]
 }
 
-# A single biomarker -> a single dynamicPredictionBio.BJM result
+# A single biomarker -> a single predictLongitudinal.BJM result
 Y_predict = predictLongitudinal(bio_i = 1, data_predict_all, long_fit_all,
                                 survival_fit_all, prediction_time = 3,
                                 horizon = 3, time_variable = "year",

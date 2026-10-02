@@ -96,7 +96,7 @@ test_that("dynamicPredictionBio defaults to auto bandcount2/bandcount3 and retur
     f$survival_variable_all, f$survival_trans_function
   ))
 
-  expect_s3_class(Y_pred, "dynamicPredictionBio.BJM")
+  expect_s3_class(Y_pred, "predictLongitudinal.BJM")
   expect_true(is.numeric(Y_pred$Y_predict))
 })
 
