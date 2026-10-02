@@ -31,11 +31,18 @@ reference:
   - poolLongitudinalSub
 
 - title: Plots
-  desc: Visualize predictions and observed longitudinal trajectories.
+  desc: Visualize predictions, fitted sub-models, observed longitudinal trajectories, and observed event outcomes.
   contents:
   - predictPlot
   - riskPlot
   - cmtPlot
+  - spaghettiPlot
+  - cifPlot
+  - performancePlot
+  - calibrationPlot
+  - plot.longitudinalSub.BJM
+  - plot.survivalSub.BJM
+  - plot.predictLongitudinal.BJM
 
 - title: Data
   contents:

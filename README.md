@@ -100,7 +100,14 @@ repeated list, when all biomarkers share the same measurement data.
 
 `predictPlot()` and `riskPlot()` visualize these predictions for a
 single patient; `cmtPlot()` plots observed longitudinal trajectories
-stratified by eventual outcome.
+stratified by eventual outcome, `spaghettiPlot()` draws every subject's
+trajectory (optionally aligned at the event time), and `cifPlot()` plots
+the cumulative incidence of each event type. `plot()` works on the
+fitted sub-models and on `predictLongitudinal()` results, for model
+diagnostics and predicted biomarker distributions, and `performancePlot()`
+plots the time-dependent AUC and Brier score of the risk predictions
+across landmark times, and `calibrationPlot()` compares predicted with
+observed risks.
 
 For the full walkthrough — including how to choose the `bandcount1`/
 `bandcount2`/`bandcount3` numerical-integration tuning parameters via a

@@ -21,6 +21,39 @@
 
 ## New features
 
+* New `spaghettiPlot()` draws each subject's observed biomarker trajectory,
+  optionally colored by eventual outcome with a smoothed mean per group,
+  and with `align = "event"` plots against the time remaining until the
+  event (`survival time - time`, so the event is at 0), matching the
+  backward model's view of the biomarker.
+* New `performancePlot()` evaluates the dynamic risk predictions at a set
+  of landmark times: at each landmark it predicts every event-free subject's
+  risk from their history so far with `predictRisk()` and plots the
+  time-dependent AUC and Brier score of that risk over the prediction
+  window, with inverse probability of censoring weighting, separately per
+  event type under competing risks. Pass held-out data to estimate
+  out-of-sample performance.
+* New `calibrationPlot()` checks whether the predicted risks are
+  numerically right: at each landmark it groups the event-free subjects by
+  predicted risk (deciles by default) and plots each group's mean predicted
+  risk against its observed risk in the window (one minus Kaplan--Meier, or
+  the Aalen--Johansen cumulative incidence per event type under competing
+  risks), with 95% confidence intervals and the diagonal for reference.
+* New `plot()` methods for fitted and predicted objects, each returning a
+  `ggplot`: `plot(long_fit_all)` draws residual, Q-Q and random-effect
+  diagnostics per biomarker (`which = "residuals"`, `"qq"`, `"ranef"`) and
+  a heat map of the random-effects correlation across biomarkers
+  (`which = "corr"`); `plot(survival_fit_all)` draws a forest plot of the
+  hazard ratios (and the competing-risks odds ratios) or, with
+  `which = "basehaz"`, the baseline cumulative hazard; and
+  `plot(predictLongitudinal(...))` draws each patient's predicted biomarker
+  density with the point prediction marked (category probabilities for an
+  ordinal biomarker).
+* New `cifPlot()` plots the Aalen--Johansen cumulative incidence of each
+  event type (one minus Kaplan--Meier for a single event type), with
+  pointwise confidence bands and optional stratification by a subject-level
+  group. It accepts long-format data and either a numeric censoring code or
+  `censor_value = NA` (as in `pbc3$status4`).
 * New `imputeLongitudinal()` fills in missing longitudinal biomarker values
   before `longitudinalSub()` runs, instead of relying on complete-case
   analysis. `longitudinalSub()` drops rows missing a biomarker's own
