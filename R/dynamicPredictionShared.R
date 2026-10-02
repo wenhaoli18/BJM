@@ -33,6 +33,24 @@ drop_after_prediction_time <- function(data_predict_all, time_variable, predicti
   data_predict_all
 }
 
+#' Outcome variables of the survival sub-model
+#'
+#' @description The survival-time variable of \code{survival_fit_all} and,
+#' with competing risks, its event-type variable (the response of
+#' \code{form_conditional_cr}). Both are unknown for a patient still at risk
+#' at \code{prediction_time}; the prediction functions integrate over them.
+#'
+#' @param survival_fit_all Output of \code{survivalSub()}.
+#' @return A character vector of variable names.
+#' @keywords internal
+outcome_variables <- function(survival_fit_all) {
+  out <- as.character(formula(survival_fit_all$coxph_fit)[[2]])[2]
+  if (length(survival_fit_all$form_conditional_cr) != 0) {
+    out <- c(out, all.vars(survival_fit_all$form_conditional_cr[[2]]))
+  }
+  out
+}
+
 #' Drop prediction rows with a missing biomarker value or covariate
 #'
 #' @description Shared helper for \code{predictRisk},
@@ -43,10 +61,16 @@ drop_after_prediction_time <- function(data_predict_all, time_variable, predicti
 #' that biomarker's \code{long_sub_fixed}/\code{long_sub_random} formulas,
 #' are removed. Previously such a row put an \code{NA} into the stacked
 #' outcome vector (or misaligned the design matrix) and made that patient's
-#' whole prediction \code{NA}. The survival-time variable and
+#' whole prediction \code{NA}. The outcome variables
+#' (\code{survival_variable}: the survival time and, with competing risks,
+#' the event type -- see \code{outcome_variables()}) and
 #' \code{survival_variable_all} are not checked: they are overwritten with
-#' each integration grid point before use. A patient left with no rows for
-#' some biomarker cannot be predicted; a warning names them.
+#' each integration grid point / event type before use, and are unknown
+#' (typically \code{NA}) for a patient still at risk. The event type used
+#' to be checked, so with the event type in \code{long_sub_fixed} every
+#' at-risk patient was dropped. A patient left with no rows for some
+#' biomarker cannot be predicted; a warning names them, and it is an error
+#' if that leaves no patient at all.
 #'
 #' @return \code{data_predict_all}, filtered per element.
 #' @keywords internal
@@ -66,6 +90,12 @@ drop_missing_longitudinal <- function(data_predict_all, long_fit_all, survival_v
                        setdiff(all_ids, as.character(data_predict_all[[i]][[id]])))
   }
   unpredictable <- unique(unpredictable)
+  if (length(all_ids) > 0 && all(all_ids %in% unpredictable)) {
+    stop(paste0(
+      "No patient in data_predict_all has a non-missing measurement of every biomarker (and of ",
+      "the covariates its long_sub_fixed/long_sub_random formulas use) up to prediction_time, ",
+      "so no prediction can be made."), call. = FALSE)
+  }
   if (length(unpredictable) > 0) {
     warning(sprintf(paste0(
       "Patient(s) %s have no non-missing measurement of at least one biomarker up to ",
@@ -136,14 +166,24 @@ prediction_patient_ids <- function(data_predict_all, long_fit_all) {
 #' \code{dynamicPredictionBio}: drops rows whose survival-time variable is
 #' below \code{prediction_time} from every biomarker's data frame. Rows
 #' whose survival time is missing (e.g. a new patient whose event time is
-#' not yet known) are kept: they are treated as at risk.
+#' not yet known) are kept: they are treated as at risk. It is an error if
+#' that leaves no patient (it used to return an empty result from
+#' \code{predictRisk()} without comment, and fail with an unrelated error in
+#' \code{predictLongitudinal()}).
 #'
 #' @return \code{data_predict_all}, filtered in place per element.
 #' @keywords internal
 subset_at_risk <- function(data_predict_all, survival_variable, prediction_time) {
+  had_rows <- nrow(data_predict_all[[1]]) > 0
   for (i in seq_len(length(data_predict_all))) {
     s <- data_predict_all[[i]][[survival_variable]]
     data_predict_all[[i]] = data_predict_all[[i]][is.na(s) | s >= prediction_time, , drop = FALSE]
+  }
+  if (had_rows && nrow(data_predict_all[[1]]) == 0) {
+    stop(sprintf(paste0(
+      "No patient in data_predict_all is at risk at prediction_time = %g (every %s is below it), ",
+      "so no prediction can be made. Set %s to NA for a patient whose event time is not yet known."),
+      prediction_time, survival_variable, survival_variable), call. = FALSE)
   }
   data_predict_all
 }
@@ -170,7 +210,8 @@ subset_at_risk <- function(data_predict_all, survival_variable, prediction_time)
 #' Beyond the last time in the data \code{survivalSub()} was fit on, the
 #' baseline hazard is an extrapolation; if it is so flat that the tail
 #' criterion is not met by \code{max_multiple} times that last time, the
-#' bound is capped there with a warning.
+#' bound is capped there, with a warning if some patient's conditional
+#' survival at the cap is still above \code{warn_prob}.
 #'
 #' @param data_predict_all At-risk prediction data (list of data frames).
 #' @param long_fit_all Output of \code{longitudinalSub()} (for the id variable).
@@ -181,24 +222,36 @@ subset_at_risk <- function(data_predict_all, survival_variable, prediction_time)
 #' @param tail_prob Remaining conditional survival probability treated as
 #'   negligible.
 #' @param max_multiple Cap, as a multiple of the last training time.
+#' @param warn_prob Warn when the cap leaves more than this conditional
+#'   survival probability unintegrated for some patient.
 #' @return A single number.
 #' @keywords internal
 integration_upper_bound <- function(data_predict_all, long_fit_all, survival_fit_all,
                                     prediction_time, min_upper = prediction_time,
-                                    tail_prob = 1e-4, max_multiple = 20) {
+                                    tail_prob = 1e-4, max_multiple = 20, warn_prob = 0.01) {
   setup <- conditional_survival_setup(data_predict_all, long_fit_all, survival_fit_all)
   needed <- unlist(lapply(setup$groups, function(g)
     tail_time(g$cum_basehaz, setup$lp[g$patients], prediction_time, tail_prob)))
   needed <- needed[!is.na(needed)]
 
-  cap <- max_multiple * setup$last_time
+  cap <- max(max_multiple * setup$last_time, min_upper)
   upper <- max(c(needed, min_upper))
   if (upper > cap) {
-    warning(sprintf(paste0(
-      "The survival sub-model's extrapolated baseline hazard is too flat for every patient's ",
-      "survival probability to fall below %g by %g (%g x the last follow-up time); the ",
-      "integration upper limit is capped there, so a small probability mass beyond it is ignored."),
-      tail_prob, cap, max_multiple), call. = FALSE)
+    ### only worth a warning when the ignored conditional survival is
+    ### material; it used to fire whenever it exceeded tail_prob, e.g. for
+    ### an ordinary Weibull-like fit with 0.1% of the mass left at the cap
+    left <- unlist(lapply(setup$groups, function(g) {
+      dH <- diff(cumulative_baseline_at(g$cum_basehaz, c(prediction_time, cap)))
+      exp(-dH * exp(setup$lp[g$patients]))
+    }))
+    left <- max(c(left[is.finite(left)], 0))
+    if (left > warn_prob) {
+      warning(sprintf(paste0(
+        "The survival sub-model's extrapolated baseline hazard is so flat that up to %.1f%% of ",
+        "a patient's conditional survival probability lies beyond %g (%g x the last follow-up ",
+        "time), where the integration is capped; that probability mass is ignored."),
+        100 * left, cap, max_multiple), call. = FALSE)
+    }
     upper <- cap
   }
   upper
@@ -245,8 +298,8 @@ conditional_survival_setup <- function(data_predict_all, long_fit_all, survival_
 #' predictor in \code{lp}, the earliest time \eqn{t > s} with
 #' \eqn{\exp(-(H_0(t) - H_0(s)) e^{lp}) <} \code{tail_prob}, where
 #' \eqn{H_0} is the tabulated baseline cumulative hazard and, past its last
-#' time, the same least-squares line \code{marginalT()} extrapolates with.
-#' \code{Inf} if that line is not increasing.
+#' time, the same linear extrapolation \code{cumulative_baseline_at()} uses.
+#' \code{Inf} if the extrapolated hazard is 0.
 #'
 #' @param cum_basehaz A data frame with columns \code{hazard} and \code{time}.
 #' @param lp Linear predictors (\code{reference = "zero"}).
@@ -256,7 +309,8 @@ conditional_survival_setup <- function(data_predict_all, long_fit_all, survival_
 #' @keywords internal
 tail_time <- function(cum_basehaz, lp, s, tail_prob) {
   cum_basehaz <- cum_basehaz[order(cum_basehaz$time), c("hazard", "time")]
-  line <- stats::coef(lm(hazard ~ time, cum_basehaz))
+  slope <- extrapolation_slope(cum_basehaz)
+  last <- nrow(cum_basehaz)
   H_s <- cumulative_baseline_at(cum_basehaz, s)
   target <- H_s - log(tail_prob) / exp(lp)
   after <- cum_basehaz$time > s
@@ -264,8 +318,9 @@ tail_time <- function(cum_basehaz, lp, s, tail_prob) {
     if (is.na(h)) return(NA_real_)
     hit <- which(after & cum_basehaz$hazard >= h)
     if (length(hit) > 0) return(cum_basehaz$time[hit[1]])
-    if (line[2] <= 0) return(Inf)
-    max((h - line[1]) / line[2], max(cum_basehaz$time))
+    if (slope <= 0) return(Inf)
+    max(s, cum_basehaz$time[last]) +
+      (h - max(H_s[1], cum_basehaz$hazard[last])) / slope
   }, numeric(1))
 }
 
@@ -469,9 +524,13 @@ predictive_sd <- function(result) {
 #' the first call \code{auto_tune_bandcount()} makes matches what a caller
 #' relying on the old fixed defaults would have gotten. This cannot instead
 #' be read off \code{formals(predict_fun)}, because that default is now the
-#' literal string \code{"auto"} itself.
+#' literal string \code{"auto"} itself. The \code{bandcount3} start was
+#' lowered from 300 to 100 when its grid started covering only where the
+#' predictive densities are not negligible (see
+#' \code{continuous_value_grid()}): 100 points there are finer than 300
+#' were over the old fixed, wide range.
 #' @keywords internal
-bandcount_auto_start <- c(bandcount1 = 10, bandcount2 = 40, bandcount3 = 300)
+bandcount_auto_start <- c(bandcount1 = 10, bandcount2 = 40, bandcount3 = 100)
 
 #' Auto-select "auto" bandcount arguments by doubling until convergence
 #'

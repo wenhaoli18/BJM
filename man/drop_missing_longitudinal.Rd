@@ -23,9 +23,15 @@ element with a missing response, or a missing covariate/time/ID used by
 that biomarker's \code{long_sub_fixed}/\code{long_sub_random} formulas,
 are removed. Previously such a row put an \code{NA} into the stacked
 outcome vector (or misaligned the design matrix) and made that patient's
-whole prediction \code{NA}. The survival-time variable and
+whole prediction \code{NA}. The outcome variables
+(\code{survival_variable}: the survival time and, with competing risks,
+the event type -- see \code{outcome_variables()}) and
 \code{survival_variable_all} are not checked: they are overwritten with
-each integration grid point before use. A patient left with no rows for
-some biomarker cannot be predicted; a warning names them.
+each integration grid point / event type before use, and are unknown
+(typically \code{NA}) for a patient still at risk. The event type used
+to be checked, so with the event type in \code{long_sub_fixed} every
+at-risk patient was dropped. A patient left with no rows for some
+biomarker cannot be predicted; a warning names them, and it is an error
+if that leaves no patient at all.
 }
 \keyword{internal}

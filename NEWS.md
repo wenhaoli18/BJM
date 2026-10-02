@@ -147,7 +147,60 @@
   `predict_fun` argument now accepts `predictLongitudinal` (in place of the
   now-internal `dynamicPredictionBio`) for the single-biomarker case.
 
+* `predictLongitudinal()` now builds a continuous biomarker's candidate-value
+  grid (`Y_all`) in two passes: a cheap coarse pass (step = the biomarker's
+  residual SD) over the old wide range finds where any patient's predictive
+  density is not negligible, and the `bandcount3` points are then placed
+  there only. The grid used to span a fixed 5 times the observed range on
+  either side, so most points (about 90% in a simulated example) fell where
+  every density was practically 0. The same `bandcount3` now gives a 2-5
+  times finer grid, and the `"auto"` starting value of `bandcount3` was
+  lowered from 300 to 100. `Y_all` is still a single grid shared by all
+  patients predicted, so the returned structure is unchanged.
+
 ## Bug fixes
+
+* Past the last follow-up time, the baseline cumulative hazard used by
+  `predictRisk()`/`predictLongitudinal()` now continues from its last
+  tabulated value with the slope of the least-squares line through the
+  table. It used to switch onto that line itself, which does not pass
+  through the last value, so the cumulative hazard jumped at the last
+  follow-up time: up in `pbc3` (risks there move by about 1.5%), and down
+  whenever the hazard increases over follow-up (e.g. Weibull data), which
+  gave the interval spanning the last follow-up time a negative probability
+  mass.
+
+* With competing risks, the event-type variable (the response of
+  `form_conditional_cr`) may now appear in `long_sub_fixed`, as the
+  backward model allows. A patient still at risk necessarily has an unknown
+  (`NA`) event type, and that `NA` used to be treated as a missing covariate:
+  every such patient was dropped and `predictRisk()`/`predictLongitudinal()`
+  failed with "replacement has 1 row, data has 0".
+
+* `predictRisk()`/`predictLongitudinal()` now stop with a clear error when
+  no patient in `data_predict_all` is at risk at `prediction_time`, or none
+  has a measurement of every biomarker. `predictRisk()` used to return an
+  empty result without comment and `predictLongitudinal()` failed with
+  "'from' must be a finite number".
+
+* The warning that the integration upper limit was capped (at 20 times the
+  last follow-up time) is now only given when some patient's conditional
+  survival probability beyond the cap exceeds 1%, and reports how much; it
+  used to fire whenever it exceeded 0.01%, e.g. for ordinary simulated
+  Weibull data. The cap is also never below `prediction_time + horizon`.
+
+* `riskPlot()` failed to draw ("Discrete values supplied to continuous
+  scale") for a patient whose survival time is unknown (`NA`), the usual
+  case for a new patient: the vertical line marking the event time is now
+  left out then.
+
+* `riskPlot()`/`predictPlot()` drew risks on the biomarker's axis scaled by
+  twice the largest biomarker value, which is negative or zero when every
+  value is `<= 0` (e.g. a log-scale biomarker such as `serBilir`), flipping
+  or collapsing the risk axis. They now scale by twice the largest absolute
+  value. Both also failed ("'max' not meaningful for factors") when the
+  plotted biomarker was ordinal; its history is now plotted as the category
+  codes `1:K` that `predictLongitudinal()` predicts on.
 
 * With an ordinal biomarker, `predictRisk()` and `predictLongitudinal()`
   took each observation's category code from the prediction data's own

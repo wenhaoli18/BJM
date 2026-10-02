@@ -81,3 +81,25 @@ count_retained_subjects <- function(data_fit_all, long_sub_fixed, id = "id") {
   })
   Reduce(intersect, ids_by_marker)
 }
+
+# Mixed continuous/ordinal fit on pbc3 (albumin cut into tertiles), shared
+# by test-dynamicPredictionBioCopula.R and test-plots.R.
+setup_copula_predict_fixture <- function() {
+  data(pbc3, envir = environment())
+  d <- pbc3[pbc3$status3 == 1, ]
+  breaks <- stats::quantile(d$albumin, c(0, 1 / 3, 2 / 3, 1), na.rm = TRUE)
+  to_cat <- function(dd) {
+    dd$albumin_cat <- cut(dd$albumin, breaks = breaks, include.lowest = TRUE,
+                           labels = c("low", "mid", "high"), ordered_result = TRUE)
+    dd
+  }
+  d <- to_cat(d)
+
+  long_sub_fixed <- list("m1" = serBilir ~ year + age + sex + years,
+                          "m2" = albumin_cat ~ year + age + sex + years)
+  long_sub_random <- list("m1" = ~ year | id, "m2" = ~ year | id)
+  long_fit_all <- longitudinalSub(list(d, d), long_sub_fixed, long_sub_random)
+
+  list(pbc3 = pbc3, breaks = breaks, to_cat = to_cat,
+       long_fit_all = long_fit_all, long_sub_fixed = long_sub_fixed)
+}

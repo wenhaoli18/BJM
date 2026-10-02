@@ -14,6 +14,9 @@ Shared helper for \code{predictRisk} and
 \code{dynamicPredictionBio}: drops rows whose survival-time variable is
 below \code{prediction_time} from every biomarker's data frame. Rows
 whose survival time is missing (e.g. a new patient whose event time is
-not yet known) are kept: they are treated as at risk.
+not yet known) are kept: they are treated as at risk. It is an error if
+that leaves no patient (it used to return an empty result from
+\code{predictRisk()} without comment, and fail with an unrelated error in
+\code{predictLongitudinal()}).
 }
 \keyword{internal}

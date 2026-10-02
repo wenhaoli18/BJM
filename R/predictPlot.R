@@ -179,6 +179,13 @@ predictPlot = function(data_predict_all_one, long_fit_all, survival_fit_all,
                            longitudinal = unlist(data_predict_all_one[[bio_his]][bio_i_name]))
   
   DP_data_bio = DP_data_bio[DP_data_bio$time <= prediction_time, ]
+  ### an ordinal history is plotted as its category codes 1:K, the same
+  ### codes dynamicPredictionBio() predicts on (max() failed on the factor)
+  if (is.factor(DP_data_bio$longitudinal)) {
+    training_levels <- long_fit_all$lfit[[bio_his]]$y.levels
+    DP_data_bio$longitudinal <- if (is.null(training_levels)) as.integer(DP_data_bio$longitudinal) else
+      match(as.character(DP_data_bio$longitudinal), training_levels)
+  }
 
   ### data before the prediction time -- this does not depend on
   ### prediction.horizon, so it is built once here rather than inside the
@@ -305,7 +312,11 @@ predictPlot = function(data_predict_all_one, long_fit_all, survival_fit_all,
   }
 
   ### plot figure
-  scale_prob = 2 * max(na.omit(DP_data_bio$longitudinal))
+  ### risks are drawn on the biomarker's axis, scaled by scale_prob; it has
+  ### to be positive, which 2 * max(biomarker) was not when every value was
+  ### <= 0 (e.g. a log-scale biomarker), collapsing or flipping the risk axis
+  scale_prob = 2 * max(abs(c(DP_data_bio$longitudinal, Y_predict_mode)), na.rm = TRUE)
+  if (!is.finite(scale_prob) || scale_prob <= 0) scale_prob = 1
   if(length(survival_fit_all$form_conditional_cr) != 0 & is.null(bio_pred)){
       ## with competing risks, without longitudinal biomarker information
       
