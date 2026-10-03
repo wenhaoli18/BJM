@@ -32,9 +32,12 @@
 #' @details
 #' The event time is drawn on the grid of \code{bandcount2} intervals that
 #' \code{\link{predictRisk}} integrates over (each holding about the same
-#' share of the conditional survival probability) and reported as the
-#' midpoint of its interval, so its resolution is about
-#' \code{1 / bandcount2} of the conditional distribution.
+#' share of the conditional survival probability, with an extra edge at
+#' \code{max_event_time}): an interval is drawn with its posterior
+#' probability, the model is evaluated at its midpoint, and the event time
+#' reported is uniform within it, so that summaries of the drawn event times
+#' (e.g. the share before a given time) are not biased by rounding to the
+#' midpoints.
 #'
 #' Past the last follow-up time of the data \code{survivalSub()} was fit
 #' on, the event-time distribution rests on an extrapolated baseline hazard
@@ -61,8 +64,19 @@
 #' drawn from the sub-model, which is the quantity whose density
 #' \code{\link{predictLongitudinal}} returns.
 #'
-#' Only fits with continuous biomarkers are supported; a fit with an ordinal
-#' biomarker (see \code{\link{longitudinalSubCopula}}) gives an error.
+#' An ordinal biomarker (see \code{\link{longitudinalSubCopula}}) is the
+#' discretization of a latent Gaussian score by the fitted thresholds, and is
+#' simulated that way: its latent score is drawn like a continuous biomarker
+#' (with unit residual variance) and cut into categories. In the history it
+#' is known only to have fallen between the thresholds bracketing its
+#' observed category: its contribution to the likelihood of \eqn{(T, D)} is
+#' a multivariate normal box probability, computed by Monte Carlo as in
+#' \code{\link{predictRisk}}, and the random effects are drawn by first
+#' drawing the history's latent scores from their truncated multivariate
+#' normal distribution given the continuous measurements (by rejection, or
+#' by Gibbs sampling when few proposals fall in the box), and then the
+#' random effects given those scores. Supply \code{seed} for reproducible
+#' draws.
 #'
 #' @inheritParams predictRisk
 #' @param times Numeric vector of times (on the scale of
@@ -90,7 +104,8 @@
 #' through it; with competing risks, the drawn event type (named as the
 #' response of \code{form_conditional_cr}, with the same 0/1 coding, and
 #' \code{NA} when \code{event} is 0); and one column per
-#' biomarker, named by its response variable. Attributes
+#' biomarker, named by its response variable (an ordered factor, with the
+#' fitted categories as levels, for an ordinal biomarker). Attributes
 #' \code{"prediction_time"}, \code{"times"} and \code{"max_event_time"}
 #' record the values used.
 #'
@@ -140,10 +155,6 @@ simulateTrajectory <- function(data_predict_all, long_fit_all, survival_fit_all,
 
   assert_class(long_fit_all, "longitudinalSub.BJM", "long_fit_all", "longitudinalSub")
   assert_class(survival_fit_all, "survivalSub.BJM", "survival_fit_all", "survivalSub")
-  if (!is.null(long_fit_all$biomarker_type) && any(long_fit_all$biomarker_type == "ordinal")) {
-    stop("simulateTrajectory() supports only fits with continuous biomarkers; this fit has an ordinal biomarker.",
-         call. = FALSE)
-  }
   M <- length(long_fit_all$lfit)
   assert_data_list(data_predict_all, "data_predict_all", M, allow_bare_df = TRUE)
   if (!is.list(data_predict_all) || is.data.frame(data_predict_all)) {
@@ -173,6 +184,7 @@ simulateTrajectory <- function(data_predict_all, long_fit_all, survival_fit_all,
   if (!is.null(seed)) local_r_seed(seed)
 
   data_predict_all <- drop_after_prediction_time(data_predict_all, time_variable, prediction_time)
+  data_predict_all <- align_ordinal_levels(data_predict_all, long_fit_all)
 
   lfit <- long_fit_all$lfit
   Sigma <- long_fit_all$Sigma_fit
@@ -203,13 +215,16 @@ simulateTrajectory <- function(data_predict_all, long_fit_all, survival_fit_all,
   ### event-time grid and its prior weights, shared with predictRisk()
   upper_bound <- integration_upper_bound(data_predict_all, long_fit_all, survival_fit_all,
                                          prediction_time, min_upper = max(times))
-  infinity_grid <- prepare_infinity_grid(data_predict_all, long_fit_all, survival_fit_all,
-                                          prediction_time, upper_bound, bandcount2)
-  l_grid <- infinity_grid$predict.time.infinity
+  ### with an edge at max_event_time, so that no interval straddles it
+  edges <- equal_mass_edges(data_predict_all, long_fit_all, survival_fit_all,
+                            prediction_time, upper_bound, bandcount2 + 1)
+  if (max_event_time < upper_bound) edges <- sort(unique(c(edges, max_event_time)))
+  l_grid <- (edges[-1] + edges[-length(edges)]) / 2
+  S_T_grid <- marginalT(data_predict_all, long_fit_all, survival_fit_all, l_i = edges, upper_bound)
   ### the event time the model is evaluated at: past max_event_time, the
   ### patient is taken to follow the trajectory of an event at max_event_time
   l_model <- pmin(l_grid, max_event_time)
-  log_prior <- list(log(pmax(infinity_grid$S_T_all_infinity, 0)))
+  log_prior <- list(log(pmax(S_T_grid, 0)))
   d_values <- NA
   if (has_cr) {
     D_T <- conditionalDT(data_predict_all, long_fit_all, survival_fit_all, l_i = l_model)
@@ -217,8 +232,12 @@ simulateTrajectory <- function(data_predict_all, long_fit_all, survival_fit_all,
     d_values <- c(0, 1)
   }
 
-  sigma2 <- vapply(lfit, function(f) f$sigma^2, numeric(1))
-  response_names <- vapply(lfit, function(f) as.character(formula(f)[[2]]), character(1))
+  is_ordinal <- if (is.null(long_fit_all$biomarker_type)) rep(FALSE, M) else long_fit_all$biomarker_type == "ordinal"
+  thresholds <- long_fit_all$thresholds
+  ### an ordinal biomarker's latent score has unit residual variance (the
+  ### probit identification constraint)
+  sigma2 <- vapply(seq_len(M), function(i) if (is_ordinal[i]) 1 else lfit[[i]]$sigma^2, numeric(1))
+  response_names <- vapply(seq_len(M), function(i) all.vars(long_fit_all$long_sub_fixed[[i]])[1], character(1))
   n_times <- length(times)
 
   out <- vector("list", length(patient_ids))
@@ -233,7 +252,24 @@ simulateTrajectory <- function(data_predict_all, long_fit_all, survival_fit_all,
       d
     })
 
-    y_hist <- unlist(lapply(seq_len(M), function(i) history[[i]][[response_names[i]]]))
+    ### the history, stacked across biomarkers: a continuous value, or for an
+    ### ordinal one the thresholds bracketing its latent score
+    n_hist <- vapply(history, nrow, integer(1))
+    y_hist <- lower <- upper <- rep(NA_real_, sum(n_hist))
+    hist_off <- c(0, cumsum(n_hist))
+    for (i in which(n_hist > 0)) {
+      idx <- hist_off[i] + seq_len(n_hist[i])
+      values <- history[[i]][[response_names[i]]]
+      if (is_ordinal[i]) {
+        bounds <- c(-Inf, thresholds[[i]], Inf)
+        lower[idx] <- bounds[as.integer(values)]
+        upper[idx] <- bounds[as.integer(values) + 1]
+      } else {
+        y_hist[idx] <- values
+      }
+    }
+    oo <- which(rep(is_ordinal, n_hist))
+    cc <- which(!rep(is_ordinal, n_hist))
     Z_hist <- stacked_random_design(history, long_fit_all$long_sub_random)
     Z_fut <- stacked_random_design(future, long_fit_all$long_sub_random)
     r_hist <- rep(sigma2, vapply(history, nrow, integer(1)))
@@ -246,6 +282,13 @@ simulateTrajectory <- function(data_predict_all, long_fit_all, survival_fit_all,
       V_y_chol <- chol(V_y)
       K <- Sigma %*% t(Z_hist) %*% chol2inv(V_y_chol)
       V_b <- Sigma - K %*% Z_hist %*% Sigma
+      if (length(oo) > 0) {
+        ### the history's latent ordinal scores given its continuous values:
+        ### N(mu_o + G (y_c - mu_c), V_oo - G V_co), truncated to their boxes
+        G <- if (length(cc) > 0) V_y[oo, cc, drop = FALSE] %*% solve(V_y[cc, cc, drop = FALSE]) else
+          matrix(0, length(oo), 0)
+        V_latent <- V_y[oo, oo, drop = FALSE] - G %*% V_y[cc, oo, drop = FALSE]
+      }
     } else {
       K <- NULL
       V_b <- Sigma
@@ -261,7 +304,18 @@ simulateTrajectory <- function(data_predict_all, long_fit_all, survival_fit_all,
                                                  event_type_variable, survival_variable_all, survival_trans_function)
       mu_fut_cells[[j]] <- stacked_mean_on_grid(future, long_fit_all, l_model, d_values[j], survival_variable,
                                                 event_type_variable, survival_variable_all, survival_trans_function)
-      log_lik <- if (length(y_hist) > 0) gaussian_logdens_chol(V_y_chol, y_hist - mu_hist_cells[[j]]) else 0
+      log_lik <- if (length(y_hist) == 0) {
+        0
+      } else if (length(oo) == 0) {
+        gaussian_logdens_chol(V_y_chol, y_hist - mu_hist_cells[[j]])
+      } else {
+        ### a box probability per distinct event time (those past
+        ### max_event_time share one)
+        first <- match(l_model, l_model)
+        ll <- vapply(unique(first), function(k)
+          mixed_density_prob_copula(V_y, mu_hist_cells[[j]][, k], y_hist, lower, upper, cc, oo), numeric(1))
+        ll[match(first, unique(first))]
+      }
       log_w[cells$d == j] <- log_lik + log_prior[[j]][, p]
     }
     log_w[!is.finite(log_w)] <- -Inf
@@ -273,17 +327,29 @@ simulateTrajectory <- function(data_predict_all, long_fit_all, survival_fit_all,
     w <- exp(log_w - max(log_w))
     drawn <- cells[sample.int(nrow(cells), n_sim, replace = TRUE, prob = w), , drop = FALSE]
 
+    ### the history's latent ordinal scores, drawn per (T, D) cell
+    y_full <- matrix(y_hist, length(y_hist), n_sim)
+    if (length(oo) > 0) {
+      cell_id <- paste(drawn$k, drawn$d)
+      for (cell in unique(cell_id)) {
+        draws <- which(cell_id == cell)
+        mu <- mu_hist_cells[[drawn$d[draws[1]]]][, drawn$k[draws[1]]]
+        latent_mean <- mu[oo] + c(G %*% (y_hist[cc] - mu[cc]))
+        y_full[oo, draws] <- rtmvnorm_box(length(draws), latent_mean, V_latent, lower[oo], upper[oo])
+      }
+    }
+
     Y <- matrix(NA_real_, M * n_times, n_sim)
     for (s in seq_len(n_sim)) {
       k <- drawn$k[s]
       j <- drawn$d[s]
-      b_mean <- if (is.null(K)) rep(0, ncol(Sigma)) else K %*% (y_hist - mu_hist_cells[[j]][, k])
+      b_mean <- if (is.null(K)) rep(0, ncol(Sigma)) else K %*% (y_full[, s] - mu_hist_cells[[j]][, k])
       b <- b_mean + V_b_sqrt %*% stats::rnorm(ncol(Sigma))
       Y[, s] <- mu_fut_cells[[j]][, k] + Z_fut %*% b + stats::rnorm(length(r_fut), sd = sqrt(r_fut))
     }
 
     event <- as.numeric(l_grid[drawn$k] <= max_event_time)
-    event_time <- l_model[drawn$k]
+    event_time <- ifelse(event == 1, stats::runif(n_sim, edges[drawn$k], edges[drawn$k + 1]), max_event_time)
     res <- data.frame(rep(patient_ids[p], n_sim * n_times),
                       rep(seq_len(n_sim), each = n_times),
                       rep(times, n_sim),
@@ -294,6 +360,12 @@ simulateTrajectory <- function(data_predict_all, long_fit_all, survival_fit_all,
     after_event <- res[[time_variable]] >= res$event_time
     for (i in seq_len(M)) {
       values <- c(Y[(i - 1) * n_times + seq_len(n_times), , drop = FALSE])
+      if (is_ordinal[i]) {
+        ### category k when the latent score is in (alpha_{k-1}, alpha_k]
+        categories <- lfit[[i]]$y.levels
+        values <- factor(categories[findInterval(values, thresholds[[i]], left.open = TRUE) + 1],
+                         levels = categories, ordered = TRUE)
+      }
       if (truncate) values[after_event] <- NA
       res[[response_names[i]]] <- values
     }
@@ -363,12 +435,16 @@ stacked_mean_on_grid <- function(rows, long_fit_all, l_grid, d, survival_variabl
     data_i <- rows[[i]]
     if (nrow(data_i) == 0) return(matrix(0, 0, length(l_unique)))
     if (!is.null(event_type_variable)) data_i[[event_type_variable]] <- d
+    xlev_i <- if (!is.null(long_fit_all$xlevels)) long_fit_all$xlevels[[i]] else NULL
+    if (!is.null(long_fit_all$biomarker_type) && long_fit_all$biomarker_type[i] == "ordinal") {
+      return(ordinal_mean_on_grid(data_i, i, long_fit_all, xlev_i, l_unique, survival_variable,
+                                  survival_variable_all, survival_trans_function))
+    }
     response <- as.character(formula(lfit[[i]])[[2]])
     data_i[[response]][is.na(data_i[[response]])] <- 0
     data_i <- set_survival_columns(data_i, survival_variable, l_unique[1], survival_variable_all,
                                    survival_trans_function)
     terms_i <- lfit[[i]]$terms
-    xlev_i <- if (!is.null(long_fit_all$xlevels)) long_fit_all$xlevels[[i]] else NULL
     mf <- model.frame(terms_i, data_i, xlev = xlev_i, na.action = stats::na.pass)
     in_place <- time_columns_bare(terms_i, c(survival_variable, unlist(survival_variable_all)))
     beta <- nlme::fixef(lfit[[i]])
@@ -392,6 +468,100 @@ gaussian_logdens_chol <- function(R, E) {
   E <- as.matrix(E)
   quad <- colSums(backsolve(R, E, transpose = TRUE)^2)
   -0.5 * (nrow(R) * log(2 * pi) + 2 * sum(log(diag(R))) + quad)
+}
+
+#' Latent-score means of an ordinal biomarker at every candidate event time
+#'
+#' @description \eqn{X(l)\beta} for an ordinal biomarker's rows, with the
+#' design built the way \code{build_LME_indi_matrix_copula()} builds it
+#' (the columns of \code{lfit[[i]]$beta}, which has no intercept: the
+#' thresholds play that role).
+#' @return A matrix with one row per row of \code{data_i} and one column per
+#'   element of \code{l_unique}.
+#' @keywords internal
+ordinal_mean_on_grid <- function(data_i, i, long_fit_all, xlev_i, l_unique, survival_variable,
+                                 survival_variable_all, survival_trans_function) {
+  fixed <- long_fit_all$long_sub_fixed[[i]]
+  beta <- long_fit_all$lfit[[i]]$beta
+  ### the response only has to be a valid category for model.frame(); a
+  ### row to be simulated has none
+  response <- all.vars(fixed)[1]
+  categories <- long_fit_all$lfit[[i]]$y.levels
+  observed <- as.character(data_i[[response]])
+  data_i[[response]] <- factor(ifelse(is.na(observed), categories[1], observed),
+                               levels = categories, ordered = TRUE)
+  out <- vapply(l_unique, function(l) {
+    data_l <- set_survival_columns(data_i, survival_variable, l, survival_variable_all,
+                                   survival_trans_function)
+    mf <- model.frame(fixed, data_l, xlev = xlev_i, na.action = stats::na.pass)
+    c(model.matrix(fixed, mf)[, names(beta), drop = FALSE] %*% beta)
+  }, numeric(nrow(data_i)))
+  matrix(out, ncol = length(l_unique))
+}
+
+#' Draw from a truncated multivariate normal distribution
+#'
+#' @description \code{n} draws of \eqn{N(\mu, V)} restricted to the box
+#' \code{(lower, upper]}: by rejection from batches of untruncated
+#' proposals, and, for any draws still missing once \code{max_proposals}
+#' proposals have been spent (a box of small probability), by Gibbs
+#' sampling, one coordinate at a time from its univariate truncated normal
+#' conditional distribution, after \code{burn_in} sweeps and keeping every
+#' \code{thin}-th one.
+#' @return A matrix with one column per draw.
+#' @keywords internal
+rtmvnorm_box <- function(n, mean, sigma, lower, upper, max_proposals = 2e4, burn_in = 50, thin = 5) {
+  d <- length(mean)
+  root <- symmetric_sqrt(sigma)
+  out <- matrix(NA_real_, d, 0)
+  spent <- 0
+  while (ncol(out) < n && spent < max_proposals) {
+    batch <- min(max(10 * n, 100), max_proposals - spent)
+    proposals <- mean + root %*% matrix(stats::rnorm(d * batch), d, batch)
+    inside <- colSums(proposals > lower & proposals <= upper) == d
+    out <- cbind(out, proposals[, inside, drop = FALSE])
+    spent <- spent + batch
+  }
+  if (ncol(out) >= n) return(out[, seq_len(n), drop = FALSE])
+
+  ### Gibbs: x_i | x_-i ~ N(mean_i - sum_j Q_ij (x_j - mean_j) / Q_ii, 1 / Q_ii)
+  precision <- solve(sigma)
+  x <- pmin(pmax(mean, lower), upper)
+  x <- ifelse(x <= lower, pmin(lower + 0.1, (lower + upper) / 2), x)
+  x <- ifelse(x >= upper & is.finite(upper), pmax(upper - 0.1, (lower + upper) / 2), x)
+  missing <- n - ncol(out)
+  gibbs <- matrix(NA_real_, d, missing)
+  for (sweep in seq_len(burn_in + thin * missing)) {
+    for (i in seq_len(d)) {
+      cond_mean <- mean[i] - sum(precision[i, -i] * (x[-i] - mean[-i])) / precision[i, i]
+      x[i] <- rtnorm_one(cond_mean, 1 / sqrt(precision[i, i]), lower[i], upper[i])
+    }
+    kept <- sweep - burn_in
+    if (kept > 0 && kept %% thin == 0) gibbs[, kept / thin] <- x
+  }
+  cbind(out, gibbs)
+}
+
+#' Draw from a univariate truncated normal distribution
+#'
+#' @description By inversion, on the side of the mean where the truncation
+#' interval lies (so a box far in the upper tail does not lose precision to
+#' \code{pnorm()} rounding to 1).
+#' @keywords internal
+rtnorm_one <- function(mean, sd, lower, upper) {
+  a <- (lower - mean) / sd
+  b <- (upper - mean) / sd
+  flip <- a > 0
+  if (flip) {
+    a_new <- -b
+    b <- -a
+    a <- a_new
+  }
+  p_a <- stats::pnorm(a)
+  p_b <- stats::pnorm(b)
+  z <- if (p_b > p_a) stats::qnorm(stats::runif(1, p_a, p_b)) else if (is.finite(b)) b else a
+  if (flip) z <- -z
+  mean + sd * z
 }
 
 #' Square root of a covariance matrix

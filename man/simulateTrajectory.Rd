@@ -81,7 +81,8 @@ the event occurs at \code{event_time} and 0 if the patient is event-free
 through it; with competing risks, the drawn event type (named as the
 response of \code{form_conditional_cr}, with the same 0/1 coding, and
 \code{NA} when \code{event} is 0); and one column per
-biomarker, named by its response variable. Attributes
+biomarker, named by its response variable (an ordered factor, with the
+fitted categories as levels, for an ordinal biomarker). Attributes
 \code{"prediction_time"}, \code{"times"} and \code{"max_event_time"}
 record the values used.
 }
@@ -118,9 +119,12 @@ covariates, i.e. as a new synthetic patient.
 \details{
 The event time is drawn on the grid of \code{bandcount2} intervals that
 \code{\link{predictRisk}} integrates over (each holding about the same
-share of the conditional survival probability) and reported as the
-midpoint of its interval, so its resolution is about
-\code{1 / bandcount2} of the conditional distribution.
+share of the conditional survival probability, with an extra edge at
+\code{max_event_time}): an interval is drawn with its posterior
+probability, the model is evaluated at its midpoint, and the event time
+reported is uniform within it, so that summaries of the drawn event times
+(e.g. the share before a given time) are not biased by rounding to the
+midpoints.
 
 Past the last follow-up time of the data \code{survivalSub()} was fit
 on, the event-time distribution rests on an extrapolated baseline hazard
@@ -147,8 +151,19 @@ drawn (or censored) event time is \code{NA}; with \code{truncate = FALSE} it is 
 drawn from the sub-model, which is the quantity whose density
 \code{\link{predictLongitudinal}} returns.
 
-Only fits with continuous biomarkers are supported; a fit with an ordinal
-biomarker (see \code{\link{longitudinalSubCopula}}) gives an error.
+An ordinal biomarker (see \code{\link{longitudinalSubCopula}}) is the
+discretization of a latent Gaussian score by the fitted thresholds, and is
+simulated that way: its latent score is drawn like a continuous biomarker
+(with unit residual variance) and cut into categories. In the history it
+is known only to have fallen between the thresholds bracketing its
+observed category: its contribution to the likelihood of \eqn{(T, D)} is
+a multivariate normal box probability, computed by Monte Carlo as in
+\code{\link{predictRisk}}, and the random effects are drawn by first
+drawing the history's latent scores from their truncated multivariate
+normal distribution given the continuous measurements (by rejection, or
+by Gibbs sampling when few proposals fall in the box), and then the
+random effects given those scores. Supply \code{seed} for reproducible
+draws.
 }
 \examples{
 \donttest{
