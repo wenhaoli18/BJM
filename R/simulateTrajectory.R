@@ -56,7 +56,18 @@
 #' The biomarkers at \code{times} are evaluated with the covariates of the
 #' patient's last row in \code{data_predict_all} (with \code{time_variable}
 #' set to each element of \code{times}), so a time-varying covariate is
-#' carried forward at its last value.
+#' carried forward at its last value, unless \code{future_covariates} says
+#' otherwise. Each row of \code{future_covariates} sets the covariates in its
+#' columns from its \code{time_variable} on, until a later row changes them:
+#' a time in \code{times} takes the covariates of the last row at or before
+#' it, and those of the patient's last row in \code{data_predict_all} for
+#' anything that row does not set. The history, and so the posterior of the
+#' event time and random effects, is unaffected. A covariate that is a known
+#' function of time (such as current age) is better written into the model
+#' formula as one (e.g. \code{I(age + year)}), so that it is updated without
+#' \code{future_covariates}. Comparing draws under different
+#' \code{future_covariates} compares the outcomes the model associates with
+#' those covariate paths; it is not a causal effect of changing them.
 #'
 #' The backward model describes the biomarkers before the event. With
 #' \code{truncate = TRUE} (the default) a value at a time at or after the
@@ -86,6 +97,12 @@
 #' @param bandcount2 The number of intervals the event-time distribution
 #'   after \code{prediction_time} is discretized into (see Details and
 #'   \code{\link{predictRisk}}).
+#' @param future_covariates Optional data frame of covariate values at future
+#'   times: a \code{time_variable} column, one column per covariate to set,
+#'   and optionally the patient id column (named as in
+#'   \code{long_sub_random}) to set them per patient; without it, every row
+#'   applies to every patient. It cannot set the biomarkers or the event
+#'   time or type. See Details.
 #' @param max_event_time Event times beyond this are reported as
 #'   event-free through it, and the model is evaluated at it in their place
 #'   (see Details). Defaults to \code{NULL}, the last follow-up time of the
@@ -134,6 +151,18 @@
 #'                           trans$survival_trans_function, n_sim = 200, seed = 1)
 #' head(sims)
 #'
+#' # Covariates after the last row are carried forward unless
+#' # future_covariates sets them from a given time on. Age at entry does not
+#' # change, so this is only a sensitivity check of the forecast's dependence
+#' # on age; a time-varying covariate such as ascites would be set the same
+#' # way, e.g. data.frame(year = 6, ascites = "Yes").
+#' sims_older = simulateTrajectory(list(history, history), long_fit_all, survival_fit_all,
+#'                                 prediction_time = 3, times = seq(3, 8, by = 0.5),
+#'                                 time_variable = "year", trans$survival_variable_all,
+#'                                 trans$survival_trans_function, n_sim = 200, seed = 1,
+#'                                 future_covariates = data.frame(year = 5, age = history$age[1] + 10))
+#' tapply(sims_older$serBilir - sims$serBilir, sims$year, mean, na.rm = TRUE)
+#'
 #' # Probability of an event within 2 years, from the draws
 #' first = sims[!duplicated(sims$sim), ]
 #' mean(first$event == 1 & first$event_time <= 5)
@@ -156,7 +185,7 @@ simulateTrajectory <- function(data_predict_all, long_fit_all, survival_fit_all,
                                prediction_time, times, time_variable,
                                survival_variable_all, survival_trans_function,
                                n_sim = 100, bandcount2 = 100, max_event_time = NULL,
-                               truncate = TRUE, seed = NULL) {
+                               truncate = TRUE, future_covariates = NULL, seed = NULL) {
 
   assert_class(long_fit_all, "longitudinalSub.BJM", "long_fit_all", "longitudinalSub")
   assert_class(survival_fit_all, "survivalSub.BJM", "survival_fit_all", "survivalSub")
@@ -243,6 +272,9 @@ simulateTrajectory <- function(data_predict_all, long_fit_all, survival_fit_all,
   ### probit identification constraint)
   sigma2 <- vapply(seq_len(M), function(i) if (is_ordinal[i]) 1 else lfit[[i]]$sigma^2, numeric(1))
   response_names <- vapply(seq_len(M), function(i) all.vars(long_fit_all$long_sub_fixed[[i]])[1], character(1))
+  future_covariates <- check_future_covariates(future_covariates, time_variable, id, patient_ids,
+                                               c(response_names, survival_variable, event_type_variable,
+                                                 unlist(survival_variable_all)))
   n_times <- length(times)
 
   out <- vector("list", length(patient_ids))
@@ -252,11 +284,10 @@ simulateTrajectory <- function(data_predict_all, long_fit_all, survival_fit_all,
     history <- lapply(seq_len(M), function(i) complete_history_rows(rows_p[[i]], i, long_fit_all, survival_variable,
                                                                      c(event_type_variable, unlist(survival_variable_all))))
     template <- rows_p[[1]][nrow(rows_p[[1]]), , drop = FALSE]
-    future <- lapply(seq_len(M), function(i) {
-      d <- template[rep(1, n_times), , drop = FALSE]
-      d[[time_variable]] <- times
-      d
-    })
+    future_p <- template[rep(1, n_times), , drop = FALSE]
+    future_p[[time_variable]] <- times
+    future_p <- apply_future_covariates(future_p, future_covariates, time_variable, id, patient_ids[p])
+    future <- rep(list(future_p), M)
 
     ### the history, stacked across biomarkers: a continuous value, or for an
     ### ordinal one the thresholds bracketing its latent score
@@ -394,6 +425,70 @@ simulateTrajectory <- function(data_predict_all, long_fit_all, survival_fit_all,
                                  event_type = event_type_variable)
   class(out) <- c("simulateTrajectory.BJM", "data.frame")
   out
+}
+
+#' Validate \code{future_covariates}
+#'
+#' @description Checks that it is a data frame with a non-missing time
+#' column, that its id column (if any) names patients being simulated, and
+#' that it does not set an outcome. Returns it ordered by time.
+#' @keywords internal
+check_future_covariates <- function(future_covariates, time_variable, id, patient_ids, outcome_variables) {
+  if (is.null(future_covariates)) return(NULL)
+  assert_data_frame(future_covariates, "future_covariates")
+  if (!time_variable %in% names(future_covariates)) {
+    stop(sprintf("`future_covariates` needs a `%s` column: the time from which each row's covariates apply.",
+                 time_variable), call. = FALSE)
+  }
+  if (anyNA(future_covariates[[time_variable]])) {
+    stop(sprintf("`future_covariates$%s` has missing values.", time_variable), call. = FALSE)
+  }
+  outcomes <- intersect(names(future_covariates), outcome_variables)
+  if (length(outcomes) > 0) {
+    stop(sprintf("`future_covariates` cannot set %s: biomarkers and the event time and type are simulated.",
+                 paste(outcomes, collapse = ", ")), call. = FALSE)
+  }
+  if (id %in% names(future_covariates)) {
+    unknown <- setdiff(as.character(future_covariates[[id]]), patient_ids)
+    if (length(unknown) > 0) {
+      stop(sprintf("`future_covariates` has rows for patient(s) %s, who are not simulated.",
+                   paste(unknown, collapse = ", ")), call. = FALSE)
+    }
+  }
+  if (length(setdiff(names(future_covariates), c(id, time_variable))) == 0) {
+    warning("`future_covariates` sets no covariate (it has only time and id columns); it is ignored.",
+            call. = FALSE)
+    return(NULL)
+  }
+  future_covariates[order(future_covariates[[time_variable]]), , drop = FALSE]
+}
+
+#' Set a patient's future covariates
+#'
+#' @description For each row of \code{future_rows} (one per simulated time),
+#' the covariates of the last row of \code{future_covariates} (for this
+#' patient, if it has an id column) at or before that time; a covariate it
+#' does not set keeps its value in \code{future_rows}.
+#' @keywords internal
+apply_future_covariates <- function(future_rows, future_covariates, time_variable, id, patient_id) {
+  if (is.null(future_covariates)) return(future_rows)
+  if (id %in% names(future_covariates)) {
+    future_covariates <- future_covariates[as.character(future_covariates[[id]]) == patient_id, , drop = FALSE]
+  }
+  if (nrow(future_covariates) == 0) return(future_rows)
+  row_used <- findInterval(future_rows[[time_variable]], future_covariates[[time_variable]])
+  set <- row_used > 0
+  for (v in setdiff(names(future_covariates), c(id, time_variable))) {
+    values <- future_covariates[[v]][row_used[set]]
+    ### a factor or character covariate is set by label: model.frame() turns
+    ### it back into a factor with the fitted levels
+    if (is.factor(future_rows[[v]]) || is.factor(values) || is.character(values)) {
+      future_rows[[v]] <- as.character(future_rows[[v]])
+      values <- as.character(values)
+    }
+    future_rows[[v]][set] <- values
+  }
+  future_rows
 }
 
 #' A patient's history rows usable for conditioning
