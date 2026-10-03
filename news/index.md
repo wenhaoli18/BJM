@@ -32,6 +32,31 @@
 ### New features
 
 - New
+  [`simulateTrajectory()`](https://wenhaoli18.github.io/BJM/reference/simulateTrajectory.md)
+  draws complete futures from the fitted backward joint model – an event
+  time, an event type under competing risks, and every biomarker’s
+  values at chosen times – conditional on a patient’s history up to
+  `prediction_time`, by sampling the event time from its posterior, the
+  random effects from theirs, and the biomarkers given both. A patient
+  with no biomarker measurements is drawn from their baseline covariates
+  alone, as a synthetic patient. Ordinal biomarkers of a Gaussian-copula
+  fit are supported. Event times past the last follow-up time are
+  reported as event-free through `max_event_time` (by default that time)
+  rather than extrapolated. The draws agree with
+  [`predictRisk()`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md)
+  and
+  [`predictLongitudinal()`](https://wenhaoli18.github.io/BJM/reference/predictLongitudinal.md)
+  within Monte Carlo error.
+
+- New [`plot()`](https://rdrr.io/r/graphics/plot.default.html) method
+  for
+  [`simulateTrajectory()`](https://wenhaoli18.github.io/BJM/reference/simulateTrajectory.md)
+  results draws the simulated biomarker trajectories (sampled paths,
+  median and interval band, and the history conditioned on; category
+  shares for an ordinal biomarker) or the cumulative incidence of each
+  event type from the drawn event times.
+
+- New
   [`spaghettiPlot()`](https://wenhaoli18.github.io/BJM/reference/spaghettiPlot.md)
   draws each subject’s observed biomarker trajectory, optionally colored
   by eventual outcome with a smoothed mean per group, and with

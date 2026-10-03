@@ -33,6 +33,7 @@
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><a class="dropdown-item" href="../articles/BJM-intro.html">Getting Started with BJM</a></li>
+    <li><a class="dropdown-item" href="../articles/digital-twins.html">Digital twins</a></li>
     <li><a class="dropdown-item" href="../articles/nonlinear-terms.html">Nonlinear terms in longitudinal formulas</a></li>
     <li><a class="dropdown-item" href="../articles/plotting.html">Plotting with BJM</a></li>
   </ul>
@@ -127,11 +128,16 @@ change themes or labels with <code>+</code>, and save it with
 <td>predicted biomarker distribution</td>
 </tr>
 <tr class="odd">
+<td>Simulated futures</td>
+<td><code>plot(simulateTrajectory(...))</code></td>
+<td>simulated trajectories, or event incidence</td>
+</tr>
+<tr class="even">
 <td>Performance</td>
 <td><code><a href="../reference/performancePlot.html">performancePlot()</a></code></td>
 <td>AUC and Brier score across landmarks</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>Performance</td>
 <td><code><a href="../reference/calibrationPlot.html">calibrationPlot()</a></code></td>
 <td>predicted versus observed risk</td>
@@ -316,12 +322,78 @@ line.</p>
 </div>
 </div>
 <div class="section level2">
+<h2 id="simulated-futures">Simulated futures<a class="anchor" aria-label="anchor" href="#simulated-futures"></a>
+</h2>
+<p><code><a href="../reference/simulateTrajectory.html">simulateTrajectory()</a></code> draws complete futures from the
+fitted model: an event time, an event type and the biomarker values at
+chosen times. Its <code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code> method draws them.</p>
+<div class="section level3">
+<h3 id="one-patients-futures">One patient’s futures<a class="anchor" aria-label="anchor" href="#one-patients-futures"></a>
+</h3>
+<p>Patient 2’s history up to year 5, as above, with 500 futures over
+years 5 to 12.</p>
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">sims</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/simulateTrajectory.html">simulateTrajectory</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">patient</span>, <span class="va">patient</span><span class="op">)</span>, <span class="va">long_fit_all</span>, <span class="va">survival_fit_all</span>,</span>
+<span>                           prediction_time <span class="op">=</span> <span class="fl">5</span>, times <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="fl">5</span>, <span class="fl">12</span>, <span class="fl">0.5</span><span class="op">)</span>, time_variable <span class="op">=</span> <span class="st">"year"</span>,</span>
+<span>                           <span class="va">trans</span><span class="op">$</span><span class="va">survival_variable_all</span>, <span class="va">trans</span><span class="op">$</span><span class="va">survival_trans_function</span>,</span>
+<span>                           n_sim <span class="op">=</span> <span class="fl">500</span>, seed <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span></code></pre></div>
+<p><code>plot(sims)</code> draws 30 of the simulated trajectories in
+grey, the median and 90% interval of the draws at each time in blue, and
+the measurements the draws are conditioned on as points. A draw stops at
+its event, so at later times the band describes the draws still
+event-free.</p>
+<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">sims</span><span class="op">)</span></span></code></pre></div>
+<p><img src="plotting_files/figure-html/simulate-trajectory-plot-1.png" class="r-plt" alt="Simulated futures of patient 2 from year 5 to 12, one panel per biomarker: the observed measurements up to year 5 as points, 30 simulated trajectories as grey lines, and the median and 90% interval of the draws as a blue line and band. The median bilirubin rises from about 1 at year 5 to about 2 at year 12, and the median albumin falls from about 3.3 to about 2.4, with the band widening over time." width="100%"></p>
+<p><code>plot(sims, which = "event")</code> draws the cumulative
+incidence of each event type (<code>status4 = 0</code> is death,
+<code>status4 = 1</code> transplantation) computed from the drawn event
+times. Draws whose event comes after the last follow-up time (14.3
+years) are counted as event-free through it.</p>
+<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">sims</span>, which <span class="op">=</span> <span class="st">"event"</span><span class="op">)</span></span></code></pre></div>
+<p><img src="plotting_files/figure-html/simulate-event-plot-1.png" class="r-plt" alt="Cumulative incidence of death and transplantation for patient 2 after year 5, computed from 500 simulated event times: death rises to about 0.83 by year 14.3, mostly between years 8 and 11, and transplantation stays below 0.05; 14% of the draws are event-free through year 14.3." width="100%"></p>
+</div>
+<div class="section level3">
+<h3 id="a-synthetic-cohort">A synthetic cohort<a class="anchor" aria-label="anchor" href="#a-synthetic-cohort"></a>
+</h3>
+<p>A patient with no biomarker measurements is drawn from the model
+given their baseline covariates alone. Here 200 synthetic patients, with
+ages and sexes resampled from <code>pbc3</code>, get one future
+each.</p>
+<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span></span>
+<span><span class="va">baseline</span> <span class="op">&lt;-</span> <span class="va">pbc3</span><span class="op">[</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/duplicated.html" class="external-link">duplicated</a></span><span class="op">(</span><span class="va">pbc3</span><span class="op">$</span><span class="va">id</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"age"</span>, <span class="st">"sex"</span><span class="op">)</span><span class="op">]</span></span>
+<span><span class="va">cohort</span> <span class="op">&lt;-</span> <span class="va">baseline</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/sample.html" class="external-link">sample</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">baseline</span><span class="op">)</span>, <span class="fl">200</span>, replace <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>, <span class="op">]</span></span>
+<span><span class="va">cohort</span><span class="op">$</span><span class="va">id</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"synthetic"</span>, <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">cohort</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">cohort</span><span class="op">$</span><span class="va">year</span> <span class="op">&lt;-</span> <span class="fl">0</span></span>
+<span><span class="va">cohort</span><span class="op">$</span><span class="va">serBilir</span> <span class="op">&lt;-</span> <span class="cn">NA</span></span>
+<span><span class="va">cohort</span><span class="op">$</span><span class="va">albumin</span> <span class="op">&lt;-</span> <span class="cn">NA</span></span>
+<span><span class="va">synthetic</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/simulateTrajectory.html">simulateTrajectory</a></span><span class="op">(</span><span class="va">cohort</span>, <span class="va">long_fit_all</span>, <span class="va">survival_fit_all</span>,</span>
+<span>                                prediction_time <span class="op">=</span> <span class="fl">0</span>, times <span class="op">=</span> <span class="fl">0</span><span class="op">:</span><span class="fl">10</span>, time_variable <span class="op">=</span> <span class="st">"year"</span>,</span>
+<span>                                <span class="va">trans</span><span class="op">$</span><span class="va">survival_variable_all</span>, <span class="va">trans</span><span class="op">$</span><span class="va">survival_trans_function</span>,</span>
+<span>                                n_sim <span class="op">=</span> <span class="fl">1</span>, seed <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span></code></pre></div>
+<p>The plot now pools one draw from each of the 200 patients, so it
+shows the spread of the cohort rather than one patient’s uncertainty.
+Use <code>id</code> to plot a subset of the patients.</p>
+<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">synthetic</span><span class="op">)</span></span></code></pre></div>
+<p><img src="plotting_files/figure-html/synthetic-trajectory-plot-1.png" class="r-plt" alt="Simulated trajectories of a synthetic cohort of 200 patients from year 0 to 10, one panel per biomarker, with 30 trajectories as grey lines and the median and 90% interval of the cohort in blue: median bilirubin stays near 0 and falls slightly after year 7, median albumin stays between about 3.5 and 3.9, and both bands are wide throughout." width="100%"></p>
+<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">synthetic</span>, which <span class="op">=</span> <span class="st">"event"</span><span class="op">)</span></span></code></pre></div>
+<p><img src="plotting_files/figure-html/synthetic-event-plot-1.png" class="r-plt" alt="Cumulative incidence of death and transplantation in the synthetic cohort from year 0 to 14.3: death rises steadily to about 0.5 and transplantation to about 0.12; 37% of the synthetic patients are event-free through year 14.3." width="100%"></p>
+<p>See <code><a href="../reference/simulateTrajectory.html">?simulateTrajectory</a></code> for how the draws are made and
+the assumptions behind them, such as how event times beyond the last
+follow-up are handled.</p>
+</div>
+</div>
+<div class="section level2">
 <h2 id="evaluating-the-predictions">Evaluating the predictions<a class="anchor" aria-label="anchor" href="#evaluating-the-predictions"></a>
 </h2>
 <p>Performance measured on the data the model was fit on is optimistic.
 Here we split the patients at random, fit the sub-models on two thirds
 of them, and evaluate on the remaining third.</p>
-<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">2026</span><span class="op">)</span></span>
 <span><span class="va">ids</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/unique.html" class="external-link">unique</a></span><span class="op">(</span><span class="va">pbc3</span><span class="op">$</span><span class="va">id</span><span class="op">)</span></span>
 <span><span class="va">train_ids</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/sample.html" class="external-link">sample</a></span><span class="op">(</span><span class="va">ids</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fl">2</span> <span class="op">/</span> <span class="fl">3</span> <span class="op">*</span> <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">ids</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
@@ -342,7 +414,7 @@ patients who have the event from those who do not (0.5 is chance, 1 is
 perfect); the Brier score is the mean squared error of the risks (lower
 is better). Censoring is handled by inverse probability of censoring
 weighting.</p>
-<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/performancePlot.html">performancePlot</a></span><span class="op">(</span><span class="va">test</span>, <span class="va">long_train</span>, <span class="va">survival_train</span>,</span>
 <span>                prediction_time <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">2</span>, <span class="fl">3</span>, <span class="fl">4</span>, <span class="fl">5</span><span class="op">)</span>, horizon <span class="op">=</span> <span class="fl">2</span>, time_variable <span class="op">=</span> <span class="st">"year"</span>,</span>
 <span>                <span class="va">trans</span><span class="op">$</span><span class="va">survival_variable_all</span>, <span class="va">trans</span><span class="op">$</span><span class="va">survival_trans_function</span>,</span>
@@ -364,7 +436,7 @@ group’s mean predicted risk is plotted against the risk actually
 observed in it. Points near the diagonal mean the predictions are
 accurate; below it, the model overestimates the risk, above it, it
 underestimates it.</p>
-<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/calibrationPlot.html">calibrationPlot</a></span><span class="op">(</span><span class="va">test</span>, <span class="va">long_train</span>, <span class="va">survival_train</span>,</span>
 <span>                prediction_time <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2</span>, <span class="fl">4</span><span class="op">)</span>, horizon <span class="op">=</span> <span class="fl">2</span>, time_variable <span class="op">=</span> <span class="st">"year"</span>,</span>
 <span>                <span class="va">trans</span><span class="op">$</span><span class="va">survival_variable_all</span>, <span class="va">trans</span><span class="op">$</span><span class="va">survival_trans_function</span>,</span>

@@ -158,6 +158,8 @@ sub-models.
   : Dynamic prediction function for future event risk
 - [`predictLongitudinal()`](https://wenhaoli18.github.io/BJM/reference/predictLongitudinal.md)
   : Dynamic prediction function for future longitudinal outcomes
+- [`simulateTrajectory()`](https://wenhaoli18.github.io/BJM/reference/simulateTrajectory.md)
+  : Simulate future trajectories from the backward joint model
 - [`checkBandcountConvergence()`](https://wenhaoli18.github.io/BJM/reference/checkBandcountConvergence.md)
   : Check whether bandcount1/bandcount2/bandcount3 are large enough
 - [`survivalTrans()`](https://wenhaoli18.github.io/BJM/reference/survivalTrans.md)
@@ -200,6 +202,8 @@ trajectories, and observed event outcomes.
   : Plot a fitted survival sub-model
 - [`plot(`*`<predictLongitudinal.BJM>`*`)`](https://wenhaoli18.github.io/BJM/reference/plot.predictLongitudinal.BJM.md)
   : Plot predicted biomarker distributions
+- [`plot(`*`<simulateTrajectory.BJM>`*`)`](https://wenhaoli18.github.io/BJM/reference/plot.simulateTrajectory.BJM.md)
+  : Plot simulated futures
 
 ## Data
 
@@ -212,6 +216,8 @@ trajectories, and observed event outcomes.
 
 - [Getting Started with
   BJM](https://wenhaoli18.github.io/BJM/articles/BJM-intro.md):
+- [Digital
+  twins](https://wenhaoli18.github.io/BJM/articles/digital-twins.md):
 - [Nonlinear terms in longitudinal
   formulas](https://wenhaoli18.github.io/BJM/articles/nonlinear-terms.md):
 - [Plotting with

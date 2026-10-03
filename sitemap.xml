@@ -2,6 +2,7 @@
 <url><loc>https://wenhaoli18.github.io/BJM/404.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/LICENSE-text.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/articles/BJM-intro.html</loc></url>
+<url><loc>https://wenhaoli18.github.io/BJM/articles/digital-twins.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/articles/index.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/articles/nonlinear-terms.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/articles/plotting.html</loc></url>
@@ -44,6 +45,7 @@
 <url><loc>https://wenhaoli18.github.io/BJM/reference/cif_step_ribbon.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/clamp_risk_prob.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/cmtPlot.html</loc></url>
+<url><loc>https://wenhaoli18.github.io/BJM/reference/complete_history_rows.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/compute_bio_marker_step.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/compute_bio_shared_step.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/conditionalDT.html</loc></url>
@@ -70,6 +72,7 @@
 <url><loc>https://wenhaoli18.github.io/BJM/reference/exp_shifted.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/extrapolation_slope.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/fit_marginal_ordinal.html</loc></url>
+<url><loc>https://wenhaoli18.github.io/BJM/reference/gaussian_logdens_chol.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/imputeLongitudinal.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/impute_latent_ordinal.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/index.html</loc></url>
@@ -90,6 +93,7 @@
 <url><loc>https://wenhaoli18.github.io/BJM/reference/model_vars.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/n_subjects.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/nlme_random_to_lme4_bars.html</loc></url>
+<url><loc>https://wenhaoli18.github.io/BJM/reference/ordinal_mean_on_grid.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/outcome_cause_label.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/outcome_variables.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/patient_log_shift.html</loc></url>
@@ -99,6 +103,7 @@
 <url><loc>https://wenhaoli18.github.io/BJM/reference/performance_outcome.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/plot.longitudinalSub.BJM.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/plot.predictLongitudinal.BJM.html</loc></url>
+<url><loc>https://wenhaoli18.github.io/BJM/reference/plot.simulateTrajectory.BJM.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/plot.survivalSub.BJM.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/poolLongitudinalSub.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/pooled_longitudinal_fit.html</loc></url>
@@ -117,12 +122,17 @@
 <url><loc>https://wenhaoli18.github.io/BJM/reference/random_effects_design.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/resolve_biomarker_type.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/riskPlot.html</loc></url>
+<url><loc>https://wenhaoli18.github.io/BJM/reference/rtmvnorm_box.html</loc></url>
+<url><loc>https://wenhaoli18.github.io/BJM/reference/rtnorm_one.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/rubin_pool_scalar.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/select_patient_longitudinal_data.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/select_patient_longitudinal_data_bio.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/set_survival_columns.html</loc></url>
+<url><loc>https://wenhaoli18.github.io/BJM/reference/simulateTrajectory.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/sinusoidal_time_embedding.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/spaghettiPlot.html</loc></url>
+<url><loc>https://wenhaoli18.github.io/BJM/reference/stacked_mean_on_grid.html</loc></url>
+<url><loc>https://wenhaoli18.github.io/BJM/reference/stacked_random_design.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/subset_at_risk.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/summary.longitudinalSub.BJM.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/summary.predictLongitudinal.BJM.html</loc></url>
@@ -131,6 +141,7 @@
 <url><loc>https://wenhaoli18.github.io/BJM/reference/survivalSub.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/survivalTrans.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/survival_model_frame_at.html</loc></url>
+<url><loc>https://wenhaoli18.github.io/BJM/reference/symmetric_sqrt.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/tail_time.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/time_columns_bare.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/train_diffusion.html</loc></url>

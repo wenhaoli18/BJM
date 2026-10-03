@@ -18,6 +18,7 @@ labels with `+`, and save it with
 | One patient | [`predictPlot()`](https://wenhaoli18.github.io/BJM/reference/predictPlot.md) | risk and biomarker as the horizon grows |
 | One patient | [`riskPlot()`](https://wenhaoli18.github.io/BJM/reference/riskPlot.md) | risk as the landmark time moves |
 | One patient | `plot(predictLongitudinal(...))` | predicted biomarker distribution |
+| Simulated futures | `plot(simulateTrajectory(...))` | simulated trajectories, or event incidence |
 | Performance | [`performancePlot()`](https://wenhaoli18.github.io/BJM/reference/performancePlot.md) | AUC and Brier score across landmarks |
 | Performance | [`calibrationPlot()`](https://wenhaoli18.github.io/BJM/reference/calibrationPlot.md) | predicted versus observed risk |
 
@@ -290,6 +291,114 @@ patients 2, 4 and 5, each with a dashed line at its most likely value;
 the curves have similar spread and are centred at increasing values,
 patient 2 lowest and patient 5
 highest.](plotting_files/figure-html/predict-longitudinal-1.png)
+
+## Simulated futures
+
+[`simulateTrajectory()`](https://wenhaoli18.github.io/BJM/reference/simulateTrajectory.md)
+draws complete futures from the fitted model: an event time, an event
+type and the biomarker values at chosen times. Its
+[`plot()`](https://rdrr.io/r/graphics/plot.default.html) method draws
+them.
+
+### One patient’s futures
+
+Patient 2’s history up to year 5, as above, with 500 futures over years
+5 to 12.
+
+``` r
+
+sims <- simulateTrajectory(list(patient, patient), long_fit_all, survival_fit_all,
+                           prediction_time = 5, times = seq(5, 12, 0.5), time_variable = "year",
+                           trans$survival_variable_all, trans$survival_trans_function,
+                           n_sim = 500, seed = 1)
+```
+
+`plot(sims)` draws 30 of the simulated trajectories in grey, the median
+and 90% interval of the draws at each time in blue, and the measurements
+the draws are conditioned on as points. A draw stops at its event, so at
+later times the band describes the draws still event-free.
+
+``` r
+
+plot(sims)
+```
+
+![Simulated futures of patient 2 from year 5 to 12, one panel per
+biomarker: the observed measurements up to year 5 as points, 30
+simulated trajectories as grey lines, and the median and 90% interval of
+the draws as a blue line and band. The median bilirubin rises from about
+1 at year 5 to about 2 at year 12, and the median albumin falls from
+about 3.3 to about 2.4, with the band widening over
+time.](plotting_files/figure-html/simulate-trajectory-plot-1.png)
+
+`plot(sims, which = "event")` draws the cumulative incidence of each
+event type (`status4 = 0` is death, `status4 = 1` transplantation)
+computed from the drawn event times. Draws whose event comes after the
+last follow-up time (14.3 years) are counted as event-free through it.
+
+``` r
+
+plot(sims, which = "event")
+```
+
+![Cumulative incidence of death and transplantation for patient 2 after
+year 5, computed from 500 simulated event times: death rises to about
+0.83 by year 14.3, mostly between years 8 and 11, and transplantation
+stays below 0.05; 14% of the draws are event-free through year
+14.3.](plotting_files/figure-html/simulate-event-plot-1.png)
+
+### A synthetic cohort
+
+A patient with no biomarker measurements is drawn from the model given
+their baseline covariates alone. Here 200 synthetic patients, with ages
+and sexes resampled from `pbc3`, get one future each.
+
+``` r
+
+set.seed(1)
+baseline <- pbc3[!duplicated(pbc3$id), c("age", "sex")]
+cohort <- baseline[sample(nrow(baseline), 200, replace = TRUE), ]
+cohort$id <- paste0("synthetic", seq_len(nrow(cohort)))
+cohort$year <- 0
+cohort$serBilir <- NA
+cohort$albumin <- NA
+synthetic <- simulateTrajectory(cohort, long_fit_all, survival_fit_all,
+                                prediction_time = 0, times = 0:10, time_variable = "year",
+                                trans$survival_variable_all, trans$survival_trans_function,
+                                n_sim = 1, seed = 1)
+```
+
+The plot now pools one draw from each of the 200 patients, so it shows
+the spread of the cohort rather than one patient’s uncertainty. Use `id`
+to plot a subset of the patients.
+
+``` r
+
+plot(synthetic)
+```
+
+![Simulated trajectories of a synthetic cohort of 200 patients from year
+0 to 10, one panel per biomarker, with 30 trajectories as grey lines and
+the median and 90% interval of the cohort in blue: median bilirubin
+stays near 0 and falls slightly after year 7, median albumin stays
+between about 3.5 and 3.9, and both bands are wide
+throughout.](plotting_files/figure-html/synthetic-trajectory-plot-1.png)
+
+``` r
+
+plot(synthetic, which = "event")
+```
+
+![Cumulative incidence of death and transplantation in the synthetic
+cohort from year 0 to 14.3: death rises steadily to about 0.5 and
+transplantation to about 0.12; 37% of the synthetic patients are
+event-free through year
+14.3.](plotting_files/figure-html/synthetic-event-plot-1.png)
+
+See
+[`?simulateTrajectory`](https://wenhaoli18.github.io/BJM/reference/simulateTrajectory.md)
+for how the draws are made and the assumptions behind them, such as how
+event times beyond the last follow-up are handled.
 
 ## Evaluating the predictions
 
