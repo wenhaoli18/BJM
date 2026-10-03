@@ -36,6 +36,20 @@
 #' midpoint of its interval, so its resolution is about
 #' \code{1 / bandcount2} of the conditional distribution.
 #'
+#' Past the last follow-up time of the data \code{survivalSub()} was fit
+#' on, the event-time distribution rests on an extrapolated baseline hazard
+#' and the longitudinal sub-model's mean on event times it was never fit
+#' on; drawn from a patient's prior (no history), a large share of event
+#' times can land there, with implausible biomarker values. So an event
+#' time beyond \code{max_event_time} (by default that last follow-up time)
+#' is reported as event-free through \code{max_event_time}
+#' (\code{event = 0}, \code{event_time = max_event_time}), and both the
+#' history's likelihood and the simulated biomarkers use \code{T =
+#' max_event_time} in its place, i.e. a patient whose event comes after
+#' follow-up is assumed to follow the trajectory of one whose event comes
+#' at its end. \code{max_event_time = Inf} turns this off and reproduces
+#' the event-time distribution \code{\link{predictRisk}} integrates over.
+#'
 #' The biomarkers at \code{times} are evaluated with the covariates of the
 #' patient's last row in \code{data_predict_all} (with \code{time_variable}
 #' set to each element of \code{times}), so a time-varying covariate is
@@ -43,7 +57,7 @@
 #'
 #' The backward model describes the biomarkers before the event. With
 #' \code{truncate = TRUE} (the default) a value at a time at or after the
-#' drawn event time is \code{NA}; with \code{truncate = FALSE} it is still
+#' drawn (or censored) event time is \code{NA}; with \code{truncate = FALSE} it is still
 #' drawn from the sub-model, which is the quantity whose density
 #' \code{\link{predictLongitudinal}} returns.
 #'
@@ -58,6 +72,10 @@
 #' @param bandcount2 The number of intervals the event-time distribution
 #'   after \code{prediction_time} is discretized into (see Details and
 #'   \code{\link{predictRisk}}).
+#' @param max_event_time Event times beyond this are reported as
+#'   event-free through it, and the model is evaluated at it in their place
+#'   (see Details). Defaults to \code{NULL}, the last follow-up time of the
+#'   data \code{survivalSub()} was fit on; \code{Inf} turns this off.
 #' @param truncate If \code{TRUE}, biomarker values at or after the drawn
 #'   event time are \code{NA} (see Details).
 #' @param seed Optional integer seed, for reproducible draws. The caller's
@@ -66,11 +84,15 @@
 #' @return A data frame of class \code{"simulateTrajectory.BJM"}, with one
 #' row per patient, draw and element of \code{times}, and columns: the
 #' patient id (named as in \code{long_sub_random}); \code{sim}, the draw
-#' number; \code{time_variable}; \code{event_time}, the drawn event time;
-#' with competing risks, the drawn event type (named as the response of
-#' \code{form_conditional_cr}, with the same 0/1 coding); and one column per
+#' number; \code{time_variable}; \code{event_time}, the drawn event time,
+#' or \code{max_event_time} if the event comes after it; \code{event}, 1 if
+#' the event occurs at \code{event_time} and 0 if the patient is event-free
+#' through it; with competing risks, the drawn event type (named as the
+#' response of \code{form_conditional_cr}, with the same 0/1 coding, and
+#' \code{NA} when \code{event} is 0); and one column per
 #' biomarker, named by its response variable. Attributes
-#' \code{"prediction_time"} and \code{"times"} record the call's values.
+#' \code{"prediction_time"}, \code{"times"} and \code{"max_event_time"}
+#' record the values used.
 #'
 #' @examples
 #' \donttest{
@@ -97,14 +119,24 @@
 #' head(sims)
 #'
 #' # Probability of an event within 2 years, from the draws
-#' mean(sims$event_time[!duplicated(sims$sim)] <= 5)
+#' first = sims[!duplicated(sims$sim), ]
+#' mean(first$event == 1 & first$event_time <= 5)
+#'
+#' # A new synthetic patient: baseline covariates only, biomarkers NA
+#' new_patient = data.frame(id = "new", year = 0, age = 50, sex = 1,
+#'                          serBilir = NA, albumin = NA)
+#' synthetic = simulateTrajectory(new_patient, long_fit_all, survival_fit_all,
+#'                                prediction_time = 0, times = 0:6, time_variable = "year",
+#'                                trans$survival_variable_all,
+#'                                trans$survival_trans_function, n_sim = 100, seed = 1)
 #' }
 #'
 #' @export
 simulateTrajectory <- function(data_predict_all, long_fit_all, survival_fit_all,
                                prediction_time, times, time_variable,
                                survival_variable_all, survival_trans_function,
-                               n_sim = 100, bandcount2 = 100, truncate = TRUE, seed = NULL) {
+                               n_sim = 100, bandcount2 = 100, max_event_time = NULL,
+                               truncate = TRUE, seed = NULL) {
 
   assert_class(long_fit_all, "longitudinalSub.BJM", "long_fit_all", "longitudinalSub")
   assert_class(survival_fit_all, "survivalSub.BJM", "survival_fit_all", "survivalSub")
@@ -129,6 +161,11 @@ simulateTrajectory <- function(data_predict_all, long_fit_all, survival_fit_all,
   assert_string(time_variable, "time_variable")
   assert_positive_integer(n_sim, "n_sim")
   assert_positive_integer(bandcount2, "bandcount2")
+  if (!is.null(max_event_time)) {
+    if (!is.numeric(max_event_time) || length(max_event_time) != 1 || is.na(max_event_time)) {
+      stop("`max_event_time` must be NULL or a single number (Inf to turn it off).", call. = FALSE)
+    }
+  }
   if (!is.logical(truncate) || length(truncate) != 1 || is.na(truncate)) {
     stop("`truncate` must be TRUE or FALSE.", call. = FALSE)
   }
@@ -154,16 +191,28 @@ simulateTrajectory <- function(data_predict_all, long_fit_all, survival_fit_all,
   data_predict_all <- subset_at_risk(data_predict_all, survival_variable, prediction_time)
   patient_ids <- prediction_patient_ids(data_predict_all, long_fit_all)
 
+  if (is.null(max_event_time)) {
+    surv_y <- survival_fit_all$coxph_fit$y
+    max_event_time <- max(surv_y[, ncol(surv_y) - 1])
+  }
+  if (max_event_time <= prediction_time) {
+    stop(sprintf("`max_event_time` (%g) must be later than prediction_time = %g.", max_event_time, prediction_time),
+         call. = FALSE)
+  }
+
   ### event-time grid and its prior weights, shared with predictRisk()
   upper_bound <- integration_upper_bound(data_predict_all, long_fit_all, survival_fit_all,
                                          prediction_time, min_upper = max(times))
   infinity_grid <- prepare_infinity_grid(data_predict_all, long_fit_all, survival_fit_all,
                                           prediction_time, upper_bound, bandcount2)
   l_grid <- infinity_grid$predict.time.infinity
+  ### the event time the model is evaluated at: past max_event_time, the
+  ### patient is taken to follow the trajectory of an event at max_event_time
+  l_model <- pmin(l_grid, max_event_time)
   log_prior <- list(log(pmax(infinity_grid$S_T_all_infinity, 0)))
   d_values <- NA
   if (has_cr) {
-    D_T <- conditionalDT(data_predict_all, long_fit_all, survival_fit_all, l_i = l_grid)
+    D_T <- conditionalDT(data_predict_all, long_fit_all, survival_fit_all, l_i = l_model)
     log_prior <- list(log_prior[[1]] + log(D_T[[1]]), log_prior[[1]] + log(D_T[[2]]))
     d_values <- c(0, 1)
   }
@@ -208,9 +257,9 @@ simulateTrajectory <- function(data_predict_all, long_fit_all, survival_fit_all,
     log_w <- numeric(nrow(cells))
     mu_hist_cells <- mu_fut_cells <- vector("list", length(d_values))
     for (j in seq_along(d_values)) {
-      mu_hist_cells[[j]] <- stacked_mean_on_grid(history, long_fit_all, l_grid, d_values[j], survival_variable,
+      mu_hist_cells[[j]] <- stacked_mean_on_grid(history, long_fit_all, l_model, d_values[j], survival_variable,
                                                  event_type_variable, survival_variable_all, survival_trans_function)
-      mu_fut_cells[[j]] <- stacked_mean_on_grid(future, long_fit_all, l_grid, d_values[j], survival_variable,
+      mu_fut_cells[[j]] <- stacked_mean_on_grid(future, long_fit_all, l_model, d_values[j], survival_variable,
                                                 event_type_variable, survival_variable_all, survival_trans_function)
       log_lik <- if (length(y_hist) > 0) gaussian_logdens_chol(V_y_chol, y_hist - mu_hist_cells[[j]]) else 0
       log_w[cells$d == j] <- log_lik + log_prior[[j]][, p]
@@ -233,13 +282,15 @@ simulateTrajectory <- function(data_predict_all, long_fit_all, survival_fit_all,
       Y[, s] <- mu_fut_cells[[j]][, k] + Z_fut %*% b + stats::rnorm(length(r_fut), sd = sqrt(r_fut))
     }
 
-    event_time <- l_grid[drawn$k]
+    event <- as.numeric(l_grid[drawn$k] <= max_event_time)
+    event_time <- l_model[drawn$k]
     res <- data.frame(rep(patient_ids[p], n_sim * n_times),
                       rep(seq_len(n_sim), each = n_times),
                       rep(times, n_sim),
-                      rep(event_time, each = n_times))
-    names(res) <- c(id, "sim", time_variable, "event_time")
-    if (has_cr) res[[event_type_variable]] <- rep(d_values[drawn$d], each = n_times)
+                      rep(event_time, each = n_times),
+                      rep(event, each = n_times))
+    names(res) <- c(id, "sim", time_variable, "event_time", "event")
+    if (has_cr) res[[event_type_variable]] <- rep(ifelse(event == 1, d_values[drawn$d], NA), each = n_times)
     after_event <- res[[time_variable]] >= res$event_time
     for (i in seq_len(M)) {
       values <- c(Y[(i - 1) * n_times + seq_len(n_times), , drop = FALSE])
@@ -253,6 +304,7 @@ simulateTrajectory <- function(data_predict_all, long_fit_all, survival_fit_all,
   rownames(out) <- NULL
   attr(out, "prediction_time") <- prediction_time
   attr(out, "times") <- times
+  attr(out, "max_event_time") <- max_event_time
   class(out) <- c("simulateTrajectory.BJM", "data.frame")
   out
 }
@@ -305,27 +357,29 @@ stacked_random_design <- function(rows, long_sub_random) {
 stacked_mean_on_grid <- function(rows, long_fit_all, l_grid, d, survival_variable, event_type_variable,
                                  survival_variable_all, survival_trans_function) {
   lfit <- long_fit_all$lfit
+  ### grid points past max_event_time repeat one value: evaluate each once
+  l_unique <- unique(l_grid)
   blocks <- lapply(seq_along(rows), function(i) {
     data_i <- rows[[i]]
-    if (nrow(data_i) == 0) return(matrix(0, 0, length(l_grid)))
+    if (nrow(data_i) == 0) return(matrix(0, 0, length(l_unique)))
     if (!is.null(event_type_variable)) data_i[[event_type_variable]] <- d
     response <- as.character(formula(lfit[[i]])[[2]])
     data_i[[response]][is.na(data_i[[response]])] <- 0
-    data_i <- set_survival_columns(data_i, survival_variable, l_grid[1], survival_variable_all,
+    data_i <- set_survival_columns(data_i, survival_variable, l_unique[1], survival_variable_all,
                                    survival_trans_function)
     terms_i <- lfit[[i]]$terms
     xlev_i <- if (!is.null(long_fit_all$xlevels)) long_fit_all$xlevels[[i]] else NULL
     mf <- model.frame(terms_i, data_i, xlev = xlev_i, na.action = stats::na.pass)
     in_place <- time_columns_bare(terms_i, c(survival_variable, unlist(survival_variable_all)))
     beta <- nlme::fixef(lfit[[i]])
-    vapply(l_grid, function(l) {
+    vapply(l_unique, function(l) {
       mf <- survival_model_frame_at(mf, data_i, in_place, terms_i, xlev_i, survival_variable, l,
                                     survival_variable_all, survival_trans_function)
       c(model.matrix(terms_i, mf, contrasts.arg = lfit[[i]]$contrasts) %*% beta)
     }, numeric(nrow(data_i)))
   })
-  blocks <- lapply(blocks, function(b) matrix(b, ncol = length(l_grid)))
-  do.call(rbind, blocks)
+  blocks <- lapply(blocks, function(b) matrix(b, ncol = length(l_unique)))
+  do.call(rbind, blocks)[, match(l_grid, l_unique), drop = FALSE]
 }
 
 #' Gaussian log density from a Cholesky factor
