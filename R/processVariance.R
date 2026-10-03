@@ -1,4 +1,6 @@
-#' Construct variance
+#' Factor one patient's joint longitudinal covariance for conditionalYTBio()/conditionalYDTBio()
+#' @return The result of \code{cov_factor()}, or \code{NA} if the patient has
+#' no rows for some biomarker.
 #' @keywords internal
 #' 
 process_variance <- function(num_i, time_new, bio_i, data_predict_all, 
@@ -88,8 +90,8 @@ process_variance <- function(num_i, time_new, bio_i, data_predict_all,
   ### diagonal matrix, corrupting Sigma_all's dimensions downstream (a
   ### classic base R diag() gotcha -- see ?diag). Passing the length
   ### explicitly avoids the ambiguity for every length, including 1.
-  Sigma_all =  A_i %*% Sigma %*% t(A_i) + diag(Sigma_vector, length(Sigma_vector))
-  #Sigma_all <- diag(diag(Sigma_all))
-  
-  return(Sigma_all) # Return the computed Sigma_all for this iteration
+  ### Sigma_all = A_i %*% Sigma %*% t(A_i) + diag(Sigma_vector), factored
+  ### without necessarily forming it (see cov_factor())
+  return(cov_factor(A_i, Sigma, Sigma_vector))
 }
+

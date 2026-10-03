@@ -68,7 +68,7 @@ conditionalYTBio = function(Y_all, time_new, bio_i, data_predict_all,
   
   # MVN variance 
   # Apply the function over each unique num using lapply for variance list
-  Sigma_all <- lapply(unique(data.long[[1]][[num]]), process_variance, 
+  cov_fac_all <- lapply(unique(data.long[[1]][[num]]), process_variance, 
                       time_new, bio_i, data_predict_all, long_fit_all, time_variable)
   
   # A probability matrix, 
@@ -163,9 +163,9 @@ conditionalYTBio = function(Y_all, time_new, bio_i, data_predict_all,
     
     }
     
-    results_lapply1 <- lapply(seq_along(Amean_list1), function(it) {
-      mvtnorm::dmvnorm(x = longitudinal_all_matrix, mean = c(Amean_list1[[it]]), sigma = Sigma_all[[iii]], log = TRUE)
-    })
+    ### the covariance is the same at every grid point, so it is factored
+    ### once per patient (by process_variance())
+    results_lapply1 <- cov_logdens_means(cov_fac_all[[iii]], longitudinal_all_matrix, Amean_list1)
     
     for(Y_i in 1 : length(Y_all)){
       f_Y_T_D_w1[[Y_i]][,iii] = unlist(lapply(results_lapply1, function(x) x[Y_i]))

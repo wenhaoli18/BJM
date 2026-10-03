@@ -103,8 +103,7 @@ conditionalYDT = function(data_predict_all, long_fit_all, survival_fit_all,
                                         long_fit_all$long_sub_random)
     longitudinal_all_matrix <- design$longitudinal_all_matrix
     parameter_matrix <- design$parameter_matrix
-    log_det_Var_cov_estep <- design$log_det_Var_cov_estep
-    Sigma_all_solve <- design$Sigma_all_solve
+    cov_fac <- design$cov_fac
 
     ### Build a reusable model.frame "template" per biomarker/event-type,
     ### once per patient, instead of inside the l_i loop below. Only the
@@ -246,13 +245,13 @@ conditionalYDT = function(data_predict_all, long_fit_all, survival_fit_all,
       LME_all_matrix_1 = do.call(rbind, rows1)
       LME_all_matrix_0 = do.call(rbind, rows0)
       
-      ### Quadratic form (Y - mu)' Sigma_all_solve (Y - mu) for the FULL
+      ### Quadratic form (Y - mu)' Sigma_all^{-1} (Y - mu) for the FULL
       ### stacked (across all markers) observation vector, computed
       ### directly instead of via the "trace trick" that used to reduce it
       ### to sum(diag(...)) of an M x M matrix. That trace only summed the
       ### diagonal (i == j) blocks of the reduced matrix and silently
       ### dropped every cross-marker (i != j) contribution of
-      ### Sigma_all_solve, i.e. it implicitly assumed the biomarkers were
+      ### Sigma_all^{-1}, i.e. it implicitly assumed the biomarkers were
       ### conditionally independent given the random effects -- see the
       ### matching comment/fix in conditionalYT.R and NEWS.md.
       ###
@@ -267,12 +266,11 @@ conditionalYDT = function(data_predict_all, long_fit_all, survival_fit_all,
       resid_full_1 = rowSums(longitudinal_all_matrix) - rowSums(mean_all_matrix_1)
       resid_full_0 = rowSums(longitudinal_all_matrix) - rowSums(mean_all_matrix_0)
 
-      quad_form_1 = as.numeric(t(resid_full_1) %*% Sigma_all_solve %*% resid_full_1)
-      quad_form_0 = as.numeric(t(resid_full_0) %*% Sigma_all_solve %*% resid_full_0)
-
-      ### log densities (see predictRisk() for how they are exponentiated safely)
-      f_Y_T_D_w1[it, iii] = -0.5 * log_det_Var_cov_estep - 0.5 * quad_form_1
-      f_Y_T_D_w0[it, iii] = -0.5 * log_det_Var_cov_estep - 0.5 * quad_form_0
+      ### log densities (see predictRisk() for how they are exponentiated
+      ### safely), both from the patient's factored covariance
+      log_dens = cov_logdens(cov_fac, cbind(resid_full_1, resid_full_0))
+      f_Y_T_D_w1[it, iii] = log_dens[1]
+      f_Y_T_D_w0[it, iii] = log_dens[2]
     }
     
   }
