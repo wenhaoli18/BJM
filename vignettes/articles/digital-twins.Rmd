@@ -157,6 +157,53 @@ mean(sapply(split(at5, at5$sim), function(d) {
 }))
 ```
 
+## Covariates after the last visit
+
+To forecast the biomarkers at a future time, the twin needs the patient's
+covariates at that time. By default it carries forward the values in the
+patient's last row. In this article's models the covariates are age at
+entry and sex, which do not change, so carrying them forward is exact.
+
+A covariate that does change, such as ascites or a change of treatment, is
+not forecast by the model, and carrying it forward assumes it stays as it
+was last seen. `future_covariates` sets a different path: each row gives
+covariate values that apply from its time on, until a later row changes
+them. For example, `data.frame(year = 6, ascites = "Yes")` would set
+ascites from year 6 on, in a model with ascites as a covariate. With an
+`id` column the rows apply to that patient only.
+
+With this article's models, `future_covariates` can serve as a sensitivity
+check of how much the forecast depends on a covariate. Here patient 2's
+year-5 twin is drawn again with age set 10 years higher from year 7 on.
+This is not a realistic scenario, since age at entry cannot change, but it
+shows how the path enters the forecast.
+
+```{r future-covariates}
+history5 <- patient[patient$year <= 5, ]
+history5$years <- NA
+history5$status4 <- NA
+
+draw_twin <- function(future_covariates = NULL) {
+  simulateTrajectory(history5, long_fit_all, survival_fit_all,
+                     prediction_time = 5, times = 5:10, time_variable = "year",
+                     trans$survival_variable_all, trans$survival_trans_function,
+                     n_sim = 500, future_covariates = future_covariates, seed = 1)
+}
+as_measured <- draw_twin()
+older_from_7 <- draw_twin(data.frame(year = 7, age = history5$age[1] + 10))
+
+# median forecast bilirubin at each year, among the draws still event-free
+cbind(as_measured = tapply(as_measured$serBilir, as_measured$year, median, na.rm = TRUE),
+      older_from_7 = tapply(older_from_7$serBilir, older_from_7$year, median, na.rm = TRUE))
+```
+
+The forecasts agree up to year 6 and differ from year 7 on, by the model's
+age coefficient times 10. The history the twin conditions on is the same
+in both, so the drawn event times and random effects are the same too:
+`future_covariates` changes only the forecast biomarker values. Comparing
+covariate paths in this way compares the outcomes the model associates
+with them, not the causal effect of changing them.
+
 ## Virtual patients
 
 A twin can also be built for a patient who has not been measured at all,
@@ -280,7 +327,7 @@ its own (see `?simulateTrajectory` for details):
   data (`max_event_time`) are reported as event-free through it, rather
   than extrapolated.
 * **Carried-forward covariates.** Future biomarker values use each
-  covariate's last value.
+  covariate's last value, unless `future_covariates` gives another path.
 * **Who the longitudinal model describes.** The longitudinal sub-model is
   fit on patients with an event, so it describes trajectories leading to an
   event; a twin of a patient who will be event-free for a long time is
