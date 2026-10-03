@@ -15,6 +15,7 @@ simulateTrajectory(
   survival_trans_function,
   n_sim = 100,
   bandcount2 = 100,
+  max_event_time = NULL,
   truncate = TRUE,
   seed = NULL
 )
@@ -59,6 +60,11 @@ in the order of \code{survival_variable_all}.}
 after \code{prediction_time} is discretized into (see Details and
 \code{\link{predictRisk}}).}
 
+\item{max_event_time}{Event times beyond this are reported as
+event-free through it, and the model is evaluated at it in their place
+(see Details). Defaults to \code{NULL}, the last follow-up time of the
+data \code{survivalSub()} was fit on; \code{Inf} turns this off.}
+
 \item{truncate}{If \code{TRUE}, biomarker values at or after the drawn
 event time are \code{NA} (see Details).}
 
@@ -69,11 +75,15 @@ random number stream is left unchanged.}
 A data frame of class \code{"simulateTrajectory.BJM"}, with one
 row per patient, draw and element of \code{times}, and columns: the
 patient id (named as in \code{long_sub_random}); \code{sim}, the draw
-number; \code{time_variable}; \code{event_time}, the drawn event time;
-with competing risks, the drawn event type (named as the response of
-\code{form_conditional_cr}, with the same 0/1 coding); and one column per
+number; \code{time_variable}; \code{event_time}, the drawn event time,
+or \code{max_event_time} if the event comes after it; \code{event}, 1 if
+the event occurs at \code{event_time} and 0 if the patient is event-free
+through it; with competing risks, the drawn event type (named as the
+response of \code{form_conditional_cr}, with the same 0/1 coding, and
+\code{NA} when \code{event} is 0); and one column per
 biomarker, named by its response variable. Attributes
-\code{"prediction_time"} and \code{"times"} record the call's values.
+\code{"prediction_time"}, \code{"times"} and \code{"max_event_time"}
+record the values used.
 }
 \description{
 Draws \code{n_sim} complete futures for each patient from the
@@ -112,6 +122,20 @@ share of the conditional survival probability) and reported as the
 midpoint of its interval, so its resolution is about
 \code{1 / bandcount2} of the conditional distribution.
 
+Past the last follow-up time of the data \code{survivalSub()} was fit
+on, the event-time distribution rests on an extrapolated baseline hazard
+and the longitudinal sub-model's mean on event times it was never fit
+on; drawn from a patient's prior (no history), a large share of event
+times can land there, with implausible biomarker values. So an event
+time beyond \code{max_event_time} (by default that last follow-up time)
+is reported as event-free through \code{max_event_time}
+(\code{event = 0}, \code{event_time = max_event_time}), and both the
+history's likelihood and the simulated biomarkers use \code{T =
+max_event_time} in its place, i.e. a patient whose event comes after
+follow-up is assumed to follow the trajectory of one whose event comes
+at its end. \code{max_event_time = Inf} turns this off and reproduces
+the event-time distribution \code{\link{predictRisk}} integrates over.
+
 The biomarkers at \code{times} are evaluated with the covariates of the
 patient's last row in \code{data_predict_all} (with \code{time_variable}
 set to each element of \code{times}), so a time-varying covariate is
@@ -119,7 +143,7 @@ carried forward at its last value.
 
 The backward model describes the biomarkers before the event. With
 \code{truncate = TRUE} (the default) a value at a time at or after the
-drawn event time is \code{NA}; with \code{truncate = FALSE} it is still
+drawn (or censored) event time is \code{NA}; with \code{truncate = FALSE} it is still
 drawn from the sub-model, which is the quantity whose density
 \code{\link{predictLongitudinal}} returns.
 
@@ -151,7 +175,16 @@ sims = simulateTrajectory(list(history, history), long_fit_all, survival_fit_all
 head(sims)
 
 # Probability of an event within 2 years, from the draws
-mean(sims$event_time[!duplicated(sims$sim)] <= 5)
+first = sims[!duplicated(sims$sim), ]
+mean(first$event == 1 & first$event_time <= 5)
+
+# A new synthetic patient: baseline covariates only, biomarkers NA
+new_patient = data.frame(id = "new", year = 0, age = 50, sex = 1,
+                         serBilir = NA, albumin = NA)
+synthetic = simulateTrajectory(new_patient, long_fit_all, survival_fit_all,
+                               prediction_time = 0, times = 0:6, time_variable = "year",
+                               trans$survival_variable_all,
+                               trans$survival_trans_function, n_sim = 100, seed = 1)
 }
 
 }

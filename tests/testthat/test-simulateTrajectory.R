@@ -10,9 +10,11 @@ test_that("simulateTrajectory() returns one row per patient, draw and time", {
   sims <- simulate_fx(prediction_time = 5, times = c(5, 6, 7), n_sim = 20, seed = 1)
   expect_s3_class(sims, "simulateTrajectory.BJM")
   expect_equal(nrow(sims), 20 * 3)
-  expect_named(sims, c("id", "sim", "year", "event_time", "status4", "serBilir", "albumin"))
+  expect_named(sims, c("id", "sim", "year", "event_time", "event", "status4", "serBilir", "albumin"))
   expect_true(all(sims$event_time > 5))
-  expect_true(all(sims$status4 %in% c(0, 1)))
+  expect_true(all(sims$event %in% c(0, 1)))
+  expect_true(all(sims$status4[sims$event == 1] %in% c(0, 1)))
+  expect_true(all(is.na(sims$status4[sims$event == 0])))
   ### values at or after the drawn event time are NA, the rest are not
   after <- sims$year >= sims$event_time
   expect_true(all(is.na(sims$serBilir[after])))
@@ -29,7 +31,8 @@ test_that("simulateTrajectory() is reproducible with a seed and leaves the RNG a
 })
 
 test_that("simulated event times agree with predictRisk()", {
-  sims <- simulate_fx(prediction_time = 5, times = 7, n_sim = 4000, bandcount2 = 80, seed = 1)
+  sims <- simulate_fx(prediction_time = 5, times = 7, n_sim = 4000, bandcount2 = 80,
+                      max_event_time = Inf, seed = 1)
   risk <- predictRisk(fx$data_predict_all, fx$long_fit_all, fx$survival_fit_all,
                       prediction_time = 5, horizon = 2, time_variable = "year",
                       fx$survival_variable_all, fx$survival_trans_function,
@@ -40,7 +43,7 @@ test_that("simulated event times agree with predictRisk()", {
 
 test_that("untruncated simulated biomarkers agree with predictLongitudinal()", {
   sims <- simulate_fx(prediction_time = 5, times = 7, n_sim = 4000, bandcount2 = 80,
-                      truncate = FALSE, seed = 1)
+                      max_event_time = Inf, truncate = FALSE, seed = 1)
   pl <- predictLongitudinal(bio_i = 1, fx$data_predict_all, fx$long_fit_all, fx$survival_fit_all,
                             prediction_time = 5, horizon = 2, time_variable = "year",
                             fx$survival_variable_all, fx$survival_trans_function,
@@ -70,4 +73,46 @@ test_that("a patient with no biomarker history is simulated from the prior", {
 
 test_that("simulateTrajectory() rejects times before prediction_time", {
   expect_error(simulate_fx(prediction_time = 5, times = c(4, 6)), "at least prediction_time")
+})
+
+test_that("event times past max_event_time are reported as event-free through it", {
+  last_follow_up <- max(fx$survival_fit_all$coxph_fit$y[, 1])
+  sims <- simulate_fx(prediction_time = 5, times = c(6, 20), n_sim = 500, seed = 1)
+  expect_equal(attr(sims, "max_event_time"), last_follow_up)
+  expect_true(all(sims$event_time <= last_follow_up))
+  censored <- sims$event == 0
+  expect_true(any(censored))
+  expect_true(all(sims$event_time[censored] == last_follow_up))
+  ### nothing is simulated past the end of follow-up
+  expect_true(all(is.na(sims$serBilir[sims$year == 20])))
+
+  expect_error(simulate_fx(prediction_time = 5, times = 6, max_event_time = 4), "later than prediction_time")
+})
+
+test_that("without history, the share event-free through max_event_time is the Cox survival", {
+  new_patient <- data.frame(id = "A", year = 0, age = 50, sex = 1, serBilir = NA_real_, albumin = NA_real_)
+  sims <- simulateTrajectory(new_patient, fx$long_fit_all, fx$survival_fit_all, prediction_time = 0,
+                             times = 0, time_variable = "year",
+                             survival_variable_all = fx$survival_variable_all,
+                             survival_trans_function = fx$survival_trans_function,
+                             n_sim = 4000, seed = 1)
+  cox_surv <- summary(survival::survfit(fx$survival_fit_all$coxph_fit, newdata = new_patient),
+                      times = attr(sims, "max_event_time"), extend = TRUE)$surv
+  expect_equal(mean(sims$event == 0), cox_surv, tolerance = 0.03 / cox_surv)
+})
+
+test_that("synthetic patients drawn from the prior keep biomarkers near the observed range", {
+  data(pbc3, envir = environment())
+  new_patients <- data.frame(id = c("A", "B"), year = 0, age = c(45, 60), sex = c(0, 1),
+                             serBilir = NA_real_, albumin = NA_real_)
+  sims <- simulateTrajectory(new_patients, fx$long_fit_all, fx$survival_fit_all, prediction_time = 0,
+                             times = 0, time_variable = "year",
+                             survival_variable_all = fx$survival_variable_all,
+                             survival_trans_function = fx$survival_trans_function,
+                             n_sim = 1000, seed = 1)
+  ### extrapolating the sub-model past follow-up put 5% of these below -8
+  observed <- range(pbc3$serBilir[pbc3$year == 0])
+  simulated <- stats::quantile(sims$serBilir, c(0.01, 0.99), na.rm = TRUE)
+  expect_gt(simulated[[1]], observed[1] - 2)
+  expect_lt(simulated[[2]], observed[2] + 2)
 })
