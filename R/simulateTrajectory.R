@@ -107,7 +107,8 @@
 #' biomarker, named by its response variable (an ordered factor, with the
 #' fitted categories as levels, for an ordinal biomarker). Attributes
 #' \code{"prediction_time"}, \code{"times"} and \code{"max_event_time"}
-#' record the values used.
+#' record the values used, and \code{"history"} the continuous biomarker
+#' measurements conditioned on (for \code{\link{plot.simulateTrajectory.BJM}}).
 #'
 #' @examples
 #' \donttest{
@@ -144,8 +145,12 @@
 #'                                prediction_time = 0, times = 0:6, time_variable = "year",
 #'                                trans$survival_variable_all,
 #'                                trans$survival_trans_function, n_sim = 100, seed = 1)
+#'
+#' plot(sims)
+#' plot(sims, which = "event")
 #' }
 #'
+#' @seealso \code{\link{plot.simulateTrajectory.BJM}} to plot the draws.
 #' @export
 simulateTrajectory <- function(data_predict_all, long_fit_all, survival_fit_all,
                                prediction_time, times, time_variable,
@@ -241,6 +246,7 @@ simulateTrajectory <- function(data_predict_all, long_fit_all, survival_fit_all,
   n_times <- length(times)
 
   out <- vector("list", length(patient_ids))
+  history_out <- vector("list", length(patient_ids))
   for (p in seq_along(patient_ids)) {
     rows_p <- lapply(data_predict_all, function(d) d[as.character(d[[id]]) == patient_ids[p], , drop = FALSE])
     history <- lapply(seq_len(M), function(i) complete_history_rows(rows_p[[i]], i, long_fit_all, survival_variable,
@@ -269,6 +275,9 @@ simulateTrajectory <- function(data_predict_all, long_fit_all, survival_fit_all,
       }
     }
     oo <- which(rep(is_ordinal, n_hist))
+    history_out[[p]] <- do.call(rbind, lapply(which(n_hist > 0 & !is_ordinal), function(i)
+      data.frame(id = patient_ids[p], time = history[[i]][[time_variable]], biomarker = response_names[i],
+                 value = history[[i]][[response_names[i]]])))
     cc <- which(!rep(is_ordinal, n_hist))
     Z_hist <- stacked_random_design(history, long_fit_all$long_sub_random)
     Z_fut <- stacked_random_design(future, long_fit_all$long_sub_random)
@@ -377,6 +386,12 @@ simulateTrajectory <- function(data_predict_all, long_fit_all, survival_fit_all,
   attr(out, "prediction_time") <- prediction_time
   attr(out, "times") <- times
   attr(out, "max_event_time") <- max_event_time
+  history_out <- do.call(rbind, history_out)
+  attr(out, "history") <- if (is.null(history_out)) {
+    data.frame(id = character(0), time = numeric(0), biomarker = character(0), value = numeric(0))
+  } else history_out
+  attr(out, "variables") <- list(id = id, time = time_variable, biomarkers = response_names,
+                                 event_type = event_type_variable)
   class(out) <- c("simulateTrajectory.BJM", "data.frame")
   out
 }

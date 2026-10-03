@@ -23,6 +23,8 @@ utils::globalVariables(c(
   ### plot methods for longitudinalSub/survivalSub/predictLongitudinal results
   "fitted", "resid", "biomarker", "panel", "value", "row", "col", "hazard", "strata",
   "estimate", "term", "model", "category", "density", "subject",
+  ### plot.simulateTrajectory.BJM() aes() columns
+  "path",
   ### performancePlot() aes() columns
   "landmark", "measure", "cause", "predicted", "observed",
   ### `self` is torch::nn_module()'s implicit binding to the module
