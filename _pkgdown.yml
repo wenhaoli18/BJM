@@ -21,6 +21,7 @@ reference:
   contents:
   - predictRisk
   - predictLongitudinal
+  - simulateTrajectory
   - checkBandcountConvergence
   - survivalTrans
 
@@ -43,6 +44,7 @@ reference:
   - plot.longitudinalSub.BJM
   - plot.survivalSub.BJM
   - plot.predictLongitudinal.BJM
+  - plot.simulateTrajectory.BJM
 
 - title: Data
   contents:
