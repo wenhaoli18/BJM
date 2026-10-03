@@ -298,6 +298,21 @@
   grid shared by all patients predicted, so the returned structure is
   unchanged.
 
+### Performance
+
+- [`predictRisk()`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md)
+  and
+  [`predictLongitudinal()`](https://wenhaoli18.github.io/BJM/reference/predictLongitudinal.md)
+  evaluate each patient’s joint longitudinal density much faster when
+  there are many biomarkers or many visits. The patient’s covariance
+  (random effects plus residual error, across all biomarkers) is now
+  factored once per patient instead of at every survival-time grid
+  point, and when the patient has at least three observations per random
+  effect it is factored through the Woodbury identity, so the full
+  observations-by-observations matrix is never formed or inverted. The
+  predictions are unchanged up to floating-point rounding (relative
+  differences around 1e-14 on `pbc3`).
+
 ### Bug fixes
 
 - [`predictPlot()`](https://wenhaoli18.github.io/BJM/reference/predictPlot.md)

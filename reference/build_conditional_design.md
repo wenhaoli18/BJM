@@ -22,5 +22,6 @@ build_conditional_design(
 
 ## Value
 
-A list with `longitudinal_all_matrix`, `parameter_matrix`, `Sigma_all`,
-`log_det_Var_cov_estep`, `Sigma_all_solve`, and `long_sigma_long`.
+A list with `longitudinal_all_matrix`, `parameter_matrix`, and
+`cov_fac`, the patient's factored covariance from
+[`cov_factor()`](https://wenhaoli18.github.io/BJM/reference/cov_factor.md).
