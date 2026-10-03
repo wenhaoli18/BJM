@@ -17,6 +17,7 @@ simulateTrajectory(
   bandcount2 = 100,
   max_event_time = NULL,
   truncate = TRUE,
+  future_covariates = NULL,
   seed = NULL
 )
 }
@@ -67,6 +68,13 @@ data \code{survivalSub()} was fit on; \code{Inf} turns this off.}
 
 \item{truncate}{If \code{TRUE}, biomarker values at or after the drawn
 event time are \code{NA} (see Details).}
+
+\item{future_covariates}{Optional data frame of covariate values at future
+times: a \code{time_variable} column, one column per covariate to set,
+and optionally the patient id column (named as in
+\code{long_sub_random}) to set them per patient; without it, every row
+applies to every patient. It cannot set the biomarkers or the event
+time or type. See Details.}
 
 \item{seed}{Optional integer seed, for reproducible draws. The caller's
 random number stream is left unchanged.}
@@ -144,7 +152,18 @@ the event-time distribution \code{\link{predictRisk}} integrates over.
 The biomarkers at \code{times} are evaluated with the covariates of the
 patient's last row in \code{data_predict_all} (with \code{time_variable}
 set to each element of \code{times}), so a time-varying covariate is
-carried forward at its last value.
+carried forward at its last value, unless \code{future_covariates} says
+otherwise. Each row of \code{future_covariates} sets the covariates in its
+columns from its \code{time_variable} on, until a later row changes them:
+a time in \code{times} takes the covariates of the last row at or before
+it, and those of the patient's last row in \code{data_predict_all} for
+anything that row does not set. The history, and so the posterior of the
+event time and random effects, is unaffected. A covariate that is a known
+function of time (such as current age) is better written into the model
+formula as one (e.g. \code{I(age + year)}), so that it is updated without
+\code{future_covariates}. Comparing draws under different
+\code{future_covariates} compares the outcomes the model associates with
+those covariate paths; it is not a causal effect of changing them.
 
 The backward model describes the biomarkers before the event. With
 \code{truncate = TRUE} (the default) a value at a time at or after the
@@ -189,6 +208,18 @@ sims = simulateTrajectory(list(history, history), long_fit_all, survival_fit_all
                           time_variable = "year", trans$survival_variable_all,
                           trans$survival_trans_function, n_sim = 200, seed = 1)
 head(sims)
+
+# Covariates after the last row are carried forward unless
+# future_covariates sets them from a given time on. Age at entry does not
+# change, so this is only a sensitivity check of the forecast's dependence
+# on age; a time-varying covariate such as ascites would be set the same
+# way, e.g. data.frame(year = 6, ascites = "Yes").
+sims_older = simulateTrajectory(list(history, history), long_fit_all, survival_fit_all,
+                                prediction_time = 3, times = seq(3, 8, by = 0.5),
+                                time_variable = "year", trans$survival_variable_all,
+                                trans$survival_trans_function, n_sim = 200, seed = 1,
+                                future_covariates = data.frame(year = 5, age = history$age[1] + 10))
+tapply(sims_older$serBilir - sims$serBilir, sims$year, mean, na.rm = TRUE)
 
 # Probability of an event within 2 years, from the draws
 first = sims[!duplicated(sims$sim), ]
