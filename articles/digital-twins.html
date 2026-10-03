@@ -235,13 +235,66 @@ Using the twin built at year 5:</p>
 <span><span class="co">#&gt; [1] 0.708</span></span></code></pre></div>
 </div>
 <div class="section level2">
+<h2 id="covariates-after-the-last-visit">Covariates after the last visit<a class="anchor" aria-label="anchor" href="#covariates-after-the-last-visit"></a>
+</h2>
+<p>To forecast the biomarkers at a future time, the twin needs the
+patient’s covariates at that time. By default it carries forward the
+values in the patient’s last row. In this article’s models the
+covariates are age at entry and sex, which do not change, so carrying
+them forward is exact.</p>
+<p>A covariate that does change, such as ascites or a change of
+treatment, is not forecast by the model, and carrying it forward assumes
+it stays as it was last seen. <code>future_covariates</code> sets a
+different path: each row gives covariate values that apply from its time
+on, until a later row changes them. For example,
+<code>data.frame(year = 6, ascites = "Yes")</code> would set ascites
+from year 6 on, in a model with ascites as a covariate. With an
+<code>id</code> column the rows apply to that patient only.</p>
+<p>With this article’s models, <code>future_covariates</code> can serve
+as a sensitivity check of how much the forecast depends on a covariate.
+Here patient 2’s year-5 twin is drawn again with age set 10 years higher
+from year 7 on. This is not a realistic scenario, since age at entry
+cannot change, but it shows how the path enters the forecast.</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">history5</span> <span class="op">&lt;-</span> <span class="va">patient</span><span class="op">[</span><span class="va">patient</span><span class="op">$</span><span class="va">year</span> <span class="op">&lt;=</span> <span class="fl">5</span>, <span class="op">]</span></span>
+<span><span class="va">history5</span><span class="op">$</span><span class="va">years</span> <span class="op">&lt;-</span> <span class="cn">NA</span></span>
+<span><span class="va">history5</span><span class="op">$</span><span class="va">status4</span> <span class="op">&lt;-</span> <span class="cn">NA</span></span>
+<span></span>
+<span><span class="va">draw_twin</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">future_covariates</span> <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="fu"><a href="../reference/simulateTrajectory.html">simulateTrajectory</a></span><span class="op">(</span><span class="va">history5</span>, <span class="va">long_fit_all</span>, <span class="va">survival_fit_all</span>,</span>
+<span>                     prediction_time <span class="op">=</span> <span class="fl">5</span>, times <span class="op">=</span> <span class="fl">5</span><span class="op">:</span><span class="fl">10</span>, time_variable <span class="op">=</span> <span class="st">"year"</span>,</span>
+<span>                     <span class="va">trans</span><span class="op">$</span><span class="va">survival_variable_all</span>, <span class="va">trans</span><span class="op">$</span><span class="va">survival_trans_function</span>,</span>
+<span>                     n_sim <span class="op">=</span> <span class="fl">500</span>, future_covariates <span class="op">=</span> <span class="va">future_covariates</span>, seed <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
+<span><span class="op">}</span></span>
+<span><span class="va">as_measured</span> <span class="op">&lt;-</span> <span class="fu">draw_twin</span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="va">older_from_7</span> <span class="op">&lt;-</span> <span class="fu">draw_twin</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>year <span class="op">=</span> <span class="fl">7</span>, age <span class="op">=</span> <span class="va">history5</span><span class="op">$</span><span class="va">age</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span> <span class="op">+</span> <span class="fl">10</span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># median forecast bilirubin at each year, among the draws still event-free</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">cbind</a></span><span class="op">(</span>as_measured <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/tapply.html" class="external-link">tapply</a></span><span class="op">(</span><span class="va">as_measured</span><span class="op">$</span><span class="va">serBilir</span>, <span class="va">as_measured</span><span class="op">$</span><span class="va">year</span>, <span class="va">median</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>,</span>
+<span>      older_from_7 <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/tapply.html" class="external-link">tapply</a></span><span class="op">(</span><span class="va">older_from_7</span><span class="op">$</span><span class="va">serBilir</span>, <span class="va">older_from_7</span><span class="op">$</span><span class="va">year</span>, <span class="va">median</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt;    as_measured older_from_7</span></span>
+<span><span class="co">#&gt; 5    0.9702453    0.9702453</span></span>
+<span><span class="co">#&gt; 6    1.1620662    1.1620662</span></span>
+<span><span class="co">#&gt; 7    1.3584893    1.2417347</span></span>
+<span><span class="co">#&gt; 8    1.4929772    1.3762226</span></span>
+<span><span class="co">#&gt; 9    1.7231421    1.6063875</span></span>
+<span><span class="co">#&gt; 10   1.6938166    1.5770620</span></span></code></pre></div>
+<p>The forecasts agree up to year 6 and differ from year 7 on, by the
+model’s age coefficient times 10. The history the twin conditions on is
+the same in both, so the drawn event times and random effects are the
+same too: <code>future_covariates</code> changes only the forecast
+biomarker values. Comparing covariate paths in this way compares the
+outcomes the model associates with them, not the causal effect of
+changing them.</p>
+</div>
+<div class="section level2">
 <h2 id="virtual-patients">Virtual patients<a class="anchor" aria-label="anchor" href="#virtual-patients"></a>
 </h2>
 <p>A twin can also be built for a patient who has not been measured at
 all, from baseline covariates alone, with the biomarkers set to
 <code>NA</code>. Here two virtual patients, aged 40 and 70, otherwise
 alike.</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">virtual</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"age 40"</span>, <span class="st">"age 70"</span><span class="op">)</span>, year <span class="op">=</span> <span class="fl">0</span>, age <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">40</span>, <span class="fl">70</span><span class="op">)</span>, sex <span class="op">=</span> <span class="fl">1</span>,</span>
 <span>                      serBilir <span class="op">=</span> <span class="cn">NA</span>, albumin <span class="op">=</span> <span class="cn">NA</span><span class="op">)</span></span>
 <span><span class="va">virtual_sims</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/simulateTrajectory.html">simulateTrajectory</a></span><span class="op">(</span><span class="va">virtual</span>, <span class="va">long_fit_all</span>, <span class="va">survival_fit_all</span>,</span>
@@ -258,7 +311,7 @@ alike.</p>
 <span><span class="co">#&gt; 2 age 70         0.420              0.002               0.207</span></span></code></pre></div>
 <p>The cumulative incidence of each event type, computed from the
 draws:</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">grid</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">virtual_sims</span>, <span class="st">"max_event_time"</span><span class="op">)</span>, length.out <span class="op">=</span> <span class="fl">200</span><span class="op">)</span></span>
 <span><span class="va">incidence</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/do.call.html" class="external-link">do.call</a></span><span class="op">(</span><span class="va">rbind</span>, <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/split.html" class="external-link">split</a></span><span class="op">(</span><span class="va">virtual_futures</span>, <span class="va">virtual_futures</span><span class="op">$</span><span class="va">id</span><span class="op">)</span>, <span class="kw">function</span><span class="op">(</span><span class="va">d</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/do.call.html" class="external-link">do.call</a></span><span class="op">(</span><span class="va">rbind</span>, <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>death <span class="op">=</span> <span class="fl">0</span>, transplantation <span class="op">=</span> <span class="fl">1</span><span class="op">)</span>, <span class="kw">function</span><span class="op">(</span><span class="va">type</span><span class="op">)</span> <span class="op">{</span></span>
@@ -298,7 +351,7 @@ its prediction is the mean of 200 draws of their bilirubin at year 2.
 With <code>truncate = FALSE</code> the draws are not cut off at the
 drawn event time, so the prediction is of the biomarker itself rather
 than of it among the draws still event-free.</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">visit_2y</span> <span class="op">&lt;-</span> <span class="va">pbc3</span><span class="op">[</span><span class="va">pbc3</span><span class="op">$</span><span class="va">year</span> <span class="op">&gt;</span> <span class="fl">1.5</span> <span class="op">&amp;</span> <span class="va">pbc3</span><span class="op">$</span><span class="va">year</span> <span class="op">&lt;</span> <span class="fl">2.5</span>, <span class="op">]</span></span>
 <span><span class="va">visit_2y</span> <span class="op">&lt;-</span> <span class="va">visit_2y</span><span class="op">[</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/duplicated.html" class="external-link">duplicated</a></span><span class="op">(</span><span class="va">visit_2y</span><span class="op">$</span><span class="va">id</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"id"</span>, <span class="st">"drug"</span>, <span class="st">"serBilir"</span><span class="op">)</span><span class="op">]</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">visit_2y</span><span class="op">)</span><span class="op">[</span><span class="fl">3</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="st">"serBilir_2y"</span></span>
@@ -319,7 +372,7 @@ than of it among the draws still event-free.</p>
 <span><span class="co">#&gt; [1] 0.8127169</span></span></code></pre></div>
 <p>The treatment effect on bilirubin at year 2, without and with the
 twin’s prediction as a covariate:</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">unadjusted</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/lm.html" class="external-link">lm</a></span><span class="op">(</span><span class="va">serBilir_2y</span> <span class="op">~</span> <span class="va">drug</span>, data <span class="op">=</span> <span class="va">trial</span><span class="op">)</span></span>
 <span><span class="va">adjusted</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/lm.html" class="external-link">lm</a></span><span class="op">(</span><span class="va">serBilir_2y</span> <span class="op">~</span> <span class="va">drug</span> <span class="op">+</span> <span class="va">twin_serBilir</span>, data <span class="op">=</span> <span class="va">trial</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span>unadjusted <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">unadjusted</span><span class="op">)</span><span class="op">)</span><span class="op">[</span><span class="st">"drugD-penicil"</span>, <span class="op">]</span>,</span>
@@ -365,7 +418,8 @@ follow-up time of the data (<code>max_event_time</code>) are reported as
 event-free through it, rather than extrapolated.</li>
 <li>
 <strong>Carried-forward covariates.</strong> Future biomarker values
-use each covariate’s last value.</li>
+use each covariate’s last value, unless <code>future_covariates</code>
+gives another path.</li>
 <li>
 <strong>Who the longitudinal model describes.</strong> The
 longitudinal sub-model is fit on patients with an event, so it describes

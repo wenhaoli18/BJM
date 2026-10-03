@@ -42,7 +42,9 @@
   alone, as a synthetic patient. Ordinal biomarkers of a Gaussian-copula
   fit are supported. Event times past the last follow-up time are
   reported as event-free through `max_event_time` (by default that time)
-  rather than extrapolated. The draws agree with
+  rather than extrapolated. Covariates are carried forward from the
+  patient’s last row, or follow a path given in `future_covariates`
+  (e.g. ascites from year 6 on). The draws agree with
   [`predictRisk()`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md)
   and
   [`predictLongitudinal()`](https://wenhaoli18.github.io/BJM/reference/predictLongitudinal.md)

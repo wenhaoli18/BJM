@@ -131,6 +131,7 @@ covariates, i.e. as a new synthetic patient.</p>
 <span>  bandcount2 <span class="op">=</span> <span class="fl">100</span>,</span>
 <span>  max_event_time <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  truncate <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  future_covariates <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  seed <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -210,6 +211,15 @@ data <code><a href="survivalSub.html">survivalSub()</a></code> was fit on; <code
 event time are <code>NA</code> (see Details).</p></dd>
 
 
+<dt id="arg-future-covariates">future_covariates<a class="anchor" aria-label="anchor" href="#arg-future-covariates"></a></dt>
+<dd><p>Optional data frame of covariate values at future
+times: a <code>time_variable</code> column, one column per covariate to set,
+and optionally the patient id column (named as in
+<code>long_sub_random</code>) to set them per patient; without it, every row
+applies to every patient. It cannot set the biomarkers or the event
+time or type. See Details.</p></dd>
+
+
 <dt id="arg-seed">seed<a class="anchor" aria-label="anchor" href="#arg-seed"></a></dt>
 <dd><p>Optional integer seed, for reproducible draws. The caller's
 random number stream is left unchanged.</p></dd>
@@ -258,7 +268,18 @@ the event-time distribution <code><a href="predictRisk.html">predictRisk</a></co
 <p>The biomarkers at <code>times</code> are evaluated with the covariates of the
 patient's last row in <code>data_predict_all</code> (with <code>time_variable</code>
 set to each element of <code>times</code>), so a time-varying covariate is
-carried forward at its last value.</p>
+carried forward at its last value, unless <code>future_covariates</code> says
+otherwise. Each row of <code>future_covariates</code> sets the covariates in its
+columns from its <code>time_variable</code> on, until a later row changes them:
+a time in <code>times</code> takes the covariates of the last row at or before
+it, and those of the patient's last row in <code>data_predict_all</code> for
+anything that row does not set. The history, and so the posterior of the
+event time and random effects, is unaffected. A covariate that is a known
+function of time (such as current age) is better written into the model
+formula as one (e.g. <code>I(age + year)</code>), so that it is updated without
+<code>future_covariates</code>. Comparing draws under different
+<code>future_covariates</code> compares the outcomes the model associates with
+those covariate paths; it is not a causal effect of changing them.</p>
 <p>The backward model describes the biomarkers before the event. With
 <code>truncate = TRUE</code> (the default) a value at a time at or after the
 drawn (or censored) event time is <code>NA</code>; with <code>truncate = FALSE</code> it is still
@@ -314,6 +335,22 @@ draws.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 4  2   1  4.5   10.38897     1 1.5869380 3.428172</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 5  2   1  5.0   10.38897     1 1.5204490 3.151635</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 6  2   1  5.5   10.38897     1 2.2175576 2.982109</span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Covariates after the last row are carried forward unless</span></span></span>
+<span class="r-in"><span><span class="co"># future_covariates sets them from a given time on. Age at entry does not</span></span></span>
+<span class="r-in"><span><span class="co"># change, so this is only a sensitivity check of the forecast's dependence</span></span></span>
+<span class="r-in"><span><span class="co"># on age; a time-varying covariate such as ascites would be set the same</span></span></span>
+<span class="r-in"><span><span class="co"># way, e.g. data.frame(year = 6, ascites = "Yes").</span></span></span>
+<span class="r-in"><span><span class="va">sims_older</span> <span class="op">=</span> <span class="fu">simulateTrajectory</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">history</span>, <span class="va">history</span><span class="op">)</span>, <span class="va">long_fit_all</span>, <span class="va">survival_fit_all</span>,</span></span>
+<span class="r-in"><span>                                prediction_time <span class="op">=</span> <span class="fl">3</span>, times <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="fl">3</span>, <span class="fl">8</span>, by <span class="op">=</span> <span class="fl">0.5</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>                                time_variable <span class="op">=</span> <span class="st">"year"</span>, <span class="va">trans</span><span class="op">$</span><span class="va">survival_variable_all</span>,</span></span>
+<span class="r-in"><span>                                <span class="va">trans</span><span class="op">$</span><span class="va">survival_trans_function</span>, n_sim <span class="op">=</span> <span class="fl">200</span>, seed <span class="op">=</span> <span class="fl">1</span>,</span></span>
+<span class="r-in"><span>                                future_covariates <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>year <span class="op">=</span> <span class="fl">5</span>, age <span class="op">=</span> <span class="va">history</span><span class="op">$</span><span class="va">age</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span> <span class="op">+</span> <span class="fl">10</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/tapply.html" class="external-link">tapply</a></span><span class="op">(</span><span class="va">sims_older</span><span class="op">$</span><span class="va">serBilir</span> <span class="op">-</span> <span class="va">sims</span><span class="op">$</span><span class="va">serBilir</span>, <span class="va">sims</span><span class="op">$</span><span class="va">year</span>, <span class="va">mean</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>          3        3.5          4        4.5          5        5.5          6 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  0.0000000  0.0000000  0.0000000  0.0000000 -0.1167546 -0.1167546 -0.1167546 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>        6.5          7        7.5          8 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> -0.1167546 -0.1167546 -0.1167546 -0.1167546 </span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Probability of an event within 2 years, from the draws</span></span></span>
 <span class="r-in"><span><span class="va">first</span> <span class="op">=</span> <span class="va">sims</span><span class="op">[</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/duplicated.html" class="external-link">duplicated</a></span><span class="op">(</span><span class="va">sims</span><span class="op">$</span><span class="va">sim</span><span class="op">)</span>, <span class="op">]</span></span></span>

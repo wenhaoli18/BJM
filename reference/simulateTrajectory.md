@@ -50,6 +50,7 @@ simulateTrajectory(
   bandcount2 = 100,
   max_event_time = NULL,
   truncate = TRUE,
+  future_covariates = NULL,
   seed = NULL
 )
 ```
@@ -127,6 +128,14 @@ simulateTrajectory(
   If `TRUE`, biomarker values at or after the drawn event time are `NA`
   (see Details).
 
+- future_covariates:
+
+  Optional data frame of covariate values at future times: a
+  `time_variable` column, one column per covariate to set, and
+  optionally the patient id column (named as in `long_sub_random`) to
+  set them per patient; without it, every row applies to every patient.
+  It cannot set the biomarkers or the event time or type. See Details.
+
 - seed:
 
   Optional integer seed, for reproducible draws. The caller's random
@@ -179,7 +188,18 @@ integrates over.
 The biomarkers at `times` are evaluated with the covariates of the
 patient's last row in `data_predict_all` (with `time_variable` set to
 each element of `times`), so a time-varying covariate is carried forward
-at its last value.
+at its last value, unless `future_covariates` says otherwise. Each row
+of `future_covariates` sets the covariates in its columns from its
+`time_variable` on, until a later row changes them: a time in `times`
+takes the covariates of the last row at or before it, and those of the
+patient's last row in `data_predict_all` for anything that row does not
+set. The history, and so the posterior of the event time and random
+effects, is unaffected. A covariate that is a known function of time
+(such as current age) is better written into the model formula as one
+(e.g. `I(age + year)`), so that it is updated without
+`future_covariates`. Comparing draws under different `future_covariates`
+compares the outcomes the model associates with those covariate paths;
+it is not a causal effect of changing them.
 
 The backward model describes the biomarkers before the event. With
 `truncate = TRUE` (the default) a value at a time at or after the drawn
@@ -241,6 +261,22 @@ head(sims)
 #> 4  2   1  4.5   10.38897     1 1.5869380 3.428172
 #> 5  2   1  5.0   10.38897     1 1.5204490 3.151635
 #> 6  2   1  5.5   10.38897     1 2.2175576 2.982109
+
+# Covariates after the last row are carried forward unless
+# future_covariates sets them from a given time on. Age at entry does not
+# change, so this is only a sensitivity check of the forecast's dependence
+# on age; a time-varying covariate such as ascites would be set the same
+# way, e.g. data.frame(year = 6, ascites = "Yes").
+sims_older = simulateTrajectory(list(history, history), long_fit_all, survival_fit_all,
+                                prediction_time = 3, times = seq(3, 8, by = 0.5),
+                                time_variable = "year", trans$survival_variable_all,
+                                trans$survival_trans_function, n_sim = 200, seed = 1,
+                                future_covariates = data.frame(year = 5, age = history$age[1] + 10))
+tapply(sims_older$serBilir - sims$serBilir, sims$year, mean, na.rm = TRUE)
+#>          3        3.5          4        4.5          5        5.5          6 
+#>  0.0000000  0.0000000  0.0000000  0.0000000 -0.1167546 -0.1167546 -0.1167546 
+#>        6.5          7        7.5          8 
+#> -0.1167546 -0.1167546 -0.1167546 -0.1167546 
 
 # Probability of an event within 2 years, from the draws
 first = sims[!duplicated(sims$sim), ]
