@@ -21,6 +21,7 @@ reference:
   contents:
   - predictRisk
   - predictLongitudinal
+  - simulateTrajectory
   - checkBandcountConvergence
   - survivalTrans
 
