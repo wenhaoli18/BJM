@@ -248,3 +248,64 @@ test_that("plot() draws category shares for an ordinal biomarker", {
   shares <- p$layers[[which(vapply(p$layers, function(l) inherits(l$geom, "GeomCol"), logical(1)))]]$data
   expect_equal(as.numeric(tapply(shares$value, shares$time, sum)), rep(1, 4))
 })
+
+test_that("future_covariates that repeat the last row change nothing", {
+  last_age <- fx$data_predict_all[[1]]$age[1]
+  a <- simulate_fx(prediction_time = 5, times = 5:8, n_sim = 50, seed = 1)
+  b <- simulate_fx(prediction_time = 5, times = 5:8, n_sim = 50, seed = 1,
+                   future_covariates = data.frame(year = 5, age = last_age))
+  expect_identical(a, b)
+})
+
+test_that("future_covariates apply from their time on, shifting only the future mean", {
+  last_age <- fx$data_predict_all[[1]]$age[1]
+  a <- simulate_fx(prediction_time = 5, times = 5:9, n_sim = 50, seed = 1)
+  b <- simulate_fx(prediction_time = 5, times = 5:9, n_sim = 50, seed = 1,
+                   future_covariates = data.frame(year = 7, age = last_age + 10))
+  ### the history, so the event times and random effects, are unchanged
+  expect_identical(a$event_time, b$event_time)
+  shift <- b$serBilir - a$serBilir
+  before <- a$year < 7 & !is.na(a$serBilir)
+  expect_equal(shift[before], rep(0, sum(before)))
+  beta_age <- nlme::fixef(fx$long_fit_all$lfit[[1]])[["age"]]
+  after <- a$year >= 7 & !is.na(a$serBilir)
+  expect_equal(shift[after], rep(10 * beta_age, sum(after)))
+})
+
+test_that("future_covariates set a factor covariate by label, per patient", {
+  data(pbc3, envir = environment())
+  d <- pbc3[pbc3$status3 == 1, ]
+  long_fit_all <- longitudinalSub(list(d, d),
+                                  list(serBilir ~ year + age + sex + ascites + years,
+                                       albumin ~ year + age + sex + ascites + years),
+                                  list(~ year | id, ~ year | id))
+  survival_fit_all <- survivalSub(pbc3[!duplicated(pbc3$id), ], Surv(years, status3) ~ age + sex, NULL)
+  history <- pbc3[pbc3$id %in% c(2, 3) & pbc3$year <= 3, ]
+  history$years <- NA
+  simulate <- function(future_covariates) {
+    simulateTrajectory(history, long_fit_all, survival_fit_all, prediction_time = 3, times = c(4, 6, 8),
+                       time_variable = "year", survival_variable_all = list(),
+                       survival_trans_function = list(), n_sim = 30, truncate = FALSE,
+                       future_covariates = future_covariates, seed = 1)
+  }
+  no <- simulate(data.frame(year = 3, ascites = "No"))
+  yes_from_6 <- simulate(data.frame(id = "2", year = c(3, 6), ascites = c("No", "Yes")))
+
+  beta <- nlme::fixef(long_fit_all$lfit[[1]])[["ascitesYes"]]
+  shift <- yes_from_6$serBilir - no$serBilir
+  changed <- yes_from_6$id == "2" & yes_from_6$year >= 6
+  expect_equal(shift[changed], rep(beta, sum(changed)))
+  ### patient 3 has no rows in future_covariates: carried forward, as without it
+  carried <- simulate(NULL)
+  expect_identical(yes_from_6[yes_from_6$id == "3", ], carried[carried$id == "3", ], ignore_attr = TRUE)
+})
+
+test_that("future_covariates is checked", {
+  expect_error(simulate_fx(prediction_time = 5, times = 6, future_covariates = data.frame(age = 60)),
+               "needs a `year` column")
+  expect_error(simulate_fx(prediction_time = 5, times = 6, future_covariates = data.frame(year = 6, albumin = 3)),
+               "cannot set albumin")
+  expect_error(simulate_fx(prediction_time = 5, times = 6,
+                           future_covariates = data.frame(id = "99", year = 6, age = 60)),
+               "not simulated")
+})
