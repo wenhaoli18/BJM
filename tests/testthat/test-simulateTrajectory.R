@@ -214,3 +214,37 @@ test_that("event times are spread within their interval rather than rounded to i
   expect_equal(mean(sims$event_time <= 7), unname(risk$risk_prob_1 + risk$risk_prob_2), tolerance = 0.02)
   expect_gt(length(unique(sims$event_time)), 1000)
 })
+
+test_that("plot() draws simulated trajectories and event incidence", {
+  sims <- simulate_fx(prediction_time = 5, times = seq(5, 9, by = 1), n_sim = 100, seed = 1)
+  expect_equal(nrow(attr(sims, "history")), 2 * nrow(fx$data_predict_all[[1]]))
+
+  p <- plot(sims, n_paths = 10)
+  expect_s3_class(p, "ggplot")
+  expect_no_error(built <- ggplot2::ggplot_build(p))
+  ### panels follow the fit's biomarker order
+  expect_equal(levels(built$layout$layout$biomarker), c("serBilir", "albumin"))
+
+  p <- plot(sims, which = "event")
+  expect_no_error(built <- ggplot2::ggplot_build(p))
+  ### one curve per event type, ending at the share of draws with that event
+  draws <- sims[!duplicated(sims$sim), ]
+  last <- tapply(p$data$cif, p$data$curve, max)
+  expect_equal(unname(last["status4 = 0"]), mean(draws$event == 1 & draws$status4 == 0))
+
+  expect_error(plot(sims, id = "no-such-patient"), "No draws")
+  expect_error(plot(sims, level = 1), "between 0 and 1")
+})
+
+test_that("plot() draws category shares for an ordinal biomarker", {
+  testthat::skip_if_not_installed("ordinal")
+  ox <- ordinal_sim_fixture()
+  sims <- simulateTrajectory(ox$data_predict_all, ox$long_fit_all, ox$survival_fit_all,
+                             prediction_time = 3, times = 3:6, time_variable = "year",
+                             survival_variable_all = list(), survival_trans_function = list(),
+                             n_sim = 100, seed = 1)
+  p <- plot(sims)
+  expect_no_error(ggplot2::ggplot_build(p))
+  shares <- p$layers[[which(vapply(p$layers, function(l) inherits(l$geom, "GeomCol"), logical(1)))]]$data
+  expect_equal(as.numeric(tapply(shares$value, shares$time, sum)), rep(1, 4))
+})

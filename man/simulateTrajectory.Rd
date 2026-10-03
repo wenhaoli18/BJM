@@ -84,7 +84,8 @@ response of \code{form_conditional_cr}, with the same 0/1 coding, and
 biomarker, named by its response variable (an ordered factor, with the
 fitted categories as levels, for an ordinal biomarker). Attributes
 \code{"prediction_time"}, \code{"times"} and \code{"max_event_time"}
-record the values used.
+record the values used, and \code{"history"} the continuous biomarker
+measurements conditioned on (for \code{\link{plot.simulateTrajectory.BJM}}).
 }
 \description{
 Draws \code{n_sim} complete futures for each patient from the
@@ -200,6 +201,12 @@ synthetic = simulateTrajectory(new_patient, long_fit_all, survival_fit_all,
                                prediction_time = 0, times = 0:6, time_variable = "year",
                                trans$survival_variable_all,
                                trans$survival_trans_function, n_sim = 100, seed = 1)
+
+plot(sims)
+plot(sims, which = "event")
 }
 
+}
+\seealso{
+\code{\link{plot.simulateTrajectory.BJM}} to plot the draws.
 }

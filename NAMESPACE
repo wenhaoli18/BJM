@@ -2,6 +2,7 @@
 
 S3method(plot,longitudinalSub.BJM)
 S3method(plot,predictLongitudinal.BJM)
+S3method(plot,simulateTrajectory.BJM)
 S3method(plot,survivalSub.BJM)
 S3method(print,checkBandcountConvergence.BJM)
 S3method(print,longitudinalSub.BJM)
