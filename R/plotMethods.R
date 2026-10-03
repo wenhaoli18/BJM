@@ -287,3 +287,162 @@ plot.predictLongitudinal.BJM <- function(x, subject = NULL, ...) {
     xlab("Predicted biomarker value") + ylab("Predicted density") +
     theme_bw()
 }
+
+
+#' Plot simulated futures
+#'
+#' @description
+#' Plots the draws of \code{\link{simulateTrajectory}}, pooling every draw of
+#' the patients chosen by \code{id} (all of them by default: one patient's
+#' draws picture that patient's predictive distribution, one draw each of a
+#' synthetic cohort pictures the cohort):
+#' \describe{
+#'   \item{\code{"trajectory"}}{One panel per biomarker. For a continuous
+#'   biomarker, \code{n_paths} of the simulated trajectories as thin lines,
+#'   with the median and the central \code{level} interval of the draws at
+#'   each time, and the measurements conditioned on as points. For an
+#'   ordinal biomarker, the share of the draws in each category at each
+#'   time. With \code{truncate = TRUE} in \code{simulateTrajectory()} the
+#'   summaries at a time describe the draws still event-free then.}
+#'   \item{\code{"event"}}{The cumulative incidence of the event (of each
+#'   event type, with competing risks) after \code{prediction_time},
+#'   computed from the drawn event times.}
+#' }
+#'
+#' @param x A \code{simulateTrajectory.BJM} object returned by
+#'   \code{\link{simulateTrajectory}}.
+#' @param which \code{"trajectory"} (default) or \code{"event"}.
+#' @param id Patient id(s) whose draws to plot; \code{NULL} (default) for
+#'   all.
+#' @param n_paths Number of simulated trajectories drawn as lines (the
+#'   first ones; the draws are independent, so they are a random sample).
+#' @param level Coverage of the interval drawn around the median.
+#' @param ... Currently unused.
+#'
+#' @return A \code{ggplot} object.
+#'
+#' @examples
+#' \donttest{
+#' data(pbc3)
+#' survival_fit_all <- survivalSub(pbc3[!duplicated(pbc3$id), ],
+#'                                 Surv(years, status3) ~ age + sex, NULL)
+#' long_fit_all <- longitudinalSub(list(pbc3[pbc3$status3 == 1, ], pbc3[pbc3$status3 == 1, ]),
+#'                                 list(serBilir ~ year + age + sex + years,
+#'                                      albumin ~ year + age + sex + years),
+#'                                 list(~ year | id, ~ year | id))
+#' history <- pbc3[pbc3$id == 2 & pbc3$year <= 3, ]
+#' sims <- simulateTrajectory(history, long_fit_all, survival_fit_all,
+#'                            prediction_time = 3, times = seq(3, 8, by = 0.5),
+#'                            time_variable = "year", survival_variable_all = list(),
+#'                            survival_trans_function = list(), n_sim = 200, seed = 1)
+#' plot(sims)
+#' plot(sims, which = "event")
+#' }
+#'
+#' @export
+plot.simulateTrajectory.BJM <- function(x, which = c("trajectory", "event"), id = NULL,
+                                        n_paths = 30, level = 0.9, ...) {
+  which <- match.arg(which)
+  assert_positive_integer(n_paths, "n_paths")
+  if (!is.numeric(level) || length(level) != 1 || is.na(level) || level <= 0 || level >= 1) {
+    stop("`level` must be a single number between 0 and 1.", call. = FALSE)
+  }
+  vars <- attr(x, "variables")
+  prediction_time <- attr(x, "prediction_time")
+  max_event_time <- attr(x, "max_event_time")
+  history <- attr(x, "history")
+  sims <- as.data.frame(unclass(x), stringsAsFactors = FALSE)
+  sims[[vars$id]] <- as.character(sims[[vars$id]])
+  if (!is.null(id)) {
+    unknown <- setdiff(as.character(id), sims[[vars$id]])
+    if (length(unknown) > 0) {
+      stop(sprintf("No draws for id(s) %s.", paste(unknown, collapse = ", ")), call. = FALSE)
+    }
+    sims <- sims[sims[[vars$id]] %in% as.character(id), , drop = FALSE]
+    history <- history[as.character(history$id) %in% as.character(id), , drop = FALSE]
+  }
+  sims$path <- paste(sims[[vars$id]], sims$sim)
+
+  if (which == "event") {
+    draws <- sims[!duplicated(sims$path), , drop = FALSE]
+    type <- if (is.null(vars$event_type)) rep("Event", nrow(draws)) else
+      paste0(vars$event_type, " = ", draws[[vars$event_type]])
+    has_event <- draws$event == 1
+    end <- if (is.finite(max_event_time)) max_event_time else max(draws$event_time)
+    grid <- sort(unique(c(prediction_time, draws$event_time[has_event], end)))
+    cif <- do.call(rbind, lapply(sort(unique(type[has_event])), function(tp) {
+      times <- draws$event_time[has_event & type == tp]
+      data.frame(time = grid, cif = vapply(grid, function(t) sum(times <= t), numeric(1)) / nrow(draws),
+                 curve = tp)
+    }))
+    p <- ggplot(cif, aes(x = time, y = cif)) +
+      scale_y_continuous(limits = c(0, 1)) +
+      xlab(vars$time) + ylab("Cumulative incidence") + theme_bw()
+    p <- if (is.null(vars$event_type)) p + geom_step(linewidth = 1) else
+      p + geom_step(aes(color = curve), linewidth = 1) + labs(color = NULL)
+    if (is.finite(max_event_time)) {
+      p <- p + labs(caption = sprintf("%d draws; %.1f%% event-free through %s = %s",
+                                      nrow(draws), 100 * mean(!has_event), vars$time,
+                                      format(signif(max_event_time, 3))))
+    }
+    return(p)
+  }
+
+  ordinal <- vapply(vars$biomarkers, function(b) is.factor(sims[[b]]), logical(1))
+  shown_paths <- unique(sims$path)
+  shown_paths <- shown_paths[seq_len(min(n_paths, length(shown_paths)))]
+  alpha_tail <- (1 - level) / 2
+
+  continuous_long <- do.call(rbind, lapply(vars$biomarkers[!ordinal], function(b)
+    data.frame(path = sims$path, time = sims[[vars$time]], biomarker = b, value = sims[[b]])))
+  continuous_long <- continuous_long[!is.na(continuous_long$value), , drop = FALSE]
+  bands <- NULL
+  if (!is.null(continuous_long) && nrow(continuous_long) > 0) {
+    bands <- do.call(rbind, lapply(split(continuous_long, list(continuous_long$biomarker, continuous_long$time),
+                                         drop = TRUE), function(d) {
+      q <- stats::quantile(d$value, c(alpha_tail, 0.5, 1 - alpha_tail), names = FALSE)
+      data.frame(time = d$time[1], biomarker = d$biomarker[1], lower = q[1], value = q[2], upper = q[3])
+    }))
+  }
+
+  shares <- do.call(rbind, lapply(vars$biomarkers[ordinal], function(b) {
+    d <- sims[!is.na(sims[[b]]), , drop = FALSE]
+    if (nrow(d) == 0) return(NULL)
+    counts <- table(d[[vars$time]], d[[b]])
+    data.frame(time = as.numeric(rownames(counts))[row(counts)], biomarker = b,
+               category = factor(colnames(counts)[col(counts)], levels = levels(sims[[b]])),
+               value = as.vector(counts / rowSums(counts)))
+  }))
+
+  p <- ggplot() + geom_vline(xintercept = prediction_time, linetype = "dashed", color = "grey50")
+  if (!is.null(bands)) {
+    p <- p +
+      geom_line(data = continuous_long[continuous_long$path %in% shown_paths, , drop = FALSE],
+                aes(x = time, y = value, group = path), color = "grey60", alpha = 0.4, linewidth = 0.3) +
+      geom_ribbon(data = bands, aes(x = time, ymin = lower, ymax = upper), fill = "#2166AC", alpha = 0.2) +
+      geom_line(data = bands, aes(x = time, y = value), color = "#2166AC", linewidth = 1)
+  }
+  history <- history[history$biomarker %in% vars$biomarkers[!ordinal], , drop = FALSE]
+  if (nrow(history) > 0) {
+    p <- p + geom_point(data = history, aes(x = time, y = value), size = 1.8)
+  }
+  if (!is.null(shares)) {
+    width <- if (length(unique(shares$time)) > 1) 0.8 * min(diff(sort(unique(shares$time)))) else 0.8
+    p <- p + geom_col(data = shares, aes(x = time, y = value, fill = category), width = width) +
+      labs(fill = NULL)
+  }
+  ### panels in the fit's biomarker order, not alphabetical
+  for (layer in seq_along(p$layers)) {
+    d <- p$layers[[layer]]$data
+    if (is.data.frame(d) && "biomarker" %in% names(d)) {
+      p$layers[[layer]]$data$biomarker <- factor(d$biomarker, levels = vars$biomarkers)
+    }
+  }
+  p + facet_wrap(~ biomarker, scales = "free_y") +
+    xlab(vars$time) +
+    ylab(if (any(ordinal)) "Value, or share of draws in each category" else "Value") +
+    labs(caption = sprintf("Line and band: median and %g%% interval of the draws%s; grey: %d draws.",
+                           100 * level, if (any(is.na(sims[vars$biomarkers]))) " still event-free" else "",
+                           length(shown_paths))) +
+    theme_bw()
+}
