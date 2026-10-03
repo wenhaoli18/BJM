@@ -48,6 +48,17 @@ build_two_marker_fit <- function() {
 # at one l_i grid point, evaluated at a given value of any extra covariates
 # (e.g. event_type_variable for the competing-risk path) already baked into
 # `data_num_i_list`.
+# The patient's stacked covariance Z D Z' + diag(sigma_k^2), built here
+# directly rather than taken from the package, which factors it without
+# forming it (cov_factor()).
+reference_sigma_all <- function(long_fit_all, data_num_i_list) {
+  A <- random_effects_design(data_num_i_list, long_fit_all$long_sub_random, long_fit_all$Sigma_fit)
+  r_diag <- unlist(lapply(seq_along(data_num_i_list), function(i) {
+    rep(long_fit_all$lfit[[i]]$sigma^2, nrow(data_num_i_list[[i]]))
+  }))
+  A %*% long_fit_all$Sigma_fit %*% t(A) + diag(r_diag, length(r_diag))
+}
+
 dmvnorm_reference <- function(long_fit_all, data_num_i_list, Sigma_all, l_i_value, survival_variable) {
   lfit <- long_fit_all$lfit
   n_longitudinal <- length(lfit)
@@ -87,13 +98,10 @@ test_that("conditionalYT matches an independent mvtnorm::dmvnorm ground truth fo
 
   n_longitudinal <- length(long_fit_all$lfit)
   patient_data <- select_patient_longitudinal_data(data_predict_all, "id", num_i, n_longitudinal, "year")
-  design <- build_conditional_design(patient_data$rep_num_i_list, patient_data$data_num_i_list,
-                                      long_fit_all$lfit, long_fit_all$Sigma_fit,
-                                      sapply(long_fit_all$lfit, function(u) u$sigma),
-                                      "year", n_longitudinal, long_fit_all$long_sub_random)
+  Sigma_all <- reference_sigma_all(long_fit_all, patient_data$data_num_i_list)
 
   for (it in seq_along(l_i)) {
-    ref <- dmvnorm_reference(long_fit_all, patient_data$data_num_i_list, design$Sigma_all,
+    ref <- dmvnorm_reference(long_fit_all, patient_data$data_num_i_list, Sigma_all,
                               l_i[it], "years")
     # conditionalYT() returns an unnamed list (return(f_Y_T_D = list(...))
     # discards the argument name since return() takes a single value), so
@@ -123,10 +131,7 @@ test_that("conditionalYDT matches an independent mvtnorm::dmvnorm ground truth f
   n_longitudinal <- length(long_fit_all$lfit)
   event_type_variable <- as.character(formula(survival_fit_all$form_conditional_cr)[[2]])
   patient_data <- select_patient_longitudinal_data(data_predict_all, "id", num_i, n_longitudinal, "year")
-  design <- build_conditional_design(patient_data$rep_num_i_list, patient_data$data_num_i_list,
-                                      long_fit_all$lfit, long_fit_all$Sigma_fit,
-                                      sapply(long_fit_all$lfit, function(u) u$sigma),
-                                      "year", n_longitudinal, long_fit_all$long_sub_random)
+  Sigma_all <- reference_sigma_all(long_fit_all, patient_data$data_num_i_list)
 
   for (it in seq_along(l_i)) {
     data_num_i_list_1 <- lapply(patient_data$data_num_i_list, function(d) {
@@ -137,8 +142,8 @@ test_that("conditionalYDT matches an independent mvtnorm::dmvnorm ground truth f
       d[[event_type_variable]] <- 0
       d
     })
-    ref1 <- dmvnorm_reference(long_fit_all, data_num_i_list_1, design$Sigma_all, l_i[it], "years")
-    ref0 <- dmvnorm_reference(long_fit_all, data_num_i_list_0, design$Sigma_all, l_i[it], "years")
+    ref1 <- dmvnorm_reference(long_fit_all, data_num_i_list_1, Sigma_all, l_i[it], "years")
+    ref0 <- dmvnorm_reference(long_fit_all, data_num_i_list_0, Sigma_all, l_i[it], "years")
 
     # conditionalYDT() returns an unnamed list(f_Y_T_D_w0, f_Y_T_D_w1) (see
     # note above on return()'s argument name being discarded).
