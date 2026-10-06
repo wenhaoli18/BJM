@@ -37,11 +37,13 @@
   recurrent-event-calibration.R` checks it under a correctly-specified
   simulated DGP (not part of the installed package): predicted and
   realized "next event" probabilities land close to the diagonal on a
-  binned calibration plot, with a logistic calibration slope around 0.86
-  for both the recurrence and the terminal-event probability -- reasonable
-  but not perfect, and this only checks that the code correctly implements
-  the intended Bayes combination under a correctly-specified model, not
-  robustness to real-world model misspecification. See
+  binned calibration plot, with a logistic calibration slope around 0.6-0.7
+  for both the recurrence and the terminal-event probability (1 would be
+  perfect; the terminal-event probability is also still about 10 points too
+  low on average) -- usable ranking, but visibly imperfect, from a single
+  500-subject test set and a single seed. This only checks that the code
+  implements the intended Bayes combination under a correctly-specified
+  model, not robustness to real-world model misspecification. See
   `?buildRecurrentEpisodes` for what it does and does not support (in
   particular, it predicts only the *next* event, not the total number of
   future recurrences), and for why the open (not-yet-resolved) episode's
