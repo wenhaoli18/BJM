@@ -48,6 +48,17 @@ build_two_marker_fit <- function() {
 # at one l_i grid point, evaluated at a given value of any extra covariates
 # (e.g. event_type_variable for the competing-risk path) already baked into
 # `data_num_i_list`.
+# The patient's stacked covariance Z D Z' + diag(sigma_k^2), built here
+# directly rather than taken from the package, which factors it without
+# forming it (cov_factor()).
+reference_sigma_all <- function(long_fit_all, data_num_i_list) {
+  A <- random_effects_design(data_num_i_list, long_fit_all$long_sub_random, long_fit_all$Sigma_fit)
+  r_diag <- unlist(lapply(seq_along(data_num_i_list), function(i) {
+    rep(long_fit_all$lfit[[i]]$sigma^2, nrow(data_num_i_list[[i]]))
+  }))
+  A %*% long_fit_all$Sigma_fit %*% t(A) + diag(r_diag, length(r_diag))
+}
+
 dmvnorm_reference <- function(long_fit_all, data_num_i_list, Sigma_all, l_i_value, survival_variable) {
   lfit <- long_fit_all$lfit
   n_longitudinal <- length(lfit)
@@ -87,18 +98,15 @@ test_that("conditionalYT matches an independent mvtnorm::dmvnorm ground truth fo
 
   n_longitudinal <- length(long_fit_all$lfit)
   patient_data <- select_patient_longitudinal_data(data_predict_all, "id", num_i, n_longitudinal, "year")
-  design <- build_conditional_design(patient_data$rep_num_i_list, patient_data$data_num_i_list,
-                                      long_fit_all$lfit, long_fit_all$Sigma_fit,
-                                      sapply(long_fit_all$lfit, function(u) u$sigma),
-                                      "year", n_longitudinal)
+  Sigma_all <- reference_sigma_all(long_fit_all, patient_data$data_num_i_list)
 
   for (it in seq_along(l_i)) {
-    ref <- dmvnorm_reference(long_fit_all, patient_data$data_num_i_list, design$Sigma_all,
+    ref <- dmvnorm_reference(long_fit_all, patient_data$data_num_i_list, Sigma_all,
                               l_i[it], "years")
     # conditionalYT() returns an unnamed list (return(f_Y_T_D = list(...))
     # discards the argument name since return() takes a single value), so
-    # the density matrix is out[[1]], not out$f_Y_T_D.
-    expect_equal(out[[1]][it, 1], ref, tolerance = 1e-8)
+    # the (log) density matrix is out[[1]], not out$f_Y_T_D.
+    expect_equal(exp(out[[1]][it, 1]), ref, tolerance = 1e-8)
   }
 })
 
@@ -123,10 +131,7 @@ test_that("conditionalYDT matches an independent mvtnorm::dmvnorm ground truth f
   n_longitudinal <- length(long_fit_all$lfit)
   event_type_variable <- as.character(formula(survival_fit_all$form_conditional_cr)[[2]])
   patient_data <- select_patient_longitudinal_data(data_predict_all, "id", num_i, n_longitudinal, "year")
-  design <- build_conditional_design(patient_data$rep_num_i_list, patient_data$data_num_i_list,
-                                      long_fit_all$lfit, long_fit_all$Sigma_fit,
-                                      sapply(long_fit_all$lfit, function(u) u$sigma),
-                                      "year", n_longitudinal)
+  Sigma_all <- reference_sigma_all(long_fit_all, patient_data$data_num_i_list)
 
   for (it in seq_along(l_i)) {
     data_num_i_list_1 <- lapply(patient_data$data_num_i_list, function(d) {
@@ -137,12 +142,59 @@ test_that("conditionalYDT matches an independent mvtnorm::dmvnorm ground truth f
       d[[event_type_variable]] <- 0
       d
     })
-    ref1 <- dmvnorm_reference(long_fit_all, data_num_i_list_1, design$Sigma_all, l_i[it], "years")
-    ref0 <- dmvnorm_reference(long_fit_all, data_num_i_list_0, design$Sigma_all, l_i[it], "years")
+    ref1 <- dmvnorm_reference(long_fit_all, data_num_i_list_1, Sigma_all, l_i[it], "years")
+    ref0 <- dmvnorm_reference(long_fit_all, data_num_i_list_0, Sigma_all, l_i[it], "years")
 
     # conditionalYDT() returns an unnamed list(f_Y_T_D_w0, f_Y_T_D_w1) (see
     # note above on return()'s argument name being discarded).
-    expect_equal(out[[2]][it, 1], ref1, tolerance = 1e-8)
-    expect_equal(out[[1]][it, 1], ref0, tolerance = 1e-8)
+    expect_equal(exp(out[[2]][it, 1]), ref1, tolerance = 1e-8)
+    expect_equal(exp(out[[1]][it, 1]), ref0, tolerance = 1e-8)
   }
+})
+
+test_that("conditionalYDT/conditionalYDTBio re-evaluate transformed survival-time terms at every grid point", {
+  data(pbc3, envir = environment())
+  data_fit <- pbc3[pbc3$status3 == 1, ]
+  # The event type is not in these formulas, so Y | D, T does not depend
+  # on D and both of conditionalYDT()'s densities must equal
+  # conditionalYT()'s, which rebuilds its model frame at every grid point.
+  long_fit_all <- longitudinalSub(
+    list(data_fit, data_fit),
+    list(serBilir ~ year + age + sex + log(years),
+         albumin ~ year + age + sex + I(years^2) + years),
+    list(~ year | id, ~ year | id))
+  survival_fit_all <- survivalSub(pbc3[!duplicated(pbc3$id), ],
+                                  Surv(years, status3) ~ age + sex,
+                                  status4 ~ years + age + sex)
+  d <- pbc3[pbc3$id %in% c(2, 9) & pbc3$year <= 5, ]
+  data_predict_all <- list(d, d)
+  l_i <- c(6, 9, 12)
+
+  ydt <- conditionalYDT(data_predict_all, long_fit_all, survival_fit_all, l_i,
+                        "years", "year", list(), list())
+  yt <- conditionalYT(data_predict_all, long_fit_all, l_i, "years", "year", list(), list())
+  expect_equal(ydt[[1]], yt[[1]])
+  expect_equal(ydt[[2]], yt[[1]])
+
+  # The same for the biomarker-prediction numerator: a grid point's value
+  # must not depend on which grid point came first.
+  y_all <- c(0.5, 1)
+  bio_grid <- conditionalYDTBio(y_all, 6, 1, data_predict_all, long_fit_all, survival_fit_all,
+                                l_i, "years", "year", list(), list())
+  bio_last <- conditionalYDTBio(y_all, 6, 1, data_predict_all, long_fit_all, survival_fit_all,
+                                l_i[3], "years", "year", list(), list())
+  for (k in 1:2) {
+    for (y in seq_along(y_all)) {
+      expect_equal(bio_grid[[k]][[y]][3, ], bio_last[[k]][[y]][1, ])
+    }
+  }
+})
+
+test_that("time_columns_bare distinguishes bare and transformed survival-time columns", {
+  bare <- terms(y ~ year + years + years:year + Tyears1)
+  expect_true(time_columns_bare(bare, c("years", "Tyears1")))
+  expect_false(time_columns_bare(terms(y ~ year + log(years)), "years"))
+  expect_false(time_columns_bare(terms(y ~ year + I(Tyears1^2)), c("years", "Tyears1")))
+  # the response is not a model-frame column that gets overwritten
+  expect_true(time_columns_bare(terms(log(years) ~ year), "years"))
 })

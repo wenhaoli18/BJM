@@ -23,7 +23,9 @@
 #' @param survival_trans_function The transformation function used for time-to-event outcomes, 
 #' in the order of \code{survival_variable_all}.
 #' 
-#' @return The output is a list containing probability matrices. In the presence of 
+#' @return The output is a list containing probability matrices of \strong{log} densities
+#' (so that they neither overflow nor underflow; see \code{predictRisk()} for how they
+#' are exponentiated). In the presence of 
 #' competing risks, this list includes two elements; otherwise, 
 #' it contains only one element. Each element within the list is a probability matrix, 
 #' with the number of rows (l_i) corresponding to specific time points and 
@@ -63,7 +65,7 @@ conditionalYDTBio = function(Y_all, time_new, bio_i, data_predict_all,
  
   # MVN variance 
   # Apply the function over each unique num using lapply for variance list
-  Sigma_all <- lapply(as.numeric(unlist(unique(data.long[[1]][num]))), process_variance, 
+  cov_fac_all <- lapply(unique(data.long[[1]][[num]]), process_variance, 
                       time_new, bio_i, data_predict_all, long_fit_all, time_variable)
   
   # A probability matrix, 
@@ -123,6 +125,10 @@ conditionalYDTBio = function(Y_all, time_new, bio_i, data_predict_all,
     terms_i_list = list()
     mf_1_list = list()
     mf_0_list = list()
+    data_1_list = list()
+    data_0_list = list()
+    xlev_list = list()
+    in_place = logical(n_longitudinal)
     n_expected_1 = integer(n_longitudinal)
     n_expected_0 = integer(n_longitudinal)
     for(i in 1:n_longitudinal){
@@ -156,6 +162,12 @@ conditionalYDTBio = function(Y_all, time_new, bio_i, data_predict_all,
       xlev_i = if (!is.null(long_fit_all$xlevels)) long_fit_all$xlevels[[i]] else NULL
       mf_1_list[[i]] = model.frame(terms_i_list[[i]], data_i_1, xlev = xlev_i)
       mf_0_list[[i]] = model.frame(terms_i_list[[i]], data_i_0, xlev = xlev_i)
+      ### see time_columns_bare(): a transformed survival-time term (e.g.
+      ### log(years)) needs the model frame rebuilt at every grid point
+      data_1_list[[i]] = data_i_1
+      data_0_list[[i]] = data_i_0
+      xlev_list[[i]] = xlev_i
+      in_place[i] = time_columns_bare(terms_i_list[[i]], c(survival_variable, unlist(survival_variable_all)))
       n_expected_1[i] = nrow(data_i_1)
       n_expected_0[i] = nrow(data_i_0)
     }
@@ -172,24 +184,13 @@ conditionalYDTBio = function(Y_all, time_new, bio_i, data_predict_all,
       for(i in 1:n_longitudinal){
         terms_i = terms_i_list[[i]]
 
-        #survival variable replaced by l_i[it]
-        if(survival_variable %in% names(mf_1_list[[i]])){
-          mf_1_list[[i]][[survival_variable]] = l_i[it]
-          mf_0_list[[i]][[survival_variable]] = l_i[it]
-        }
-
-        #transformed survival variable/basis function of survival variable
-        #replaced by trans_function(l_i[it])
-        if(length(survival_variable_all) != 0){
-          for(surv_i in 1 : length(survival_variable_all)){
-            svar = survival_variable_all[[surv_i]]
-            if(svar %in% names(mf_1_list[[i]])){
-              trans_val = apply_survival_trans(survival_trans_function[[surv_i]], l_i[it], surv_i)
-              mf_1_list[[i]][[svar]] = trans_val
-              mf_0_list[[i]][[svar]] = trans_val
-            }
-          }
-        }
+        #survival variable (and its transformations) at l_i[it]
+        mf_1_list[[i]] = survival_model_frame_at(mf_1_list[[i]], data_1_list[[i]], in_place[i], terms_i,
+                                                 xlev_list[[i]], survival_variable, l_i[it],
+                                                 survival_variable_all, survival_trans_function)
+        mf_0_list[[i]] = survival_model_frame_at(mf_0_list[[i]], data_0_list[[i]], in_place[i], terms_i,
+                                                 xlev_list[[i]], survival_variable, l_i[it],
+                                                 survival_variable_all, survival_trans_function)
 
         ## extract data matrix to calcuate the probability
         LME_indi_matrix_1[[i]] = t(model.matrix(terms_i, mf_1_list[[i]], contrasts.arg = lfit[[i]]$contrasts))
@@ -223,12 +224,12 @@ conditionalYDTBio = function(Y_all, time_new, bio_i, data_predict_all,
       Amean_list0[[it]] = mean_list0
     }
     
-    results_lapply1 <- lapply(seq_along(Amean_list1), function(it) {
-      mvtnorm::dmvnorm(x = longitudinal_all_matrix, mean = c(Amean_list1[[it]]), sigma = Sigma_all[[iii]])
-    })
-    results_lapply0 <- lapply(seq_along(Amean_list0), function(it) {
-      mvtnorm::dmvnorm(x = longitudinal_all_matrix, mean = c(Amean_list0[[it]]), sigma = Sigma_all[[iii]])
-    })
+    ### the covariance is the same at every grid point and for both event
+    ### types, so it is factored once per patient (by process_variance())
+    results_lapply <- cov_logdens_means(cov_fac_all[[iii]], longitudinal_all_matrix,
+                                        c(Amean_list1, Amean_list0))
+    results_lapply1 <- results_lapply[seq_along(Amean_list1)]
+    results_lapply0 <- results_lapply[length(Amean_list1) + seq_along(Amean_list0)]
     
     for(Y_i in 1 : length(Y_all)){
       ### get #Y_i from all elements of a list

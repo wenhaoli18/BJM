@@ -10,6 +10,14 @@
   `"predictRisk.BJM"` (formerly `"dynamicPrediction.BJM"`) class are
   otherwise unchanged. `checkBandcountConvergence()`'s `predict_fun`
   argument accepts `predictRisk` in place of the old `dynamicPrediction`.
+* The objects returned by `predictLongitudinal()` are now classed
+  `"predictLongitudinal.BJM"` (one biomarker) and
+  `"predictLongitudinalAll.BJM"` (several biomarkers), formerly
+  `"dynamicPredictionBio.BJM"` and `"dynamicPredictionBioAll.BJM"`, so the
+  class names match the exported function rather than the internal helper
+  behind it. Code that checks `inherits(x, "dynamicPredictionBio.BJM")` (or
+  the `All` variant) needs to switch to the new names; the object contents
+  and the `print()`/`summary()` output are unchanged.
 
 ## New features
 
@@ -42,6 +50,57 @@
   otherwise `predictRisk()`'s own `upper_bound` sizing silently produces
   overconfident probabilities.
 
+* New `simulateTrajectory()` draws complete futures from the fitted backward
+  joint model -- an event time, an event type under competing risks, and
+  every biomarker's values at chosen times -- conditional on a patient's
+  history up to `prediction_time`, by sampling the event time from its
+  posterior, the random effects from theirs, and the biomarkers given both.
+  A patient with no biomarker measurements is drawn from their baseline
+  covariates alone, as a synthetic patient. Ordinal biomarkers of a
+  Gaussian-copula fit are supported. Event times past the last follow-up
+  time are reported as event-free through `max_event_time` (by default that
+  time) rather than extrapolated. Covariates are carried forward from the
+  patient's last row, or follow a path given in `future_covariates` (e.g.
+  ascites from year 6 on). The draws agree with `predictRisk()` and
+  `predictLongitudinal()` within Monte Carlo error.
+* New `plot()` method for `simulateTrajectory()` results draws the
+  simulated biomarker trajectories (sampled paths, median and interval
+  band, and the history conditioned on; category shares for an ordinal
+  biomarker) or the cumulative incidence of each event type from the drawn
+  event times.
+* New `spaghettiPlot()` draws each subject's observed biomarker trajectory,
+  optionally colored by eventual outcome with a smoothed mean per group,
+  and with `align = "event"` plots against the time remaining until the
+  event (`survival time - time`, so the event is at 0), matching the
+  backward model's view of the biomarker.
+* New `performancePlot()` evaluates the dynamic risk predictions at a set
+  of landmark times: at each landmark it predicts every event-free subject's
+  risk from their history so far with `predictRisk()` and plots the
+  time-dependent AUC and Brier score of that risk over the prediction
+  window, with inverse probability of censoring weighting, separately per
+  event type under competing risks. Pass held-out data to estimate
+  out-of-sample performance.
+* New `calibrationPlot()` checks whether the predicted risks are
+  numerically right: at each landmark it groups the event-free subjects by
+  predicted risk (deciles by default) and plots each group's mean predicted
+  risk against its observed risk in the window (one minus Kaplan--Meier, or
+  the Aalen--Johansen cumulative incidence per event type under competing
+  risks), with 95% confidence intervals and the diagonal for reference.
+* New `plot()` methods for fitted and predicted objects, each returning a
+  `ggplot`: `plot(long_fit_all)` draws residual, Q-Q and random-effect
+  diagnostics per biomarker (`which = "residuals"`, `"qq"`, `"ranef"`) and
+  a heat map of the random-effects correlation across biomarkers
+  (`which = "corr"`); `plot(survival_fit_all)` draws a forest plot of the
+  hazard ratios (and the competing-risks odds ratios) or, with
+  `which = "basehaz"`, the baseline cumulative hazard; and
+  `plot(predictLongitudinal(...))` draws each patient's predicted biomarker
+  density with the point prediction marked (category probabilities for an
+  ordinal biomarker).
+* New `cifPlot()` plots the Aalen--Johansen cumulative incidence of each
+  event type (one minus Kaplan--Meier for a single event type), with
+  pointwise confidence bands and optional stratification by a subject-level
+  group. It accepts long-format data and either a numeric censoring code or
+  `censor_value = NA` (as in `pbc3$status4`).
 * New `imputeLongitudinal()` fills in missing longitudinal biomarker values
   before `longitudinalSub()` runs, instead of relying on complete-case
   analysis. `longitudinalSub()` drops rows missing a biomarker's own
@@ -152,11 +211,11 @@
   internal, un-exported helpers behind it -- direct calls to either from
   existing scripts will need to switch to `predictLongitudinal()`). Pass a
   `bio_i` naming exactly **one** biomarker to predict just that one, which
-  returns a single `dynamicPredictionBio.BJM` object; pass `bio_i` naming
+  returns a single `predictLongitudinal.BJM` object; pass `bio_i` naming
   **more than one** biomarker, or leave it at the default `NULL` (meaning
   every biomarker in `long_fit_all`), to predict several at once, which
   instead returns a named list of such objects (one per biomarker, named by
-  that biomarker's response variable, classed `dynamicPredictionBioAll.BJM`)
+  that biomarker's response variable, classed `predictLongitudinalAll.BJM`)
   and computes the bio_i-*independent* pipeline stages (restricting to
   at-risk patients, the survival-side integration grid, and the denominator
   conditional density) only **once**, reusing it across every requested
@@ -176,20 +235,317 @@
   `predict_fun` argument now accepts `predictLongitudinal` (in place of the
   now-internal `dynamicPredictionBio`) for the single-biomarker case.
 
+* `predictLongitudinal()` now builds a continuous biomarker's candidate-value
+  grid (`Y_all`) in two passes: a cheap coarse pass (step = the biomarker's
+  residual SD) over the old wide range finds where any patient's predictive
+  density is not negligible, and the `bandcount3` points are then placed
+  there only. The grid used to span a fixed 5 times the observed range on
+  either side, so most points (about 90% in a simulated example) fell where
+  every density was practically 0. The same `bandcount3` now gives a 2-5
+  times finer grid, and the `"auto"` starting value of `bandcount3` was
+  lowered from 300 to 100. `Y_all` is still a single grid shared by all
+  patients predicted, so the returned structure is unchanged.
+
+## Performance
+
+* `predictRisk()` and `predictLongitudinal()` evaluate each patient's joint
+  longitudinal density much faster when there are many biomarkers or many
+  visits. The patient's covariance (random effects plus residual error,
+  across all biomarkers) is now factored once per patient instead of at
+  every survival-time grid point, and when the patient has at least three
+  observations per random effect it is factored through the Woodbury
+  identity, so the full observations-by-observations matrix is never
+  formed or inverted. The predictions are unchanged up to floating-point
+  rounding (relative differences around 1e-14 on `pbc3`).
+
 ## Bug fixes
 
-* `marginalT()`'s baseline-hazard extrapolation extrapolated forward from
-  `max(cum_basehaz_weibull)`, i.e. the max over *both* the `hazard` and
-  `time` columns of `basehaz()`'s output combined, rather than
-  specifically `max(cum_basehaz_weibull$time)` -- the intended "last
-  observed time point". Since a cumulative hazard estimate can exceed its
-  own time axis numerically (a thin risk set at later times inflates it;
-  more likely with `buildRecurrentEpisodes()`'s gap-time data, where risk
-  sets shrink fast across episodes, but not specific to it), this could
-  silently extrapolate from the wrong column and fail with "wrong sign in
-  'by' argument" inside `predictRisk()`/`dynamicPredictionBio()`. Fixed to
-  use `cum_basehaz_weibull$time` explicitly, and to skip extrapolation
-  entirely when the observed table already reaches far enough.
+* `predictPlot()` and `riskPlot()` set line widths with `linewidth`
+  instead of `size`, so they no longer trigger ggplot2's "Using `size`
+  aesthetic for lines was deprecated" warning; the plots are unchanged.
+  BJM now requires ggplot2 >= 3.4.0, where `linewidth` was introduced.
+* Past the last follow-up time, the baseline cumulative hazard used by
+  `predictRisk()`/`predictLongitudinal()` now continues from its last
+  tabulated value with the slope of the least-squares line through the
+  table. It used to switch onto that line itself, which does not pass
+  through the last value, so the cumulative hazard jumped at the last
+  follow-up time: up in `pbc3` (risks there move by about 1.5%), and down
+  whenever the hazard increases over follow-up (e.g. Weibull data), which
+  gave the interval spanning the last follow-up time a negative probability
+  mass.
+
+* With competing risks, the event-type variable (the response of
+  `form_conditional_cr`) may now appear in `long_sub_fixed`, as the
+  backward model allows. A patient still at risk necessarily has an unknown
+  (`NA`) event type, and that `NA` used to be treated as a missing covariate:
+  every such patient was dropped and `predictRisk()`/`predictLongitudinal()`
+  failed with "replacement has 1 row, data has 0".
+
+* `predictRisk()`/`predictLongitudinal()` now stop with a clear error when
+  no patient in `data_predict_all` is at risk at `prediction_time`, or none
+  has a measurement of every biomarker. `predictRisk()` used to return an
+  empty result without comment and `predictLongitudinal()` failed with
+  "'from' must be a finite number".
+
+* The warning that the integration upper limit was capped (at 20 times the
+  last follow-up time) is now only given when some patient's conditional
+  survival probability beyond the cap exceeds 1%, and reports how much; it
+  used to fire whenever it exceeded 0.01%, e.g. for ordinary simulated
+  Weibull data. The cap is also never below `prediction_time + horizon`.
+
+* `riskPlot()` failed to draw ("Discrete values supplied to continuous
+  scale") for a patient whose survival time is unknown (`NA`), the usual
+  case for a new patient: the vertical line marking the event time is now
+  left out then.
+
+* `riskPlot()`/`predictPlot()` drew risks on the biomarker's axis scaled by
+  twice the largest biomarker value, which is negative or zero when every
+  value is `<= 0` (e.g. a log-scale biomarker such as `serBilir`), flipping
+  or collapsing the risk axis. They now scale by twice the largest absolute
+  value. Both also failed ("'max' not meaningful for factors") when the
+  plotted biomarker was ordinal; its history is now plotted as the category
+  codes `1:K` that `predictLongitudinal()` predicts on.
+
+* With an ordinal biomarker, `predictRisk()` and `predictLongitudinal()`
+  took each observation's category code from the prediction data's own
+  factor levels, not the categories the model was fit with. Dropping unused
+  levels (e.g. `droplevels()`), reordering them, or passing a character
+  column therefore bracketed the latent score between the wrong thresholds,
+  silently: in one check a risk of 0.53 instead of 0.10. Ordinal responses
+  are now matched to the fitted categories by label, and a value that is
+  not one of them is an error.
+
+* Under competing risks, a survival time entering a biomarker's
+  `long_sub_fixed` through a transformation (e.g. `log(years)`,
+  `I(years^2)`, `poly(years, 2)`) was evaluated at the first integration
+  grid point for the whole integral, so `predictRisk()` and
+  `predictLongitudinal()` were wrong for such models (without competing
+  risks they were correct). Plain `years` and interactions such as
+  `years:year` were not affected.
+
+* `predictLongitudinal()`'s candidate grid for a continuous biomarker spans
+  the observed values plus five times their range on either side. With a
+  single observation, or all observed values equal, the range is 0, the grid
+  was a single point, and that point -- the observed value -- was returned
+  as the prediction. The grid now uses at least the biomarker's standard
+  deviation in the training data as its span.
+
+* `poolLongitudinalSub()` failed ("no applicable method for 'fixef'") on
+  fits with an ordinal biomarker. An ordinal biomarker's thresholds and
+  slopes are now pooled with Rubin's rules (with an infinite complete-data
+  df, as `ordinal::clmm()`'s inference is asymptotic), and the pooled
+  `long_fit_all` carries them where prediction reads them.
+
+* `longitudinalSub(biomarker_type = "ordinal")` failed ("response needs to
+  be a factor") when the response was numeric, e.g. a 0/1/2 score. A
+  numeric response is now treated as ordered by value.
+
+* `imputeLongitudinal(seed = )` seeded only torch, but the MIWAE backend
+  draws its completions with R's random number generator, so results were
+  not reproducible. `seed` now seeds both, and restores R's random number
+  state afterwards so the caller's own stream is unaffected.
+
+* `imputeLongitudinal()`'s documentation now recommends `impute =
+  "multiple"`, and explains that the `"single"` (mean-of-draws) completion
+  and row-by-row imputation tend to understate the residual and
+  random-effects variances, including the `Sigma_fit` used for prediction.
+
+* The Breslow baseline cumulative hazard was read at the tabulated time
+  *nearest* to each integration grid point instead of as the step function
+  it is. An event just after `prediction_time` (e.g. at 5.002 for
+  `prediction_time = 5`) was then counted before the prediction window
+  instead of inside it. With few events per unit of time this matters: in
+  `pbc3`, patient 2's one-year risk from year 5 rises from 0.037 to 0.039,
+  and the two readings converge to these different values as the grid is
+  refined, so the difference is not discretization error.
+
+* `longitudinalSub()` failed with "arguments imply differing number of
+  rows" when a variable used only in `long_sub_random` had a missing value.
+  Such rows are now dropped, as `lme()` already did.
+
+* `predictRisk()` returned zero risks for a negative `horizon`; it is now
+  an error.
+
+* `predictRisk()` and `predictLongitudinal()` now document that
+  predictions extrapolate the baseline hazard and the longitudinal
+  sub-model beyond the last follow-up time, that ordinal biomarkers add
+  small Monte Carlo variation (use `set.seed()` for exact reproducibility),
+  and that results depend slightly on which patients are predicted
+  together.
+
+* `predictRisk()`, `predictLongitudinal()`, and `dynamicPredictionBio()`
+  now drop rows of `data_predict_all` measured after `prediction_time`
+  (`time_variable > prediction_time`), with a warning, instead of silently
+  conditioning on them. The documentation always required the history to
+  stop at `prediction_time`, but nothing enforced it, and the README and
+  vignette quick-start examples themselves passed patient 2's full history
+  (4 measurements after `year = 5`) to a prediction at `prediction_time = 5`,
+  which uses information that would not be available at that time. Those
+  examples now subset to `year <= 5`. `predictPlot()` and `riskPlot()`
+  already truncated per landmark time and are unaffected.
+
+* `predictRisk()` and `predictLongitudinal()` failed with "wrong sign in
+  'by' argument" when a patient's survival time was only slightly after
+  `prediction_time` (so the baseline-hazard extrapolation grid ended before
+  the last training time). The grid is now only extended when it reaches
+  past the last training time.
+
+* `predictRisk()` and `predictLongitudinal()` can now predict for a patient
+  whose event time and status are not yet known (`NA`), as for a genuinely
+  new patient. Previously a missing status gave "non-conformable arrays"
+  and a missing survival time gave "'to' must be a finite number". The
+  marginal survival model now uses only the right-hand side of
+  `form_marginal_surv`, and a patient with a missing survival time is
+  treated as at risk (see also the integration upper limit, below).
+
+* A missing biomarker value (or covariate) in one row of `data_predict_all`
+  made that patient's whole prediction `NA`, silently. Each biomarker's
+  rows with a missing response or covariate are now dropped before
+  predicting, so the prediction conditions on the measurements that were
+  actually observed. A patient left with no observation of some biomarker
+  still cannot be predicted, and a warning now names them.
+
+* `longitudinalSub()` failed with "no applicable method for 'droplevels'"
+  unless the patient id column was a factor (as in `pbc3`); numeric and
+  character ids now work too. Relatedly, `predictLongitudinal()` looked
+  patients up by a factor id's internal integer codes rather than its
+  labels, so with factor ids whose codes differ from their labels (e.g.
+  ids `"101"`, `"205"`) it could use another patient's covariance; it now
+  matches ids by value.
+
+* Biomarkers can now have different random-effects structures (e.g.
+  `list(~ 1 | id, ~ year | id)`), or any random-effects formula, not just
+  "all random intercepts" or "all random intercept + slope on
+  `time_variable`". Previously any other structure failed at prediction
+  time with "non-conformable arguments". The random-effects design is now
+  built from each biomarker's own `long_sub_random` formula.
+
+* A competing-risks event-type model that does not include the survival
+  time (e.g. `status4 ~ age + sex`) made every prediction `NA`, silently. It
+  is now handled as event type not depending on event time. `survivalSub()`
+  now also rejects a survival time that enters `form_conditional_cr`
+  through a transformation or interaction (e.g. `log(years)`,
+  `years:age`), which prediction would otherwise have evaluated
+  incorrectly; it must enter as a plain main effect.
+
+* A stratified Cox model (`strata()` in `form_marginal_surv`) failed at
+  prediction time. Each patient's marginal survival now uses the baseline
+  hazard of their own stratum.
+
+* `predictRisk()` and `predictLongitudinal()` no longer use the predicted
+  patient's own survival time. The denominator integrates over every event
+  time after `prediction_time`; its grid used to stop at twice the largest
+  recorded survival time of the patients being predicted -- their future
+  outcome, not available at `prediction_time`. The prediction therefore
+  changed with that recorded time (and for a patient whose event came soon
+  after `prediction_time` the integral stopped early and the risk was
+  inflated several-fold, e.g. 0.70 instead of 0.10). The upper limit is now
+  the earliest time by which every at-risk patient's model-based
+  probability of still being event-free has fallen below 1e-4, and the
+  grid's intervals are spaced to hold equal probability mass (so the wider
+  range does not slow convergence in `bandcount2`) and start at
+  `prediction_time` rather than half an interval before it. Converged
+  predictions are unchanged in the cases checked; at coarse bandcounts
+  results move by a few percent. Beyond the last follow-up time the
+  baseline hazard is, as before, a linear extrapolation.
+
+* `predictRisk()`'s numerator grid integrated over the prediction window
+  plus one extra grid interval (half before `prediction_time`, half after
+  `prediction_time + horizon`), inflating risks by roughly
+  `1 / bandcount1` -- about 10-18% at `bandcount1 = 10`. It now tiles
+  exactly `(prediction_time, prediction_time + horizon]`. This was the main
+  reason `bandcount1`/`bandcount2 = "auto"` reported "had not converged" on
+  essentially every `pbc3` prediction; auto-tuned risks now converge and
+  agree with a very fine grid to about 0.5%.
+
+* `predictLongitudinal()`'s predicted value (the mode of the predictive
+  density) snapped to the `bandcount3` grid, so it moved in whole grid steps
+  as the grid changed -- 5% off at `bandcount3 = 50` in the package's own
+  example -- and `bandcount3 = "auto"` reported non-convergence even on a
+  fine grid. The mode is now refined between grid points (a parabola
+  through the log-density at the peak), and auto-tuning compares a
+  predicted biomarker value on the scale of its predictive standard
+  deviation rather than relative to the value itself (which exploded for
+  values near 0). The predictive density is also no longer passed through
+  the `[0, 1]` clamp meant for risk probabilities, which would have
+  flattened any density peak above 1.
+
+* `predictRisk()`'s `risk_prob_1`/`risk_prob_2` and `predictLongitudinal()`'s
+  `Y_predict` (and `Y_density`'s columns) are now named by patient id.
+  Only patients still at risk at `prediction_time` are predicted, and they
+  used to come back as an unnamed vector, so a patient dropped as not at
+  risk silently shifted every later value. `print()`/`summary()` show the
+  ids. With `horizon <= 0`, `predictRisk()` now returns a zero for every
+  at-risk patient (and for both causes under competing risks) instead of a
+  single `0` and `risk_prob_2 = NULL`.
+
+* `longitudinalSub()` estimated `Sigma_fit` with a design matrix rebuilt
+  from the raw formula on the subjects retained in the joint fit, rather
+  than with the basis `lme()` was fit with. For `poly()`, `splines::ns()`,
+  `splines::bs()` or `factor()` terms this gave a different basis (or
+  factor coding) than the coefficients were estimated on whenever some
+  subjects were excluded. The design now reuses `lme()`'s own terms and the
+  factor levels of the full fitting data. Consequently such terms in a
+  continuous biomarker's `long_sub_fixed` no longer trigger a warning (the
+  training basis is reused both here and at prediction time); the warning
+  now applies to `long_sub_random` and to ordinal biomarkers' fixed
+  effects, where the design is still rebuilt from the data at hand.
+
+* The EM estimate of `Sigma_fit` had no iteration limit (all-continuous
+  fits), and the mixed continuous/ordinal ECM stopped silently at 100
+  iterations -- before converging on the package's own example, which
+  needs about 150. They are now capped at 1000 and 500 iterations, with a
+  warning if the cap is reached. A singular random-effects covariance, which
+  is replaced by the identity matrix, is now reported with a warning
+  instead of a bare "An error occurred" message.
+
+* The baseline cumulative hazard past the last follow-up time is now
+  evaluated directly from its linear extrapolation instead of being
+  tabulated on a fixed grid of step 0.005, which assumed time was measured
+  in years: with time in days, one prediction took about 7 seconds (and
+  the table ran to millions of rows); it now takes the same 0.1 seconds as
+  in years, and gives the same risk.
+
+* `poolLongitudinalSub()` now uses each coefficient's own complete-data
+  degrees of freedom from `lme()` (between-subject covariates such as age
+  have far fewer than within-subject time terms) instead of the
+  intercept's for every coefficient, which overstated the df of
+  between-subject effects; computes the fraction of missing information
+  with the pooled Barnard-Rubin df, as in `mice::pool()`, rather than the
+  complete-data df; and returns `long_fit_all`, a `longitudinalSub.BJM`
+  object built from the pooled point estimates (fixed effects, residual
+  variances, and averaged `Sigma_fit`) that can be passed to
+  `predictRisk()`/`predictLongitudinal()`.
+
+* `parallel` is no longer imported into the namespace (it is only called
+  as `parallel::mclapply()`).
+
+* Predictions no longer depend on the biomarkers' units or break down with
+  many observations. The conditional densities behind `predictRisk()` and
+  `predictLongitudinal()` carry a factor `det(2 * pi * Sigma)^(-1/2)` that
+  shrinks rapidly as the biomarkers' scale or the number of observations
+  grows. In the no-competing-risk case a `+ 1e-20` added to the denominator
+  to avoid dividing by zero then dominated it: multiplying two biomarkers by
+  100 (a change of units) took one `pbc3` patient's risk from 0.35 to
+  1e-26. At larger scales `det()` overflowed to `Inf`, giving a risk of 0
+  (or `NaN` with competing risks), and a patient with an outlying value
+  could underflow every density to 0 the same way. The densities are now
+  computed as log densities and exponentiated after a per-patient shift
+  that cancels in every ratio, and the `+ 1e-20` is gone: the risk is the
+  same in any units (0.3481 from x1 to x1e8 in that example). `pbc3`
+  results are unchanged.
+
+* `longitudinalSub()` underestimated the joint random-effects covariance
+  `Sigma_fit` whenever some subject was excluded from the joint fit (a
+  subject is kept only with at least one complete observation of every
+  biomarker -- e.g. a subject never measured for one biomarker is
+  dropped). The EM update averaged the retained subjects' `E[b b^T]` but
+  divided by the number of subjects in the first biomarker's raw data, and
+  EM compounded the shortfall over iterations: with 50 of 169 `pbc3`
+  subjects never measured for albumin, the diagonal of `Sigma_fit` came
+  out at 7%-62% of its correct value, and predicted risks changed by up to
+  a factor of 2 once corrected. Fits in which every subject is retained
+  (including all of the package's `pbc3` examples) are unchanged.
 
 * `conditionalYT()` and `conditionalYDT()` -- the internal density functions
   behind `predictRisk()`'s risk-probability output whenever 2+

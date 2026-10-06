@@ -65,11 +65,25 @@ improve sample quality at proportionally higher training/sampling cost.}
 \code{n_imputations} draws -- a drop-in replacement for the original
 \code{data_fit_all}) or \code{"multiple"} (also returns
 \code{n_imputations} separately-drawn completed datasets in
-\code{data_fit_all_list}, for callers who want to fit
-\code{longitudinalSub()} once per completion and pool the results with
-Rubin's rules themselves).}
+\code{data_fit_all_list}, to fit \code{longitudinalSub()} once per
+completion and pool the fits with \code{\link{poolLongitudinalSub}}).
+Prefer \code{"multiple"} unless only a little data is missing. The mean
+of several draws is less variable than the values it stands in for, so a
+model fit to the \code{"single"} completion treats the imputed cells as
+exactly known: its standard errors are too small, and its residual and
+random-effects variances -- including \code{Sigma_fit}, which
+\code{\link{predictRisk}} and \code{\link{predictLongitudinal}} use
+directly -- tend to be underestimated, more so the larger the share of
+imputed cells. Note also that each row (subject-visit) is imputed from
+that row's covariates and observed biomarkers only, not from the same
+subject's other visits, so imputed values do not carry a subject's own
+level or trend; this too pulls the estimated between-subject
+(random-effects) variation towards zero.}
 
-\item{seed}{Optional integer seed for reproducibility.}
+\item{seed}{Optional integer seed for reproducibility. It seeds both
+\pkg{torch} and R's random number generator for the duration of the
+call; R's random number state from before the call is restored
+afterwards.}
 }
 \value{
 A named list with elements:

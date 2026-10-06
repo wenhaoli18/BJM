@@ -21,7 +21,7 @@ test_that("predictLongitudinal dispatches to dynamicPredictionBio for a single b
                                       f$survival_variable_all, f$survival_trans_function,
                                       bandcount2 = 10, bandcount3 = 50)
 
-  expect_s3_class(via_wrapper, "dynamicPredictionBio.BJM")
+  expect_s3_class(via_wrapper, "predictLongitudinal.BJM")
   expect_equal(via_wrapper, direct)
 })
 
@@ -40,7 +40,7 @@ test_that("predictLongitudinal dispatches to dynamicPredictionBioAll when bio_i 
                                       f$survival_variable_all, f$survival_trans_function,
                                       bandcount2 = 10, bandcount3 = 50)
 
-  expect_s3_class(via_wrapper, "dynamicPredictionBioAll.BJM")
+  expect_s3_class(via_wrapper, "predictLongitudinalAll.BJM")
   expect_equal(via_wrapper, direct)
 })
 
@@ -61,7 +61,87 @@ test_that("predictLongitudinal dispatches to dynamicPredictionBioAll when bio_i 
                                       survival_trans_function = f$survival_trans_function,
                                       bandcount2 = 10, bandcount3 = 50)
 
-  expect_s3_class(via_wrapper, "dynamicPredictionBioAll.BJM")
+  expect_s3_class(via_wrapper, "predictLongitudinalAll.BJM")
   expect_length(via_wrapper, 2)
   expect_equal(via_wrapper, direct)
+})
+
+test_that("the predicted mode does not snap to the bandcount3 grid", {
+  f <- setup_dp_fixture()
+  coarse <- predictLongitudinal(1, f$data_predict_all, f$long_fit_all, f$survival_fit_all,
+                                5, 1, "year", f$survival_variable_all, f$survival_trans_function,
+                                bandcount2 = 20, bandcount3 = 50)
+  fine <- predictLongitudinal(1, f$data_predict_all, f$long_fit_all, f$survival_fit_all,
+                              5, 1, "year", f$survival_variable_all, f$survival_trans_function,
+                              bandcount2 = 20, bandcount3 = 2000)
+  # a 50-point grid step here is about 0.26; the refined mode is far closer
+  expect_equal(coarse$Y_predict, fine$Y_predict, tolerance = 1e-3)
+})
+
+test_that("density_mode recovers a sharp peak between grid points", {
+  Y_all <- seq(-1, 1, length.out = 201)
+  dens <- dnorm(Y_all, 0.03, 0.1)  # peak ~4
+  expect_equal(density_mode(Y_all, dens), 0.03, tolerance = 1e-6)
+})
+
+test_that("auto bandcount tuning converges for predictLongitudinal on pbc3", {
+  f <- setup_dp_fixture()
+  expect_no_warning(
+    predictLongitudinal(NULL, f$data_predict_all, f$long_fit_all, f$survival_fit_all,
+                        5, 1, "year", f$survival_variable_all, f$survival_trans_function))
+})
+
+test_that("a single observed value does not collapse the candidate grid", {
+  f <- setup_dp_fixture()
+  # Only the baseline measurement: the observed range is 0, which used to
+  # make Y_all a single point and return the observed value as the
+  # prediction.
+  baseline <- pbc3[pbc3$id == 2 & pbc3$year == 0, ]
+  pred <- predictLongitudinal(1, list(baseline, baseline), f$long_fit_all, f$survival_fit_all,
+                              0.5, 1, "year", f$survival_variable_all, f$survival_trans_function,
+                              bandcount2 = 20, bandcount3 = 50)
+  expect_gt(length(pred$Y_all), 40)
+  expect_true(is.finite(pred$Y_predict))
+  expect_false(isTRUE(all.equal(unname(pred$Y_predict), baseline$serBilir)))
+  # the predictive density is negligible at the edges of the grid
+  expect_lt(max(pred$Y_density[c(1, nrow(pred$Y_density)), ]), 1e-3 * max(pred$Y_density))
+
+  fine <- predictLongitudinal(1, list(baseline, baseline), f$long_fit_all, f$survival_fit_all,
+                              0.5, 1, "year", f$survival_variable_all, f$survival_trans_function,
+                              bandcount2 = 20, bandcount3 = 1000)
+  expect_equal(pred$Y_predict, fine$Y_predict, tolerance = 5e-3)
+})
+
+test_that("the candidate grid covers every patient's density and little else", {
+  f <- setup_dp_fixture()
+  shared <- list(data_predict_all = list(data.frame(serBilir = c(0, 1))))
+  # two patients with well-separated predictive densities
+  dens <- function(y) cbind(dnorm(y, -1, 0.5), dnorm(y, 3, 0.4))
+  grid <- continuous_value_grid(shared, 1, "serBilir", f$long_fit_all, bandcount3 = 100,
+                                density_fun = dens)
+  expect_length(grid, 101)
+  d <- dens(grid)
+  # both densities essentially fully inside the grid ...
+  expect_equal(colSums(d) * diff(grid)[1], c(1, 1), tolerance = 1e-3)
+  # ... and the grid not much wider than they are (the old fixed range was
+  # 5 spans, here at least the training SD of serBilir, either side)
+  expect_lt(diff(range(grid)), 4 + 2 * 6 * 0.5)
+  # no usable density: falls back to the wide range
+  zero <- continuous_value_grid(shared, 1, "serBilir", f$long_fit_all, bandcount3 = 100,
+                                density_fun = function(y) matrix(0, length(y), 2))
+  expect_length(zero, 101)
+  expect_lt(min(zero), -4)
+})
+
+test_that("the predicted densities integrate to 1 on the adaptive grid", {
+  f <- setup_dp_fixture()
+  two <- lapply(f$data_predict_all, function(x) rbind(x, pbc3[pbc3$id == 6 & pbc3$year <= 5, ]))
+  pred <- predictLongitudinal(1, two, f$long_fit_all, f$survival_fit_all, 5, 1, "year",
+                              f$survival_variable_all, f$survival_trans_function,
+                              bandcount2 = 20, bandcount3 = 50)
+  expect_equal(unname(colSums(pred$Y_density)) * diff(pred$Y_all)[1], c(1, 1), tolerance = 0.01)
+  fine <- predictLongitudinal(1, two, f$long_fit_all, f$survival_fit_all, 5, 1, "year",
+                              f$survival_variable_all, f$survival_trans_function,
+                              bandcount2 = 20, bandcount3 = 2000)
+  expect_equal(pred$Y_predict, fine$Y_predict, tolerance = 1e-4)
 })

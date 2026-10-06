@@ -105,7 +105,7 @@ test_that("conditionalYTCopula matches an independent from-scratch reconstructio
   set.seed(20260927)
   for (it in seq_along(l_i)) {
     ref <- reference_mixed_density(fx$long_fit_all, fx$long_sub_fixed, num_i, data_predict_all, l_i[it])
-    expect_equal(out[[1]][it, 1], ref, tolerance = 1e-2)
+    expect_equal(exp(out[[1]][it, 1]), ref, tolerance = 1e-2)
   }
 })
 
@@ -134,8 +134,8 @@ test_that("conditionalYDTCopula matches an independent from-scratch reconstructi
   set.seed(20260927)
   for (it in seq_along(l_i)) {
     ref <- reference_mixed_density(fx$long_fit_all, fx$long_sub_fixed, num_i, data_predict_all, l_i[it])
-    expect_equal(out[[1]][it, 1], ref, tolerance = 1e-2)
-    expect_equal(out[[2]][it, 1], ref, tolerance = 1e-2)
+    expect_equal(exp(out[[1]][it, 1]), ref, tolerance = 1e-2)
+    expect_equal(exp(out[[2]][it, 1]), ref, tolerance = 1e-2)
   }
 })
 
@@ -199,4 +199,39 @@ test_that("an all-continuous fit's predictRisk is unaffected by the copula dispa
   f_direct <- conditionalYT(data_predict_all, long_fit_all, l_i = 3, "years", "year", list(), list())
   expect_equal(class(f_direct), "list") # sanity: conditionalYT() itself still works standalone
   expect_true(is.finite(risk_dispatch$risk_prob_1))
+})
+
+test_that("predictRisk matches ordinal categories to the fitted ones by label", {
+  skip_if_ordinal()
+  fx <- setup_copula_predict_fixture()
+
+  data_survival_fitting <- fx$pbc3[!duplicated(fx$pbc3$id), ]
+  survival_fit_all <- survivalSub(data_survival_fitting, Surv(years, status3) ~ age + sex, NULL)
+  raw <- fx$to_cat(fx$pbc3[fx$pbc3$id == 2 & fx$pbc3$year <= 3, ])
+  risk_of <- function(d) {
+    predictRisk(list(d, d), fx$long_fit_all, survival_fit_all,
+                prediction_time = 3, horizon = 3, time_variable = "year",
+                survival_variable_all = list(), survival_trans_function = list(),
+                bandcount1 = 10, bandcount2 = 10)$risk_prob_1
+  }
+  reference <- risk_of(raw)
+
+  # Each of these used to change the category codes, and so bracket the
+  # latent score between the wrong thresholds without any error. The copula
+  # box probabilities are Monte Carlo, hence the tolerance.
+  dropped <- raw
+  dropped$albumin_cat <- droplevels(dropped$albumin_cat)
+  reordered <- raw
+  reordered$albumin_cat <- factor(as.character(reordered$albumin_cat),
+                                  levels = c("high", "mid", "low"))
+  as_character <- raw
+  as_character$albumin_cat <- as.character(as_character$albumin_cat)
+  for (d in list(dropped, reordered, as_character)) {
+    expect_equal(risk_of(d), reference, tolerance = 0.01)
+  }
+
+  unknown <- raw
+  unknown$albumin_cat <- as.character(unknown$albumin_cat)
+  unknown$albumin_cat[1] <- "very low"
+  expect_error(risk_of(unknown), "not categories of the fitted model")
 })

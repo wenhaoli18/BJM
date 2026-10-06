@@ -34,42 +34,98 @@ marginalT = function(data_predict_all, long_fit_all, survival_fit_all, l_i, uppe
   num <- as.character(nlme::splitFormula(long_fit_all$long_sub_random[[1]], "|")[[2]])[2]
   data.surv =  data_predict_all[[1]][!duplicated(data_predict_all[[1]][num]), ]
   
-  ## baseline hazard
-  cum_basehaz_weibull = basehaz(coxph_fit, centered = FALSE)
-  ## extrapolation
-  cum_base_lm = lm(hazard ~ time, cum_basehaz_weibull)
-  ### extrapolate forward from the table's last *time* point, not from
-  ### max(cum_basehaz_weibull) -- which takes the max over the hazard column
-  ### too, and silently picks that instead whenever the cumulative hazard
-  ### happens to exceed the largest observed time (a thin risk set inflates
-  ### the cumulative-hazard estimate, e.g. with few subjects remaining at
-  ### later gap times in a recurrent-event/gap-time application). That
-  ### previously made seq()'s `to` (2 * upper_bound, a time-scale quantity)
-  ### smaller than its `from`, erroring with "wrong sign in 'by' argument".
-  ### only extrapolate if the table does not already reach 2 * upper_bound
-  ### (it can, e.g. when this patient's own at-risk window is short relative
-  ### to the training cohort's range) -- otherwise seq()'s `to` would again
-  ### be smaller than its `from`.
-  if (2 * upper_bound > max(cum_basehaz_weibull$time)) {
-    new_data <-  data.frame(time = seq(max(cum_basehaz_weibull$time), 2 * upper_bound, 0.005))
-    new_data_all = data.frame(hazard = c(predict(cum_base_lm, new_data)), time =  new_data)
-    cum_basehaz_weibull = rbind(cum_basehaz_weibull, new_data_all)
-  }
-  #haz_weibull = cbind(diff(cum_basehaz_weibull[,1])/diff(cum_basehaz_weibull[,2]), cum_basehaz_weibull[,2][-1])
-  
+  ## baseline hazard, extrapolated (per stratum, for a stratified Cox model)
+  cum_basehaz_all = basehaz(coxph_fit, centered = FALSE)
+  strata_vars <- survival::untangle.specials(stats::terms(coxph_fit), "strata")$vars
+
   ## covariates * parameter matrix
-  if(dim(data.surv)[1] == 1){
-    ## one sample
-    covariate_para_matrix = c(coxph_fit$coefficients  %*%  model.matrix(survival_fit_all$form_marginal_surv, data.surv)[,-1])
-  }else{
-    covariate_para_matrix = c(coxph_fit$coefficients  %*%  t(model.matrix(survival_fit_all$form_marginal_surv, data.surv)[,-1]))
+  ### predict(type = "lp", reference = "zero") is exactly the uncentered
+  ### sum(coefficients * covariates) used before, but built by survival
+  ### itself: it needs only the right-hand side (the time/status columns of
+  ### Surv(...) are unknown for a new patient), handles factors and
+  ### strata() terms, and with na.pass a missing covariate gives that
+  ### patient NA instead of dropping the row and misaligning later patients.
+  covariate_para_matrix = c(stats::predict(coxph_fit, newdata = data.surv, type = "lp",
+                                           reference = "zero", na.action = stats::na.pass))
+
+  if (length(strata_vars) == 0) {
+    cum_hazard = cumulative_baseline_at(cum_basehaz_all, l_i)
+    surv_med = exp(-cum_hazard %*% t(exp(covariate_para_matrix)))
+  } else {
+    ### each patient uses the baseline hazard of their own stratum
+    rhs_terms <- stats::delete.response(stats::terms(coxph_fit))
+    mf_surv <- model.frame(rhs_terms, data.surv, na.action = stats::na.pass, xlev = coxph_fit$xlevels)
+    patient_strata <- as.character(mf_surv[[strata_vars]])
+    unknown <- setdiff(stats::na.omit(patient_strata), as.character(cum_basehaz_all$strata))
+    if (length(unknown) > 0) {
+      stop(sprintf("Stratum %s of the survival sub-model has no baseline hazard (no such subjects in the data survivalSub() was fit on).",
+                   paste(unknown, collapse = ", ")), call. = FALSE)
+    }
+    surv_med = matrix(NA_real_, length(l_i), length(patient_strata))
+    for (s in unique(stats::na.omit(patient_strata))) {
+      cum_hazard = cumulative_baseline_at(cum_basehaz_all[cum_basehaz_all$strata == s, c("hazard", "time")],
+                                          l_i)
+      cols = which(patient_strata == s)
+      surv_med[, cols] = exp(-cum_hazard %*% t(exp(covariate_para_matrix[cols])))
+    }
   }
-  
-  ### cumulative survival
-  surv_med = exp(-cum_basehaz_weibull[,1][apply(abs(t(matrix(t(l_i), length(l_i), length(cum_basehaz_weibull[,2]))) -
-                                                      matrix(cum_basehaz_weibull[,2], length(cum_basehaz_weibull[,2]), length(l_i))), 2, which.min)] %*% 
-                   t(exp(covariate_para_matrix) ))
   ### density
   S_T_all = - diff(surv_med)
   return(S_T_all)
+}
+
+#' Baseline cumulative hazard at a set of time points
+#'
+#' @description Helper for \code{marginalT} and the integration-grid
+#' helpers: for each element of \code{l_i}, the Breslow cumulative hazard
+#' as the right-continuous step function it is -- the value at the last
+#' tabulated time \code{<= l_i}, or 0 before the first. Past the table's
+#' last time it continues from the last tabulated value with the slope of
+#' the least-squares line through the whole table (a linear extrapolation
+#' of the cumulative hazard, i.e. a constant hazard). It used to switch to
+#' that line itself, which does not pass through the last tabulated value:
+#' the cumulative hazard jumped there, and when it jumped down (a convex
+#' cumulative hazard, i.e. an increasing hazard) the interval spanning the
+#' last time got a negative probability mass. The line
+#' used to be tabulated
+#' on a fixed 0.005 grid out to twice the integration upper limit and then
+#' looked up, which assumed time was measured in years (with time in days
+#' the table ran to millions of rows) and failed with "wrong sign in 'by'"
+#' when the upper limit was below the last training time; it is now
+#' evaluated directly.
+#' The table used to be read at the \emph{nearest} tabulated time, which
+#' for a point just before an event time took that event's jump early.
+#'
+#' @param cum_basehaz A data frame with columns \code{hazard} and \code{time}.
+#' @param l_i Time points.
+#' @return A numeric vector, one cumulative hazard per element of \code{l_i}.
+#' @keywords internal
+cumulative_baseline_at <- function(cum_basehaz, l_i) {
+  cum_basehaz = cum_basehaz[, c("hazard", "time")]
+  cum_basehaz = cum_basehaz[order(cum_basehaz$time), ]
+  at_or_before <- findInterval(l_i, cum_basehaz$time)
+  out <- c(0, cum_basehaz$hazard)[at_or_before + 1]
+  beyond <- l_i > max(cum_basehaz$time)
+  if (any(beyond)) {
+    last <- nrow(cum_basehaz)
+    out[beyond] <- cum_basehaz$hazard[last] +
+      extrapolation_slope(cum_basehaz) * (l_i[beyond] - cum_basehaz$time[last])
+  }
+  out
+}
+
+#' Slope of the extrapolated baseline cumulative hazard
+#'
+#' @description The constant hazard \code{cumulative_baseline_at()} uses
+#' past the last tabulated time: the slope of the least-squares line through
+#' the whole table, or 0 if that slope is negative or undefined (a table with
+#' a single time), so the cumulative hazard never decreases.
+#'
+#' @param cum_basehaz A data frame with columns \code{hazard} and \code{time},
+#'   ordered by time.
+#' @return A single non-negative number.
+#' @keywords internal
+extrapolation_slope <- function(cum_basehaz) {
+  slope <- if (nrow(cum_basehaz) < 2) NA_real_ else stats::coef(lm(hazard ~ time, cum_basehaz))[[2]]
+  if (is.na(slope) || slope < 0) 0 else slope
 }

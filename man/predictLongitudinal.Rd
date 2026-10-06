@@ -61,9 +61,10 @@ time-to-event outcomes, in the order of \code{survival_variable_all}.}
 
 \item{bandcount2}{The number of grid points spanning
 \code{[prediction_time, upper_bound]}, where \code{upper_bound} is set
-internally to twice the longest observed survival/censoring time among
-at-risk patients; this approximates integrating out to infinity for the
-denominator that normalizes the predicted density. A wider follow-up
+internally as the earliest time by which every at-risk patient's
+model-based probability of still being event-free (given event-free at
+\code{prediction_time}) has dropped below \code{1e-4}; this approximates
+integrating out to infinity for the denominator that normalizes the predicted density. A wider follow-up
 range needs a larger \code{bandcount2} to keep the grid spacing
 comparable. Defaults to \code{"auto"} (see Details).}
 
@@ -78,9 +79,10 @@ biomarker's fixed category count.}
 }
 \value{
 If \code{bio_i} names exactly one biomarker: an object of class
-\code{"dynamicPredictionBio.BJM"}, a named list with elements:
+\code{"predictLongitudinal.BJM"}, a named list with elements:
 \describe{
-\item{Y_predict}{A vector, one entry per patient, giving the MAP (most
+\item{Y_predict}{A vector, one entry per at-risk patient (named by
+patient id), giving the MAP (most
 likely) predicted value of the biomarker at \code{prediction_time +
   horizon}. For an ordinal biomarker, this is an integer category code
 (see Details), not a raw value.}
@@ -100,7 +102,7 @@ biomarker's response-variable name; with attributes \code{"bandcount2"}
 (the single resolved/used \code{bandcount2}) and \code{"bandcount3"} (a
 named numeric vector of the resolved/used \code{bandcount3} for each
 biomarker, or \code{NA} for an ordinal biomarker). Classed
-\code{"dynamicPredictionBioAll.BJM"}.
+\code{"predictLongitudinalAll.BJM"}.
 }
 \description{
 Companion to \code{\link{predictRisk}}, using the same
@@ -115,12 +117,12 @@ This is the single, unified entry point for biomarker-value prediction:
 \itemize{
 \item If \code{bio_i} names \strong{exactly one} biomarker, this
 predicts just that biomarker and returns a single
-\code{"dynamicPredictionBio.BJM"} object.
+\code{"predictLongitudinal.BJM"} object.
 \item If \code{bio_i} names \strong{more than one} biomarker, or is left
 at its default \code{NULL} (meaning every biomarker in
 \code{long_fit_all}), this instead predicts every requested biomarker
-and returns a named list of \code{"dynamicPredictionBio.BJM"} objects
-(classed \code{"dynamicPredictionBioAll.BJM"}), computing the
+and returns a named list of \code{"predictLongitudinal.BJM"} objects
+(classed \code{"predictLongitudinalAll.BJM"}), computing the
 bio_i-\strong{independent} part of the pipeline (restricting to at-risk
 patients, the survival-side integration grid, and the denominator
 conditional density) only \strong{once} and reusing it across every
@@ -142,10 +144,10 @@ giving the matching level-label strings; \code{bandcount3} is ignored for
 that biomarker, since its candidate grid is fixed at its category count
 (see Details).
 
-The time values in the prediction data subset must be less than the
-specified \code{prediction_time} which is the prediction time. The time
-points for longitudinal repeated measurements must not surpass the
-prediction time.
+The prediction is conditional on the longitudinal history observed up to
+\code{prediction_time}: rows of \code{data_predict_all} whose
+\code{time_variable} is later than \code{prediction_time} are dropped,
+with a warning, before predicting.
 
 \code{bandcount2} (controlling the shared survival-integration grid) and
 \code{bandcount3} (controlling each biomarker's own candidate-value grid)
@@ -175,6 +177,28 @@ argument to skip auto-tuning it and use a fixed value instead, or call
 \code{checkBandcountConvergence()} directly for more control over the
 tolerance and doubling count. See also
 \code{vignette("BJM-intro", package = "BJM")} for a worked example.
+
+The integration grid, and the candidate-value grid of a continuous
+biomarker (which spans the observed values of every patient predicted),
+are shared by all patients predicted in one call, so a patient's value
+can differ slightly, within the grids' discretization error, depending
+on which other patients are predicted alongside it.
+
+The denominator integrates over every event time after
+\code{prediction_time}, including times beyond the last follow-up time
+in the data \code{survivalSub()} was fit on. There, the baseline
+cumulative hazard is extrapolated linearly (a constant hazard), and the
+longitudinal sub-model's mean is evaluated at event times it was never
+fit on. When much of an at-risk patient's survival probability lies
+beyond the last follow-up time (e.g. a prediction late in follow-up),
+the prediction depends on this extrapolation; in \code{pbc3} it moved
+the risks checked by less than one percentage point.
+
+For a fit with an ordinal biomarker, each ordinal measurement contributes
+a multivariate normal probability computed by Monte Carlo
+(\code{mvtnorm::pmvnorm()}), so repeated calls differ slightly (around
+the fifth significant digit); call \code{set.seed()} first for exactly
+reproducible results.
 }
 \examples{
 
@@ -233,7 +257,7 @@ for(i in seq_len(length(long_sub_fixed))){
   data_predict_all[[i]] = data.raw.predict.1[data.raw.predict.1$year <= 3,]
 }
 
-# A single biomarker -> a single dynamicPredictionBio.BJM result
+# A single biomarker -> a single predictLongitudinal.BJM result
 Y_predict = predictLongitudinal(bio_i = 1, data_predict_all, long_fit_all,
                                 survival_fit_all, prediction_time = 3,
                                 horizon = 3, time_variable = "year",

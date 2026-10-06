@@ -52,5 +52,8 @@ one call, for \code{Y_density} to remain a genuine, correctly-scaled
 conditional density -- see \code{R/conditionalYTBio.R}'s analogous
 all-continuous computation, which keeps its own constant for the same
 reason).
+Returns the \strong{log} of that density/probability, so that it neither
+overflows nor underflows (see \code{predictRisk()} for how it is
+exponentiated); \code{-Inf} if the ordinal box probability is 0.
 }
 \keyword{internal}

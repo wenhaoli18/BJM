@@ -40,38 +40,40 @@ conditionalDT = function(data_predict_all, long_fit_all, survival_fit_all, l_i){
   ### NA in glm outcome (event type), replace with 999
   data.surv[event_type_variable][is.na( data.surv[event_type_variable])] <- 999
   ## data matrix used to calculate the probability
-  data_matrix_probability = model.matrix(survival_fit_all$form_conditional_cr, data.surv)
-  
-  ### is missing in covariates, model.matrix will delete automatically, then we need add NA to data_matrix_probability
-  if(dim(data_matrix_probability)[1] != dim(data.surv)[1]){
-    data_matrix_probability = rbind(data_matrix_probability, 
-                                    matrix(NA, dim(data.surv)[1] - dim(data_matrix_probability)[1],
-                                   dim(data_matrix_probability)[2] ))
-  }
-  
-  survival_variable_index <- which(colnames(data_matrix_probability) == survival_variable)
+  ### the survival-time column only contributes through l_i below, so its
+  ### value here is irrelevant -- but it may be NA for a new patient, and an
+  ### all-NA column is logical, which model.matrix() would treat as a factor
+  ### (so the survival-time coefficient could no longer be matched by name).
+  data.surv[[survival_variable]] <- 0
+  ### na.pass keeps one row per patient: a missing covariate should give
+  ### that patient NA rather than drop the row and misalign every later
+  ### patient.
+  mf_cr = model.frame(survival_fit_all$form_conditional_cr, data.surv,
+                      na.action = stats::na.pass, xlev = survival_fit_all$glm_fit$xlevels)
+  data_matrix_probability = model.matrix(survival_fit_all$form_conditional_cr, mf_cr)
   
   ## fit glm vertical model
   glm_fit = survival_fit_all$glm_fit
-  
+
+  ### the survival time enters the event-type model linearly (checked by
+  ### survivalSub()); its effect is evaluated at each l_i below. If it is
+  ### not in the model at all, event type does not depend on the event
+  ### time: its coefficient is taken as 0 (previously this indexed with an
+  ### empty vector and returned NA for every patient).
+  is_time_column <- colnames(data_matrix_probability) == survival_variable
+  beta_time <- if (any(is_time_column)) glm_fit$coefficients[is_time_column] else 0
+
   ## covariates * parameter matrix
-  if(is.null(dim(data_matrix_probability[,-survival_variable_index]))){
-    ## one sample
-    covariate_para_matrix = c(glm_fit$coefficients[-survival_variable_index] %*% data_matrix_probability[,-survival_variable_index])
-  }else{
-    covariate_para_matrix = c(glm_fit$coefficients[-survival_variable_index] %*% t(data_matrix_probability[,-survival_variable_index]))
-  }
-  
+  covariate_para_matrix = c(data_matrix_probability[, !is_time_column, drop = FALSE] %*%
+                              glm_fit$coefficients[!is_time_column])
+  n_patients <- dim(data_matrix_probability)[1]
+
   ### conditional probability
-  surv_med_w1 = 1/ (1 +  exp(matrix(glm_fit$coefficients[survival_variable_index] * l_i, length(l_i), 
-                                      dim(data_matrix_probability)[1])  + 
-                                 t(matrix(covariate_para_matrix, 
-                                          dim(data_matrix_probability)[1], length(l_i))) )) 
-  
-  surv_med_w2 = exp(matrix(glm_fit$coefficients[survival_variable_index] * l_i, length(l_i), 
-                           dim(data_matrix_probability)[1])  + 
-                      t(matrix(covariate_para_matrix, 
-                               dim(data_matrix_probability)[1], length(l_i))) ) * surv_med_w1
-  
+  surv_med_w1 = 1/ (1 +  exp(matrix(beta_time * l_i, length(l_i), n_patients)  +
+                                 t(matrix(covariate_para_matrix, n_patients, length(l_i))) ))
+
+  surv_med_w2 = exp(matrix(beta_time * l_i, length(l_i), n_patients)  +
+                      t(matrix(covariate_para_matrix, n_patients, length(l_i))) ) * surv_med_w1
+
   return(list(surv_med_w1, surv_med_w2))
 }

@@ -15,7 +15,8 @@ build_conditional_design_copula(
   n_longitudinal,
   biomarker_type,
   long_sub_fixed,
-  thresholds
+  thresholds,
+  long_sub_random
 )
 }
 \value{

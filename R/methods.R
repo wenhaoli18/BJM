@@ -378,6 +378,7 @@ printBJM <- function(long_fit_all, survival_fit_all, digits = 4) {
   has_cr <- !is.null(risk1)
   n_subj <- length(risk0)
   ids    <- if (!is.null(subject_ids)) as.character(subject_ids) else
+            if (!is.null(names(risk0))) names(risk0) else
               paste0("S", seq_len(n_subj))
 
   cat("\n", sep_line, "\n", sep = "")
@@ -489,14 +490,14 @@ summary.predictRisk.BJM <- function(object, prediction_time = NULL,
 }
 
 
-# -- Internal formatting helper for dynamicPredictionBio (not exported) ---------
-.format_dynamicPredictionBio <- function(x, digits = 4,
-                                         bio_i = NULL,
-                                         long_fit_all = NULL,
-                                         prediction_time = NULL,
-                                         horizon = NULL,
-                                         subject_ids = NULL,
-                                         extended = FALSE) {
+# -- Internal formatting helper for predictLongitudinal (not exported) ----------
+.format_predictLongitudinal <- function(x, digits = 4,
+                                        bio_i = NULL,
+                                        long_fit_all = NULL,
+                                        prediction_time = NULL,
+                                        horizon = NULL,
+                                        subject_ids = NULL,
+                                        extended = FALSE) {
 
   sep_line  <- paste(rep("=", 65), collapse = "")
   dash_line <- paste(rep("-", 65), collapse = "")
@@ -506,6 +507,7 @@ summary.predictRisk.BJM <- function(object, prediction_time = NULL,
   Y_all     <- x$Y_all
   n_subj    <- length(Y_predict)
   ids       <- if (!is.null(subject_ids)) as.character(subject_ids) else
+               if (!is.null(names(Y_predict))) names(Y_predict) else
                  paste0("S", seq_len(n_subj))
 
   bio_name <- if (!is.null(bio_i) && !is.null(long_fit_all)) {
@@ -580,13 +582,13 @@ summary.predictRisk.BJM <- function(object, prediction_time = NULL,
 }
 
 
-#' Print method for \code{dynamicPredictionBio.BJM} objects
+#' Print method for \code{predictLongitudinal.BJM} objects
 #'
 #' Automatically called when you type the result of
 #' \code{\link{predictLongitudinal}()} (with a single \code{bio_i}) at the
 #' console.
 #'
-#' @param x A \code{dynamicPredictionBio.BJM} object.
+#' @param x A \code{predictLongitudinal.BJM} object.
 #' @param bio_i Biomarker index (for label lookup). Default \code{NULL}.
 #' @param long_fit_all \code{longitudinalSub.BJM} object for name lookup.
 #' @param prediction_time Landmark time (for display). Default \code{NULL}.
@@ -597,28 +599,28 @@ summary.predictRisk.BJM <- function(object, prediction_time = NULL,
 #' @return Invisibly returns \code{x}.
 #' @keywords internal
 #' @export
-print.dynamicPredictionBio.BJM <- function(x, bio_i = NULL,
-                                            long_fit_all = NULL,
-                                            prediction_time = NULL,
-                                            horizon = NULL,
-                                            subject_ids = NULL,
-                                            digits = 4, ...) {
-  .format_dynamicPredictionBio(x, digits = digits,
-                                bio_i = bio_i,
-                                long_fit_all = long_fit_all,
-                                prediction_time = prediction_time,
-                                horizon = horizon,
-                                subject_ids = subject_ids,
-                                extended = FALSE)
+print.predictLongitudinal.BJM <- function(x, bio_i = NULL,
+                                          long_fit_all = NULL,
+                                          prediction_time = NULL,
+                                          horizon = NULL,
+                                          subject_ids = NULL,
+                                          digits = 4, ...) {
+  .format_predictLongitudinal(x, digits = digits,
+                              bio_i = bio_i,
+                              long_fit_all = long_fit_all,
+                              prediction_time = prediction_time,
+                              horizon = horizon,
+                              subject_ids = subject_ids,
+                              extended = FALSE)
   invisible(x)
 }
 
 
-#' Summary method for \code{dynamicPredictionBio.BJM} objects
+#' Summary method for \code{predictLongitudinal.BJM} objects
 #'
 #' Like \code{print} but also shows distribution-level summaries across subjects.
 #'
-#' @param object A \code{dynamicPredictionBio.BJM} object.
+#' @param object A \code{predictLongitudinal.BJM} object.
 #' @param bio_i Biomarker index (for label lookup). Default \code{NULL}.
 #' @param long_fit_all \code{longitudinalSub.BJM} object for name lookup.
 #' @param prediction_time Landmark time (for display). Default \code{NULL}.
@@ -629,18 +631,18 @@ print.dynamicPredictionBio.BJM <- function(x, bio_i = NULL,
 #' @return Invisibly returns \code{object}.
 #' @keywords internal
 #' @export
-summary.dynamicPredictionBio.BJM <- function(object, bio_i = NULL,
-                                              long_fit_all = NULL,
-                                              prediction_time = NULL,
-                                              horizon = NULL,
-                                              subject_ids = NULL,
-                                              digits = 4, ...) {
-  .format_dynamicPredictionBio(object, digits = digits,
-                                bio_i = bio_i,
-                                long_fit_all = long_fit_all,
-                                prediction_time = prediction_time,
-                                horizon = horizon,
-                                subject_ids = subject_ids,
-                                extended = TRUE)
+summary.predictLongitudinal.BJM <- function(object, bio_i = NULL,
+                                            long_fit_all = NULL,
+                                            prediction_time = NULL,
+                                            horizon = NULL,
+                                            subject_ids = NULL,
+                                            digits = 4, ...) {
+  .format_predictLongitudinal(object, digits = digits,
+                              bio_i = bio_i,
+                              long_fit_all = long_fit_all,
+                              prediction_time = prediction_time,
+                              horizon = horizon,
+                              subject_ids = subject_ids,
+                              extended = TRUE)
   invisible(object)
 }

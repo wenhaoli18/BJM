@@ -23,7 +23,9 @@
 #' @param survival_trans_function The transformation function used for time-to-event outcomes, 
 #' in the order of \code{survival_variable_all}.
 #' 
-#' @return The output is a list containing probability matrices. In the presence of 
+#' @return The output is a list containing probability matrices of \strong{log} densities
+#' (so that they neither overflow nor underflow; see \code{predictRisk()} for how they
+#' are exponentiated). In the presence of 
 #' competing risks, this list includes two elements; otherwise, 
 #' it contains only one element. Each element within the list is a probability matrix, 
 #' with the number of rows (l_i) corresponding to specific time points and 
@@ -97,11 +99,11 @@ conditionalYDT = function(data_predict_all, long_fit_all, survival_fit_all,
     data_num_i_list <- patient_data$data_num_i_list
 
     design <- build_conditional_design(rep_num_i_list, data_num_i_list, lfit, Sigma,
-                                        sigma.longitudinal, time_variable, n_longitudinal)
+                                        sigma.longitudinal, time_variable, n_longitudinal,
+                                        long_fit_all$long_sub_random)
     longitudinal_all_matrix <- design$longitudinal_all_matrix
     parameter_matrix <- design$parameter_matrix
-    det_Var_cov_estep <- design$det_Var_cov_estep
-    Sigma_all_solve <- design$Sigma_all_solve
+    cov_fac <- design$cov_fac
 
     ### Build a reusable model.frame "template" per biomarker/event-type,
     ### once per patient, instead of inside the l_i loop below. Only the
@@ -131,6 +133,10 @@ conditionalYDT = function(data_predict_all, long_fit_all, survival_fit_all,
     terms_i_list = list()
     mf_1_list = list()
     mf_0_list = list()
+    data_1_list = list()
+    data_0_list = list()
+    xlev_list = list()
+    in_place = logical(n_longitudinal)
     n_expected_1 = integer(n_longitudinal)
     n_expected_0 = integer(n_longitudinal)
     for(i in 1:n_longitudinal){
@@ -164,6 +170,12 @@ conditionalYDT = function(data_predict_all, long_fit_all, survival_fit_all,
       xlev_i = if (!is.null(long_fit_all$xlevels)) long_fit_all$xlevels[[i]] else NULL
       mf_1_list[[i]] = model.frame(terms_i_list[[i]], data_i_1, xlev = xlev_i)
       mf_0_list[[i]] = model.frame(terms_i_list[[i]], data_i_0, xlev = xlev_i)
+      ### see time_columns_bare(): a transformed survival-time term (e.g.
+      ### log(years)) needs the model frame rebuilt at every grid point
+      data_1_list[[i]] = data_i_1
+      data_0_list[[i]] = data_i_0
+      xlev_list[[i]] = xlev_i
+      in_place[i] = time_columns_bare(terms_i_list[[i]], c(survival_variable, unlist(survival_variable_all)))
       n_expected_1[i] = nrow(data_i_1)
       n_expected_0[i] = nrow(data_i_0)
     }
@@ -177,24 +189,13 @@ conditionalYDT = function(data_predict_all, long_fit_all, survival_fit_all,
       for(i in 1:n_longitudinal){
         terms_i = terms_i_list[[i]]
 
-        #survival variable replaced by l_i[it]
-        if(survival_variable %in% names(mf_1_list[[i]])){
-          mf_1_list[[i]][[survival_variable]] = l_i[it]
-          mf_0_list[[i]][[survival_variable]] = l_i[it]
-        }
-
-        #transformed survival variable/basis function of survival variable
-        #replaced by trans_function(l_i[it])
-        if(length(survival_variable_all) != 0){
-          for(surv_i in 1 : length(survival_variable_all)){
-            svar = survival_variable_all[[surv_i]]
-            if(svar %in% names(mf_1_list[[i]])){
-              trans_val = apply_survival_trans(survival_trans_function[[surv_i]], l_i[it], surv_i)
-              mf_1_list[[i]][[svar]] = trans_val
-              mf_0_list[[i]][[svar]] = trans_val
-            }
-          }
-        }
+        #survival variable (and its transformations) at l_i[it]
+        mf_1_list[[i]] = survival_model_frame_at(mf_1_list[[i]], data_1_list[[i]], in_place[i], terms_i,
+                                                 xlev_list[[i]], survival_variable, l_i[it],
+                                                 survival_variable_all, survival_trans_function)
+        mf_0_list[[i]] = survival_model_frame_at(mf_0_list[[i]], data_0_list[[i]], in_place[i], terms_i,
+                                                 xlev_list[[i]], survival_variable, l_i[it],
+                                                 survival_variable_all, survival_trans_function)
 
         ## extract data matrix to calcuate the probability
         LME_indi_matrix_1[[i]] = t(model.matrix(terms_i, mf_1_list[[i]], contrasts.arg = lfit[[i]]$contrasts))
@@ -244,13 +245,13 @@ conditionalYDT = function(data_predict_all, long_fit_all, survival_fit_all,
       LME_all_matrix_1 = do.call(rbind, rows1)
       LME_all_matrix_0 = do.call(rbind, rows0)
       
-      ### Quadratic form (Y - mu)' Sigma_all_solve (Y - mu) for the FULL
+      ### Quadratic form (Y - mu)' Sigma_all^{-1} (Y - mu) for the FULL
       ### stacked (across all markers) observation vector, computed
       ### directly instead of via the "trace trick" that used to reduce it
       ### to sum(diag(...)) of an M x M matrix. That trace only summed the
       ### diagonal (i == j) blocks of the reduced matrix and silently
       ### dropped every cross-marker (i != j) contribution of
-      ### Sigma_all_solve, i.e. it implicitly assumed the biomarkers were
+      ### Sigma_all^{-1}, i.e. it implicitly assumed the biomarkers were
       ### conditionally independent given the random effects -- see the
       ### matching comment/fix in conditionalYT.R and NEWS.md.
       ###
@@ -265,11 +266,11 @@ conditionalYDT = function(data_predict_all, long_fit_all, survival_fit_all,
       resid_full_1 = rowSums(longitudinal_all_matrix) - rowSums(mean_all_matrix_1)
       resid_full_0 = rowSums(longitudinal_all_matrix) - rowSums(mean_all_matrix_0)
 
-      quad_form_1 = as.numeric(t(resid_full_1) %*% Sigma_all_solve %*% resid_full_1)
-      quad_form_0 = as.numeric(t(resid_full_0) %*% Sigma_all_solve %*% resid_full_0)
-
-      f_Y_T_D_w1[it, iii] = det_Var_cov_estep^{-0.5} * exp(-0.5 * quad_form_1)
-      f_Y_T_D_w0[it, iii] = det_Var_cov_estep^{-0.5} * exp(-0.5 * quad_form_0)
+      ### log densities (see predictRisk() for how they are exponentiated
+      ### safely), both from the patient's factored covariance
+      log_dens = cov_logdens(cov_fac, cbind(resid_full_1, resid_full_0))
+      f_Y_T_D_w1[it, iii] = log_dens[1]
+      f_Y_T_D_w0[it, iii] = log_dens[2]
     }
     
   }

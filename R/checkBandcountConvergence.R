@@ -131,7 +131,7 @@ checkBandcountConvergence <- function(predict_fun, ..., bandcount_args, multipli
   scaled_bandcount_args <- lapply(bandcount_args, function(x) x * multiplier)
 
   base_result <- do.call(predict_fun, c(extra_args, bandcount_args))
-  if (is_predict_longitudinal && inherits(base_result, "dynamicPredictionBioAll.BJM")) {
+  if (is_predict_longitudinal && inherits(base_result, "predictLongitudinalAll.BJM")) {
     # predictLongitudinal() returns this (nested-list) shape when `bio_i`
     # names more than one biomarker, or is left NULL -- max_relative_diff()
     # below only compares flat numeric fields, so a nested-list result would

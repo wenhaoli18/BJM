@@ -3,6 +3,12 @@ url: https://wenhaoli18.github.io/BJM/
 template:
   bootstrap: 5
 
+authors:
+  Wenhao Li:
+    html: 'Wenhao Li &lt;<a href="mailto:wenhaoli.jlu@gmail.com">wenhaoli.jlu@gmail.com</a>&gt;'
+  Liang Li:
+    html: 'Liang Li &lt;<a href="mailto:LLi15@mdanderson.org">LLi15@mdanderson.org</a>&gt;'
+
 reference:
 - title: Fit sub-models
   desc: Fit the survival and longitudinal sub-models that dynamic prediction is built on.
@@ -15,6 +21,7 @@ reference:
   contents:
   - predictRisk
   - predictLongitudinal
+  - simulateTrajectory
   - checkBandcountConvergence
   - survivalTrans
 
@@ -30,12 +37,24 @@ reference:
   - poolLongitudinalSub
 
 - title: Plots
-  desc: Visualize predictions and observed longitudinal trajectories.
+  desc: Visualize predictions, fitted sub-models, observed longitudinal trajectories, and observed event outcomes.
   contents:
   - predictPlot
   - riskPlot
   - cmtPlot
+  - spaghettiPlot
+  - cifPlot
+  - performancePlot
+  - calibrationPlot
+  - plot.longitudinalSub.BJM
+  - plot.survivalSub.BJM
+  - plot.predictLongitudinal.BJM
+  - plot.simulateTrajectory.BJM
 
 - title: Data
   contents:
   - pbc3
+
+navbar:
+  structure:
+    left: [intro, articles, reference, news]

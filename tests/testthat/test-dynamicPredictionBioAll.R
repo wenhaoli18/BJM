@@ -32,25 +32,26 @@ setup_copula_bioall_fixture <- function() {
 
 test_that("dynamicPredictionBioAll matches per-biomarker dynamicPredictionBio calls (all-continuous, competing risk)", {
   fx <- setup_dp_fixture()
+  history_3 <- lapply(fx$data_predict_all, function(d) d[d$year <= 3, ])
 
   individual <- lapply(1:2, function(b) {
-    dynamicPredictionBio(bio_i = b, fx$data_predict_all, fx$long_fit_all, fx$survival_fit_all,
+    dynamicPredictionBio(bio_i = b, history_3, fx$long_fit_all, fx$survival_fit_all,
                           prediction_time = 3, horizon = 3, time_variable = "year",
                           fx$survival_variable_all, fx$survival_trans_function,
                           bandcount2 = 10, bandcount3 = 15)
   })
 
-  batch <- dynamicPredictionBioAll(bio_i = c(1, 2), fx$data_predict_all, fx$long_fit_all, fx$survival_fit_all,
+  batch <- dynamicPredictionBioAll(bio_i = c(1, 2), history_3, fx$long_fit_all, fx$survival_fit_all,
                                     prediction_time = 3, horizon = 3, time_variable = "year",
                                     fx$survival_variable_all, fx$survival_trans_function,
                                     bandcount2 = 10, bandcount3 = 15)
 
-  expect_s3_class(batch, "dynamicPredictionBioAll.BJM")
+  expect_s3_class(batch, "predictLongitudinalAll.BJM")
   expect_length(batch, 2)
 
   bio_names <- vapply(fx$long_fit_all$long_sub_fixed, function(f) as.character(formula(f)[[2]]), character(1))
   for (b in 1:2) {
-    expect_s3_class(batch[[bio_names[b]]], "dynamicPredictionBio.BJM")
+    expect_s3_class(batch[[bio_names[b]]], "predictLongitudinal.BJM")
     expect_equal(batch[[bio_names[b]]]$Y_predict, individual[[b]]$Y_predict)
     expect_equal(batch[[bio_names[b]]]$Y_density, individual[[b]]$Y_density)
     expect_equal(batch[[bio_names[b]]]$Y_all, individual[[b]]$Y_all)
@@ -62,18 +63,19 @@ test_that("dynamicPredictionBioAll matches per-biomarker dynamicPredictionBio ca
 
 test_that("dynamicPredictionBioAll matches per-biomarker dynamicPredictionBio calls (all-continuous, no competing risk)", {
   fx <- setup_dp_fixture()
+  history_3 <- lapply(fx$data_predict_all, function(d) d[d$year <= 3, ])
   data(pbc3, envir = environment())
   data_survival_fitting <- pbc3[!duplicated(pbc3$id), ]
   survival_fit_all <- survivalSub(data_survival_fitting, Surv(years, status3) ~ age + sex, NULL)
 
   individual <- lapply(1:2, function(b) {
-    dynamicPredictionBio(bio_i = b, fx$data_predict_all, fx$long_fit_all, survival_fit_all,
+    dynamicPredictionBio(bio_i = b, history_3, fx$long_fit_all, survival_fit_all,
                           prediction_time = 3, horizon = 3, time_variable = "year",
                           fx$survival_variable_all, fx$survival_trans_function,
                           bandcount2 = 10, bandcount3 = 15)
   })
 
-  batch <- dynamicPredictionBioAll(bio_i = NULL, fx$data_predict_all, fx$long_fit_all, survival_fit_all,
+  batch <- dynamicPredictionBioAll(bio_i = NULL, history_3, fx$long_fit_all, survival_fit_all,
                                     prediction_time = 3, horizon = 3, time_variable = "year",
                                     fx$survival_variable_all, fx$survival_trans_function,
                                     bandcount2 = 10, bandcount3 = 15)
@@ -88,6 +90,7 @@ test_that("dynamicPredictionBioAll matches per-biomarker dynamicPredictionBio ca
 
 test_that("dynamicPredictionBioAll computes the shared step only once across multiple biomarkers", {
   fx <- setup_dp_fixture()
+  history_3 <- lapply(fx$data_predict_all, function(d) d[d$year <= 3, ])
 
   orig <- compute_bio_shared_step
   call_count <- 0
@@ -98,7 +101,7 @@ test_that("dynamicPredictionBioAll computes the shared step only once across mul
     }
   )
 
-  dynamicPredictionBioAll(bio_i = c(1, 2), fx$data_predict_all, fx$long_fit_all, fx$survival_fit_all,
+  dynamicPredictionBioAll(bio_i = c(1, 2), history_3, fx$long_fit_all, fx$survival_fit_all,
                            prediction_time = 3, horizon = 3, time_variable = "year",
                            fx$survival_variable_all, fx$survival_trans_function,
                            bandcount2 = 10, bandcount3 = 15)
@@ -108,6 +111,7 @@ test_that("dynamicPredictionBioAll computes the shared step only once across mul
 
 test_that("dynamicPredictionBioAll with explicit numeric bandcounts resolves bandcount3 per marker under 'auto'", {
   fx <- setup_dp_fixture()
+  history_3 <- lapply(fx$data_predict_all, function(d) d[d$year <= 3, ])
 
   orig <- compute_bio_shared_step
   call_count <- 0
@@ -124,7 +128,7 @@ test_that("dynamicPredictionBioAll with explicit numeric bandcounts resolves ban
   # values were resolved at all), and already covered as a warn-not-error
   # path by test-autoBandcount.R.
   batch <- suppressWarnings(
-    dynamicPredictionBioAll(bio_i = c(1, 2), fx$data_predict_all, fx$long_fit_all, fx$survival_fit_all,
+    dynamicPredictionBioAll(bio_i = c(1, 2), history_3, fx$long_fit_all, fx$survival_fit_all,
                              prediction_time = 3, horizon = 3, time_variable = "year",
                              fx$survival_variable_all, fx$survival_trans_function,
                              bandcount2 = 10, bandcount3 = "auto")
@@ -152,7 +156,7 @@ test_that("dynamicPredictionBioAll bio_i = NULL default includes ordinal biomark
 
   expect_length(batch, 2)
   expect_setequal(names(batch), c("serBilir", "albumin_cat"))
-  expect_s3_class(batch[["albumin_cat"]], "dynamicPredictionBio.BJM")
+  expect_s3_class(batch[["albumin_cat"]], "predictLongitudinal.BJM")
   expect_true(all(batch[["albumin_cat"]]$Y_predict %in% seq_len(3)))
   # bandcount3 is not applicable to an ordinal marker's fixed category grid.
   expect_true(is.na(unname(attr(batch, "bandcount3")["2"])))
@@ -173,7 +177,7 @@ test_that("dynamicPredictionBioAll on an explicit bio_i vector including an ordi
                                     bandcount2 = 10, bandcount3 = 15)
 
   expect_length(batch, 2)
-  expect_s3_class(batch[["albumin_cat"]], "dynamicPredictionBio.BJM")
+  expect_s3_class(batch[["albumin_cat"]], "predictLongitudinal.BJM")
   expect_true(all(batch[["albumin_cat"]]$Y_predict %in% seq_len(3)))
   expect_equal(attr(batch[["albumin_cat"]]$Y_all, "category_labels"), c("low", "mid", "high"))
 })
