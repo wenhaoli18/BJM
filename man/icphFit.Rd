@@ -4,7 +4,7 @@
 \alias{icphFit}
 \title{Proportional hazards model for interval-censored event times}
 \usage{
-icphFit(formula, data, event_time, n_pieces = 6)
+icphFit(formula, data, event_time, baseline = c("spline", "piecewise"), df = 3)
 }
 \arguments{
 \item{formula}{\code{Surv(L, R, type = "interval2") ~ covariates}.
@@ -15,7 +15,9 @@ icphFit(formula, data, event_time, n_pieces = 6)
 \item{event_time}{Name of the event-time column the longitudinal
 sub-model uses.}
 
-\item{n_pieces}{Number of pieces of the baseline hazard.}
+\item{baseline}{\code{"spline"} or \code{"piecewise"}.}
+
+\item{df}{Spline degrees of freedom, or number of pieces.}
 }
 \value{
 An object of class \code{"icph.BJM"}.
@@ -24,14 +26,27 @@ An object of class \code{"icph.BJM"}.
 Internal fitter behind \code{survivalSub()} when the
 outcome is interval-censored (\code{Surv(L, R, type = "interval2")}).
 \code{\link[survival]{coxph}} cannot fit such data, so the marginal model
-is a proportional hazards model with a piecewise-constant baseline
-hazard, \eqn{h(t \mid x) = \lambda_k e^{x\beta}} on the \eqn{k}-th of
-\code{n_pieces} intervals, fit by maximum likelihood. The cut points are
-quantiles of the finite, positive interval endpoints; the last piece
-extends to infinity. Each subject contributes
-\eqn{S(L) - S(R)} for \eqn{L < T \le R}, \eqn{S(L)} when right-censored
-(\eqn{R = \infty}), \eqn{1 - S(R)} when left-censored, and
-\eqn{h(T) S(T)} for an exactly observed \eqn{T}.
+is a proportional hazards model \eqn{H(t \mid x) = H_0(t) e^{x\beta}}
+with a parametric baseline, fit by maximum likelihood. Each subject
+contributes \eqn{S(L) - S(R)} for \eqn{L < T \le R}, \eqn{S(L)} when
+right-censored (\eqn{R = \infty}), \eqn{1 - S(R)} when left-censored, and
+\eqn{h(T) S(T)} for an exactly observed \eqn{T}. Two baselines:
+\describe{
+\item{\code{"spline"} (default)}{Royston--Parmar: \eqn{\log H_0(t)} is a
+natural cubic spline in \eqn{\log t} with \code{df} degrees of freedom
+(\code{df - 1} internal knots at quantiles of the log interval
+endpoints, boundary knots at their extremes). \code{df = 1} is a
+Weibull model.}
+\item{\code{"piecewise"}}{a piecewise-constant hazard on \code{df}
+pieces cut at quantiles of the interval endpoints.}
+}
+The spline is the default because interval-censored data say little
+about the shape of the hazard \emph{within} a visit interval, and that
+shape is exactly what \code{imputeEventTime()} draws \eqn{T} from: the
+piecewise-constant hazard is flat there, which in simulations biased the
+longitudinal sub-model fit by \code{fitIntervalBJM()} when the true
+hazard was increasing, while the smooth spline carries the trend across
+neighbouring intervals into each one.
 
 The baseline cumulative hazard is then tabulated on a fine grid in the
 same \code{hazard}/\code{time} layout as \code{\link[survival]{basehaz}},

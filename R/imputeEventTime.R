@@ -54,7 +54,8 @@
 #' @param n_burnin Stochastic-EM iterations before draws are saved.
 #' @param n_imputations Number of saved draws (and longitudinal fits).
 #' @param n_grid Grid points per subject interval.
-#' @param n_pieces Pieces of the baseline hazard (see \code{survivalSub()}).
+#' @param baseline,df Baseline hazard of the survival model (see
+#'   \code{\link{survivalSub}}).
 #' @param include_right_censored See Description.
 #' @param seed Optional integer seed (the global RNG state is restored).
 #'
@@ -70,7 +71,8 @@
 fitIntervalBJM <- function(data_survival, data_fit_all, form_marginal_surv, event_time,
                            long_sub_fixed, long_sub_random, time_variable,
                            survival_variable_all = NULL, survival_trans_function = NULL,
-                           n_burnin = 10, n_imputations = 5, n_grid = 40, n_pieces = 6,
+                           n_burnin = 10, n_imputations = 5, n_grid = 40,
+                           baseline = c("spline", "piecewise"), df = NULL,
                            include_right_censored = FALSE, seed = NULL) {
   if (!is.null(seed)) local_r_seed(seed)
   if (inherits(long_sub_fixed, "formula")) long_sub_fixed <- list(long_sub_fixed)
@@ -80,7 +82,7 @@ fitIntervalBJM <- function(data_survival, data_fit_all, form_marginal_surv, even
   id <- as.character(nlme::splitFormula(long_sub_random[[1]], "|")[[2]])[2]
 
   survival_fit_all <- survivalSub(data_survival, form_marginal_surv, NULL,
-                                  event_time = event_time, n_pieces = n_pieces)
+                                  event_time = event_time, baseline = baseline, df = df)
   if (!is_interval_censored(survival_fit_all)) {
     stop("`form_marginal_surv` must have an interval-censored outcome, Surv(L, R, type = \"interval2\").",
          call. = FALSE)
@@ -114,9 +116,20 @@ fitIntervalBJM <- function(data_survival, data_fit_all, form_marginal_surv, even
   imputed_T <- matrix(NA_real_, nrow(bounds), n_imputations, dimnames = list(bounds$id, NULL))
   long_fit_all_list <- vector("list", n_imputations)
   for (it in seq_len(n_iter)) {
-    T_cur <- imputeEventTime(data_fit_all, long_fit_all, survival_fit_all, bounds, time_variable,
-                             survival_variable_all, survival_trans_function, n_grid = n_grid)
-    long_fit_all <- fit_long(T_cur, quiet = it <= n_burnin)
+    # an unlucky draw occasionally makes nlme::lme() fail (e.g. "Singularity
+    # in backsolve"); draw again from the same fit rather than abort the chain
+    for (attempt in seq_len(5)) {
+      T_new <- imputeEventTime(data_fit_all, long_fit_all, survival_fit_all, bounds, time_variable,
+                               survival_variable_all, survival_trans_function, n_grid = n_grid)
+      new_fit <- tryCatch(fit_long(T_new, quiet = it <= n_burnin), error = function(e) e)
+      if (!inherits(new_fit, "error")) break
+    }
+    if (inherits(new_fit, "error")) {
+      stop(sprintf("longitudinalSub() failed on 5 successive imputations at iteration %d: %s",
+                   it, conditionMessage(new_fit)), call. = FALSE)
+    }
+    T_cur <- T_new
+    long_fit_all <- new_fit
     trace[[it]] <- unlist(lapply(long_fit_all$lfit, nlme::fixef))
     if (it > n_burnin) {
       imputed_T[, it - n_burnin] <- T_cur[bounds$id]

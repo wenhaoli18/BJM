@@ -24,8 +24,14 @@
 * Interval-censored event times -- **experimental**. `survivalSub()` now
   accepts `Surv(L, R, type = "interval2")` outcomes (event known only to lie
   in `(L, R]`, e.g. between two clinic visits) and fits them with a
-  proportional hazards model with a piecewise-constant baseline hazard,
-  by maximum likelihood (new arguments `event_time` and `n_pieces`).
+  proportional hazards model by maximum likelihood (new arguments
+  `event_time`, `baseline` and `df`). The baseline is by default a
+  Royston-Parmar spline for the log cumulative hazard in log time
+  (`baseline = "spline"`, `df = 3`); a piecewise-constant hazard
+  (`baseline = "piecewise"`) is also available, but in simulations its
+  flat hazard within each visit interval biased the imputed event times,
+  and so `fitIntervalBJM()`'s longitudinal fit, when the true hazard was
+  increasing.
   Because no event time is known exactly, the longitudinal sub-model
   `f(Y | T)` cannot be fit on the observed events as it is for
   right-censored data; the new `fitIntervalBJM()` fills `T` in by

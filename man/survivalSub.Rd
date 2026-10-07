@@ -9,7 +9,8 @@ survivalSub(
   form_marginal_surv,
   form_conditional_cr,
   event_time = NULL,
-  n_pieces = 6
+  baseline = c("spline", "piecewise"),
+  df = NULL
 )
 }
 \arguments{

@@ -3,14 +3,27 @@
 #' @description Internal fitter behind \code{survivalSub()} when the
 #' outcome is interval-censored (\code{Surv(L, R, type = "interval2")}).
 #' \code{\link[survival]{coxph}} cannot fit such data, so the marginal model
-#' is a proportional hazards model with a piecewise-constant baseline
-#' hazard, \eqn{h(t \mid x) = \lambda_k e^{x\beta}} on the \eqn{k}-th of
-#' \code{n_pieces} intervals, fit by maximum likelihood. The cut points are
-#' quantiles of the finite, positive interval endpoints; the last piece
-#' extends to infinity. Each subject contributes
-#' \eqn{S(L) - S(R)} for \eqn{L < T \le R}, \eqn{S(L)} when right-censored
-#' (\eqn{R = \infty}), \eqn{1 - S(R)} when left-censored, and
-#' \eqn{h(T) S(T)} for an exactly observed \eqn{T}.
+#' is a proportional hazards model \eqn{H(t \mid x) = H_0(t) e^{x\beta}}
+#' with a parametric baseline, fit by maximum likelihood. Each subject
+#' contributes \eqn{S(L) - S(R)} for \eqn{L < T \le R}, \eqn{S(L)} when
+#' right-censored (\eqn{R = \infty}), \eqn{1 - S(R)} when left-censored, and
+#' \eqn{h(T) S(T)} for an exactly observed \eqn{T}. Two baselines:
+#' \describe{
+#'   \item{\code{"spline"} (default)}{Royston--Parmar: \eqn{\log H_0(t)} is a
+#'   natural cubic spline in \eqn{\log t} with \code{df} degrees of freedom
+#'   (\code{df - 1} internal knots at quantiles of the log interval
+#'   endpoints, boundary knots at their extremes). \code{df = 1} is a
+#'   Weibull model.}
+#'   \item{\code{"piecewise"}}{a piecewise-constant hazard on \code{df}
+#'   pieces cut at quantiles of the interval endpoints.}
+#' }
+#' The spline is the default because interval-censored data say little
+#' about the shape of the hazard \emph{within} a visit interval, and that
+#' shape is exactly what \code{imputeEventTime()} draws \eqn{T} from: the
+#' piecewise-constant hazard is flat there, which in simulations biased the
+#' longitudinal sub-model fit by \code{fitIntervalBJM()} when the true
+#' hazard was increasing, while the smooth spline carries the trend across
+#' neighbouring intervals into each one.
 #'
 #' The baseline cumulative hazard is then tabulated on a fine grid in the
 #' same \code{hazard}/\code{time} layout as \code{\link[survival]{basehaz}},
@@ -22,10 +35,12 @@
 #' @param data One row per subject.
 #' @param event_time Name of the event-time column the longitudinal
 #'   sub-model uses.
-#' @param n_pieces Number of pieces of the baseline hazard.
+#' @param baseline \code{"spline"} or \code{"piecewise"}.
+#' @param df Spline degrees of freedom, or number of pieces.
 #' @return An object of class \code{"icph.BJM"}.
 #' @keywords internal
-icphFit <- function(formula, data, event_time, n_pieces = 6) {
+icphFit <- function(formula, data, event_time, baseline = c("spline", "piecewise"), df = 3) {
+  baseline <- match.arg(baseline)
   if (length(survival::untangle.specials(stats::terms(formula, specials = "strata"), "strata")$vars) > 0) {
     stop("strata() terms are not supported for an interval-censored survival sub-model.", call. = FALSE)
   }
@@ -40,27 +55,44 @@ icphFit <- function(formula, data, event_time, n_pieces = 6) {
   L <- bounds$L
   R <- bounds$R
   endpoints <- c(L[L > 0], R[is.finite(R)])
-  if (length(unique(endpoints)) < n_pieces) {
-    stop(sprintf("Too few distinct interval endpoints (%d) for n_pieces = %d.",
-                 length(unique(endpoints)), n_pieces), call. = FALSE)
+  if (length(unique(endpoints)) < df + 1) {
+    stop(sprintf("Too few distinct interval endpoints (%d) for df = %d.",
+                 length(unique(endpoints)), df), call. = FALSE)
   }
-  cuts <- c(0, unique(stats::quantile(endpoints, probs = seq_len(n_pieces - 1) / n_pieces,
-                                      names = FALSE)), Inf)
-  n_pieces <- length(cuts) - 1
+  base <- if (baseline == "spline") rp_baseline(endpoints, df) else piecewise_baseline(endpoints, df)
+  k <- base$n_par
 
   exact <- is.finite(R) & L == R
+  fin <- is.finite(R) & !exact
   p <- ncol(X)
   negloglik <- function(theta) {
-    lambda <- exp(theta[seq_len(n_pieces)])
-    eta <- if (p > 0) c(X %*% theta[n_pieces + seq_len(p)]) else rep(0, nrow(X))
-    -sum(icph_loglik_terms(L, R, exact, eta, lambda, cuts))
+    g <- theta[seq_len(k)]
+    if (!base$monotone(g)) return(1e100)
+    e <- exp(if (p > 0) c(X %*% theta[k + seq_len(p)]) else rep(0, nrow(X)))
+    HL <- base$cumhaz(L, g) * e
+    ll <- -HL
+    if (any(fin)) {
+      dH <- base$cumhaz(R[fin], g) * e[fin] - HL[fin]
+      ll[fin] <- ll[fin] + log(-expm1(-pmax(dH, 1e-300)))
+    }
+    if (any(exact)) ll[exact] <- ll[exact] + base$loghaz(R[exact], g) + log(e[exact])
+    out <- -sum(ll)
+    if (is.finite(out)) out else 1e100
   }
-  # crude constant-hazard start: events per unit of (left-endpoint) follow-up
+  # constant-hazard start: events per unit of (midpoint) follow-up
   n_events <- sum(is.finite(R))
   rate0 <- max(n_events, 1) / sum(pmax(ifelse(is.finite(R), (L + R) / 2, L), 1e-8))
-  start <- c(rep(log(rate0), n_pieces), rep(0, p))
+  start <- c(base$start(rate0), rep(0, p))
+  if (baseline == "spline" && df > 1) {
+    # start from the Weibull fit (df = 1, nested in this one: same intercept
+    # and scaled log-t column, zero weight on the extra spline terms). From
+    # the constant-hazard start, BFGS sometimes wandered into a non-monotone
+    # region and stopped at a nonsensical baseline.
+    weibull <- icphFit(formula, data, event_time, "spline", 1)
+    start <- c(weibull$gamma, rep(0, df - 1), weibull$coefficients)
+  }
   opt <- stats::optim(start, negloglik, method = "BFGS", hessian = TRUE,
-                      control = list(maxit = 1000, reltol = 1e-12))
+                      control = list(maxit = 2000, reltol = 1e-12))
   if (opt$convergence != 0) {
     warning("The interval-censored survival sub-model did not converge.", call. = FALSE)
   }
@@ -69,25 +101,131 @@ icphFit <- function(formula, data, event_time, n_pieces = 6) {
   vc <- tryCatch(solve(opt$hessian), error = function(e) {
     matrix(NA_real_, length(start), length(start))
   })
-  beta <- stats::setNames(opt$par[n_pieces + seq_len(p)], coef_names)
-  vcov_beta <- vc[n_pieces + seq_len(p), n_pieces + seq_len(p), drop = FALSE]
+  beta <- stats::setNames(opt$par[k + seq_len(p)], coef_names)
+  vcov_beta <- vc[k + seq_len(p), k + seq_len(p), drop = FALSE]
   dimnames(vcov_beta) <- list(coef_names, coef_names)
-  lambda <- exp(opt$par[seq_len(n_pieces)])
+  gamma <- opt$par[seq_len(k)]
 
   max_followup <- max(endpoints)
-  grid <- sort(unique(c(seq(0, max_followup, length.out = 2001), cuts[is.finite(cuts) & cuts <= max_followup])))
-  cum_basehaz <- data.frame(hazard = piecewise_cumhaz(grid, lambda, cuts), time = grid)
+  grid <- sort(unique(c(seq(0, max_followup, length.out = 2001), base$knot_times[base$knot_times <= max_followup])))
+  H0 <- base$cumhaz(grid, gamma)
+  if (is.unsorted(H0)) {
+    warning("The fitted baseline cumulative hazard is not monotone; it was made monotone with cummax().",
+            call. = FALSE)
+    H0 <- cummax(H0)
+  }
+  cum_basehaz <- data.frame(hazard = H0, time = grid)
 
-  out <- list(coefficients = beta, var = vcov_beta, lambda = lambda, cuts = cuts,
+  out <- list(coefficients = beta, var = vcov_beta, baseline = baseline, df = df,
+              gamma = gamma, base = base,
               loglik = -opt$value, n = nrow(X), n_exact = sum(exact),
-              n_interval = sum(is.finite(R) & !exact),
-              n_right = sum(!is.finite(R)),
+              n_interval = sum(fin), n_right = sum(!is.finite(R)),
               terms = terms_rhs, xlevels = stats::.getXlevels(stats::terms(mf), mf),
               contrasts = contrasts, cum_basehaz = cum_basehaz,
               max_followup = max_followup, event_time = event_time,
               L = L, R = R, formula = formula)
+  if (baseline == "piecewise") {
+    out$lambda <- exp(gamma)
+    out$cuts <- base$cuts
+  }
   class(out) <- "icph.BJM"
   out
+}
+
+#' Baselines for \code{icphFit()}
+#'
+#' @description Each returns a list with \code{n_par}, \code{cumhaz(t, g)}
+#' (baseline cumulative hazard, 0 at \code{t <= 0}, \code{Inf} at
+#' \code{Inf}), \code{loghaz(t, g)} (log baseline hazard, for exactly
+#' observed times), \code{monotone(g)} (whether \code{cumhaz} is
+#' increasing), \code{start(rate0)} (parameters of a constant hazard
+#' \code{rate0}) and \code{knot_times}.
+#' @param endpoints Finite, positive interval endpoints.
+#' @param df Spline degrees of freedom / number of pieces.
+#' @name icph_baselines
+#' @keywords internal
+NULL
+
+#' @describeIn icph_baselines Royston--Parmar spline for \eqn{\log H_0} in
+#'   \eqn{\log t}. Parameters: intercept, then one per basis column; the
+#'   basis columns are scaled by their standard deviation over
+#'   \code{endpoints} so the optimizer sees comparable scales.
+rp_baseline <- function(endpoints, df) {
+  x <- log(endpoints)
+  knots <- c(min(x), if (df > 1) stats::quantile(x, seq_len(df - 1) / df, names = FALSE), max(x))
+  scale <- apply(rp_basis(x, knots), 2, stats::sd)
+  scale[!is.finite(scale) | scale == 0] <- 1
+  s_fun <- function(t, g) {
+    out <- rep(-Inf, length(t))
+    pos <- t > 0 & is.finite(t)
+    B <- sweep(rp_basis(log(t[pos]), knots), 2, scale, "/")
+    out[pos] <- g[1] + c(B %*% g[-1])
+    out[is.infinite(t) & t > 0] <- Inf
+    out
+  }
+  list(
+    n_par = df + 1,
+    knots = knots, scale = scale,
+    cumhaz = function(t, g) exp(s_fun(t, g)),
+    loghaz = function(t, g) {
+      dB <- sweep(rp_basis(log(t), knots, deriv = TRUE), 2, scale, "/")
+      slope <- c(dB %*% g[-1])
+      ifelse(slope > 0, s_fun(t, g) + log(pmax(slope, 1e-300)) - log(t), -Inf)
+    },
+    # H0(t) = rate0 * t: log H0 = log(rate0) + log t, i.e. a unit slope on log t
+    # the spline is linear in log t outside the boundary knots, so H0 is
+    # increasing everywhere iff its slope is positive between them. The
+    # likelihood alone does not enforce this before the first visit, where
+    # there are no interval endpoints: unconstrained fits occasionally had
+    # H0 rising towards t = 0.
+    monotone = function(g) {
+      xs <- seq(knots[1], knots[length(knots)], length.out = 101)
+      all(sweep(rp_basis(xs, knots, deriv = TRUE), 2, scale, "/") %*% g[-1] > 0)
+    },
+    start = function(rate0) c(log(rate0), scale[1], rep(0, df - 1)),
+    knot_times = exp(knots)
+  )
+}
+
+#' @describeIn icph_baselines Piecewise-constant hazard; parameters are the
+#'   log hazards of the pieces.
+piecewise_baseline <- function(endpoints, df) {
+  cuts <- c(0, unique(stats::quantile(endpoints, probs = seq_len(df - 1) / df, names = FALSE)), Inf)
+  n <- length(cuts) - 1
+  list(
+    n_par = n, cuts = cuts,
+    cumhaz = function(t, g) piecewise_cumhaz(t, exp(g), cuts),
+    loghaz = function(t, g) {
+      piece <- pmax(findInterval(t, cuts, left.open = TRUE, rightmost.closed = TRUE), 1)
+      g[piece]
+    },
+    monotone = function(g) TRUE,
+    start = function(rate0) rep(log(rate0), n),
+    knot_times = cuts[is.finite(cuts) & cuts > 0]
+  )
+}
+
+#' Restricted cubic spline basis (Royston--Parmar)
+#'
+#' @description Columns \eqn{x} and, for each internal knot \eqn{k_j},
+#' \eqn{(x - k_j)_+^3 - \lambda_j (x - k_{min})_+^3 - (1 - \lambda_j)
+#' (x - k_{max})_+^3}, \eqn{\lambda_j = (k_{max} - k_j) / (k_{max} -
+#' k_{min})}: a cubic spline that is linear beyond the boundary knots. With
+#' \code{deriv = TRUE}, the derivative of each column in \eqn{x}.
+#' @param x Values (log times).
+#' @param knots Boundary and internal knots, sorted, boundary first and last.
+#' @param deriv Return the derivative instead.
+#' @keywords internal
+rp_basis <- function(x, knots, deriv = FALSE) {
+  kmin <- knots[1]
+  kmax <- knots[length(knots)]
+  internal <- knots[-c(1, length(knots))]
+  pos3 <- function(u) if (deriv) 3 * pmax(u, 0)^2 else pmax(u, 0)^3
+  cols <- lapply(internal, function(k) {
+    lam <- (kmax - k) / (kmax - kmin)
+    pos3(x - k) - lam * pos3(x - kmin) - (1 - lam) * pos3(x - kmax)
+  })
+  cbind(if (deriv) rep(1, length(x)) else x, do.call(cbind, cols))
 }
 
 #' Interval endpoints from an interval-type \code{Surv} object
@@ -117,25 +255,6 @@ piecewise_cumhaz <- function(t, lambda, cuts) {
   exposure <- pmin(pmax(outer(t, cuts[-length(cuts)], "-"), 0), matrix(widths, length(t), length(widths), byrow = TRUE))
   exposure[!is.finite(t), ] <- Inf
   c(exposure %*% lambda)
-}
-
-#' Per-subject log-likelihood of the interval-censored PH model
-#' @keywords internal
-icph_loglik_terms <- function(L, R, exact, eta, lambda, cuts) {
-  e <- exp(eta)
-  HL <- piecewise_cumhaz(L, lambda, cuts) * e
-  out <- -HL
-  fin <- is.finite(R) & !exact
-  if (any(fin)) {
-    dH <- (piecewise_cumhaz(R[fin], lambda, cuts) * e[fin]) - HL[fin]
-    out[fin] <- out[fin] + log(-expm1(-pmax(dH, 1e-300)))
-  }
-  if (any(exact)) {
-    piece <- findInterval(R[exact], cuts, left.open = TRUE, rightmost.closed = TRUE)
-    piece <- pmax(piece, 1)
-    out[exact] <- out[exact] + log(lambda[piece]) + eta[exact]
-  }
-  out
 }
 
 #' Linear predictor of an interval-censored PH fit

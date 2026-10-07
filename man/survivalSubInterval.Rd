@@ -9,7 +9,8 @@ survivalSubInterval(
   form_marginal_surv,
   form_conditional_cr,
   event_time,
-  n_pieces
+  baseline,
+  df
 )
 }
 \description{
