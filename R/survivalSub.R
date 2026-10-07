@@ -43,8 +43,8 @@
 #'   model is a proportional hazards model with a smooth spline (or
 #'   piecewise-constant) baseline hazard fit by maximum likelihood (see
 #'   \code{icphFit()}), stored as \code{ic_fit} in place of
-#'   \code{coxph_fit}. Competing risks and \code{strata()} are not yet
-#'   supported in this case. Ordinary right-censored \code{Surv(time,
+#'   \code{coxph_fit}. A \code{strata()} term gives each stratum its own
+#'   baseline hazard. Competing risks are not yet supported in this case. Ordinary right-censored \code{Surv(time,
 #'   status)} outcomes are fit with \code{coxph} exactly as before.
 #'
 #'   Events that happened before a subject's first visit (\code{L = 0}) only

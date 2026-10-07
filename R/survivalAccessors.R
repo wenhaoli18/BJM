@@ -49,7 +49,7 @@ survival_cum_basehaz <- function(survival_fit_all) {
 #' @describeIn survival_accessors Each patient's stratum (as character), or
 #'   \code{NULL} when the model is not stratified.
 survival_patient_strata <- function(survival_fit_all, newdata) {
-  if (is_interval_censored(survival_fit_all)) return(NULL)
+  if (is_interval_censored(survival_fit_all)) return(icph_strata(survival_fit_all$ic_fit, newdata))
   coxph_fit <- survival_fit_all$coxph_fit
   strata_vars <- survival::untangle.specials(stats::terms(coxph_fit), "strata")$vars
   if (length(strata_vars) == 0) return(NULL)

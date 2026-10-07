@@ -30,8 +30,10 @@
 #' so the prediction code can use it exactly as it uses the Breslow
 #' estimate of a right-censored fit (see \code{survival_accessors}).
 #'
-#' @param formula \code{Surv(L, R, type = "interval2") ~ covariates}.
-#'   \code{strata()} terms are not supported.
+#' @param formula \code{Surv(L, R, type = "interval2") ~ covariates}. A
+#'   \code{strata()} term gives each stratum its own baseline (spline knots
+#'   or cut points from that stratum's interval endpoints), with the
+#'   regression coefficients shared, as in a stratified Cox model.
 #' @param data One row per subject.
 #' @param event_time Name of the event-time column the longitudinal
 #'   sub-model uses.
@@ -53,12 +55,16 @@ icphFit <- function(formula, data, event_time, baseline = c("spline", "piecewise
                     lower_tail = c("spline", "weibull")) {
   baseline <- match.arg(baseline)
   lower_tail <- match.arg(lower_tail)
-  if (length(survival::untangle.specials(stats::terms(formula, specials = "strata"), "strata")$vars) > 0) {
-    stop("strata() terms are not supported for an interval-censored survival sub-model.", call. = FALSE)
-  }
-  mf <- model.frame(formula, data, na.action = stats::na.omit)
+  tt <- stats::terms(formula, specials = "strata", data = data)
+  mf <- model.frame(tt, data, na.action = stats::na.omit)
   y <- model.response(mf)
-  terms_rhs <- stats::delete.response(stats::terms(mf))
+  strata_info <- survival::untangle.specials(tt, "strata")
+  strata_var <- if (length(strata_info$vars) > 0) strata_info$vars else NULL
+  # covariates without the strata() term
+  labels <- attr(stats::delete.response(tt), "term.labels")
+  x_labels <- setdiff(labels, strata_var)
+  terms_rhs <- stats::delete.response(stats::terms(
+    stats::reformulate(if (length(x_labels) > 0) x_labels else "1", env = environment(formula))))
   X <- model.matrix(terms_rhs, mf)
   contrasts <- attr(X, "contrasts")
   X <- X[, colnames(X) != "(Intercept)", drop = FALSE]
@@ -66,44 +72,73 @@ icphFit <- function(formula, data, event_time, baseline = c("spline", "piecewise
   bounds <- interval_bounds(y)
   L <- bounds$L
   R <- bounds$R
-  endpoints <- c(L[L > 0], R[is.finite(R)])
-  if (length(unique(endpoints)) < df + 1) {
-    stop(sprintf("Too few distinct interval endpoints (%d) for df = %d.",
-                 length(unique(endpoints)), df), call. = FALSE)
+  stratum <- if (is.null(strata_var)) rep("all", length(L)) else as.character(mf[[strata_var]])
+  strata_levels <- unique(stratum)
+  if (!is.null(strata_var)) strata_levels <- sort(strata_levels)
+  rows <- lapply(strata_levels, function(s) which(stratum == s))
+
+  # one baseline per stratum, on that stratum's own interval endpoints
+  endpoints_of <- function(r) c(L[r][L[r] > 0], R[r][is.finite(R[r])])
+  make_base <- function(endpoints, tail_slope = NULL) {
+    if (baseline == "spline") rp_baseline(endpoints, df, tail_slope) else piecewise_baseline(endpoints, df)
   }
-  base <- if (baseline == "spline") rp_baseline(endpoints, df) else piecewise_baseline(endpoints, df)
-  k <- base$n_par
+  bases <- lapply(seq_along(strata_levels), function(h) {
+    endpoints <- endpoints_of(rows[[h]])
+    if (length(unique(endpoints)) < df + 1) {
+      stop(sprintf("Too few distinct interval endpoints (%d) for df = %d%s.",
+                   length(unique(endpoints)), df,
+                   if (is.null(strata_var)) "" else sprintf(" in stratum %s", strata_levels[h])),
+           call. = FALSE)
+    }
+    make_base(endpoints)
+  })
+  k <- bases[[1]]$n_par
+  H <- length(bases)
+  gamma_index <- function(h) (h - 1) * k + seq_len(k)
 
   exact <- is.finite(R) & L == R
   fin <- is.finite(R) & !exact
   p <- ncol(X)
   negloglik <- function(theta) {
-    g <- theta[seq_len(k)]
-    if (!base$monotone(g)) return(1e100)
-    e <- exp(if (p > 0) c(X %*% theta[k + seq_len(p)]) else rep(0, nrow(X)))
-    HL <- base$cumhaz(L, g) * e
-    ll <- -HL
-    if (any(fin)) {
-      dH <- base$cumhaz(R[fin], g) * e[fin] - HL[fin]
-      ll[fin] <- ll[fin] + log(-expm1(-pmax(dH, 1e-300)))
+    e <- exp(if (p > 0) c(X %*% theta[H * k + seq_len(p)]) else rep(0, nrow(X)))
+    total <- 0
+    for (h in seq_len(H)) {
+      g <- theta[gamma_index(h)]
+      base <- bases[[h]]
+      if (!base$monotone(g)) return(1e100)
+      r <- rows[[h]]
+      HL <- base$cumhaz(L[r], g) * e[r]
+      ll <- -HL
+      f <- fin[r]
+      if (any(f)) {
+        dH <- base$cumhaz(R[r][f], g) * e[r][f] - HL[f]
+        ll[f] <- ll[f] + log(-expm1(-pmax(dH, 1e-300)))
+      }
+      x <- exact[r]
+      if (any(x)) ll[x] <- ll[x] + base$loghaz(R[r][x], g) + log(e[r][x])
+      total <- total - sum(ll)
     }
-    if (any(exact)) ll[exact] <- ll[exact] + base$loghaz(R[exact], g) + log(e[exact])
-    out <- -sum(ll)
-    if (is.finite(out)) out else 1e100
+    if (is.finite(total)) total else 1e100
   }
   # constant-hazard start: events per unit of (midpoint) follow-up
-  n_events <- sum(is.finite(R))
-  rate0 <- max(n_events, 1) / sum(pmax(ifelse(is.finite(R), (L + R) / 2, L), 1e-8))
-  start <- c(base$start(rate0), rep(0, p))
+  start <- c(unlist(lapply(seq_len(H), function(h) {
+    r <- rows[[h]]
+    rate0 <- max(sum(is.finite(R[r])), 1) /
+      sum(pmax(ifelse(is.finite(R[r]), (L[r] + R[r]) / 2, L[r]), 1e-8))
+    bases[[h]]$start(rate0)
+  })), rep(0, p))
   if (baseline == "spline" && df > 1) {
     # start from the Weibull fit (df = 1, nested in this one: same intercept
     # and scaled log-t column, zero weight on the extra spline terms). From
     # the constant-hazard start, BFGS sometimes wandered into a non-monotone
     # region and stopped at a nonsensical baseline.
     weibull <- icphFit(formula, data, event_time, "spline", 1)
-    start <- c(weibull$gamma, rep(0, df - 1), weibull$coefficients)
+    start <- c(unlist(lapply(weibull$gammas, function(g) c(g, rep(0, df - 1)))), weibull$coefficients)
     if (lower_tail == "weibull") {
-      base <- rp_baseline(endpoints, df, tail_slope = weibull$gamma[2] / weibull$base$scale[1])
+      bases <- lapply(seq_len(H), function(h) {
+        make_base(endpoints_of(rows[[h]]),
+                  tail_slope = weibull$gammas[[h]][2] / weibull$bases[[h]]$scale[1])
+      })
     }
   }
   opt <- stats::optim(start, negloglik, method = "BFGS", hessian = TRUE,
@@ -116,36 +151,55 @@ icphFit <- function(formula, data, event_time, baseline = c("spline", "piecewise
   vc <- tryCatch(solve(opt$hessian), error = function(e) {
     matrix(NA_real_, length(start), length(start))
   })
-  beta <- stats::setNames(opt$par[k + seq_len(p)], coef_names)
-  vcov_beta <- vc[k + seq_len(p), k + seq_len(p), drop = FALSE]
+  beta <- stats::setNames(opt$par[H * k + seq_len(p)], coef_names)
+  vcov_beta <- vc[H * k + seq_len(p), H * k + seq_len(p), drop = FALSE]
   dimnames(vcov_beta) <- list(coef_names, coef_names)
-  gamma <- opt$par[seq_len(k)]
+  gammas <- stats::setNames(lapply(seq_len(H), function(h) opt$par[gamma_index(h)]), strata_levels)
 
-  max_followup <- max(endpoints)
-  grid <- sort(unique(c(seq(0, max_followup, length.out = 2001), base$knot_times[base$knot_times <= max_followup])))
-  H0 <- base$cumhaz(grid, gamma)
-  if (is.unsorted(H0)) {
-    warning("The fitted baseline cumulative hazard is not monotone; it was made monotone with cummax().",
-            call. = FALSE)
-    H0 <- cummax(H0)
-  }
-  cum_basehaz <- data.frame(hazard = H0, time = grid)
+  max_followup <- max(endpoints_of(seq_along(L)))
+  cum_basehaz <- do.call(rbind, lapply(seq_len(H), function(h) {
+    upper <- max(endpoints_of(rows[[h]]))
+    knots <- bases[[h]]$knot_times
+    grid <- sort(unique(c(seq(0, upper, length.out = 2001), knots[knots <= upper])))
+    H0 <- bases[[h]]$cumhaz(grid, gammas[[h]])
+    if (is.unsorted(H0)) {
+      warning("The fitted baseline cumulative hazard is not monotone; it was made monotone with cummax().",
+              call. = FALSE)
+      H0 <- cummax(H0)
+    }
+    out <- data.frame(hazard = H0, time = grid)
+    if (!is.null(strata_var)) out$strata <- strata_levels[h]
+    out
+  }))
 
   out <- list(coefficients = beta, var = vcov_beta, baseline = baseline, df = df,
-              gamma = gamma, base = base,
+              gamma = gammas[[1]], base = bases[[1]], gammas = gammas, bases = bases,
+              strata_var = strata_var, strata_levels = if (!is.null(strata_var)) strata_levels,
               loglik = -opt$value, n = nrow(X), n_exact = sum(exact),
               n_interval = sum(fin), n_right = sum(!is.finite(R)),
               n_before_first_visit = sum(fin & L == 0),
-              terms = terms_rhs, xlevels = stats::.getXlevels(stats::terms(mf), mf),
+              terms = terms_rhs, xlevels = stats::.getXlevels(terms_rhs, mf),
               contrasts = contrasts, cum_basehaz = cum_basehaz,
               max_followup = max_followup, event_time = event_time,
               L = L, R = R, formula = formula)
   if (baseline == "piecewise") {
-    out$lambda <- exp(gamma)
-    out$cuts <- base$cuts
+    out$lambda <- exp(gammas[[1]])
+    out$cuts <- bases[[1]]$cuts
   }
   class(out) <- "icph.BJM"
   out
+}
+
+#' Stratum of each patient for a stratified interval-censored fit
+#' @param fit An \code{icph.BJM} object.
+#' @param newdata One row per patient.
+#' @return Character labels in the fit's \code{strata()} format, or
+#'   \code{NULL} when the fit is not stratified.
+#' @keywords internal
+icph_strata <- function(fit, newdata) {
+  if (is.null(fit$strata_var)) return(NULL)
+  env <- list2env(list(strata = survival::strata), parent = environment(fit$formula))
+  as.character(eval(str2lang(fit$strata_var), newdata, env))
 }
 
 #' Baselines for \code{icphFit()}
