@@ -44,7 +44,7 @@ drop_after_prediction_time <- function(data_predict_all, time_variable, predicti
 #' @return A character vector of variable names.
 #' @keywords internal
 outcome_variables <- function(survival_fit_all) {
-  out <- as.character(formula(survival_fit_all$coxph_fit)[[2]])[2]
+  out <- survival_time_variable(survival_fit_all)
   if (length(survival_fit_all$form_conditional_cr) != 0) {
     out <- c(out, all.vars(survival_fit_all$form_conditional_cr[[2]]))
   }
@@ -270,21 +270,16 @@ integration_upper_bound <- function(data_predict_all, long_fit_all, survival_fit
 #' \code{last_time} (the last time in the data \code{survivalSub()} was fit on).
 #' @keywords internal
 conditional_survival_setup <- function(data_predict_all, long_fit_all, survival_fit_all) {
-  coxph_fit <- survival_fit_all$coxph_fit
   num <- as.character(nlme::splitFormula(long_fit_all$long_sub_random[[1]], "|")[[2]])[2]
   data.surv <- data_predict_all[[1]][!duplicated(data_predict_all[[1]][[num]]), , drop = FALSE]
-  cum_basehaz_all <- basehaz(coxph_fit, centered = FALSE)
+  cum_basehaz_all <- survival_cum_basehaz(survival_fit_all)
 
-  lp <- c(stats::predict(coxph_fit, newdata = data.surv, type = "lp",
-                         reference = "zero", na.action = stats::na.pass))
-  strata_vars <- survival::untangle.specials(stats::terms(coxph_fit), "strata")$vars
-  if (length(strata_vars) == 0) {
+  lp <- survival_lp(survival_fit_all, data.surv)
+  patient_strata <- survival_patient_strata(survival_fit_all, data.surv)
+  if (is.null(patient_strata)) {
     groups <- list(list(cum_basehaz = cum_basehaz_all[, c("hazard", "time")],
                         patients = seq_along(lp)))
   } else {
-    rhs_terms <- stats::delete.response(stats::terms(coxph_fit))
-    mf_surv <- model.frame(rhs_terms, data.surv, na.action = stats::na.pass, xlev = coxph_fit$xlevels)
-    patient_strata <- as.character(mf_surv[[strata_vars]])
     groups <- lapply(intersect(unique(patient_strata), as.character(cum_basehaz_all$strata)), function(s)
       list(cum_basehaz = cum_basehaz_all[cum_basehaz_all$strata == s, c("hazard", "time")],
            patients = which(patient_strata == s)))

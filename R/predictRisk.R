@@ -251,8 +251,7 @@ predictRisk = function(data_predict_all, long_fit_all, survival_fit_all,
     return(auto_tune_bandcount(predictRisk, call_args, auto_names)$result)
   }
 
-  coxph_fit = survival_fit_all$coxph_fit
-  survival_variable = as.character(formula(coxph_fit)[[2]])[2] #survival_variable = "fuyrs"
+  survival_variable = survival_time_variable(survival_fit_all) #survival_variable = "fuyrs"
   for (i in seq_along(data_predict_all)) {
     assert_vars_in_data(time_variable, data_predict_all[[i]],
                          "time_variable", sprintf("data_predict_all[[%d]]", i))

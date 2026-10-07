@@ -21,6 +21,27 @@
 
 ## New features
 
+* Interval-censored event times -- **experimental**. `survivalSub()` now
+  accepts `Surv(L, R, type = "interval2")` outcomes (event known only to lie
+  in `(L, R]`, e.g. between two clinic visits) and fits them with a
+  proportional hazards model with a piecewise-constant baseline hazard,
+  by maximum likelihood (new arguments `event_time` and `n_pieces`).
+  Because no event time is known exactly, the longitudinal sub-model
+  `f(Y | T)` cannot be fit on the observed events as it is for
+  right-censored data; the new `fitIntervalBJM()` fills `T` in by
+  stochastic EM and multiple imputation, drawing each subject's `T` from
+  `f(Y | T) f(T)` on `(L, R]` -- the same conditional density dynamic
+  prediction already evaluates -- and pools the resulting
+  `longitudinalSub()` fits with `poolLongitudinalSub()`. Its
+  `survival_fit_all` and `long_fit_all` plug into `predictRisk()`,
+  `predictLongitudinal()` and `simulateTrajectory()` unchanged. Competing
+  risks, `strata()`, and `performancePlot()`/`calibrationPlot()` are not
+  yet supported for interval-censored fits, and prediction still
+  conditions on being event-free at `prediction_time` rather than at the
+  last negative visit. Right-censored fits are unaffected: every prediction
+  helper now reads the survival model through internal accessors, and a new
+  reference test checks their output is unchanged to 1e-12.
+
 * New `simulateTrajectory()` draws complete futures from the fitted backward
   joint model -- an event time, an event type under competing risks, and
   every biomarker's values at chosen times -- conditional on a patient's

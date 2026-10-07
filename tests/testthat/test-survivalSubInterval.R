@@ -1,0 +1,135 @@
+# Interval-censored survival sub-model (experimental).
+
+# Weibull PH event times observed only between irregular visits.
+simulate_interval_data <- function(n, seed = 1) {
+  set.seed(seed)
+  x1 <- stats::rnorm(n)
+  x2 <- stats::rbinom(n, 1, 0.5)
+  T <- (-log(stats::runif(n)) / (0.1 * exp(0.5 * x1 - 0.7 * x2)))^(1 / 1.5)
+  C <- stats::runif(n, 2, 12)
+  L <- R <- numeric(n)
+  for (i in seq_len(n)) {
+    v <- cumsum(stats::runif(20, 0.5, 1.5))
+    v <- c(0, v[v < C[i]])
+    if (T[i] > max(v)) {
+      L[i] <- max(v)
+      R[i] <- NA
+    } else {
+      k <- findInterval(T[i], v)
+      L[i] <- v[k]
+      R[i] <- v[k + 1]
+    }
+  }
+  data.frame(id = seq_len(n), x1 = x1, x2 = x2, L = L, R = R)
+}
+
+test_that("an interval2 outcome is fit by the interval-censored PH model", {
+  d <- simulate_interval_data(800)
+  fit <- survivalSub(d, Surv(L, R, type = "interval2") ~ x1 + x2, NULL, event_time = "T")
+
+  expect_s3_class(fit, "survivalSub.BJM")
+  expect_null(fit$coxph_fit)
+  expect_s3_class(fit$ic_fit, "icph.BJM")
+  expect_true(is_interval_censored(fit))
+  expect_identical(survival_time_variable(fit), "T")
+  expect_equal(unname(fit$ic_fit$coefficients), c(0.5, -0.7), tolerance = 0.25)
+  expect_equal(fit$ic_fit$n_right + fit$ic_fit$n_interval + fit$ic_fit$n_exact, 800)
+
+  lp <- survival_lp(fit, d[1:3, ])
+  expect_equal(lp, c(as.matrix(d[1:3, c("x1", "x2")]) %*% fit$ic_fit$coefficients))
+  bh <- survival_cum_basehaz(fit)
+  expect_named(bh, c("hazard", "time"))
+  expect_false(is.unsorted(bh$hazard))
+  expect_null(survival_patient_strata(fit, d))
+})
+
+test_that("the piecewise-constant hazard model matches its closed form on exact data", {
+  # one piece and no covariates: exponential MLE = events / total time
+  set.seed(3)
+  t <- stats::rexp(300, 0.4)
+  d <- data.frame(L = t, R = t)
+  fit <- icphFit(Surv(L, R, type = "interval2") ~ 1, d, "T", n_pieces = 1)
+  expect_equal(fit$lambda, 300 / sum(t), tolerance = 1e-5)
+})
+
+test_that("interval-censored fits reject unsupported options", {
+  d <- simulate_interval_data(200)
+  d$type <- stats::rbinom(200, 1, 0.5)
+  expect_error(survivalSub(d, Surv(L, R, type = "interval2") ~ x1, type ~ x1, event_time = "T"),
+               "Competing risks")
+  expect_error(survivalSub(d, Surv(L, R, type = "interval2") ~ x1, NULL), "event_time")
+  expect_error(survivalSub(d, Surv(L, R, type = "interval2") ~ x1 + strata(x2), NULL, event_time = "T"),
+               "strata")
+})
+
+test_that("print, summary and plot work for an interval-censored fit", {
+  d <- simulate_interval_data(200)
+  fit <- survivalSub(d, Surv(L, R, type = "interval2") ~ x1 + x2, NULL, event_time = "T")
+  expect_output(print(fit), "interval-censored")
+  s <- utils::capture.output(out <- summary(fit))
+  expect_true(any(grepl("Baseline hazard by piece", s)))
+  expect_equal(rownames(out$ic_coefficients), c("x1", "x2"))
+  expect_s3_class(plot(fit), "ggplot")
+  expect_s3_class(plot(fit, which = "basehaz"), "ggplot")
+})
+
+test_that("fitIntervalBJM imputes event times inside each interval and fits f(Y | T)", {
+  skip_on_cran()
+  set.seed(5)
+  n <- 80
+  x <- stats::rnorm(n)
+  T <- (-log(stats::runif(n)) / (0.05 * exp(0.5 * x)))^(1 / 1.5)
+  surv <- data.frame(id = seq_len(n), x = x, L = NA_real_, R = NA_real_)
+  long <- list()
+  for (i in seq_len(n)) {
+    v <- c(0, cumsum(stats::runif(30, 1, 3)))
+    v <- v[v < 12]
+    if (T[i] > max(v)) {
+      surv$L[i] <- max(v)
+      obs <- v
+    } else {
+      k <- findInterval(T[i], v)
+      surv$L[i] <- v[k]
+      surv$R[i] <- v[k + 1]
+      obs <- v[v <= T[i]]
+    }
+    y <- 1 + 0.3 * obs - 0.2 * T[i] + 0.4 * x[i] + stats::rnorm(1, 0, 0.5) + stats::rnorm(length(obs), 0, 0.3)
+    long[[i]] <- data.frame(id = i, year = obs, x = x[i], y = y)
+  }
+  long <- do.call(rbind, long)
+
+  # 80 subjects is too few for the Sigma_fit EM to meet its tolerance
+  fit <- suppressWarnings(fitIntervalBJM(surv, long, Surv(L, R, type = "interval2") ~ x, "Tev",
+                        y ~ year + Tev + x, ~ year | id, "year",
+                        survival_variable_all = list("Tev_1"),
+                        survival_trans_function = list(function(t) abs(t - 1)),
+                        n_burnin = 2, n_imputations = 2, n_grid = 15, seed = 1))
+
+  expect_s3_class(fit, "fitIntervalBJM")
+  observed <- surv[!is.na(surv$R), ]
+  expect_equal(rownames(fit$imputed_T), as.character(observed$id))
+  inside <- fit$imputed_T > observed$L & fit$imputed_T <= observed$R
+  expect_true(all(inside))
+  expect_length(fit$long_fit_all_list, 2)
+  expect_s3_class(fit$pooled, "poolLongitudinalSub.BJM")
+  expect_equal(nrow(fit$trace), 4)
+  expect_true("Tev" %in% names(nlme::fixef(fit$long_fit_all$lfit[[1]])))
+
+  # the fit plugs into the existing prediction functions
+  hist <- long[long$id == observed$id[1] & long$year <= 2, ]
+  hist$Tev <- NA_real_
+  risk <- predictRisk(list(hist), fit$long_fit_all, fit$survival_fit_all,
+                      prediction_time = 2, horizon = 2, time_variable = "year",
+                      survival_variable_all = list("Tev_1"),
+                      survival_trans_function = list(function(t) abs(t - 1)),
+                      bandcount1 = 10, bandcount2 = 20)
+  expect_true(risk$risk_prob_1 > 0 && risk$risk_prob_1 < 1)
+
+  # the seed makes the chain reproducible
+  fit2 <- suppressWarnings(fitIntervalBJM(surv, long, Surv(L, R, type = "interval2") ~ x, "Tev",
+                         y ~ year + Tev + x, ~ year | id, "year",
+                         survival_variable_all = list("Tev_1"),
+                         survival_trans_function = list(function(t) abs(t - 1)),
+                         n_burnin = 2, n_imputations = 2, n_grid = 15, seed = 1))
+  expect_identical(fit2$imputed_T, fit$imputed_T)
+})

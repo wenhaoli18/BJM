@@ -28,7 +28,9 @@
 #'   risks).
 #' @return An object of class \code{"survivalSub.BJM"}, a named list with elements:
 #' \describe{
-#'   \item{coxph_fit}{The fitted \code{\link[survival]{coxph}} marginal survival model.}
+#'   \item{coxph_fit}{The fitted \code{\link[survival]{coxph}} marginal survival model
+#'   (\code{ic_fit}, an interval-censored PH fit, in its place for an
+#'   interval-censored outcome).}
 #'   \item{form_marginal_surv}{The \code{form_marginal_surv} formula, as supplied.}
 #'   \item{glm_fit}{The fitted \code{\link[stats]{glm}} competing-risks (event type) model,
 #'   or \code{NULL} if \code{form_conditional_cr} was not supplied.}
@@ -48,7 +50,8 @@
 #'                                form_conditional_cr)
 #' 
 #' @export
-survivalSub = function(data_survival_fitting, form_marginal_surv, form_conditional_cr){
+survivalSub = function(data_survival_fitting, form_marginal_surv, form_conditional_cr,
+                       event_time = NULL, n_pieces = 6){
 
   assert_data_frame(data_survival_fitting, "data_survival_fitting")
   if (!inherits(form_marginal_surv, "formula")) {
@@ -56,6 +59,10 @@ survivalSub = function(data_survival_fitting, form_marginal_surv, form_condition
   }
   assert_vars_in_data(all.vars(form_marginal_surv), data_survival_fitting,
                        "form_marginal_surv", "data_survival_fitting")
+  if (is_interval_surv(form_marginal_surv, data_survival_fitting)) {
+    return(survivalSubInterval(data_survival_fitting, form_marginal_surv, form_conditional_cr,
+                               event_time, n_pieces))
+  }
   if (length(form_conditional_cr) != 0) {
     if (!inherits(form_conditional_cr, "formula")) {
       stop("`form_conditional_cr` must be a formula or NULL.", call. = FALSE)
@@ -90,4 +97,30 @@ survivalSub = function(data_survival_fitting, form_marginal_surv, form_condition
               glm_fit = glm_fit, form_conditional_cr = form_conditional_cr)
   class(out) <- "survivalSub.BJM"
   return(out)
+}
+
+#' Is the outcome of a survival formula interval-censored?
+#' @keywords internal
+is_interval_surv <- function(form_marginal_surv, data) {
+  y <- eval(form_marginal_surv[[2]], data, environment(form_marginal_surv))
+  inherits(y, "Surv") && attr(y, "type") %in% c("interval", "interval2")
+}
+
+#' Interval-censored branch of \code{survivalSub()}
+#' @keywords internal
+survivalSubInterval <- function(data_survival_fitting, form_marginal_surv, form_conditional_cr,
+                                event_time, n_pieces) {
+  if (length(form_conditional_cr) != 0) {
+    stop("Competing risks are not yet supported with an interval-censored outcome; set form_conditional_cr = NULL.",
+         call. = FALSE)
+  }
+  assert_string(event_time, "event_time")
+  if (!is.numeric(n_pieces) || length(n_pieces) != 1 || n_pieces < 1 || n_pieces != round(n_pieces)) {
+    stop("`n_pieces` must be a single positive whole number.", call. = FALSE)
+  }
+  ic_fit <- icphFit(form_marginal_surv, data_survival_fitting, event_time, n_pieces)
+  out <- list(ic_fit = ic_fit, form_marginal_surv = form_marginal_surv,
+              glm_fit = NULL, form_conditional_cr = NULL)
+  class(out) <- "survivalSub.BJM"
+  out
 }

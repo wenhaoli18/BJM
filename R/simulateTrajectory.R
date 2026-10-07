@@ -223,7 +223,7 @@ simulateTrajectory <- function(data_predict_all, long_fit_all, survival_fit_all,
   lfit <- long_fit_all$lfit
   Sigma <- long_fit_all$Sigma_fit
   id <- as.character(nlme::splitFormula(long_fit_all$long_sub_random[[1]], "|")[[2]])[2]
-  survival_variable <- as.character(formula(survival_fit_all$coxph_fit)[[2]])[2]
+  survival_variable <- survival_time_variable(survival_fit_all)
   has_cr <- length(survival_fit_all$form_conditional_cr) != 0
   event_type_variable <- if (has_cr) all.vars(survival_fit_all$form_conditional_cr[[2]]) else NULL
 
@@ -238,8 +238,7 @@ simulateTrajectory <- function(data_predict_all, long_fit_all, survival_fit_all,
   patient_ids <- prediction_patient_ids(data_predict_all, long_fit_all)
 
   if (is.null(max_event_time)) {
-    surv_y <- survival_fit_all$coxph_fit$y
-    max_event_time <- max(surv_y[, ncol(surv_y) - 1])
+    max_event_time <- survival_max_followup(survival_fit_all)
   }
   if (max_event_time <= prediction_time) {
     stop(sprintf("`max_event_time` (%g) must be later than prediction_time = %g.", max_event_time, prediction_time),

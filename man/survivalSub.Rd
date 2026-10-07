@@ -4,7 +4,13 @@
 \alias{survivalSub}
 \title{Fit the survival sub-model}
 \usage{
-survivalSub(data_survival_fitting, form_marginal_surv, form_conditional_cr)
+survivalSub(
+  data_survival_fitting,
+  form_marginal_surv,
+  form_conditional_cr,
+  event_time = NULL,
+  n_pieces = 6
+)
 }
 \arguments{
 \item{data_survival_fitting}{One row per subject, containing the
@@ -25,7 +31,9 @@ risks).}
 \value{
 An object of class \code{"survivalSub.BJM"}, a named list with elements:
 \describe{
-\item{coxph_fit}{The fitted \code{\link[survival]{coxph}} marginal survival model.}
+\item{coxph_fit}{The fitted \code{\link[survival]{coxph}} marginal survival model
+(\code{ic_fit}, an interval-censored PH fit, in its place for an
+interval-censored outcome).}
 \item{form_marginal_surv}{The \code{form_marginal_surv} formula, as supplied.}
 \item{glm_fit}{The fitted \code{\link[stats]{glm}} competing-risks (event type) model,
 or \code{NULL} if \code{form_conditional_cr} was not supplied.}
