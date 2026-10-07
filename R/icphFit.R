@@ -135,6 +135,7 @@ icphFit <- function(formula, data, event_time, baseline = c("spline", "piecewise
               gamma = gamma, base = base,
               loglik = -opt$value, n = nrow(X), n_exact = sum(exact),
               n_interval = sum(fin), n_right = sum(!is.finite(R)),
+              n_before_first_visit = sum(fin & L == 0),
               terms = terms_rhs, xlevels = stats::.getXlevels(stats::terms(mf), mf),
               contrasts = contrasts, cum_basehaz = cum_basehaz,
               max_followup = max_followup, event_time = event_time,

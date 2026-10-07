@@ -139,6 +139,9 @@ icph_coef_table <- function(ic_fit) {
   cat(sprintf("  Interval-censored         : %d\n", ic$n_interval))
   cat(sprintf("  Exactly observed          : %d\n", ic$n_exact))
   cat(sprintf("  Right-censored            : %d\n", ic$n_right))
+  n_events <- ic$n_interval + ic$n_exact
+  cat(sprintf("  Events before first visit : %d (%.0f%% of events)\n", ic$n_before_first_visit,
+              if (n_events > 0) 100 * ic$n_before_first_visit / n_events else 0))
 
   cat("\n", sep_line, "\n", sep = "")
   cat(sprintf(" Marginal Survival Sub-model  [PH, %s baseline, interval-censored]\n",

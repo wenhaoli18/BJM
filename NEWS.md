@@ -44,7 +44,10 @@
   risks, `strata()`, and `performancePlot()`/`calibrationPlot()` are not
   yet supported for interval-censored fits, and prediction still
   conditions on being event-free at `prediction_time` rather than at the
-  last negative visit. Right-censored fits are unaffected: every prediction
+  last negative visit. `print()` of an interval-censored fit reports how
+  many events fell before the subject's first visit, where the baseline
+  hazard is extrapolated rather than estimated (see `?survivalSub`).
+  Right-censored fits are unaffected: every prediction
   helper now reads the survival model through internal accessors, and a new
   reference test checks their output is unchanged to 1e-12.
 
