@@ -101,7 +101,17 @@
 #'   of dynamically predicted probabilities, one per at-risk patient, of experiencing the
 #'   competing event within the prediction horizon, named by patient id (all \code{0} when
 #'   \code{horizon = 0}). \code{NULL} when there is no competing risk.}
+#'   \item{prob_undetected}{Only for an interval-censored \code{survival_fit_all}
+#'   (see below): the probability that the event already happened between the
+#'   patient's last visit and \code{prediction_time}, undetected.}
 #' }
+#' \strong{Interval-censored fits.} An event is then only detected at a visit,
+#' so at \code{prediction_time} \eqn{s} a patient is known to be event-free
+#' only up to their last visit \eqn{V} (the last time in their history up to
+#' \eqn{s}). \code{risk_prob_1} is then
+#' \eqn{P(s < T \le s + horizon \mid T > V, history)} and
+#' \code{prob_undetected} is \eqn{P(V < T \le s \mid T > V, history)}; with
+#' \eqn{V = s} they reduce to the usual conditioning on \eqn{T > s}.
 #' Only patients still at risk at \code{prediction_time} are predicted: a patient whose
 #' recorded survival time is before \code{prediction_time} is left out (one with a missing
 #' survival time is kept). The names show which patients each value belongs to.
@@ -352,16 +362,42 @@ predictRisk = function(data_predict_all, long_fit_all, survival_fit_all,
     ### 0, which, being absolute, swamped the denominator whenever the
     ### densities were small (biomarkers on a large scale or many
     ### observations) and drove the risk towards 0.
-    shift = patient_log_shift(f_y_D_all_predict[[1]], f_y_D_all_infinity[[1]])
-    T.surv.predict.0 = t(exp_shifted(f_y_D_all_predict[[1]], shift) * S_T_all_predict)
-    T.surv.infinity.0 = t(exp_shifted(f_y_D_all_infinity[[1]], shift) * S_T_all_infinity)
+    ### interval-censored fits: the patient is only known to be event-free
+    ### up to their last visit V <= prediction_time, so the denominator also
+    ### covers (V, prediction_time], and the mass there is the probability
+    ### that the event has already happened undetected (see
+    ### interval_gap_grid(); NULL, leaving the code below as it was, for a
+    ### right-censored fit)
+    gap = interval_gap_grid(data_predict_all, long_fit_all, survival_fit_all,
+                            prediction_time, time_variable, bandcount1)
+    if (is.null(gap)) {
+      shift = patient_log_shift(f_y_D_all_predict[[1]], f_y_D_all_infinity[[1]])
+      T.surv.predict.0 = t(exp_shifted(f_y_D_all_predict[[1]], shift) * S_T_all_predict)
+      T.surv.infinity.0 = t(exp_shifted(f_y_D_all_infinity[[1]], shift) * S_T_all_infinity)
 
-    risk.prob.0 = clamp_risk_prob(rowSums(T.surv.predict.0), rowSums(T.surv.infinity.0))
+      risk.prob.0 = clamp_risk_prob(rowSums(T.surv.predict.0), rowSums(T.surv.infinity.0))
+      if (is_interval_censored(survival_fit_all)) prob.undetected = rep(0, length(risk.prob.0))
+    } else {
+      f_y_gap = gap$eval(function(d, l) conditionalYT_fun(d, long_fit_all, l_i = l, survival_variable,
+                                                          time_variable, survival_variable_all,
+                                                          survival_trans_function)[[1]])
+      shift = patient_log_shift(f_y_D_all_predict[[1]], f_y_D_all_infinity[[1]], f_y_gap)
+      T.surv.predict.0 = t(exp_shifted(f_y_D_all_predict[[1]], shift) * S_T_all_predict)
+      T.surv.infinity.0 = t(exp_shifted(f_y_D_all_infinity[[1]], shift) * S_T_all_infinity)
+      T.surv.gap = t(exp_shifted(f_y_gap, shift) * gap$S)
+      denominator = rowSums(T.surv.infinity.0) + rowSums(T.surv.gap)
+
+      risk.prob.0 = clamp_risk_prob(rowSums(T.surv.predict.0), denominator)
+      prob.undetected = clamp_risk_prob(rowSums(T.surv.gap), denominator)
+    }
   }
   
   names(risk.prob.0) <- patient_ids
   if (!is.null(risk.prob.1)) names(risk.prob.1) <- patient_ids
   out <- list(risk_prob_1 = risk.prob.0, risk_prob_2 = risk.prob.1)
+  if (is_interval_censored(survival_fit_all)) {
+    out$prob_undetected <- stats::setNames(prob.undetected, patient_ids)
+  }
   class(out) <- "predictRisk.BJM"
   return(out)
 }

@@ -42,9 +42,13 @@
   `survival_fit_all` and `long_fit_all` plug into `predictRisk()`,
   `predictLongitudinal()` and `simulateTrajectory()` unchanged. Competing
   risks, `strata()`, and `performancePlot()`/`calibrationPlot()` are not
-  yet supported for interval-censored fits, and prediction still
-  conditions on being event-free at `prediction_time` rather than at the
-  last negative visit. `print()` of an interval-censored fit reports how
+  yet supported for interval-censored fits. Because an event is only
+  detected at a visit, `predictRisk()` and `predictLongitudinal()`
+  condition an interval-censored prediction on being event-free at each
+  patient's last visit rather than at `prediction_time`, and
+  `predictRisk()` also returns `prob_undetected`, the probability that the
+  event already happened in between; `simulateTrajectory()` requires
+  `prediction_time` to be the last visit. `print()` of an interval-censored fit reports how
   many events fell before the subject's first visit, where the baseline
   hazard is extrapolated rather than estimated (see `?survivalSub`).
   Right-censored fits are unaffected: every prediction
