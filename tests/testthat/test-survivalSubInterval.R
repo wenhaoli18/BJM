@@ -103,6 +103,10 @@ test_that("print, summary and plot work for an interval-censored fit", {
   d <- simulate_interval_data(200)
   fit <- survivalSub(d, Surv(L, R, type = "interval2") ~ x1 + x2, NULL, event_time = "T")
   expect_output(print(fit), "interval-censored")
+  before <- sum(!is.na(d$R) & d$L == 0)
+  expect_equal(fit$ic_fit$n_before_first_visit, before)
+  expect_output(print(fit), sprintf("Events before first visit : %d \\(%.0f%% of events\\)",
+                                    before, 100 * before / sum(!is.na(d$R))))
   s <- utils::capture.output(out <- summary(fit))
   expect_true(any(grepl("Spline knots", s)))
   pw <- survivalSub(d, Surv(L, R, type = "interval2") ~ x1 + x2, NULL, event_time = "T", baseline = "piecewise")
