@@ -168,6 +168,16 @@ test_that("fitIntervalBJM imputes event times inside each interval and fits f(Y 
                       bandcount1 = 10, bandcount2 = 20)
   expect_true(risk$risk_prob_1 > 0 && risk$risk_prob_1 < 1)
 
+  # several draws per subject, all inside the subject's interval
+  bounds <- subject_intervals(surv, Surv(L, R, type = "interval2") ~ x, "id")
+  bounds <- bounds[is.finite(bounds$R), ]
+  long_filled <- fill_event_time(list(long[long$id %in% bounds$id, ]), "id", fit$imputed_T[, 1], "Tev",
+                                 list("Tev_1"), list(function(t) abs(t - 1)))
+  draws <- imputeEventTime(long_filled, fit$long_fit_all, fit$survival_fit_all, bounds, "year",
+                           list("Tev_1"), list(function(t) abs(t - 1)), n_grid = 15, n_draws = 4)
+  expect_equal(dim(draws), c(nrow(bounds), 4))
+  expect_true(all(draws > bounds$L & draws <= bounds$R))
+
   # the seed makes the chain reproducible
   fit2 <- suppressWarnings(fitIntervalBJM(surv, long, Surv(L, R, type = "interval2") ~ x, "Tev",
                          y ~ year + Tev + x, ~ year | id, "year",
