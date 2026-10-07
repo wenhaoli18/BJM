@@ -95,8 +95,6 @@ test_that("interval-censored fits reject unsupported options", {
                "Competing risks")
   expect_error(survivalSub(d, Surv(L, R, type = "interval2") ~ x1, NULL), "event_time")
   expect_error(survivalSub(d, Surv(L, R, type = "interval2") ~ x1, NULL, event_time = "T", df = 0), "df")
-  expect_error(survivalSub(d, Surv(L, R, type = "interval2") ~ x1 + strata(x2), NULL, event_time = "T"),
-               "strata")
 })
 
 test_that("print, summary and plot work for an interval-censored fit", {
@@ -296,4 +294,58 @@ test_that("interval-censored predictions condition on being event-free at the la
   expect_no_error(simulateTrajectory(list(one), fit$long_fit_all, fit$survival_fit_all,
                                      last_visit[[1]], last_visit[[1]] + 1, "year",
                                      NULL, NULL, n_sim = 5, bandcount2 = 20, seed = 1))
+})
+
+test_that("strata() gives each stratum its own baseline with shared coefficients", {
+  # two strata with different Weibull baselines, a common effect of x1
+  set.seed(11)
+  n <- 1200
+  x1 <- stats::rnorm(n)
+  g <- stats::rbinom(n, 1, 0.5)
+  T <- ifelse(g == 1,
+              (-log(stats::runif(n)) / (0.1 * exp(0.5 * x1)))^(1 / 1.5),
+              (-log(stats::runif(n)) / (0.2 * exp(0.5 * x1)))^(1 / 0.8))
+  L <- R <- numeric(n)
+  for (i in seq_len(n)) {
+    v <- c(0, cumsum(stats::runif(20, 0.5, 1.5)))
+    v <- v[v < stats::runif(1, 2, 12)]
+    if (T[i] > max(v)) {
+      L[i] <- max(v)
+      R[i] <- NA
+    } else {
+      k <- findInterval(T[i], v)
+      L[i] <- v[k]
+      R[i] <- v[k + 1]
+    }
+  }
+  d <- data.frame(id = seq_len(n), x1 = x1, g = g, L = L, R = R)
+  fit <- survivalSub(d, Surv(L, R, type = "interval2") ~ x1 + strata(g), NULL, event_time = "T")
+  ic <- fit$ic_fit
+
+  expect_named(ic$coefficients, "x1")
+  expect_equal(unname(ic$coefficients), 0.5, tolerance = 0.2)
+  expect_equal(ic$strata_levels, c("g=0", "g=1"))
+  bh <- survival_cum_basehaz(fit)
+  expect_named(bh, c("hazard", "time", "strata"))
+  expect_setequal(unique(bh$strata), c("g=0", "g=1"))
+  tt <- c(1, 3, 6)
+  H0 <- function(s) cumulative_baseline_at(bh[bh$strata == s, c("hazard", "time")], tt)
+  expect_equal(H0("g=1"), 0.1 * tt^1.5, tolerance = 0.3)
+  expect_equal(H0("g=0"), 0.2 * tt^0.8, tolerance = 0.3)
+
+  # prediction code reads each patient's own stratum
+  expect_equal(survival_patient_strata(fit, d[1:4, ]), paste0("g=", d$g[1:4]))
+  m <- marginalT(list(d[1:4, ]), list(long_sub_random = list(~ 1 | id)), fit, l_i = c(1, 2, 3))
+  for (j in 1:4) {
+    s <- paste0("g=", d$g[j])
+    S <- exp(-cumulative_baseline_at(bh[bh$strata == s, c("hazard", "time")], c(1, 2, 3)) *
+               exp(ic$coefficients * d$x1[j]))
+    expect_equal(m[, j], -diff(S))
+  }
+
+  # a stratum not seen in fitting is an error, as for a stratified Cox model
+  expect_error(marginalT(list(transform(d[1, ], g = 5)), list(long_sub_random = list(~ 1 | id)), fit,
+                         l_i = c(1, 2)), "Stratum")
+  expect_output(print(fit), "Strata            : g=0, g=1")
+  expect_true(any(grepl("Spline knots \\(time scale\\) \\[g=1\\]", utils::capture.output(summary(fit)))))
 })

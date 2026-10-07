@@ -14,8 +14,10 @@ icphFit(
 )
 }
 \arguments{
-\item{formula}{\code{Surv(L, R, type = "interval2") ~ covariates}.
-\code{strata()} terms are not supported.}
+\item{formula}{\code{Surv(L, R, type = "interval2") ~ covariates}. A
+\code{strata()} term gives each stratum its own baseline (spline knots
+or cut points from that stratum's interval endpoints), with the
+regression coefficients shared, as in a stratified Cox model.}
 
 \item{data}{One row per subject.}
 

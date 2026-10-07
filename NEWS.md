@@ -40,9 +40,10 @@
   prediction already evaluates -- and pools the resulting
   `longitudinalSub()` fits with `poolLongitudinalSub()`. Its
   `survival_fit_all` and `long_fit_all` plug into `predictRisk()`,
-  `predictLongitudinal()` and `simulateTrajectory()` unchanged. Competing
-  risks, `strata()`, and `performancePlot()`/`calibrationPlot()` are not
-  yet supported for interval-censored fits. Because an event is only
+  `predictLongitudinal()` and `simulateTrajectory()` unchanged. A `strata()`
+  term gives each stratum its own baseline hazard, as in a stratified Cox
+  model. Competing risks and `performancePlot()`/`calibrationPlot()` are
+  not yet supported for interval-censored fits. Because an event is only
   detected at a visit, `predictRisk()` and `predictLongitudinal()`
   condition an interval-censored prediction on being event-free at each
   patient's last visit rather than at `prediction_time`, and

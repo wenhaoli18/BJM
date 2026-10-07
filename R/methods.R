@@ -155,14 +155,24 @@ icph_coef_table <- function(ic_fit) {
                         signif.stars = getOption("show.signif.stars"), cs.ind = 1:3, tst.ind = 4)
   }
   cat(sprintf("\n  Log-likelihood    = %.2f\n", ic$loglik))
-  if (extended && ic$baseline == "spline") {
-    cat("  Spline knots (time scale):", paste(signif(ic$base$knot_times, digits), collapse = ", "), "\n")
+  if (!is.null(ic$strata_levels)) {
+    cat(sprintf("  Strata            : %s (separate baseline hazards)\n",
+                paste(ic$strata_levels, collapse = ", ")))
   }
-  if (extended && ic$baseline == "piecewise") {
-    finite_cuts <- ic$cuts[is.finite(ic$cuts)]
-    cat("  Baseline hazard by piece:\n")
-    print(data.frame(from = finite_cuts, to = c(finite_cuts[-1], Inf), hazard = signif(ic$lambda, digits)),
-          row.names = FALSE)
+  bases <- if (!is.null(ic$bases)) ic$bases else list(ic$base)
+  gammas <- if (!is.null(ic$gammas)) ic$gammas else list(ic$gamma)
+  for (h in seq_along(bases)) {
+    label <- if (is.null(ic$strata_levels)) "" else sprintf(" [%s]", ic$strata_levels[h])
+    if (extended && ic$baseline == "spline") {
+      cat(sprintf("  Spline knots (time scale)%s:", label),
+          paste(signif(bases[[h]]$knot_times, digits), collapse = ", "), "\n")
+    }
+    if (extended && ic$baseline == "piecewise") {
+      finite_cuts <- bases[[h]]$cuts[is.finite(bases[[h]]$cuts)]
+      cat(sprintf("  Baseline hazard by piece%s:\n", label))
+      print(data.frame(from = finite_cuts, to = c(finite_cuts[-1], Inf),
+                       hazard = signif(exp(gammas[[h]]), digits)), row.names = FALSE)
+    }
   }
   cat(sep_line, "\n\n", sep = "")
 }
