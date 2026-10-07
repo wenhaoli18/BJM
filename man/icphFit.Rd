@@ -4,7 +4,14 @@
 \alias{icphFit}
 \title{Proportional hazards model for interval-censored event times}
 \usage{
-icphFit(formula, data, event_time, baseline = c("spline", "piecewise"), df = 3)
+icphFit(
+  formula,
+  data,
+  event_time,
+  baseline = c("spline", "piecewise"),
+  df = 3,
+  lower_tail = c("spline", "weibull")
+)
 }
 \arguments{
 \item{formula}{\code{Surv(L, R, type = "interval2") ~ covariates}.
@@ -18,6 +25,17 @@ sub-model uses.}
 \item{baseline}{\code{"spline"} or \code{"piecewise"}.}
 
 \item{df}{Spline degrees of freedom, or number of pieces.}
+
+\item{lower_tail}{Spline only: how \eqn{\log H_0} is extrapolated before
+the earliest interval endpoint (the lower boundary knot), where it never
+enters the likelihood. \code{"spline"} (default) continues the spline's
+own linear tail; \code{"weibull"} uses the slope of the nested Weibull
+fit (\code{df = 1}) instead. In simulations where a third to a half of
+the events fell before the first visit, \code{"weibull"} made
+\code{fitIntervalBJM()}'s estimates less variable but biased them when
+the true early hazard was not Weibull-shaped (Gompertz), so it is kept
+only for sensitivity analysis: the shape there is not identified by
+interval-censored data, and every choice is an assumption.}
 }
 \value{
 An object of class \code{"icph.BJM"}.

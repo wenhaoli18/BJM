@@ -37,10 +37,22 @@
 #'   sub-model uses.
 #' @param baseline \code{"spline"} or \code{"piecewise"}.
 #' @param df Spline degrees of freedom, or number of pieces.
+#' @param lower_tail Spline only: how \eqn{\log H_0} is extrapolated before
+#'   the earliest interval endpoint (the lower boundary knot), where it never
+#'   enters the likelihood. \code{"spline"} (default) continues the spline's
+#'   own linear tail; \code{"weibull"} uses the slope of the nested Weibull
+#'   fit (\code{df = 1}) instead. In simulations where a third to a half of
+#'   the events fell before the first visit, \code{"weibull"} made
+#'   \code{fitIntervalBJM()}'s estimates less variable but biased them when
+#'   the true early hazard was not Weibull-shaped (Gompertz), so it is kept
+#'   only for sensitivity analysis: the shape there is not identified by
+#'   interval-censored data, and every choice is an assumption.
 #' @return An object of class \code{"icph.BJM"}.
 #' @keywords internal
-icphFit <- function(formula, data, event_time, baseline = c("spline", "piecewise"), df = 3) {
+icphFit <- function(formula, data, event_time, baseline = c("spline", "piecewise"), df = 3,
+                    lower_tail = c("spline", "weibull")) {
   baseline <- match.arg(baseline)
+  lower_tail <- match.arg(lower_tail)
   if (length(survival::untangle.specials(stats::terms(formula, specials = "strata"), "strata")$vars) > 0) {
     stop("strata() terms are not supported for an interval-censored survival sub-model.", call. = FALSE)
   }
@@ -90,6 +102,9 @@ icphFit <- function(formula, data, event_time, baseline = c("spline", "piecewise
     # region and stopped at a nonsensical baseline.
     weibull <- icphFit(formula, data, event_time, "spline", 1)
     start <- c(weibull$gamma, rep(0, df - 1), weibull$coefficients)
+    if (lower_tail == "weibull") {
+      base <- rp_baseline(endpoints, df, tail_slope = weibull$gamma[2] / weibull$base$scale[1])
+    }
   }
   opt <- stats::optim(start, negloglik, method = "BFGS", hessian = TRUE,
                       control = list(maxit = 2000, reltol = 1e-12))
@@ -150,7 +165,7 @@ NULL
 #'   \eqn{\log t}. Parameters: intercept, then one per basis column; the
 #'   basis columns are scaled by their standard deviation over
 #'   \code{endpoints} so the optimizer sees comparable scales.
-rp_baseline <- function(endpoints, df) {
+rp_baseline <- function(endpoints, df, tail_slope = NULL) {
   x <- log(endpoints)
   knots <- c(min(x), if (df > 1) stats::quantile(x, seq_len(df - 1) / df, names = FALSE), max(x))
   scale <- apply(rp_basis(x, knots), 2, stats::sd)
@@ -160,6 +175,13 @@ rp_baseline <- function(endpoints, df) {
     pos <- t > 0 & is.finite(t)
     B <- sweep(rp_basis(log(t[pos]), knots), 2, scale, "/")
     out[pos] <- g[1] + c(B %*% g[-1])
+    if (!is.null(tail_slope)) {
+      below <- pos & log(pmax(t, 1e-300)) < knots[1]
+      if (any(below)) {
+        s_kmin <- g[1] + c(sweep(rp_basis(knots[1], knots), 2, scale, "/") %*% g[-1])
+        out[below] <- s_kmin + tail_slope * (log(t[below]) - knots[1])
+      }
+    }
     out[is.infinite(t) & t > 0] <- Inf
     out
   }
@@ -170,9 +192,9 @@ rp_baseline <- function(endpoints, df) {
     loghaz = function(t, g) {
       dB <- sweep(rp_basis(log(t), knots, deriv = TRUE), 2, scale, "/")
       slope <- c(dB %*% g[-1])
+      if (!is.null(tail_slope)) slope[log(t) < knots[1]] <- tail_slope
       ifelse(slope > 0, s_fun(t, g) + log(pmax(slope, 1e-300)) - log(t), -Inf)
     },
-    # H0(t) = rate0 * t: log H0 = log(rate0) + log t, i.e. a unit slope on log t
     # the spline is linear in log t outside the boundary knots, so H0 is
     # increasing everywhere iff its slope is positive between them. The
     # likelihood alone does not enforce this before the first visit, where
@@ -182,6 +204,7 @@ rp_baseline <- function(endpoints, df) {
       xs <- seq(knots[1], knots[length(knots)], length.out = 101)
       all(sweep(rp_basis(xs, knots, deriv = TRUE), 2, scale, "/") %*% g[-1] > 0)
     },
+    # H0(t) = rate0 * t: log H0 = log(rate0) + log t, i.e. a unit slope on log t
     start = function(rate0) c(log(rate0), scale[1], rep(0, df - 1)),
     knot_times = exp(knots)
   )
