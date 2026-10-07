@@ -165,11 +165,14 @@ fitIntervalBJM <- function(data_survival, data_fit_all, form_marginal_surv, even
 #' @param time_variable,survival_variable_all,survival_trans_function As in
 #'   \code{predictRisk()}.
 #' @param n_grid Grid intervals per subject.
-#' @return A named numeric vector of draws, one per row of \code{bounds}.
+#' @param n_draws Independent draws per subject (the weights are computed
+#'   once and reused).
+#' @return A named numeric vector of draws, one per row of \code{bounds};
+#'   with \code{n_draws > 1}, a matrix with one column per draw.
 #' @keywords internal
 imputeEventTime <- function(data_fit_all, long_fit_all, survival_fit_all, bounds, time_variable,
                             survival_variable_all = NULL, survival_trans_function = NULL,
-                            n_grid = 40) {
+                            n_grid = 40, n_draws = 1) {
   id <- as.character(nlme::splitFormula(long_fit_all$long_sub_random[[1]], "|")[[2]])[2]
   survival_variable <- survival_time_variable(survival_fit_all)
   use_copula <- !is.null(long_fit_all$biomarker_type) && any(long_fit_all$biomarker_type == "ordinal")
@@ -178,19 +181,19 @@ imputeEventTime <- function(data_fit_all, long_fit_all, survival_fit_all, bounds
   data_fit_all <- align_ordinal_levels(data_fit_all, long_fit_all)
   data_fit_all <- suppressWarnings(drop_missing_longitudinal(data_fit_all, long_fit_all, survival_variable,
                                                              survival_variable_all))
-  out <- stats::setNames(numeric(nrow(bounds)), bounds$id)
+  out <- matrix(NA_real_, nrow(bounds), n_draws, dimnames = list(bounds$id, NULL))
   for (j in seq_len(nrow(bounds))) {
     L <- bounds$L[j]
     R <- bounds$R[j]
     if (is.finite(R) && R <= L) {
-      out[j] <- L
+      out[j, ] <- L
       next
     }
     data_j <- lapply(data_fit_all, function(d) d[as.character(d[[id]]) == bounds$id[j], , drop = FALSE])
     has_rows <- vapply(data_j, nrow, integer(1)) > 0
     if (!any(has_rows)) {
       # nothing usable at all (not even covariates): uniform on the interval
-      out[j] <- if (is.finite(R)) stats::runif(1, L, R) else L
+      out[j, ] <- if (is.finite(R)) stats::runif(n_draws, L, R) else L
       next
     }
     # a biomarker without usable rows: f(Y | T) is left out, so T is drawn
@@ -212,10 +215,14 @@ imputeEventTime <- function(data_fit_all, long_fit_all, survival_fit_all, bounds
     } else rep(0, length(mids))
     w <- exp(log_f - max(log_f[is.finite(log_f)])) * pmax(mass, 0)
     w[!is.finite(w)] <- 0
-    k <- if (sum(w) > 0) sample.int(length(w), 1, prob = w) else sample.int(length(w), 1)
-    out[j] <- stats::runif(1, edges[k], edges[k + 1])
+    k <- if (sum(w) > 0) {
+      sample.int(length(w), n_draws, replace = TRUE, prob = w)
+    } else {
+      sample.int(length(w), n_draws, replace = TRUE)
+    }
+    out[j, ] <- stats::runif(n_draws, edges[k], edges[k + 1])
   }
-  out
+  if (n_draws == 1) stats::setNames(out[, 1], bounds$id) else out
 }
 
 #' Interval endpoints per subject

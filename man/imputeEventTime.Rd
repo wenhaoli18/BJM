@@ -12,7 +12,8 @@ imputeEventTime(
   time_variable,
   survival_variable_all = NULL,
   survival_trans_function = NULL,
-  n_grid = 40
+  n_grid = 40,
+  n_draws = 1
 )
 }
 \arguments{
@@ -28,9 +29,13 @@ imputeEventTime(
 \code{predictRisk()}.}
 
 \item{n_grid}{Grid intervals per subject.}
+
+\item{n_draws}{Independent draws per subject (the weights are computed
+once and reused).}
 }
 \value{
-A named numeric vector of draws, one per row of \code{bounds}.
+A named numeric vector of draws, one per row of \code{bounds};
+with \code{n_draws > 1}, a matrix with one column per draw.
 }
 \description{
 \strong{Experimental.} One draw of each subject's event time
