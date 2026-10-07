@@ -97,8 +97,7 @@ dynamicPredictionBioAll <- function(bio_i = NULL, data_predict_all, long_fit_all
                                                outcome_variables(survival_fit_all),
                                                survival_variable_all)
 
-  coxph_fit = survival_fit_all$coxph_fit
-  survival_variable = as.character(formula(coxph_fit)[[2]])[2]
+  survival_variable = survival_time_variable(survival_fit_all)
   for (i in seq_along(data_predict_all)) {
     assert_vars_in_data(time_variable, data_predict_all[[i]],
                          "time_variable", sprintf("data_predict_all[[%d]]", i))

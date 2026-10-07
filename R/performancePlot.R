@@ -132,6 +132,10 @@ landmark_predictions <- function(data_predict_all, long_fit_all, survival_fit_al
                                  bandcount1, bandcount2) {
   assert_class(long_fit_all, "longitudinalSub.BJM", "long_fit_all", "longitudinalSub")
   assert_class(survival_fit_all, "survivalSub.BJM", "survival_fit_all", "survivalSub")
+  if (is_interval_censored(survival_fit_all)) {
+    stop("Performance measures are not yet available for an interval-censored survival sub-model.",
+         call. = FALSE)
+  }
   assert_data_list(data_predict_all, "data_predict_all", length(long_fit_all$lfit), allow_bare_df = TRUE)
   if (!is.list(data_predict_all) || is.data.frame(data_predict_all)) {
     data_predict_all <- rep(list(data_predict_all), each = length(long_fit_all$lfit))

@@ -157,7 +157,7 @@ plot.survivalSub.BJM <- function(x, which = c("forest", "basehaz"), ...) {
   which <- match.arg(which)
 
   if (which == "basehaz") {
-    bh <- basehaz(x$coxph_fit, centered = FALSE)
+    bh <- survival_cum_basehaz(x)
     bh <- rbind(if (is.null(bh$strata)) data.frame(time = 0, hazard = 0) else
                   data.frame(time = 0, hazard = 0, strata = unique(bh$strata)),
                 bh[, intersect(c("time", "hazard", "strata"), names(bh)), drop = FALSE])
@@ -170,7 +170,12 @@ plot.survivalSub.BJM <- function(x, which = c("forest", "basehaz"), ...) {
              ylab("Baseline cumulative hazard") + theme_bw())
   }
 
-  ci <- summary(x$coxph_fit)$conf.int
+  ci <- if (is_interval_censored(x)) {
+    b <- x$ic_fit$coefficients
+    se <- sqrt(diag(x$ic_fit$var))
+    cbind(`exp(coef)` = exp(b), `lower .95` = exp(b - stats::qnorm(0.975) * se),
+          `upper .95` = exp(b + stats::qnorm(0.975) * se))
+  } else summary(x$coxph_fit)$conf.int
   est <- data.frame(model = "Survival model: hazard ratio", term = rownames(ci),
                     estimate = ci[, "exp(coef)"], lower = ci[, "lower .95"], upper = ci[, "upper .95"])
   if (!is.null(x$glm_fit)) {

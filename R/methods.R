@@ -1,5 +1,6 @@
 # -- Internal formatting helper (not exported) ----------------------------------
 .format_survivalSub <- function(x, digits = 4, extended = FALSE) {
+  if (is_interval_censored(x)) return(.format_survivalSub_ic(x, digits, extended))
 
   sep_line  <- paste(rep("=", 65), collapse = "")
   dash_line <- paste(rep("-", 65), collapse = "")
@@ -116,6 +117,50 @@
 }
 
 
+# -- Interval-censored survival sub-model (not exported) -------------------------
+icph_coef_table <- function(ic_fit) {
+  b <- ic_fit$coefficients
+  se <- sqrt(diag(ic_fit$var))
+  z <- b / se
+  cbind(Coef = b, `exp(Coef)` = exp(b), SE = se, z = z,
+        `p-value` = 2 * stats::pnorm(-abs(z)))
+}
+
+.format_survivalSub_ic <- function(x, digits = 4, extended = FALSE) {
+  sep_line  <- paste(rep("=", 65), collapse = "")
+  dash_line <- paste(rep("-", 65), collapse = "")
+  ic <- x$ic_fit
+
+  cat("\nCall:\n")
+  cat(sprintf("survivalSub(form_marginal_surv = %s,\n            event_time = \"%s\")\n",
+              deparse(x$form_marginal_surv, width.cutoff = 50L), ic$event_time))
+  cat("\nData Descriptives:\n")
+  cat(sprintf("  Number of subjects        : %d\n", ic$n))
+  cat(sprintf("  Interval-censored         : %d\n", ic$n_interval))
+  cat(sprintf("  Exactly observed          : %d\n", ic$n_exact))
+  cat(sprintf("  Right-censored            : %d\n", ic$n_right))
+
+  cat("\n", sep_line, "\n", sep = "")
+  cat(" Marginal Survival Sub-model  [PH, piecewise-constant hazard, interval-censored]\n")
+  cat(dash_line, "\n", sep = "")
+  cat(" Formula: ")
+  print(x$form_marginal_surv)
+  cat("\n")
+  if (length(ic$coefficients) > 0) {
+    stats::printCoefmat(icph_coef_table(ic), digits = digits, P.values = TRUE, has.Pvalue = TRUE,
+                        signif.stars = getOption("show.signif.stars"), cs.ind = 1:3, tst.ind = 4)
+  }
+  cat(sprintf("\n  Log-likelihood    = %.2f  (%d hazard pieces)\n", ic$loglik, length(ic$lambda)))
+  if (extended) {
+    finite_cuts <- ic$cuts[is.finite(ic$cuts)]
+    cat("  Baseline hazard by piece:\n")
+    print(data.frame(from = finite_cuts, to = c(finite_cuts[-1], Inf), hazard = signif(ic$lambda, digits)),
+          row.names = FALSE)
+  }
+  cat(sep_line, "\n\n", sep = "")
+}
+
+
 #' Print method for \code{survivalSub.BJM} objects
 #'
 #' Automatically called when you type \code{survival_fit_all} or
@@ -173,9 +218,10 @@ summary.survivalSub.BJM <- function(object, digits = 4, ...) {
   .format_survivalSub(object, digits = digits, extended = TRUE)
 
   out <- list(
-    cox_summary = summary(object$coxph_fit),
+    cox_summary = if (!is_interval_censored(object)) summary(object$coxph_fit),
     glm_summary = if (!is.null(object$glm_fit)) summary(object$glm_fit) else NULL
   )
+  if (is_interval_censored(object)) out$ic_coefficients <- icph_coef_table(object$ic_fit)
   class(out) <- "summary.survivalSub.BJM"
   invisible(out)
 }

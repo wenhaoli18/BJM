@@ -14,6 +14,9 @@
 #   source("tests/testthat/helper-rightcensor-reference.R")
 #   saveRDS(right_censor_reference_outputs(),
 #           "tests/testthat/testdata/baseline_rightcensor.rds")
+#
+# Printed output is normalized (normalize_printed()) so it does not depend
+# on the formula's environment address or on useFancyQuotes.
 right_censor_reference_outputs <- function() {
   data(pbc3, envir = environment())
   surv_data <- pbc3[!duplicated(pbc3$id), ]
@@ -69,8 +72,13 @@ right_censor_reference_outputs <- function() {
                                 prediction_time = 5, times = c(5.5, 6, 7), time_variable = "year",
                                 survival_variable_all, survival_trans_function,
                                 n_sim = 20, bandcount2 = 30, seed = 1),
-      printed = utils::capture.output(print(fit), summary(fit))
+      printed = normalize_printed(utils::capture.output(print(fit), summary(fit)))
     )
   }
   out
+}
+
+normalize_printed <- function(lines) {
+  lines <- lines[!grepl("^<environment: ", lines)]
+  gsub("\u2018|\u2019", "'", lines)
 }

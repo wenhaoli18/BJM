@@ -29,33 +29,26 @@
 #' @keywords internal
 marginalT = function(data_predict_all, long_fit_all, survival_fit_all, l_i, upper_bound){
   
-  coxph_fit = survival_fit_all$coxph_fit
   # survival data frame
   num <- as.character(nlme::splitFormula(long_fit_all$long_sub_random[[1]], "|")[[2]])[2]
   data.surv =  data_predict_all[[1]][!duplicated(data_predict_all[[1]][num]), ]
   
   ## baseline hazard, extrapolated (per stratum, for a stratified Cox model)
-  cum_basehaz_all = basehaz(coxph_fit, centered = FALSE)
-  strata_vars <- survival::untangle.specials(stats::terms(coxph_fit), "strata")$vars
+  cum_basehaz_all = survival_cum_basehaz(survival_fit_all)
 
   ## covariates * parameter matrix
-  ### predict(type = "lp", reference = "zero") is exactly the uncentered
-  ### sum(coefficients * covariates) used before, but built by survival
-  ### itself: it needs only the right-hand side (the time/status columns of
-  ### Surv(...) are unknown for a new patient), handles factors and
-  ### strata() terms, and with na.pass a missing covariate gives that
+  ### uncentered linear predictor (see survival_lp()): needs only the
+  ### right-hand side (the outcome columns are unknown for a new patient),
+  ### handles factors and strata() terms, and a missing covariate gives that
   ### patient NA instead of dropping the row and misaligning later patients.
-  covariate_para_matrix = c(stats::predict(coxph_fit, newdata = data.surv, type = "lp",
-                                           reference = "zero", na.action = stats::na.pass))
+  covariate_para_matrix = survival_lp(survival_fit_all, data.surv)
+  patient_strata <- survival_patient_strata(survival_fit_all, data.surv)
 
-  if (length(strata_vars) == 0) {
+  if (is.null(patient_strata)) {
     cum_hazard = cumulative_baseline_at(cum_basehaz_all, l_i)
     surv_med = exp(-cum_hazard %*% t(exp(covariate_para_matrix)))
   } else {
     ### each patient uses the baseline hazard of their own stratum
-    rhs_terms <- stats::delete.response(stats::terms(coxph_fit))
-    mf_surv <- model.frame(rhs_terms, data.surv, na.action = stats::na.pass, xlev = coxph_fit$xlevels)
-    patient_strata <- as.character(mf_surv[[strata_vars]])
     unknown <- setdiff(stats::na.omit(patient_strata), as.character(cum_basehaz_all$strata))
     if (length(unknown) > 0) {
       stop(sprintf("Stratum %s of the survival sub-model has no baseline hazard (no such subjects in the data survivalSub() was fit on).",

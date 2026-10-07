@@ -31,8 +31,7 @@ compute_bio_shared_step <- function(data_predict_all, long_fit_all, survival_fit
                                      prediction_time, time_variable,
                                      survival_variable_all, survival_trans_function,
                                      bandcount2) {
-  coxph_fit = survival_fit_all$coxph_fit
-  survival_variable = as.character(formula(coxph_fit)[[2]])[2]
+  survival_variable = survival_time_variable(survival_fit_all)
 
   ## at risk sample
   data_predict_all = subset_at_risk(data_predict_all, survival_variable, prediction_time)
@@ -391,8 +390,7 @@ dynamicPredictionBio = function(bio_i, data_predict_all, long_fit_all, survival_
     return(auto_tune_bandcount(dynamicPredictionBio, call_args, auto_names)$result)
   }
 
-  coxph_fit = survival_fit_all$coxph_fit
-  survival_variable = as.character(formula(coxph_fit)[[2]])[2] #survival_variable = "fuyrs"
+  survival_variable = survival_time_variable(survival_fit_all) #survival_variable = "fuyrs"
   for (i in seq_along(data_predict_all)) {
     assert_vars_in_data(time_variable, data_predict_all[[i]],
                          "time_variable", sprintf("data_predict_all[[%d]]", i))
