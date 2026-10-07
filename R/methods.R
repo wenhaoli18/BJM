@@ -141,7 +141,8 @@ icph_coef_table <- function(ic_fit) {
   cat(sprintf("  Right-censored            : %d\n", ic$n_right))
 
   cat("\n", sep_line, "\n", sep = "")
-  cat(" Marginal Survival Sub-model  [PH, piecewise-constant hazard, interval-censored]\n")
+  cat(sprintf(" Marginal Survival Sub-model  [PH, %s baseline, interval-censored]\n",
+              if (ic$baseline == "spline") sprintf("spline (df = %d)", ic$df) else "piecewise-constant"))
   cat(dash_line, "\n", sep = "")
   cat(" Formula: ")
   print(x$form_marginal_surv)
@@ -150,8 +151,11 @@ icph_coef_table <- function(ic_fit) {
     stats::printCoefmat(icph_coef_table(ic), digits = digits, P.values = TRUE, has.Pvalue = TRUE,
                         signif.stars = getOption("show.signif.stars"), cs.ind = 1:3, tst.ind = 4)
   }
-  cat(sprintf("\n  Log-likelihood    = %.2f  (%d hazard pieces)\n", ic$loglik, length(ic$lambda)))
-  if (extended) {
+  cat(sprintf("\n  Log-likelihood    = %.2f\n", ic$loglik))
+  if (extended && ic$baseline == "spline") {
+    cat("  Spline knots (time scale):", paste(signif(ic$base$knot_times, digits), collapse = ", "), "\n")
+  }
+  if (extended && ic$baseline == "piecewise") {
     finite_cuts <- ic$cuts[is.finite(ic$cuts)]
     cat("  Baseline hazard by piece:\n")
     print(data.frame(from = finite_cuts, to = c(finite_cuts[-1], Inf), hazard = signif(ic$lambda, digits)),

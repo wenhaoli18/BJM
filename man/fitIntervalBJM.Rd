@@ -17,7 +17,8 @@ fitIntervalBJM(
   n_burnin = 10,
   n_imputations = 5,
   n_grid = 40,
-  n_pieces = 6,
+  baseline = c("spline", "piecewise"),
+  df = NULL,
   include_right_censored = FALSE,
   seed = NULL
 )
@@ -50,7 +51,8 @@ columns, as in \code{\link{predictRisk}} (\code{NULL} if none).}
 
 \item{n_grid}{Grid points per subject interval.}
 
-\item{n_pieces}{Pieces of the baseline hazard (see \code{survivalSub()}).}
+\item{baseline, df}{Baseline hazard of the survival model (see
+\code{\link{survivalSub}}).}
 
 \item{include_right_censored}{See Description.}
 

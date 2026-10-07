@@ -51,7 +51,7 @@
 #' 
 #' @export
 survivalSub = function(data_survival_fitting, form_marginal_surv, form_conditional_cr,
-                       event_time = NULL, n_pieces = 6){
+                       event_time = NULL, baseline = c("spline", "piecewise"), df = NULL){
 
   assert_data_frame(data_survival_fitting, "data_survival_fitting")
   if (!inherits(form_marginal_surv, "formula")) {
@@ -61,7 +61,7 @@ survivalSub = function(data_survival_fitting, form_marginal_surv, form_condition
                        "form_marginal_surv", "data_survival_fitting")
   if (is_interval_surv(form_marginal_surv, data_survival_fitting)) {
     return(survivalSubInterval(data_survival_fitting, form_marginal_surv, form_conditional_cr,
-                               event_time, n_pieces))
+                               event_time, baseline, df))
   }
   if (length(form_conditional_cr) != 0) {
     if (!inherits(form_conditional_cr, "formula")) {
@@ -109,16 +109,18 @@ is_interval_surv <- function(form_marginal_surv, data) {
 #' Interval-censored branch of \code{survivalSub()}
 #' @keywords internal
 survivalSubInterval <- function(data_survival_fitting, form_marginal_surv, form_conditional_cr,
-                                event_time, n_pieces) {
+                                event_time, baseline, df) {
+  baseline <- match.arg(baseline, c("spline", "piecewise"))
+  if (is.null(df)) df <- if (baseline == "spline") 3 else 6
   if (length(form_conditional_cr) != 0) {
     stop("Competing risks are not yet supported with an interval-censored outcome; set form_conditional_cr = NULL.",
          call. = FALSE)
   }
   assert_string(event_time, "event_time")
-  if (!is.numeric(n_pieces) || length(n_pieces) != 1 || n_pieces < 1 || n_pieces != round(n_pieces)) {
-    stop("`n_pieces` must be a single positive whole number.", call. = FALSE)
+  if (!is.numeric(df) || length(df) != 1 || df < 1 || df != round(df)) {
+    stop("`df` must be a single positive whole number.", call. = FALSE)
   }
-  ic_fit <- icphFit(form_marginal_surv, data_survival_fitting, event_time, n_pieces)
+  ic_fit <- icphFit(form_marginal_surv, data_survival_fitting, event_time, baseline, df)
   out <- list(ic_fit = ic_fit, form_marginal_surv = form_marginal_surv,
               glm_fit = NULL, form_conditional_cr = NULL)
   class(out) <- "survivalSub.BJM"

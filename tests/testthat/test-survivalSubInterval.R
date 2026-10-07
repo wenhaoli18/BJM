@@ -1,15 +1,20 @@
 # Interval-censored survival sub-model (experimental).
 
 # Weibull PH event times observed only between irregular visits.
-simulate_interval_data <- function(n, seed = 1) {
+simulate_interval_data <- function(n, seed = 1, gompertz = FALSE, first_visit = 0.5) {
   set.seed(seed)
   x1 <- stats::rnorm(n)
   x2 <- stats::rbinom(n, 1, 0.5)
-  T <- (-log(stats::runif(n)) / (0.1 * exp(0.5 * x1 - 0.7 * x2)))^(1 / 1.5)
+  lp <- 0.5 * x1 - 0.7 * x2
+  T <- if (gompertz) {
+    log(1 + stats::rexp(n) / (0.08 * exp(lp))) / 0.25
+  } else {
+    (-log(stats::runif(n)) / (0.1 * exp(lp)))^(1 / 1.5)
+  }
   C <- stats::runif(n, 2, 12)
   L <- R <- numeric(n)
   for (i in seq_len(n)) {
-    v <- cumsum(stats::runif(20, 0.5, 1.5))
+    v <- cumsum(c(stats::runif(1, first_visit, first_visit + 1), stats::runif(19, 0.5, 1.5)))
     v <- c(0, v[v < C[i]])
     if (T[i] > max(v)) {
       L[i] <- max(v)
@@ -48,8 +53,39 @@ test_that("the piecewise-constant hazard model matches its closed form on exact 
   set.seed(3)
   t <- stats::rexp(300, 0.4)
   d <- data.frame(L = t, R = t)
-  fit <- icphFit(Surv(L, R, type = "interval2") ~ 1, d, "T", n_pieces = 1)
+  fit <- icphFit(Surv(L, R, type = "interval2") ~ 1, d, "T", baseline = "piecewise", df = 1)
   expect_equal(fit$lambda, 300 / sum(t), tolerance = 1e-5)
+})
+
+test_that("the spline baseline with df = 1 is a Weibull model and fits a Weibull exactly", {
+  # exact Weibull times: log H0 = log(0.1) + 1.5 log t, so the MLE of the
+  # spline's intercept and (unscaled) slope estimate those
+  set.seed(4)
+  t <- (-log(stats::runif(2000)) / 0.1)^(1 / 1.5)
+  d <- data.frame(L = t, R = t)
+  fit <- icphFit(Surv(L, R, type = "interval2") ~ 1, d, "T", baseline = "spline", df = 1)
+  expect_equal(fit$gamma[1], log(0.1), tolerance = 0.05)
+  expect_equal(fit$gamma[2] / fit$base$scale[1], 1.5, tolerance = 0.05)
+  # and its log hazard matches the derivative of its cumulative hazard
+  h <- exp(fit$base$loghaz(c(1, 3), fit$gamma))
+  eps <- 1e-6
+  dH <- (fit$base$cumhaz(c(1, 3) + eps, fit$gamma) - fit$base$cumhaz(c(1, 3) - eps, fit$gamma)) / (2 * eps)
+  expect_equal(h, dH, tolerance = 1e-6)
+})
+
+test_that("the spline baseline recovers an increasing hazard that the piecewise one flattens", {
+  d <- simulate_interval_data(800, seed = 7)
+  spline <- survivalSub(d, Surv(L, R, type = "interval2") ~ x1 + x2, NULL, event_time = "T")
+  piecewise <- survivalSub(d, Surv(L, R, type = "interval2") ~ x1 + x2, NULL, event_time = "T",
+                           baseline = "piecewise")
+  expect_identical(spline$ic_fit$baseline, "spline")
+  # the baseline choice barely moves the regression coefficients
+  expect_equal(spline$ic_fit$coefficients, piecewise$ic_fit$coefficients, tolerance = 0.02)
+  tt <- c(1, 3, 6)
+  true_H0 <- 0.1 * tt^1.5
+  err <- function(f) abs(cumulative_baseline_at(f$ic_fit$cum_basehaz, tt) - true_H0)
+  expect_lt(err(spline)[1], err(piecewise)[1])
+  expect_equal(cumulative_baseline_at(spline$ic_fit$cum_basehaz, tt), true_H0, tolerance = 0.25)
 })
 
 test_that("interval-censored fits reject unsupported options", {
@@ -58,6 +94,7 @@ test_that("interval-censored fits reject unsupported options", {
   expect_error(survivalSub(d, Surv(L, R, type = "interval2") ~ x1, type ~ x1, event_time = "T"),
                "Competing risks")
   expect_error(survivalSub(d, Surv(L, R, type = "interval2") ~ x1, NULL), "event_time")
+  expect_error(survivalSub(d, Surv(L, R, type = "interval2") ~ x1, NULL, event_time = "T", df = 0), "df")
   expect_error(survivalSub(d, Surv(L, R, type = "interval2") ~ x1 + strata(x2), NULL, event_time = "T"),
                "strata")
 })
@@ -67,7 +104,9 @@ test_that("print, summary and plot work for an interval-censored fit", {
   fit <- survivalSub(d, Surv(L, R, type = "interval2") ~ x1 + x2, NULL, event_time = "T")
   expect_output(print(fit), "interval-censored")
   s <- utils::capture.output(out <- summary(fit))
-  expect_true(any(grepl("Baseline hazard by piece", s)))
+  expect_true(any(grepl("Spline knots", s)))
+  pw <- survivalSub(d, Surv(L, R, type = "interval2") ~ x1 + x2, NULL, event_time = "T", baseline = "piecewise")
+  expect_true(any(grepl("Baseline hazard by piece", utils::capture.output(summary(pw)))))
   expect_equal(rownames(out$ic_coefficients), c("x1", "x2"))
   expect_s3_class(plot(fit), "ggplot")
   expect_s3_class(plot(fit, which = "basehaz"), "ggplot")
@@ -132,4 +171,21 @@ test_that("fitIntervalBJM imputes event times inside each interval and fits f(Y 
                          survival_trans_function = list(function(t) abs(t - 1)),
                          n_burnin = 2, n_imputations = 2, n_grid = 15, seed = 1))
   expect_identical(fit2$imputed_T, fit$imputed_T)
+})
+
+test_that("the spline baseline stays increasing before the first visit", {
+  # With no interval endpoint before the first visit, the likelihood does
+  # not stop log H0 from sloping downwards below the lower boundary knot,
+  # which unconstrained fits occasionally did (H0 rising towards t = 0).
+  # seeds/sizes on which the unconstrained fit did go non-monotone
+  for (case in list(c(10, 200), c(72, 200), c(76, 300))) {
+    d <- simulate_interval_data(case[2], seed = case[1], gompertz = TRUE, first_visit = 2)
+    fit <- expect_no_warning(survivalSub(d, Surv(L, R, type = "interval2") ~ x1 + x2, NULL,
+                                         event_time = "T"))
+    H0 <- fit$ic_fit$base$cumhaz(c(0.1, 0.5, 1, 2, 4, 8), fit$ic_fit$gamma)
+    expect_false(is.unsorted(H0))
+    expect_true(fit$ic_fit$base$monotone(fit$ic_fit$gamma))
+  }
+  base <- rp_baseline(c(1, 2, 3, 5, 8, 13), df = 3)
+  expect_false(base$monotone(c(0, -1, 0, 0)))
 })
