@@ -76,13 +76,26 @@ compute_bio_shared_step <- function(data_predict_all, long_fit_all, survival_fit
   ### per-patient shift for the log densities (see patient_log_shift());
   ### the same shift is applied to every candidate value's numerator in
   ### compute_bio_marker_step(), so it cancels in the predicted density
+  ### interval-censored fits: also integrate over (last visit, prediction_time]
+  ### (see interval_gap_grid() and predictRisk()); NULL for right-censored fits
+  gap = if (has_cr) NULL else interval_gap_grid(data_predict_all, long_fit_all, survival_fit_all,
+                                                prediction_time, time_variable, bandcount2)
+  f_y_gap = NULL
+  if (!is.null(gap)) {
+    f_y_gap = gap$eval(function(d, l) conditionalYT_fun(d, long_fit_all, l_i = l, survival_variable,
+                                                        time_variable, survival_variable_all,
+                                                        survival_trans_function)[[1]])
+  }
+
   log_shift = if (has_cr) patient_log_shift(f_y_D_all_infinity[[1]], f_y_D_all_infinity[[2]]) else
-    patient_log_shift(f_y_D_all_infinity[[1]])
+    if (is.null(gap)) patient_log_shift(f_y_D_all_infinity[[1]]) else
+      patient_log_shift(f_y_D_all_infinity[[1]], f_y_gap)
 
   list(data_predict_all = data_predict_all, survival_variable = survival_variable,
        predict.time.infinity = predict.time.infinity, S_T_all_infinity = S_T_all_infinity,
        has_cr = has_cr, D_T_all_infinity = D_T_all_infinity,
        f_y_D_all_infinity = f_y_D_all_infinity, log_shift = log_shift,
+       gap = gap, f_y_gap = f_y_gap,
        conditionalYTBio_fun = conditionalYTBio_fun, conditionalYDTBio_fun = conditionalYDTBio_fun)
 }
 
@@ -189,14 +202,25 @@ compute_bio_marker_step <- function(shared, bio_i, long_fit_all, survival_fit_al
       ### the densities were small and drove the predicted density towards 0
       denominator = rowSums(t(exp_shifted(shared$f_y_D_all_infinity[[1]], shared$log_shift) *
                                 shared$S_T_all_infinity))
+      f_y_gap_bio = NULL
+      if (!is.null(shared$gap)) {
+        denominator = denominator + rowSums(t(exp_shifted(shared$f_y_gap, shared$log_shift) * shared$gap$S))
+        f_y_gap_bio = shared$gap$eval(function(d, l) shared$conditionalYTBio_fun(
+          Y_query, time_new = prediction_time + horizon, bio_i, d, long_fit_all, l_i = l,
+          shared$survival_variable, time_variable, survival_variable_all, survival_trans_function)[[1]])
+      }
       Y_density = NULL
       for (Y_i in seq_len(length(Y_all))) {
 
         T.surv.predict.0 = t(exp_shifted(f_y_D_all_predict[[1]][[Y_i]], shared$log_shift) *
                                shared$S_T_all_infinity)
+        numerator = rowSums(T.surv.predict.0)
+        if (!is.null(f_y_gap_bio)) {
+          numerator = numerator + rowSums(t(exp_shifted(f_y_gap_bio[[Y_i]], shared$log_shift) * shared$gap$S))
+        }
 
         ### a density, not a probability: see the competing-risk branch
-        Y_density_row = pmax(rowSums(T.surv.predict.0) / denominator, 0)
+        Y_density_row = pmax(numerator / denominator, 0)
         if (is.null(Y_density)) Y_density = matrix(NA_real_, length(Y_all), length(Y_density_row))
         Y_density[Y_i, ] = Y_density_row
 

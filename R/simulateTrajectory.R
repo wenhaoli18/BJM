@@ -236,6 +236,16 @@ simulateTrajectory <- function(data_predict_all, long_fit_all, survival_fit_all,
   }
   data_predict_all <- subset_at_risk(data_predict_all, survival_variable, prediction_time)
   patient_ids <- prediction_patient_ids(data_predict_all, long_fit_all)
+  ### interval-censored fits: draws start from T > prediction_time, which is
+  ### only right when every patient was seen at prediction_time (see
+  ### interval_gap_grid()); predictRisk()/predictLongitudinal() handle the gap
+  if (!is.null(interval_gap_grid(data_predict_all, long_fit_all, survival_fit_all,
+                                 prediction_time, time_variable, 1))) {
+    stop(paste0("With an interval-censored survival sub-model, simulateTrajectory() needs every ",
+                "patient's last visit to be at prediction_time (the event could otherwise already ",
+                "have happened undetected). Set prediction_time to the patient's last visit time."),
+         call. = FALSE)
+  }
 
   if (is.null(max_event_time)) {
     max_event_time <- survival_max_followup(survival_fit_all)

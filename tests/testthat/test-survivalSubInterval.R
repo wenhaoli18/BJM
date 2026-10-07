@@ -229,3 +229,71 @@ test_that("lower_tail = 'weibull' extrapolates before the first endpoint with th
            anchored$base$cumhaz(below - eps, anchored$gamma)) / (2 * eps)
   expect_equal(h, dH, tolerance = 1e-6)
 })
+
+test_that("interval-censored predictions condition on being event-free at the last visit", {
+  skip_on_cran()
+  set.seed(5)
+  n <- 150
+  x <- stats::rnorm(n)
+  T <- (-log(stats::runif(n)) / (0.05 * exp(0.5 * x)))^(1 / 1.5)
+  surv <- data.frame(id = seq_len(n), x = x, L = NA_real_, R = NA_real_)
+  long <- list()
+  for (i in seq_len(n)) {
+    v <- c(0, cumsum(stats::runif(30, 1, 3)))
+    v <- v[v < 12]
+    if (T[i] > max(v)) {
+      surv$L[i] <- max(v)
+      obs <- v
+    } else {
+      k <- findInterval(T[i], v)
+      surv$L[i] <- v[k]
+      surv$R[i] <- v[k + 1]
+      obs <- v[v <= T[i]]
+    }
+    long[[i]] <- data.frame(id = i, year = obs, x = x[i],
+                            y = 1 + 0.3 * obs - 0.2 * T[i] + 0.4 * x[i] + stats::rnorm(1, 0, 0.5) +
+                              stats::rnorm(length(obs), 0, 0.3))
+  }
+  long <- do.call(rbind, long)
+  fit <- suppressWarnings(fitIntervalBJM(surv, long, Surv(L, R, type = "interval2") ~ x, "Tev",
+                                         y ~ year + Tev + x, ~ year | id, "year",
+                                         n_burnin = 2, n_imputations = 1, seed = 1))
+  ids <- unique(long$id[long$year > 0 & long$year < 4])[1:4]
+  hist <- long[long$id %in% ids & long$year <= 4, ]
+  hist$Tev <- NA_real_
+  last_visit <- tapply(hist$year, hist$id, max)
+  expect_true(all(last_visit < 4))
+  pr <- function(d, s, h, b) {
+    predictRisk(list(d), fit$long_fit_all, fit$survival_fit_all, s, h, "year", NULL, NULL,
+                bandcount1 = b, bandcount2 = b)
+  }
+
+  # the event may already have happened between the last visit V and s = 4,
+  # so P(V < T <= 6 | T > V) splits into "already, undetected" + "in (4, 6]"
+  at_4 <- pr(hist, 4, 2, 40)
+  expect_true(all(at_4$prob_undetected > 0 & at_4$prob_undetected < 1))
+  expect_output(print(at_4), "Already, undetected")
+  for (i in as.character(ids)) {
+    from_V <- pr(hist[hist$id == i, ], last_visit[[i]], 6 - last_visit[[i]], 200)
+    expect_equal(unname(from_V$risk_prob_1), unname(at_4$prob_undetected[i] + at_4$risk_prob_1[i]),
+                 tolerance = 5e-3)
+  }
+
+  # predicting at the last visit itself leaves nothing undetected
+  one <- hist[hist$id == ids[1], ]
+  expect_equal(unname(pr(one, last_visit[[1]], 2, 20)$prob_undetected), 0)
+
+  # the biomarker's predictive density still integrates to one
+  bio <- dynamicPredictionBio(1, list(hist), fit$long_fit_all, fit$survival_fit_all, 4, 1, "year",
+                              NULL, NULL, bandcount2 = 20, bandcount3 = 200)
+  expect_equal(unname(colSums(bio$Y_density) * diff(bio$Y_all)[1]), rep(1, length(ids)),
+               tolerance = 0.02)
+
+  # simulateTrajectory() only supports predicting at the last visit
+  expect_error(simulateTrajectory(list(one), fit$long_fit_all, fit$survival_fit_all, 4, 5, "year",
+                                  NULL, NULL, n_sim = 5, bandcount2 = 20),
+               "last visit")
+  expect_no_error(simulateTrajectory(list(one), fit$long_fit_all, fit$survival_fit_all,
+                                     last_visit[[1]], last_visit[[1]] + 1, "year",
+                                     NULL, NULL, n_sim = 5, bandcount2 = 20, seed = 1))
+})
