@@ -189,3 +189,29 @@ test_that("the spline baseline stays increasing before the first visit", {
   base <- rp_baseline(c(1, 2, 3, 5, 8, 13), df = 3)
   expect_false(base$monotone(c(0, -1, 0, 0)))
 })
+
+test_that("lower_tail = 'weibull' extrapolates before the first endpoint with the Weibull slope", {
+  # Below the lower boundary knot (the earliest interval endpoint) the
+  # spline is pure extrapolation that never enters the likelihood, so the
+  # two lower_tail choices must give the same fit everywhere else.
+  d <- simulate_interval_data(300, seed = 10, gompertz = TRUE, first_visit = 2)
+  f <- Surv(L, R, type = "interval2") ~ x1 + x2
+  anchored <- icphFit(f, d, "T", lower_tail = "weibull")
+  own <- icphFit(f, d, "T", lower_tail = "spline")
+  weibull <- icphFit(f, d, "T", df = 1)
+
+  expect_equal(anchored$loglik, own$loglik)
+  expect_equal(anchored$coefficients, own$coefficients)
+  kmin <- exp(anchored$base$knots[1])
+  above <- c(kmin, 3, 6)
+  expect_equal(anchored$base$cumhaz(above, anchored$gamma), own$base$cumhaz(above, own$gamma))
+
+  below <- c(0.5, 1)
+  slope <- diff(log(anchored$base$cumhaz(below, anchored$gamma))) / diff(log(below))
+  expect_equal(slope, weibull$gamma[2] / weibull$base$scale[1])
+  h <- exp(anchored$base$loghaz(below, anchored$gamma))
+  eps <- 1e-6
+  dH <- (anchored$base$cumhaz(below + eps, anchored$gamma) -
+           anchored$base$cumhaz(below - eps, anchored$gamma)) / (2 * eps)
+  expect_equal(h, dH, tolerance = 1e-6)
+})

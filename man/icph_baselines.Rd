@@ -6,7 +6,7 @@
 \alias{piecewise_baseline}
 \title{Baselines for \code{icphFit()}}
 \usage{
-rp_baseline(endpoints, df)
+rp_baseline(endpoints, df, tail_slope = NULL)
 
 piecewise_baseline(endpoints, df)
 }
