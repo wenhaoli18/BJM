@@ -303,9 +303,10 @@ longitudinalSubGaussian <- function(data_fit_all, long_sub_fixed, long_sub_rando
     data.fit.one = data_fit_all[[m]]
     #ctrl <- lmeControl(1000, 1000, opt='optim')
     # List of m separate longitudinal model fits
-    lfit[[m]] <- nlme::lme(fixed = long_sub_fixed[[m]], random = long_sub_random[[m]],
-                           data = data.fit.one, method = "ML",
-                           control = nlme::lmeControl(opt = "optim"), na.action = na.omit)
+    lfit[[m]] <- lme_with_retry(nlme::lme(fixed = long_sub_fixed[[m]], random = long_sub_random[[m]],
+                                          data = data.fit.one, method = "ML",
+                                          control = nlme::lmeControl(opt = "optim"), na.action = na.omit),
+                                as.character(long_sub_fixed[[m]][[2]]))
     lfit[[m]]$call$fixed <- eval(lfit[[m]]$call$fixed)
 
     ### factor levels of the data lme() was fit on (before restricting to
@@ -517,3 +518,47 @@ training_xlevels <- function(terms_model, data, fixed_formula) {
   .getXlevels(terms_model, mf)
 }
 
+
+#' Fit \code{nlme::lme()}, retrying with more optimizer iterations
+#'
+#' @description \code{lme()} with \code{opt = "optim"} stops after
+#' \code{msMaxIter} (default 50) optimizer iterations and then fails with
+#' "optim problem, convergence error code = 1". That happens when a
+#' random-effect variance is close to zero -- e.g. a random slope in
+#' \code{long_sub_random} for data with little slope variation, more often
+#' with few measurements per subject. The call is evaluated as given first,
+#' so a fit that succeeds is exactly what it was before (call included);
+#' only if it fails to converge is it refit with \code{msMaxIter = 1000},
+#' with a warning. If that fails too, the error suggests a simpler
+#' random-effects formula. Errors that are not about convergence are passed
+#' on unchanged, without a retry.
+#'
+#' @param call_expr The \code{nlme::lme(...)} call (unevaluated; evaluated
+#'   in the caller's frame, as if written there).
+#' @param label The biomarker's name, for messages.
+#' @return The \code{lme} fit.
+#' @keywords internal
+lme_with_retry <- function(call_expr, label) {
+  expr <- substitute(call_expr)
+  env <- parent.frame()
+  fit <- tryCatch(eval(expr, env), error = function(e) e)
+  if (!inherits(fit, "error")) return(fit)
+  first_error <- conditionMessage(fit)
+  # any other error (a bad formula, a non-numeric response, ...) is not
+  # about convergence: re-signal it unchanged
+  if (!grepl("optim problem|convergence", first_error)) stop(fit)
+  retry <- expr
+  retry$control <- quote(nlme::lmeControl(opt = "optim", msMaxIter = 1000))
+  fit <- tryCatch(eval(retry, env), error = function(e) e)
+  if (inherits(fit, "error")) {
+    stop(sprintf(paste0(
+      "lme() failed for biomarker `%s`, also when refit with msMaxIter = 1000: %s ",
+      "This usually means a random-effect variance is close to zero; a simpler ",
+      "long_sub_random (e.g. ~ 1 | id) may help."), label, conditionMessage(fit)), call. = FALSE)
+  }
+  warning(sprintf(paste0(
+    "lme() for biomarker `%s` did not converge within its default 50 optimizer iterations (%s); ",
+    "it was refit with msMaxIter = 1000. A random-effect variance may be close to zero."),
+    label, sub("\\s*message\\s*=\\s*$", "", trimws(gsub("\\s+", " ", first_error)))), call. = FALSE)
+  fit
+}

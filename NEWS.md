@@ -270,6 +270,14 @@
 
 ## Bug fixes
 
+* `longitudinalSub()` no longer fails when `nlme::lme()` stops at its
+  default 50 optimizer iterations ("optim problem, convergence error code =
+  1"), which happened when a random-effect variance was close to zero --
+  e.g. a random slope for data with few, sparse visits per subject. Such a
+  fit is now redone with `msMaxIter = 1000`, with a warning; if that fails
+  too, the error suggests a simpler `long_sub_random`. Fits that converged
+  before are unchanged, and other `lme()` errors are passed on as before.
+
 * `predictPlot()` and `riskPlot()` set line widths with `linewidth`
   instead of `size`, so they no longer trigger ggplot2's "Using `size`
   aesthetic for lines was deprecated" warning; the plots are unchanged.
