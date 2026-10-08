@@ -294,9 +294,10 @@ longitudinalSubCopula <- function(data_fit_all, long_sub_fixed, long_sub_random,
     data.fit.one <- data_fit_all[[m]]
 
     if (biomarker_type[m] == "continuous") {
-      lfit[[m]] <- nlme::lme(fixed = long_sub_fixed[[m]], random = long_sub_random[[m]],
-                             data = data.fit.one, method = "ML",
-                             control = nlme::lmeControl(opt = "optim"), na.action = na.omit)
+      lfit[[m]] <- lme_with_retry(nlme::lme(fixed = long_sub_fixed[[m]], random = long_sub_random[[m]],
+                                            data = data.fit.one, method = "ML",
+                                            control = nlme::lmeControl(opt = "optim"), na.action = na.omit),
+                                  as.character(long_sub_fixed[[m]][[2]]))
       lfit[[m]]$call$fixed <- eval(lfit[[m]]$call$fixed)
       ### see longitudinalSubGaussian(): levels from the full fitting data,
       ### and the EM design built from lme()'s own terms (training basis)
