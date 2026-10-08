@@ -14,6 +14,7 @@ fitIntervalBJM(
   time_variable,
   survival_variable_all = NULL,
   survival_trans_function = NULL,
+  form_conditional_cr = NULL,
   n_burnin = 10,
   n_imputations = 5,
   n_grid = 40,
@@ -45,6 +46,14 @@ covariates}.}
 \item{survival_variable_all, survival_trans_function}{Transformed event-time
 columns, as in \code{\link{predictRisk}} (\code{NULL} if none).}
 
+\item{form_conditional_cr}{Optional competing-risks (event-type) model, as
+in \code{\link{survivalSub}}, e.g. \code{type ~ Tev + x}. The event type
+(0/1, in \code{data_survival} and in every \code{data_fit_all} data
+frame, alongside the covariates of this formula) is taken as known once
+the event is detected; each subject's \eqn{T} is then drawn from
+\eqn{f(Y \mid T, D) P(D \mid T) f(T)}, and this model, which uses
+\eqn{T}, is refit on every draw.}
+
 \item{n_burnin}{Stochastic-EM iterations before draws are saved.}
 
 \item{n_imputations}{Number of saved draws (and longitudinal fits).}
@@ -60,7 +69,9 @@ columns, as in \code{\link{predictRisk}} (\code{NULL} if none).}
 }
 \value{
 An object of class \code{"fitIntervalBJM"}, a list with
-\code{survival_fit_all}; \code{long_fit_all_list} (one
+\code{survival_fit_all} (with competing risks, the event-type model fit
+to the first imputation; \code{survival_fit_all_list} has one per
+imputation); \code{long_fit_all_list} (one
 \code{longitudinalSub()} fit per imputation); \code{long_fit_all} (the
 first of them, for use with \code{predictRisk()} and friends);
 \code{pooled} (\code{\link{poolLongitudinalSub}} of the fits, when

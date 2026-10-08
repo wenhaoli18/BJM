@@ -32,10 +32,11 @@ patient), \code{mids} and \code{S} (\code{n} x patients matrices of
 interval midpoints and probabilities; zero probability for a patient
 with \eqn{V = s}), and \code{eval(fun)}, which calls \code{fun(data_j,
   l_i)} once per patient with a gap (\code{data_j} the patient's rows,
-\code{l_i} their midpoints) and binds the resulting one-column log
-densities into an \code{n} x patients matrix (\code{-Inf} for patients
-without a gap). \code{fun} may also return a list of such columns, in
-which case \code{eval()} returns the matching list of matrices.
+\code{l_i} their midpoints) and binds the resulting one-column results
+into an \code{n} x patients matrix (filled with \code{fill}, \code{-Inf}
+by default for log densities, for patients without a gap). \code{fun}
+may also return a (nested) list of such columns, in which case
+\code{eval()} returns the matching list of matrices.
 }
 \description{
 Interval-censored fits only. With interval censoring an

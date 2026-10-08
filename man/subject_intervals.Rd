@@ -4,7 +4,7 @@
 \alias{subject_intervals}
 \title{Interval endpoints per subject}
 \usage{
-subject_intervals(data_survival, form_marginal_surv, id)
+subject_intervals(data_survival, form_marginal_surv, id, event_type = NULL)
 }
 \description{
 Interval endpoints per subject

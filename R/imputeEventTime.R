@@ -51,6 +51,13 @@
 #' @param time_variable Name of the visit-time column.
 #' @param survival_variable_all,survival_trans_function Transformed event-time
 #'   columns, as in \code{\link{predictRisk}} (\code{NULL} if none).
+#' @param form_conditional_cr Optional competing-risks (event-type) model, as
+#'   in \code{\link{survivalSub}}, e.g. \code{type ~ Tev + x}. The event type
+#'   (0/1, in \code{data_survival} and in every \code{data_fit_all} data
+#'   frame, alongside the covariates of this formula) is taken as known once
+#'   the event is detected; each subject's \eqn{T} is then drawn from
+#'   \eqn{f(Y \mid T, D) P(D \mid T) f(T)}, and this model, which uses
+#'   \eqn{T}, is refit on every draw.
 #' @param n_burnin Stochastic-EM iterations before draws are saved.
 #' @param n_imputations Number of saved draws (and longitudinal fits).
 #' @param n_grid Grid points per subject interval.
@@ -60,7 +67,9 @@
 #' @param seed Optional integer seed (the global RNG state is restored).
 #'
 #' @return An object of class \code{"fitIntervalBJM"}, a list with
-#'   \code{survival_fit_all}; \code{long_fit_all_list} (one
+#'   \code{survival_fit_all} (with competing risks, the event-type model fit
+#'   to the first imputation; \code{survival_fit_all_list} has one per
+#'   imputation); \code{long_fit_all_list} (one
 #'   \code{longitudinalSub()} fit per imputation); \code{long_fit_all} (the
 #'   first of them, for use with \code{predictRisk()} and friends);
 #'   \code{pooled} (\code{\link{poolLongitudinalSub}} of the fits, when
@@ -71,6 +80,7 @@
 fitIntervalBJM <- function(data_survival, data_fit_all, form_marginal_surv, event_time,
                            long_sub_fixed, long_sub_random, time_variable,
                            survival_variable_all = NULL, survival_trans_function = NULL,
+                           form_conditional_cr = NULL,
                            n_burnin = 10, n_imputations = 5, n_grid = 40,
                            baseline = c("spline", "piecewise"), df = NULL,
                            include_right_censored = FALSE, seed = NULL) {
@@ -81,13 +91,33 @@ fitIntervalBJM <- function(data_survival, data_fit_all, form_marginal_surv, even
   if (is.data.frame(data_fit_all)) data_fit_all <- rep(list(data_fit_all), M)
   id <- as.character(nlme::splitFormula(long_sub_random[[1]], "|")[[2]])[2]
 
-  survival_fit_all <- survivalSub(data_survival, form_marginal_surv, NULL,
+  has_cr <- length(form_conditional_cr) != 0
+  if (has_cr && include_right_censored) {
+    stop("include_right_censored = TRUE is not supported with competing risks (the event type of a right-censored subject is unknown).",
+         call. = FALSE)
+  }
+  event_type <- if (has_cr) all.vars(form_conditional_cr[[2]])[1] else NULL
+  bounds <- subject_intervals(data_survival, form_marginal_surv, id, event_type)
+  # the event-type model needs an event time: start from interval midpoints
+  with_event_time <- function(T_values) {
+    ds <- data_survival
+    ds[[event_time]] <- unname(T_values[as.character(ds[[id]])])
+    ds
+  }
+  mid <- stats::setNames(ifelse(is.finite(bounds$R), (bounds$L + bounds$R) / 2, NA_real_), bounds$id)
+  survival_fit_all <- survivalSub(with_event_time(mid), form_marginal_surv, form_conditional_cr,
                                   event_time = event_time, baseline = baseline, df = df)
   if (!is_interval_censored(survival_fit_all)) {
     stop("`form_marginal_surv` must have an interval-censored outcome, Surv(L, R, type = \"interval2\").",
          call. = FALSE)
   }
-  bounds <- subject_intervals(data_survival, form_marginal_surv, id)
+  refit_event_type <- function(T_values) {
+    if (!has_cr) return(survival_fit_all)
+    out <- survival_fit_all
+    out$glm_fit <- fit_event_type_interval(with_event_time(T_values), form_marginal_surv,
+                                           form_conditional_cr, event_time)
+    out
+  }
   use <- is.finite(bounds$R) | include_right_censored
   bounds <- bounds[use, , drop = FALSE]
   data_fit_all <- lapply(data_fit_all, function(d) d[as.character(d[[id]]) %in% bounds$id, , drop = FALSE])
@@ -109,12 +139,30 @@ fitIntervalBJM <- function(data_survival, data_fit_all, form_marginal_surv, even
                           if (quiet && grepl("Sigma_fit", conditionMessage(w))) invokeRestart("muffleWarning")
                         })
   }
-  long_fit_all <- fit_long(T_cur, quiet = TRUE)
+  # the starting fit can fail like any later one (nlme::lme() trouble with
+  # a random-effect variance near zero): retry from event times drawn
+  # uniformly within each interval
+  long_fit_all <- tryCatch(fit_long(T_cur, quiet = TRUE), error = function(e) e)
+  for (attempt in seq_len(5)) {
+    if (!inherits(long_fit_all, "error")) break
+    T_try <- T_cur
+    finite <- is.finite(bounds$R) & bounds$R > bounds$L
+    T_try[finite] <- stats::runif(sum(finite), bounds$L[finite], bounds$R[finite])
+    long_fit_all <- tryCatch(fit_long(T_try, quiet = TRUE), error = function(e) e)
+    if (!inherits(long_fit_all, "error")) T_cur <- T_try
+  }
+  if (inherits(long_fit_all, "error")) {
+    stop(sprintf(paste0(
+      "longitudinalSub() failed on the starting event times and on 5 random restarts: %s ",
+      "This usually means a random-effect variance is close to zero; a simpler long_sub_random ",
+      "(e.g. ~ 1 | id) may help."), conditionMessage(long_fit_all)), call. = FALSE)
+  }
 
   n_iter <- n_burnin + n_imputations
   trace <- vector("list", n_iter)
   imputed_T <- matrix(NA_real_, nrow(bounds), n_imputations, dimnames = list(bounds$id, NULL))
   long_fit_all_list <- vector("list", n_imputations)
+  survival_fit_all_list <- vector("list", n_imputations)
   for (it in seq_len(n_iter)) {
     # an unlucky draw occasionally makes nlme::lme() fail (e.g. "Singularity
     # in backsolve"); draw again from the same fit rather than abort the chain
@@ -130,14 +178,20 @@ fitIntervalBJM <- function(data_survival, data_fit_all, form_marginal_surv, even
     }
     T_cur <- T_new
     long_fit_all <- new_fit
-    trace[[it]] <- unlist(lapply(long_fit_all$lfit, nlme::fixef))
+    # the event-type model uses T too: refit it on the same draw
+    survival_fit_all <- refit_event_type(T_cur)
+    trace[[it]] <- c(unlist(lapply(long_fit_all$lfit, nlme::fixef)),
+                     if (has_cr) stats::setNames(stats::coef(survival_fit_all$glm_fit),
+                                                 paste0("cr.", names(stats::coef(survival_fit_all$glm_fit)))))
     if (it > n_burnin) {
       imputed_T[, it - n_burnin] <- T_cur[bounds$id]
       long_fit_all_list[[it - n_burnin]] <- long_fit_all
+      survival_fit_all_list[[it - n_burnin]] <- survival_fit_all
     }
   }
 
-  out <- list(survival_fit_all = survival_fit_all, long_fit_all_list = long_fit_all_list,
+  out <- list(survival_fit_all = survival_fit_all_list[[1]], long_fit_all_list = long_fit_all_list,
+              survival_fit_all_list = survival_fit_all_list,
               long_fit_all = long_fit_all_list[[1]],
               pooled = if (n_imputations > 1) poolLongitudinalSub(long_fit_all_list),
               imputed_T = imputed_T, trace = do.call(rbind, trace))
@@ -161,7 +215,8 @@ fitIntervalBJM <- function(data_survival, data_fit_all, form_marginal_surv, even
 #' @param data_fit_all Longitudinal data, one data frame per biomarker.
 #' @param long_fit_all Output of \code{longitudinalSub()}.
 #' @param survival_fit_all Interval-censored output of \code{survivalSub()}.
-#' @param bounds Data frame with columns \code{id}, \code{L}, \code{R}.
+#' @param bounds Data frame with columns \code{id}, \code{L}, \code{R}
+#'   (and, with competing risks, the observed event type \code{D}).
 #' @param time_variable,survival_variable_all,survival_trans_function As in
 #'   \code{predictRisk()}.
 #' @param n_grid Grid intervals per subject.
@@ -177,6 +232,12 @@ imputeEventTime <- function(data_fit_all, long_fit_all, survival_fit_all, bounds
   survival_variable <- survival_time_variable(survival_fit_all)
   use_copula <- !is.null(long_fit_all$biomarker_type) && any(long_fit_all$biomarker_type == "ordinal")
   conditionalYT_fun <- if (use_copula) conditionalYTCopula else conditionalYT
+  conditionalYDT_fun <- if (use_copula) conditionalYDTCopula else conditionalYDT
+  has_cr <- !is.null(survival_fit_all$glm_fit)
+  if (has_cr && (is.null(bounds$D) || anyNA(bounds$D[is.finite(bounds$R)]))) {
+    stop("With competing risks, `bounds` needs the event type D of every subject with an observed event.",
+         call. = FALSE)
+  }
 
   data_fit_all <- align_ordinal_levels(data_fit_all, long_fit_all)
   data_fit_all <- suppressWarnings(drop_missing_longitudinal(data_fit_all, long_fit_all, survival_variable,
@@ -209,10 +270,20 @@ imputeEventTime <- function(data_fit_all, long_fit_all, survival_fit_all, bounds
       mass <- grid$S_T_all_infinity[, 1]
     }
     mids <- (edges[-1] + edges[-length(edges)]) / 2
-    log_f <- if (all(has_rows)) {
-      conditionalYT_fun(data_j, long_fit_all, l_i = mids, survival_variable, time_variable,
-                        survival_variable_all, survival_trans_function)[[1]][, 1]
-    } else rep(0, length(mids))
+    if (has_cr) {
+      # the event type is known: weight by P(D = d | T) and use f(Y | T, D = d)
+      k <- bounds$D[j] + 1
+      mass <- mass * conditionalDT(data_j, long_fit_all, survival_fit_all, l_i = mids)[[k]][, 1]
+      log_f <- if (all(has_rows)) {
+        conditionalYDT_fun(data_j, long_fit_all, survival_fit_all, l_i = mids, survival_variable,
+                           time_variable, survival_variable_all, survival_trans_function)[[k]][, 1]
+      } else rep(0, length(mids))
+    } else {
+      log_f <- if (all(has_rows)) {
+        conditionalYT_fun(data_j, long_fit_all, l_i = mids, survival_variable, time_variable,
+                          survival_variable_all, survival_trans_function)[[1]][, 1]
+      } else rep(0, length(mids))
+    }
     w <- exp(log_f - max(log_f[is.finite(log_f)])) * pmax(mass, 0)
     w[!is.finite(w)] <- 0
     k <- if (sum(w) > 0) {
@@ -227,13 +298,15 @@ imputeEventTime <- function(data_fit_all, long_fit_all, survival_fit_all, bounds
 
 #' Interval endpoints per subject
 #' @keywords internal
-subject_intervals <- function(data_survival, form_marginal_surv, id) {
-  assert_vars_in_data(id, data_survival, "the id variable", "data_survival")
+subject_intervals <- function(data_survival, form_marginal_surv, id, event_type = NULL) {
+  assert_vars_in_data(c(id, event_type), data_survival, "the id and event-type variables", "data_survival")
   y <- eval(form_marginal_surv[[2]], data_survival, environment(form_marginal_surv))
   b <- interval_bounds(y)
   keep <- !is.na(b$L)
-  data.frame(id = as.character(data_survival[[id]])[keep], L = b$L[keep], R = b$R[keep],
-             stringsAsFactors = FALSE)
+  out <- data.frame(id = as.character(data_survival[[id]])[keep], L = b$L[keep], R = b$R[keep],
+                    stringsAsFactors = FALSE)
+  if (!is.null(event_type)) out$D <- data_survival[[event_type]][keep]
+  out
 }
 
 #' Write event times (and their transforms) into longitudinal data

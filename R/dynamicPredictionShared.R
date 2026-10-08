@@ -682,10 +682,11 @@ auto_tune_marker_bandcount3 <- function(shared, bio_i, long_fit_all, survival_fi
 #'   interval midpoints and probabilities; zero probability for a patient
 #'   with \eqn{V = s}), and \code{eval(fun)}, which calls \code{fun(data_j,
 #'   l_i)} once per patient with a gap (\code{data_j} the patient's rows,
-#'   \code{l_i} their midpoints) and binds the resulting one-column log
-#'   densities into an \code{n} x patients matrix (\code{-Inf} for patients
-#'   without a gap). \code{fun} may also return a list of such columns, in
-#'   which case \code{eval()} returns the matching list of matrices.
+#'   \code{l_i} their midpoints) and binds the resulting one-column results
+#'   into an \code{n} x patients matrix (filled with \code{fill}, \code{-Inf}
+#'   by default for log densities, for patients without a gap). \code{fun}
+#'   may also return a (nested) list of such columns, in which case
+#'   \code{eval()} returns the matching list of matrices.
 #' @keywords internal
 interval_gap_grid <- function(data_predict_all, long_fit_all, survival_fit_all,
                               prediction_time, time_variable, n) {
@@ -711,21 +712,23 @@ interval_gap_grid <- function(data_predict_all, long_fit_all, survival_fit_all,
     S[, j] <- marginalT(patient_data(j), long_fit_all, survival_fit_all, l_i = edges,
                         upper_bound = prediction_time)[, 1]
   }
-  eval_gap <- function(fun) {
+  eval_gap <- function(fun, fill = -Inf) {
     cols <- lapply(seq_len(P), function(j) {
       if (has_gap[j]) fun(patient_data(j), mids[, j]) else NULL
     })
     template <- cols[[which(has_gap)[1]]]
-    bind <- function(pick) {
+    # bind the per-patient one-column results leaf by leaf, keeping the
+    # (possibly nested) list structure fun returns
+    combine <- function(get) {
+      leaf <- get(template)
+      if (is.list(leaf)) {
+        return(lapply(seq_along(leaf), function(k) combine(function(x) get(x)[[k]])))
+      }
       do.call(cbind, lapply(seq_len(P), function(j) {
-        if (has_gap[j]) c(pick(cols[[j]])) else rep(-Inf, n)
+        if (has_gap[j]) c(get(cols[[j]])) else rep(fill, n)
       }))
     }
-    if (is.list(template)) {
-      lapply(seq_along(template), function(k) bind(function(x) x[[k]]))
-    } else {
-      bind(identity)
-    }
+    combine(identity)
   }
   list(last_visit = stats::setNames(last_visit, patient_ids), has_gap = has_gap,
        mids = mids, S = S, eval = eval_gap)

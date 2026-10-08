@@ -78,24 +78,33 @@ compute_bio_shared_step <- function(data_predict_all, long_fit_all, survival_fit
   ### compute_bio_marker_step(), so it cancels in the predicted density
   ### interval-censored fits: also integrate over (last visit, prediction_time]
   ### (see interval_gap_grid() and predictRisk()); NULL for right-censored fits
-  gap = if (has_cr) NULL else interval_gap_grid(data_predict_all, long_fit_all, survival_fit_all,
-                                                prediction_time, time_variable, bandcount2)
-  f_y_gap = NULL
-  if (!is.null(gap)) {
+  gap = interval_gap_grid(data_predict_all, long_fit_all, survival_fit_all,
+                          prediction_time, time_variable, bandcount2)
+  f_y_gap = D_T_gap = NULL
+  if (!is.null(gap) && has_cr) {
+    D_T_gap = gap$eval(function(d, l) conditionalDT(d, long_fit_all, survival_fit_all, l_i = l), fill = 0)
+    f_y_gap = gap$eval(function(d, l) conditionalYDT_fun(d, long_fit_all, survival_fit_all, l_i = l,
+                                                         survival_variable, time_variable,
+                                                         survival_variable_all, survival_trans_function))
+  } else if (!is.null(gap)) {
     f_y_gap = gap$eval(function(d, l) conditionalYT_fun(d, long_fit_all, l_i = l, survival_variable,
                                                         time_variable, survival_variable_all,
                                                         survival_trans_function)[[1]])
   }
 
-  log_shift = if (has_cr) patient_log_shift(f_y_D_all_infinity[[1]], f_y_D_all_infinity[[2]]) else
+  log_shift = if (has_cr) {
+    if (is.null(gap)) patient_log_shift(f_y_D_all_infinity[[1]], f_y_D_all_infinity[[2]]) else
+      patient_log_shift(f_y_D_all_infinity[[1]], f_y_D_all_infinity[[2]], f_y_gap[[1]], f_y_gap[[2]])
+  } else {
     if (is.null(gap)) patient_log_shift(f_y_D_all_infinity[[1]]) else
       patient_log_shift(f_y_D_all_infinity[[1]], f_y_gap)
+  }
 
   list(data_predict_all = data_predict_all, survival_variable = survival_variable,
        predict.time.infinity = predict.time.infinity, S_T_all_infinity = S_T_all_infinity,
        has_cr = has_cr, D_T_all_infinity = D_T_all_infinity,
        f_y_D_all_infinity = f_y_D_all_infinity, log_shift = log_shift,
-       gap = gap, f_y_gap = f_y_gap,
+       gap = gap, f_y_gap = f_y_gap, D_T_gap = D_T_gap,
        conditionalYTBio_fun = conditionalYTBio_fun, conditionalYDTBio_fun = conditionalYDTBio_fun)
 }
 
@@ -173,12 +182,25 @@ compute_bio_marker_step <- function(shared, bio_i, long_fit_all, survival_fit_al
       T.surv.infinity.1 = t(exp_shifted(shared$f_y_D_all_infinity[[2]], shared$log_shift) *
                               shared$D_T_all_infinity[[2]] * shared$S_T_all_infinity)
       denominator = rowSums(T.surv.infinity.1 + T.surv.infinity.0)
+      f_y_gap_bio = NULL
+      if (!is.null(shared$gap)) {
+        # interval-censored: (last visit, prediction_time] too, per event type
+        gap_term = function(log_f, k) t(exp_shifted(log_f, shared$log_shift) * shared$D_T_gap[[k]] * shared$gap$S)
+        denominator = denominator + rowSums(gap_term(shared$f_y_gap[[1]], 1) + gap_term(shared$f_y_gap[[2]], 2))
+        f_y_gap_bio = shared$gap$eval(function(d, l) shared$conditionalYDTBio_fun(
+          Y_query, time_new = prediction_time + horizon, bio_i, d, long_fit_all, survival_fit_all,
+          l_i = l, shared$survival_variable, time_variable, survival_variable_all, survival_trans_function))
+      }
       Y_density = NULL
       for (Y_i in seq_len(length(Y_all))) {
         T.surv.predict.0 = t(exp_shifted(f_y_D_all_predict[[1]][[Y_i]], shared$log_shift) *
                                shared$D_T_all_infinity[[1]] * shared$S_T_all_infinity)
         T.surv.predict.1 = t(exp_shifted(f_y_D_all_predict[[2]][[Y_i]], shared$log_shift) *
                                shared$D_T_all_infinity[[2]] * shared$S_T_all_infinity)
+        if (!is.null(f_y_gap_bio)) {
+          T.surv.predict.0 = cbind(T.surv.predict.0, gap_term(f_y_gap_bio[[1]][[Y_i]], 1))
+          T.surv.predict.1 = cbind(T.surv.predict.1, gap_term(f_y_gap_bio[[2]][[Y_i]], 2))
+        }
 
         ### a density, not a probability: it may exceed 1 (a narrow predictive
         ### distribution), so it must not go through clamp_risk_prob()
