@@ -463,12 +463,12 @@ printBJM <- function(long_fit_all, survival_fit_all, digits = 4) {
                       Risk_Prob = round(risk0, digits),
                       stringsAsFactors = FALSE)
     colnames(tab) <- c("Subject", "Risk Prob")
-    if (!is.null(x$prob_undetected)) {
+    if (!is.null(x$prob_undetected_1)) {
       # interval-censored fit: see predictRisk()'s Value section
-      tab[["Already, undetected"]] <- round(x$prob_undetected, digits)
+      tab[["Already, undetected"]] <- round(x$prob_undetected_1, digits)
     }
     print(tab, row.names = FALSE, right = TRUE)
-    if (!is.null(x$prob_undetected)) {
+    if (!is.null(x$prob_undetected_1)) {
       cat("\n  Interval-censored: risks condition on being event-free at each subject's\n",
           " last visit; 'Already, undetected' is the probability the event happened\n",
           " between that visit and the prediction time.\n", sep = "")
@@ -480,7 +480,16 @@ printBJM <- function(long_fit_all, survival_fit_all, digits = 4) {
                       Total   = round(risk0 + risk1, digits),
                       stringsAsFactors = FALSE)
     colnames(tab) <- c("Subject", "Cause 1 Risk", "Cause 2 Risk", "Total Risk")
+    if (!is.null(x$prob_undetected_1)) {
+      tab[["Cause 1 undetected"]] <- round(x$prob_undetected_1, digits)
+      tab[["Cause 2 undetected"]] <- round(x$prob_undetected_2, digits)
+    }
     print(tab, row.names = FALSE, right = TRUE)
+    if (!is.null(x$prob_undetected_1)) {
+      cat("\n  Interval-censored: risks condition on being event-free at each subject's\n",
+          " last visit; 'undetected' is the probability that event happened between\n",
+          " that visit and the prediction time.\n", sep = "")
+    }
   }
 
   if (extended) {

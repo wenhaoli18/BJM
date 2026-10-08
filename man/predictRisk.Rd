@@ -74,16 +74,20 @@ patient id. All \code{0} when \code{horizon = 0}.}
 of dynamically predicted probabilities, one per at-risk patient, of experiencing the
 competing event within the prediction horizon, named by patient id (all \code{0} when
 \code{horizon = 0}). \code{NULL} when there is no competing risk.}
-\item{prob_undetected}{Only for an interval-censored \code{survival_fit_all}
-(see below): the probability that the event already happened between the
-patient's last visit and \code{prediction_time}, undetected.}
+\item{prob_undetected_1, prob_undetected_2}{Only for an interval-censored
+\code{survival_fit_all} (see below): the probability that the (first /
+competing) event already happened between the patient's last visit and
+\code{prediction_time}, undetected. \code{prob_undetected_2} is
+\code{NULL} without competing risks.}
 }
 \strong{Interval-censored fits.} An event is then only detected at a visit,
 so at \code{prediction_time} \eqn{s} a patient is known to be event-free
 only up to their last visit \eqn{V} (the last time in their history up to
 \eqn{s}). \code{risk_prob_1} is then
 \eqn{P(s < T \le s + horizon \mid T > V, history)} and
-\code{prob_undetected} is \eqn{P(V < T \le s \mid T > V, history)}; with
+\code{prob_undetected_1} is \eqn{P(V < T \le s \mid T > V, history)} (with
+competing risks, each \code{_1}/\code{_2} value is that probability jointly
+with the event type); with
 \eqn{V = s} they reduce to the usual conditioning on \eqn{T > s}.
 Only patients still at risk at \code{prediction_time} are predicted: a patient whose
 recorded survival time is before \code{prediction_time} is left out (one with a missing

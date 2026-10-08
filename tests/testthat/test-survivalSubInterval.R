@@ -88,11 +88,15 @@ test_that("the spline baseline recovers an increasing hazard that the piecewise 
   expect_equal(cumulative_baseline_at(spline$ic_fit$cum_basehaz, tt), true_H0, tolerance = 0.25)
 })
 
-test_that("interval-censored fits reject unsupported options", {
+test_that("interval-censored fits reject invalid input", {
   d <- simulate_interval_data(200)
   d$type <- stats::rbinom(200, 1, 0.5)
+  # the event-type model may use T only if T has been filled in
+  expect_error(survivalSub(d, Surv(L, R, type = "interval2") ~ x1, type ~ T + x1, event_time = "T"),
+               "interval censoring leaves unknown")
+  d$type[which(!is.na(d$R))[1]] <- 2
   expect_error(survivalSub(d, Surv(L, R, type = "interval2") ~ x1, type ~ x1, event_time = "T"),
-               "Competing risks")
+               "0 or 1")
   expect_error(survivalSub(d, Surv(L, R, type = "interval2") ~ x1, NULL), "event_time")
   expect_error(survivalSub(d, Surv(L, R, type = "interval2") ~ x1, NULL, event_time = "T", df = 0), "df")
 })
@@ -269,17 +273,17 @@ test_that("interval-censored predictions condition on being event-free at the la
   # the event may already have happened between the last visit V and s = 4,
   # so P(V < T <= 6 | T > V) splits into "already, undetected" + "in (4, 6]"
   at_4 <- pr(hist, 4, 2, 40)
-  expect_true(all(at_4$prob_undetected > 0 & at_4$prob_undetected < 1))
+  expect_true(all(at_4$prob_undetected_1 > 0 & at_4$prob_undetected_1 < 1))
   expect_output(print(at_4), "Already, undetected")
   for (i in as.character(ids)) {
     from_V <- pr(hist[hist$id == i, ], last_visit[[i]], 6 - last_visit[[i]], 200)
-    expect_equal(unname(from_V$risk_prob_1), unname(at_4$prob_undetected[i] + at_4$risk_prob_1[i]),
+    expect_equal(unname(from_V$risk_prob_1), unname(at_4$prob_undetected_1[i] + at_4$risk_prob_1[i]),
                  tolerance = 5e-3)
   }
 
   # predicting at the last visit itself leaves nothing undetected
   one <- hist[hist$id == ids[1], ]
-  expect_equal(unname(pr(one, last_visit[[1]], 2, 20)$prob_undetected), 0)
+  expect_equal(unname(pr(one, last_visit[[1]], 2, 20)$prob_undetected_1), 0)
 
   # the biomarker's predictive density still integrates to one
   bio <- dynamicPredictionBio(1, list(hist), fit$long_fit_all, fit$survival_fit_all, 4, 1, "year",
@@ -348,4 +352,87 @@ test_that("strata() gives each stratum its own baseline with shared coefficients
                          l_i = c(1, 2)), "Stratum")
   expect_output(print(fit), "Strata            : g=0, g=1")
   expect_true(any(grepl("Spline knots \\(time scale\\) \\[g=1\\]", utils::capture.output(summary(fit)))))
+})
+
+# Interval-censored competing risks: all-cause Weibull PH T, event type
+# D | T ~ logistic(-1 + 0.3 T + 0.5 x) known once detected, and
+# y | T, D = 1 + 0.3 t - 0.2 T + 0.5 D + 0.4 x + random intercept and slope
+# + noise.
+simulate_interval_cr <- function(n, seed, gap = c(1, 3)) {
+  set.seed(seed)
+  x <- stats::rnorm(n)
+  T <- (-log(stats::runif(n)) / (0.05 * exp(0.5 * x)))^(1 / 1.5)
+  D <- stats::rbinom(n, 1, stats::plogis(-1 + 0.3 * T + 0.5 * x))
+  surv <- data.frame(id = seq_len(n), x = x, L = NA_real_, R = NA_real_, type = NA_real_, trueT = T)
+  long <- list()
+  for (i in seq_len(n)) {
+    v <- c(0, cumsum(stats::runif(30, gap[1], gap[2])))
+    v <- v[v < 12]
+    if (T[i] > max(v)) {
+      surv$L[i] <- max(v)
+      obs <- v
+    } else {
+      k <- findInterval(T[i], v)
+      surv$L[i] <- v[k]
+      surv$R[i] <- v[k + 1]
+      surv$type[i] <- D[i]
+      obs <- v[v <= T[i]]
+    }
+    b <- stats::rnorm(2, 0, c(0.5, 0.1))
+    long[[i]] <- data.frame(id = i, year = obs, x = x[i], type = surv$type[i],
+                            y = 1 + 0.3 * obs - 0.2 * T[i] + 0.5 * D[i] + 0.4 * x[i] +
+                              b[1] + b[2] * obs + stats::rnorm(length(obs), 0, 0.3))
+  }
+  list(surv = surv, long = do.call(rbind, long))
+}
+
+test_that("fitIntervalBJM handles competing risks with the event type known at detection", {
+  skip_on_cran()
+  d <- simulate_interval_cr(250, seed = 21)
+  fit <- suppressWarnings(fitIntervalBJM(d$surv, d$long, Surv(L, R, type = "interval2") ~ x, "Tev",
+                                         y ~ year + Tev + type + x, ~ year | id, "year",
+                                         form_conditional_cr = type ~ Tev + x,
+                                         n_burnin = 3, n_imputations = 2, seed = 1))
+  observed <- d$surv[!is.na(d$surv$R), ]
+  expect_true(all(fit$imputed_T > observed$L & fit$imputed_T <= observed$R))
+  expect_length(fit$survival_fit_all_list, 2)
+  expect_s3_class(fit$survival_fit_all$glm_fit, "glm")
+  expect_equal(nrow(fit$survival_fit_all$glm_fit$data), nrow(observed))
+  expect_true(all(c("cr.(Intercept)", "cr.Tev", "cr.x") %in% colnames(fit$trace)))
+  # rough recovery (the formal check is a simulation study)
+  expect_equal(unname(stats::coef(fit$survival_fit_all$glm_fit)["Tev"]), 0.3, tolerance = 0.5)
+  expect_equal(unname(nlme::fixef(fit$long_fit_all$lfit[[1]])[c("Tev", "type")]), c(-0.2, 0.5),
+               tolerance = 0.3)
+
+  # predictions: per event type, P(V < T <= 6, D = d | T > V) predicted at the
+  # last visit V splits into "already, undetected" + "in (4, 6]" at s = 4
+  ids <- unique(d$long$id[d$long$year > 0 & d$long$year < 4])[1:3]
+  hist <- d$long[d$long$id %in% ids & d$long$year <= 4, ]
+  hist$Tev <- NA_real_
+  hist$type <- NA_real_
+  last_visit <- tapply(hist$year, hist$id, max)
+  pr <- function(h, s, hz, b) {
+    predictRisk(list(h), fit$long_fit_all, fit$survival_fit_all, s, hz, "year", NULL, NULL,
+                bandcount1 = b, bandcount2 = b)
+  }
+  at_4 <- pr(hist, 4, 2, 40)
+  expect_false(is.null(at_4$prob_undetected_2))
+  expect_output(print(at_4), "Cause 2 undetected")
+  for (i in as.character(ids)) {
+    from_V <- pr(hist[hist$id == i, ], last_visit[[i]], 6 - last_visit[[i]], 200)
+    expect_equal(unname(from_V$risk_prob_1), unname(at_4$prob_undetected_1[i] + at_4$risk_prob_1[i]),
+                 tolerance = 5e-3)
+    expect_equal(unname(from_V$risk_prob_2), unname(at_4$prob_undetected_2[i] + at_4$risk_prob_2[i]),
+                 tolerance = 5e-3)
+  }
+
+  bio <- dynamicPredictionBio(1, list(hist), fit$long_fit_all, fit$survival_fit_all, 4, 1, "year",
+                              NULL, NULL, bandcount2 = 20, bandcount3 = 200)
+  expect_equal(unname(colSums(bio$Y_density) * diff(bio$Y_all)[1]), rep(1, length(ids)),
+               tolerance = 0.02)
+
+  expect_error(fitIntervalBJM(d$surv, d$long, Surv(L, R, type = "interval2") ~ x, "Tev",
+                              y ~ year + Tev + type + x, ~ year | id, "year",
+                              form_conditional_cr = type ~ Tev + x, include_right_censored = TRUE),
+               "not supported with competing risks")
 })

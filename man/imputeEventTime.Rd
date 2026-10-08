@@ -23,7 +23,8 @@ imputeEventTime(
 
 \item{survival_fit_all}{Interval-censored output of \code{survivalSub()}.}
 
-\item{bounds}{Data frame with columns \code{id}, \code{L}, \code{R}.}
+\item{bounds}{Data frame with columns \code{id}, \code{L}, \code{R}
+(and, with competing risks, the observed event type \code{D}).}
 
 \item{time_variable, survival_variable_all, survival_trans_function}{As in
 \code{predictRisk()}.}

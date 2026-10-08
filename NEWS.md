@@ -42,13 +42,17 @@
   `survival_fit_all` and `long_fit_all` plug into `predictRisk()`,
   `predictLongitudinal()` and `simulateTrajectory()` unchanged. A `strata()`
   term gives each stratum its own baseline hazard, as in a stratified Cox
-  model. Competing risks and `performancePlot()`/`calibrationPlot()` are
-  not yet supported for interval-censored fits. Because an event is only
-  detected at a visit, `predictRisk()` and `predictLongitudinal()`
-  condition an interval-censored prediction on being event-free at each
-  patient's last visit rather than at `prediction_time`, and
-  `predictRisk()` also returns `prob_undetected`, the probability that the
-  event already happened in between; `simulateTrajectory()` requires
+  model. Competing risks are supported with the event type taken as known
+  once the event is detected: `fitIntervalBJM(form_conditional_cr = )`
+  draws `T` from `f(Y | T, D) P(D | T) f(T)` and refits the event-type
+  model, which uses `T`, on every draw. `performancePlot()` and
+  `calibrationPlot()` are not yet supported for interval-censored fits.
+  Because an event is only detected at a visit, `predictRisk()` and
+  `predictLongitudinal()` condition an interval-censored prediction on
+  being event-free at each patient's last visit rather than at
+  `prediction_time`, and `predictRisk()` also returns `prob_undetected_1`
+  (and, with competing risks, `prob_undetected_2`), the probability that
+  the event already happened in between; `simulateTrajectory()` requires
   `prediction_time` to be the last visit. `print()` of an interval-censored fit reports how
   many events fell before the subject's first visit, where the baseline
   hazard is extrapolated rather than estimated (see `?survivalSub`).
