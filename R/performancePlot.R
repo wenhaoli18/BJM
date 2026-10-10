@@ -37,18 +37,25 @@
 #' Journal 68:e70108), \code{interval_method} chooses how subjects whose
 #' interval straddles \code{s} or \code{s + horizon} are handled:
 #' \describe{
-#'   \item{\code{"ipcw"} (default)}{only subjects whose status is certain
-#'   are used -- cases detected inside the window after a negative visit at
-#'   or after \code{s}, controls with a negative visit at or after
+#'   \item{\code{"model"} (default)}{every subject at risk counts, as a case
+#'   or a control with the probability the fitted model gives their event
+#'   time given their observed interval. The model only splits each
+#'   subject's own interval, so in our simulations (visits every 1--3 years,
+#'   2-year window) both measures were within about 0.003 of their true
+#'   values, also with a survival sub-model that left out a covariate; but
+#'   the model does grade itself, so a badly misspecified model can look
+#'   better than it is.}
+#'   \item{\code{"ipcw"}}{only subjects whose status is certain are used --
+#'   cases detected inside the window after a negative visit at or after
+#'   \code{s}, controls with a negative visit at or after
 #'   \code{s + horizon} -- weighted by the inverse Kaplan--Meier probability
-#'   of still being followed up. It does not depend on the model being
-#'   evaluated, so it is the fair choice for comparing models, but it is
-#'   more variable and loses subjects when visits are sparse; in Yang et
-#'   al.'s simulations it underestimated the Brier score.}
-#'   \item{\code{"model"}}{every subject at risk counts, as a case or a
-#'   control with the probability the fitted model gives their event time
-#'   given their interval. Less variable, but optimistic when the model is
-#'   misspecified, since the model grades itself.}
+#'   of still being followed up. It does not use the model, but these weights
+#'   do not account for how likely a subject's status is to be certain, which
+#'   depends on the visit schedule: in the same simulations only about 5 of
+#'   60 cases were certain, the Brier score came out at about 0.03 instead
+#'   of 0.13, and the AUC was about 0.01 too high with three times the
+#'   error of \code{"model"}. With visits every 3--9 months the Brier score
+#'   was still about 25\% too low. Use it as a model-free check of the AUC.}
 #' }
 #'
 #' @param data_predict_all The evaluation data, in the same format as for
@@ -72,7 +79,7 @@
 #' @param bandcount1,bandcount2 As for \code{\link{predictRisk}}; passed to
 #' it at each landmark.
 #' @param interval_method Only for an interval-censored
-#' \code{survival_fit_all}: \code{"ipcw"} (default) or \code{"model"}; see
+#' \code{survival_fit_all}: \code{"model"} (default) or \code{"ipcw"}; see
 #' Description. For an interval-censored fit, \code{data_predict_all} must
 #' contain the interval columns of \code{form_marginal_surv} (and the event
 #' type) instead of a survival time and status.
@@ -105,7 +112,7 @@
 performancePlot <- function(data_predict_all, long_fit_all, survival_fit_all, prediction_time,
                             horizon, time_variable, survival_variable_all, survival_trans_function,
                             bandcount1 = "auto", bandcount2 = "auto",
-                            interval_method = c("ipcw", "model")) {
+                            interval_method = c("model", "ipcw")) {
   interval_method <- match.arg(interval_method)
   interval <- is_interval_censored(survival_fit_all)
   preds <- landmark_predictions(data_predict_all, long_fit_all, survival_fit_all, prediction_time,

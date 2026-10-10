@@ -64,3 +64,62 @@ test_that("the IPCW and model-based measures use only what they should", {
   expect_equal(mb$brier, mean(c(0.1, 0.2, 0.4, 0.1)^2))
   expect_equal(mb$auc, 1)
 })
+
+test_that("performancePlot and calibrationPlot evaluate an interval-censored fit", {
+  skip_on_cran()
+  set.seed(8)
+  n <- 150
+  x <- stats::rnorm(n)
+  T <- (-log(stats::runif(n)) / (0.05 * exp(0.5 * x)))^(1 / 1.5)
+  surv <- data.frame(id = seq_len(n), x = x, L = NA_real_, R = NA_real_)
+  long <- list()
+  for (i in seq_len(n)) {
+    v <- c(0, cumsum(stats::runif(30, 0.5, 1.5)))
+    v <- v[v < 10]
+    if (T[i] > max(v)) {
+      surv$L[i] <- max(v)
+      obs <- v
+    } else {
+      k <- findInterval(T[i], v)
+      surv$L[i] <- v[k]
+      surv$R[i] <- v[k + 1]
+      obs <- v[v <= T[i]]
+    }
+    b <- stats::rnorm(2, 0, c(0.5, 0.1))
+    long[[i]] <- data.frame(id = i, year = obs, x = x[i],
+                            y = 1 + 0.3 * obs - 0.2 * T[i] + 0.4 * x[i] + b[1] + b[2] * obs +
+                              stats::rnorm(length(obs), 0, 0.3))
+  }
+  long <- do.call(rbind, long)
+  fit <- suppressWarnings(fitIntervalBJM(surv, long, Surv(L, R, type = "interval2") ~ x, "Tev",
+                                         y ~ year + Tev + x, ~ year | id, "year",
+                                         n_burnin = 2, n_imputations = 1, seed = 1))
+  ev <- merge(long, surv[, c("id", "L", "R")], by = "id")
+
+  p_model <- performancePlot(ev, fit$long_fit_all, fit$survival_fit_all, c(2, 4), 2, "year", NULL, NULL,
+                             bandcount1 = 15, bandcount2 = 25)
+  p_ipcw <- performancePlot(ev, fit$long_fit_all, fit$survival_fit_all, c(2, 4), 2, "year", NULL, NULL,
+                            bandcount1 = 15, bandcount2 = 25, interval_method = "ipcw")
+  for (p in list(p_model, p_ipcw)) {
+    expect_s3_class(p, "ggplot")
+    expect_equal(nrow(p$data), 4)
+    expect_true(all(p$data$value >= 0 & p$data$value <= 1, na.rm = TRUE))
+  }
+  # the model-based version counts every subject at risk (expected cases),
+  # IPCW only those whose status in the window is certain
+  expect_true(all(p_model$data$n_cases >= p_ipcw$data$n_cases))
+  # subjects at risk at s: followed up past s with no event detected by s
+  followup <- ifelse(is.na(surv$R), surv$L, surv$R)
+  expect_equal(p_model$data$n_at_risk[p_model$data$landmark == 2][1], sum(followup > 2))
+
+  cal <- calibrationPlot(ev, fit$long_fit_all, fit$survival_fit_all, c(2, 4), 2, "year", NULL, NULL,
+                         n_groups = 3, bandcount1 = 15, bandcount2 = 25)
+  expect_s3_class(cal, "ggplot")
+  expect_equal(nrow(cal$data), 6)
+  expect_true(all(cal$data$observed >= 0 & cal$data$observed <= 1))
+  # the highest predicted-risk group has a higher observed risk than the lowest
+  for (s in c(2, 4)) {
+    g <- cal$data[cal$data$landmark == s, ]
+    expect_lt(g$observed[g$group == 1], g$observed[g$group == 3])
+  }
+})
