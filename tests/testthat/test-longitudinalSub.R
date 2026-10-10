@@ -139,3 +139,53 @@ test_that("a missing value in a variable used only in long_sub_random drops that
   expect_equal(with_na$Sigma_fit, dropped$Sigma_fit)
   expect_equal(nlme::fixef(with_na$lfit[[1]]), nlme::fixef(dropped$lfit[[1]]))
 })
+
+# Random intercept only, a few sparse visits per subject: the random slope
+# in ~ year | id then has a variance near zero, and lme(opt = "optim")
+# used to stop at its default 50 iterations with "optim problem,
+# convergence error code = 1" (seed 14 is one such dataset).
+simulate_sparse_long <- function(n, seed) {
+  set.seed(seed)
+  do.call(rbind, lapply(seq_len(n), function(i) {
+    t <- c(0, cumsum(stats::runif(5, 2, 6)))
+    t <- t[t < stats::runif(1, 3, 12)]
+    x <- stats::rnorm(1)
+    data.frame(id = i, year = t, x = x,
+               y = 1 + 0.3 * t + 0.4 * x + stats::rnorm(1, 0, 0.5) + stats::rnorm(length(t), 0, 0.3))
+  }))
+}
+
+test_that("longitudinalSub refits with more lme iterations when a variance is near zero", {
+  d <- simulate_sparse_long(300, 14)
+  # the original settings fail on this dataset
+  expect_error(nlme::lme(y ~ year + x, random = ~ year | id, data = d, method = "ML",
+                         control = nlme::lmeControl(opt = "optim")), "optim problem")
+  expect_warning(fit <- longitudinalSub(list(d), y ~ year + x, ~ year | id), "msMaxIter = 1000")
+  expect_equal(unname(nlme::fixef(fit$lfit[[1]])), c(1, 0.3, 0.4), tolerance = 0.15)
+  expect_identical(fit$lfit[[1]]$call$control, quote(nlme::lmeControl(opt = "optim", msMaxIter = 1000)))
+
+  # a dataset that fits the first time keeps the original call
+  ok <- suppressWarnings(longitudinalSub(list(simulate_sparse_long(300, 1)), y ~ year + x, ~ year | id))
+  expect_identical(ok$lfit[[1]]$call$control, quote(nlme::lmeControl(opt = "optim")))
+})
+
+test_that("lme_with_retry only retries convergence failures", {
+  d <- simulate_sparse_long(50, 1)
+  # not a convergence problem: the original error, and lme() is run once
+  calls <- 0
+  failing_lme <- function(...) {
+    calls <<- calls + 1
+    stop("object 'not_a_column' not found")
+  }
+  expect_error(lme_with_retry(failing_lme(), "y"), "not_a_column")
+  expect_equal(calls, 1)
+
+  # a convergence failure that persists: one retry, then advice
+  calls <- 0
+  never_converges <- function(...) {
+    calls <<- calls + 1
+    stop("optim problem, convergence error code = 1")
+  }
+  expect_error(lme_with_retry(never_converges(control = 1), "y"), "simpler long_sub_random")
+  expect_equal(calls, 2)
+})
