@@ -45,8 +45,15 @@
   model. Competing risks are supported with the event type taken as known
   once the event is detected: `fitIntervalBJM(form_conditional_cr = )`
   draws `T` from `f(Y | T, D) P(D | T) f(T)` and refits the event-type
-  model, which uses `T`, on every draw. `performancePlot()` and
-  `calibrationPlot()` are not yet supported for interval-censored fits.
+  model, which uses `T`, on every draw. `performancePlot()` evaluates
+  interval-censored fits with the landmark AUC and Brier score of Yang,
+  Rizopoulos, Newcomb and Erler (2026, Biometrical Journal 68:e70108),
+  either by IPCW over the subjects whose status in the window is certain
+  (`interval_method = "ipcw"`, the default) or with model-based case and
+  control probabilities (`"model"`); `calibrationPlot()` estimates each
+  risk group's observed risk nonparametrically from the intervals
+  (Turnbull-type, left-truncated at the last visit; Hudgens, Satten and
+  Longini, 2001, with competing risks).
   Because an event is only detected at a visit, `predictRisk()` and
   `predictLongitudinal()` condition an interval-censored prediction on
   being event-free at each patient's last visit rather than at

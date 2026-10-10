@@ -14,7 +14,8 @@ performancePlot(
   survival_variable_all,
   survival_trans_function,
   bandcount1 = "auto",
-  bandcount2 = "auto"
+  bandcount2 = "auto",
+  interval_method = c("ipcw", "model")
 )
 }
 \arguments{
@@ -45,6 +46,12 @@ window after each landmark in which events are counted.}
 
 \item{bandcount1, bandcount2}{As for \code{\link{predictRisk}}; passed to
 it at each landmark.}
+
+\item{interval_method}{Only for an interval-censored
+\code{survival_fit_all}: \code{"ipcw"} (default) or \code{"model"}; see
+Description. For an interval-censored fit, \code{data_predict_all} must
+contain the interval columns of \code{form_marginal_surv} (and the event
+type) instead of a survival time and status.}
 }
 \value{
 A \code{ggplot} object with one panel per measure, the landmark
@@ -81,6 +88,29 @@ not having the event.
 Evaluating on the data the sub-models were fit on gives an optimistic
 (apparent) performance; pass held-out validation data in
 \code{data_predict_all} when available.
+
+\strong{Interval-censored fits} (experimental). The event is then only
+known to lie between the last negative visit \eqn{L} and the visit
+\eqn{R} that detected it. A subject is at risk at \code{s} when followed
+up past \code{s} without a detected event, and the predicted risk is
+that of \code{predictRisk()} (conditional on being event-free at the last
+visit). Following Yang, Rizopoulos, Newcomb and Erler (2026, Biometrical
+Journal 68:e70108), \code{interval_method} chooses how subjects whose
+interval straddles \code{s} or \code{s + horizon} are handled:
+\describe{
+\item{\code{"ipcw"} (default)}{only subjects whose status is certain
+are used -- cases detected inside the window after a negative visit at
+or after \code{s}, controls with a negative visit at or after
+\code{s + horizon} -- weighted by the inverse Kaplan--Meier probability
+of still being followed up. It does not depend on the model being
+evaluated, so it is the fair choice for comparing models, but it is
+more variable and loses subjects when visits are sparse; in Yang et
+al.'s simulations it underestimated the Brier score.}
+\item{\code{"model"}}{every subject at risk counts, as a case or a
+control with the probability the fitted model gives their event time
+given their interval. Less variable, but optimistic when the model is
+misspecified, since the model grades itself.}
+}
 }
 \examples{
 \donttest{

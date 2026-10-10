@@ -20,6 +20,16 @@
 #' (apparent) calibration; pass held-out validation data in
 #' \code{data_predict_all} when available.
 #'
+#' For an \strong{interval-censored} fit (experimental), the observed risk
+#' of a group is a nonparametric (Turnbull-type) estimate from the
+#' subjects' intervals, left-truncated at each subject's last visit up to
+#' the landmark -- with competing risks, the cumulative incidence estimate
+#' of Hudgens, Satten and Longini (2001) -- so it estimates the same
+#' quantity \code{predictRisk()} predicts, without using the model. Within
+#' an interval the timing of the event is not identified, so the estimate
+#' is less precise than with exact times, and no confidence interval is
+#' drawn.
+#'
 #' @inheritParams performancePlot
 #' @param n_groups Number of risk groups per landmark. Default \code{10}
 #' (deciles); fewer groups give more stable observed risks in small data.
@@ -60,8 +70,13 @@ calibrationPlot <- function(data_predict_all, long_fit_all, survival_fit_all, pr
   rows <- list()
   for (lp in preds) {
     for (k in seq_along(lp$risks)) {
-      cal <- calibration_groups(lp$risks[[k]], lp$outcome$time, lp$outcome$status, lp$outcome$cause,
-                                k, lp$landmark + horizon, n_groups)
+      cal <- if (is_interval_censored(survival_fit_all)) {
+        calibration_groups_interval(lp$risks[[k]], lp$outcome$L, lp$outcome$R, lp$outcome$cause,
+                                    lp$last_visit, k, lp$landmark, lp$landmark + horizon, n_groups)
+      } else {
+        calibration_groups(lp$risks[[k]], lp$outcome$time, lp$outcome$status, lp$outcome$cause,
+                           k, lp$landmark + horizon, n_groups)
+      }
       cal$landmark <- lp$landmark
       cal$cause <- outcome_cause_label(survival_fit_all, k)
       rows[[length(rows) + 1]] <- cal
