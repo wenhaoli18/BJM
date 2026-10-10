@@ -317,6 +317,17 @@
 
 ### Bug fixes
 
+- [`longitudinalSub()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md)
+  no longer fails when
+  [`nlme::lme()`](https://rdrr.io/pkg/nlme/man/lme.html) stops at its
+  default 50 optimizer iterations (“optim problem, convergence error
+  code = 1”), which happened when a random-effect variance was close to
+  zero – e.g. a random slope for data with few, sparse visits per
+  subject. Such a fit is now redone with `msMaxIter = 1000`, with a
+  warning; if that fails too, the error suggests a simpler
+  `long_sub_random`. Fits that converged before are unchanged, and other
+  `lme()` errors are passed on as before.
+
 - [`predictPlot()`](https://wenhaoli18.github.io/BJM/reference/predictPlot.md)
   and
   [`riskPlot()`](https://wenhaoli18.github.io/BJM/reference/riskPlot.md)
