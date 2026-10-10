@@ -42,9 +42,11 @@
 #'   time given their observed interval. The model only splits each
 #'   subject's own interval, so in our simulations (visits every 1--3 years,
 #'   2-year window) both measures were within about 0.003 of their true
-#'   values, also with a survival sub-model that left out a covariate; but
-#'   the model does grade itself, so a badly misspecified model can look
-#'   better than it is.}
+#'   values, also with a survival sub-model that left out a covariate. The
+#'   model does grade itself, though: for a deliberately miscalibrated model
+#'   the Brier score came out slightly too good (by about 0.003), so judge
+#'   calibration with \code{\link{calibrationPlot}}, which does not use the
+#'   model.}
 #'   \item{\code{"ipcw"}}{only subjects whose status is certain are used --
 #'   cases detected inside the window after a negative visit at or after
 #'   \code{s}, controls with a negative visit at or after

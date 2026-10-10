@@ -250,7 +250,9 @@ every 1–3 years, though, only about 5 of 60 cases had a certain status. The
 IPCW Brier score came out at about 0.03 instead of the true 0.13, and the
 IPCW AUC was about three times as variable. The model-based measures stayed
 within about 0.003 of the truth, even with a misspecified survival
-sub-model.
+sub-model. Because the model grades itself, a miscalibrated model's Brier
+score comes out slightly too good, so check calibration separately with
+`calibrationPlot()`, which does not use the model.
 
 In `calibrationPlot()`, each risk group's observed risk is estimated
 without the model. A Turnbull-type nonparametric estimate is computed from
@@ -264,12 +266,19 @@ calibrationPlot(evaluation, fit$long_fit_all, fit$survival_fit_all,
                 n_groups = 4, bandcount1 = 20, bandcount2 = 40)
 ```
 
-With four groups of about 60 subjects, and event times known only up to
-their intervals, the observed risks are noisy: a group can sit well off the
-diagonal by chance, as at landmark 4 here. Unlike the AUC and Brier score,
-this calibration estimate has not yet been checked against the truth in
-simulations. As everywhere in BJM, evaluating on the fitting data gives an
-optimistic (apparent) performance. Use held-out data when you can.
+In simulations with visits every 1–3 years and a 2-year window, this
+observed risk was unbiased for every risk group. It also exposed a
+deliberately miscalibrated model, where an observed risk computed from the
+model's own posterior followed the miscalibrated predictions instead. But
+with event times known only up to their intervals it is noisy: with groups
+of about 60 subjects it was off by 0.08–0.16 on average, so a group can sit
+well off the diagonal by chance, as at landmark 4 here. It also needs the
+prediction window to be at least about as long as the gaps between visits.
+With visits every 2–6 years and a 2-year window, the window usually lies
+inside a subject's interval, where the timing is not identified, and the
+observed risk of the higher-risk groups came out up to 0.27 too high. As
+everywhere in BJM, evaluating on the fitting data gives an optimistic
+(apparent) performance. Use held-out data when you can.
 
 ## Assumptions and limitations
 
