@@ -48,9 +48,13 @@
   model, which uses `T`, on every draw. `performancePlot()` evaluates
   interval-censored fits with the landmark AUC and Brier score of Yang,
   Rizopoulos, Newcomb and Erler (2026, Biometrical Journal 68:e70108),
-  either by IPCW over the subjects whose status in the window is certain
-  (`interval_method = "ipcw"`, the default) or with model-based case and
-  control probabilities (`"model"`); `calibrationPlot()` estimates each
+  by default with model-based case and control probabilities
+  (`interval_method = "model"`), or by IPCW over the subjects whose status
+  in the window is certain (`"ipcw"`). In simulations the IPCW Brier score
+  was far too low when visits were sparse (about 0.03 instead of 0.13, with
+  visits every 1-3 years), while the model-based measures stayed within
+  about 0.003 of the truth, also with a misspecified survival sub-model;
+  `calibrationPlot()` estimates each
   risk group's observed risk nonparametrically from the intervals
   (Turnbull-type, left-truncated at the last visit; Hudgens, Satten and
   Longini, 2001, with competing risks).
