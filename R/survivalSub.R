@@ -26,9 +26,45 @@
 #'   \code{\link[stats]{glm}} with \code{family = binomial}. Set to
 #'   \code{NULL} when there is only a single event type (no competing
 #'   risks).
+#' @param event_time Only for an interval-censored outcome: the name of the
+#'   event-time column that the longitudinal sub-model's formulas use (the
+#'   exact time is unknown, so it is not part of \code{form_marginal_surv}).
+#' @param baseline Only for an interval-censored outcome: the baseline
+#'   hazard, \code{"spline"} (default; Royston--Parmar spline for the log
+#'   cumulative hazard in log time) or \code{"piecewise"}
+#'   (piecewise-constant hazard).
+#' @param df Only for an interval-censored outcome: spline degrees of
+#'   freedom (default 3) or number of pieces (default 6).
+#'
+#' @details \strong{Interval censoring (experimental).} When
+#'   \code{form_marginal_surv} is \code{Surv(L, R, type = "interval2") ~
+#'   covariates} -- the event is only known to lie in \code{(L, R]}, with
+#'   \code{R = NA} or \code{Inf} for right-censored subjects -- the marginal
+#'   model is a proportional hazards model with a smooth spline (or
+#'   piecewise-constant) baseline hazard fit by maximum likelihood (see
+#'   \code{icphFit()}), stored as \code{ic_fit} in place of
+#'   \code{coxph_fit}. A \code{strata()} term gives each stratum its own
+#'   baseline hazard. With competing risks, the event type (0/1) is taken as
+#'   known once the event is detected, and \code{form_conditional_cr} is fit
+#'   among subjects with an observed event (finite \code{R}); if it uses the
+#'   event time, that column must be filled for them, as
+#'   \code{\link{fitIntervalBJM}} does with imputed times. Ordinary right-censored \code{Surv(time,
+#'   status)} outcomes are fit with \code{coxph} exactly as before.
+#'
+#'   Events that happened before a subject's first visit (\code{L = 0}) only
+#'   say that the event fell between time 0 and that visit. Before the
+#'   earliest visit in the data there are no interval endpoints, so the
+#'   baseline hazard there is extrapolated, not estimated, and
+#'   \code{\link{fitIntervalBJM}} places these subjects' event times
+#'   according to that extrapolation. \code{print()} reports how many events
+#'   are of this kind: when they are a large share of all events (in
+#'   simulations, around a third or more), results can depend noticeably on
+#'   the assumed shape of the early hazard.
 #' @return An object of class \code{"survivalSub.BJM"}, a named list with elements:
 #' \describe{
-#'   \item{coxph_fit}{The fitted \code{\link[survival]{coxph}} marginal survival model.}
+#'   \item{coxph_fit}{The fitted \code{\link[survival]{coxph}} marginal survival model
+#'   (\code{ic_fit}, an interval-censored PH fit, in its place for an
+#'   interval-censored outcome).}
 #'   \item{form_marginal_surv}{The \code{form_marginal_surv} formula, as supplied.}
 #'   \item{glm_fit}{The fitted \code{\link[stats]{glm}} competing-risks (event type) model,
 #'   or \code{NULL} if \code{form_conditional_cr} was not supplied.}
@@ -48,7 +84,8 @@
 #'                                form_conditional_cr)
 #' 
 #' @export
-survivalSub = function(data_survival_fitting, form_marginal_surv, form_conditional_cr){
+survivalSub = function(data_survival_fitting, form_marginal_surv, form_conditional_cr,
+                       event_time = NULL, baseline = c("spline", "piecewise"), df = NULL){
 
   assert_data_frame(data_survival_fitting, "data_survival_fitting")
   if (!inherits(form_marginal_surv, "formula")) {
@@ -56,6 +93,10 @@ survivalSub = function(data_survival_fitting, form_marginal_surv, form_condition
   }
   assert_vars_in_data(all.vars(form_marginal_surv), data_survival_fitting,
                        "form_marginal_surv", "data_survival_fitting")
+  if (is_interval_surv(form_marginal_surv, data_survival_fitting)) {
+    return(survivalSubInterval(data_survival_fitting, form_marginal_surv, form_conditional_cr,
+                               event_time, baseline, df))
+  }
   if (length(form_conditional_cr) != 0) {
     if (!inherits(form_conditional_cr, "formula")) {
       stop("`form_conditional_cr` must be a formula or NULL.", call. = FALSE)
@@ -90,4 +131,69 @@ survivalSub = function(data_survival_fitting, form_marginal_surv, form_condition
               glm_fit = glm_fit, form_conditional_cr = form_conditional_cr)
   class(out) <- "survivalSub.BJM"
   return(out)
+}
+
+#' Is the outcome of a survival formula interval-censored?
+#' @keywords internal
+is_interval_surv <- function(form_marginal_surv, data) {
+  y <- eval(form_marginal_surv[[2]], data, environment(form_marginal_surv))
+  inherits(y, "Surv") && attr(y, "type") %in% c("interval", "interval2")
+}
+
+#' Interval-censored branch of \code{survivalSub()}
+#' @keywords internal
+survivalSubInterval <- function(data_survival_fitting, form_marginal_surv, form_conditional_cr,
+                                event_time, baseline, df) {
+  baseline <- match.arg(baseline, c("spline", "piecewise"))
+  if (is.null(df)) df <- if (baseline == "spline") 3 else 6
+  assert_string(event_time, "event_time")
+  if (!is.numeric(df) || length(df) != 1 || df < 1 || df != round(df)) {
+    stop("`df` must be a single positive whole number.", call. = FALSE)
+  }
+  ic_fit <- icphFit(form_marginal_surv, data_survival_fitting, event_time, baseline, df)
+  glm_fit <- NULL
+  if (length(form_conditional_cr) != 0) {
+    glm_fit <- fit_event_type_interval(data_survival_fitting, form_marginal_surv, form_conditional_cr,
+                                       event_time)
+  } else {
+    form_conditional_cr <- NULL
+  }
+  out <- list(ic_fit = ic_fit, form_marginal_surv = form_marginal_surv,
+              glm_fit = glm_fit, form_conditional_cr = form_conditional_cr)
+  class(out) <- "survivalSub.BJM"
+  out
+}
+
+#' Event-type model for an interval-censored outcome
+#'
+#' @description The competing-risks part of \code{survivalSub()}: a logistic
+#' model for the event type among subjects whose event was observed (finite
+#' \code{R}). The event type is taken as known once the event is detected,
+#' but the event time is not, so a model that uses it needs the
+#' \code{event_time} column filled for those subjects (\code{fitIntervalBJM()}
+#' fills it with imputed times and refits this model every iteration).
+#' @keywords internal
+fit_event_type_interval <- function(data, form_marginal_surv, form_conditional_cr, event_time) {
+  if (!inherits(form_conditional_cr, "formula")) {
+    stop("`form_conditional_cr` must be a formula or NULL.", call. = FALSE)
+  }
+  assert_vars_in_data(setdiff(all.vars(form_conditional_cr), event_time), data,
+                      "form_conditional_cr", "data_survival_fitting")
+  assert_linear_time_term(form_conditional_cr, event_time)
+  y <- eval(form_marginal_surv[[2]], data, environment(form_marginal_surv))
+  b <- interval_bounds(y)
+  event_rows <- !is.na(b$L) & is.finite(b$R)
+  data_glm <- data[event_rows, , drop = FALSE]
+  if (event_time %in% all.vars(form_conditional_cr) &&
+      (!event_time %in% names(data_glm) || anyNA(data_glm[[event_time]]))) {
+    stop(sprintf(paste0(
+      "`form_conditional_cr` uses the event time `%s`, which interval censoring leaves unknown. ",
+      "Fill it for every subject with an observed event, or let fitIntervalBJM() impute it."),
+      event_time), call. = FALSE)
+  }
+  type <- data_glm[[all.vars(form_conditional_cr[[2]])[1]]]
+  if (anyNA(type) || !all(type %in% c(0, 1))) {
+    stop("The event type must be 0 or 1 for every subject with an observed event.", call. = FALSE)
+  }
+  glm(form_conditional_cr, data_glm, family = binomial)
 }

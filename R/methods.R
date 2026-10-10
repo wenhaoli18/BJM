@@ -1,5 +1,6 @@
 # -- Internal formatting helper (not exported) ----------------------------------
 .format_survivalSub <- function(x, digits = 4, extended = FALSE) {
+  if (is_interval_censored(x)) return(.format_survivalSub_ic(x, digits, extended))
 
   sep_line  <- paste(rep("=", 65), collapse = "")
   dash_line <- paste(rep("-", 65), collapse = "")
@@ -116,6 +117,67 @@
 }
 
 
+# -- Interval-censored survival sub-model (not exported) -------------------------
+icph_coef_table <- function(ic_fit) {
+  b <- ic_fit$coefficients
+  se <- sqrt(diag(ic_fit$var))
+  z <- b / se
+  cbind(Coef = b, `exp(Coef)` = exp(b), SE = se, z = z,
+        `p-value` = 2 * stats::pnorm(-abs(z)))
+}
+
+.format_survivalSub_ic <- function(x, digits = 4, extended = FALSE) {
+  sep_line  <- paste(rep("=", 65), collapse = "")
+  dash_line <- paste(rep("-", 65), collapse = "")
+  ic <- x$ic_fit
+
+  cat("\nCall:\n")
+  cat(sprintf("survivalSub(form_marginal_surv = %s,\n            event_time = \"%s\")\n",
+              deparse(x$form_marginal_surv, width.cutoff = 50L), ic$event_time))
+  cat("\nData Descriptives:\n")
+  cat(sprintf("  Number of subjects        : %d\n", ic$n))
+  cat(sprintf("  Interval-censored         : %d\n", ic$n_interval))
+  cat(sprintf("  Exactly observed          : %d\n", ic$n_exact))
+  cat(sprintf("  Right-censored            : %d\n", ic$n_right))
+  n_events <- ic$n_interval + ic$n_exact
+  cat(sprintf("  Events before first visit : %d (%.0f%% of events)\n", ic$n_before_first_visit,
+              if (n_events > 0) 100 * ic$n_before_first_visit / n_events else 0))
+
+  cat("\n", sep_line, "\n", sep = "")
+  cat(sprintf(" Marginal Survival Sub-model  [PH, %s baseline, interval-censored]\n",
+              if (ic$baseline == "spline") sprintf("spline (df = %d)", ic$df) else "piecewise-constant"))
+  cat(dash_line, "\n", sep = "")
+  cat(" Formula: ")
+  print(x$form_marginal_surv)
+  cat("\n")
+  if (length(ic$coefficients) > 0) {
+    stats::printCoefmat(icph_coef_table(ic), digits = digits, P.values = TRUE, has.Pvalue = TRUE,
+                        signif.stars = getOption("show.signif.stars"), cs.ind = 1:3, tst.ind = 4)
+  }
+  cat(sprintf("\n  Log-likelihood    = %.2f\n", ic$loglik))
+  if (!is.null(ic$strata_levels)) {
+    cat(sprintf("  Strata            : %s (separate baseline hazards)\n",
+                paste(ic$strata_levels, collapse = ", ")))
+  }
+  bases <- if (!is.null(ic$bases)) ic$bases else list(ic$base)
+  gammas <- if (!is.null(ic$gammas)) ic$gammas else list(ic$gamma)
+  for (h in seq_along(bases)) {
+    label <- if (is.null(ic$strata_levels)) "" else sprintf(" [%s]", ic$strata_levels[h])
+    if (extended && ic$baseline == "spline") {
+      cat(sprintf("  Spline knots (time scale)%s:", label),
+          paste(signif(bases[[h]]$knot_times, digits), collapse = ", "), "\n")
+    }
+    if (extended && ic$baseline == "piecewise") {
+      finite_cuts <- bases[[h]]$cuts[is.finite(bases[[h]]$cuts)]
+      cat(sprintf("  Baseline hazard by piece%s:\n", label))
+      print(data.frame(from = finite_cuts, to = c(finite_cuts[-1], Inf),
+                       hazard = signif(exp(gammas[[h]]), digits)), row.names = FALSE)
+    }
+  }
+  cat(sep_line, "\n\n", sep = "")
+}
+
+
 #' Print method for \code{survivalSub.BJM} objects
 #'
 #' Automatically called when you type \code{survival_fit_all} or
@@ -173,9 +235,10 @@ summary.survivalSub.BJM <- function(object, digits = 4, ...) {
   .format_survivalSub(object, digits = digits, extended = TRUE)
 
   out <- list(
-    cox_summary = summary(object$coxph_fit),
+    cox_summary = if (!is_interval_censored(object)) summary(object$coxph_fit),
     glm_summary = if (!is.null(object$glm_fit)) summary(object$glm_fit) else NULL
   )
+  if (is_interval_censored(object)) out$ic_coefficients <- icph_coef_table(object$ic_fit)
   class(out) <- "summary.survivalSub.BJM"
   invisible(out)
 }
@@ -400,7 +463,16 @@ printBJM <- function(long_fit_all, survival_fit_all, digits = 4) {
                       Risk_Prob = round(risk0, digits),
                       stringsAsFactors = FALSE)
     colnames(tab) <- c("Subject", "Risk Prob")
+    if (!is.null(x$prob_undetected_1)) {
+      # interval-censored fit: see predictRisk()'s Value section
+      tab[["Already, undetected"]] <- round(x$prob_undetected_1, digits)
+    }
     print(tab, row.names = FALSE, right = TRUE)
+    if (!is.null(x$prob_undetected_1)) {
+      cat("\n  Interval-censored: risks condition on being event-free at each subject's\n",
+          " last visit; 'Already, undetected' is the probability the event happened\n",
+          " between that visit and the prediction time.\n", sep = "")
+    }
   } else {
     tab <- data.frame(Subject = ids,
                       Risk0   = round(risk0, digits),
@@ -408,7 +480,16 @@ printBJM <- function(long_fit_all, survival_fit_all, digits = 4) {
                       Total   = round(risk0 + risk1, digits),
                       stringsAsFactors = FALSE)
     colnames(tab) <- c("Subject", "Cause 1 Risk", "Cause 2 Risk", "Total Risk")
+    if (!is.null(x$prob_undetected_1)) {
+      tab[["Cause 1 undetected"]] <- round(x$prob_undetected_1, digits)
+      tab[["Cause 2 undetected"]] <- round(x$prob_undetected_2, digits)
+    }
     print(tab, row.names = FALSE, right = TRUE)
+    if (!is.null(x$prob_undetected_1)) {
+      cat("\n  Interval-censored: risks condition on being event-free at each subject's\n",
+          " last visit; 'undetected' is the probability that event happened between\n",
+          " that visit and the prediction time.\n", sep = "")
+    }
   }
 
   if (extended) {

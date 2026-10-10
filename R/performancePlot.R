@@ -28,6 +28,37 @@
 #' (apparent) performance; pass held-out validation data in
 #' \code{data_predict_all} when available.
 #'
+#' @section Interval-censored fits (experimental):
+#' The event is then only
+#' known to lie between the last negative visit \eqn{L} and the visit
+#' \eqn{R} that detected it. A subject is at risk at \code{s} when followed
+#' up past \code{s} without a detected event, and the predicted risk is
+#' that of \code{predictRisk()} (conditional on being event-free at the last
+#' visit). Following Yang, Rizopoulos, Newcomb and Erler (2026, Biometrical
+#' Journal 68:e70108), \code{interval_method} chooses how subjects whose
+#' interval straddles \code{s} or \code{s + horizon} are handled:
+#' * `"model"` (default): every subject at risk counts, as a case
+#'   or a control with the probability the fitted model gives their event
+#'   time given their observed interval. The model only splits the interval
+#'   observed for each subject, so in our simulations (visits every 1--3 years,
+#'   2-year window) both measures were within about 0.003 of their true
+#'   values, also with a survival sub-model that left out a covariate. The
+#'   model does grade itself, though: for a deliberately miscalibrated model
+#'   the Brier score came out slightly too good (by about 0.003), so judge
+#'   calibration with \code{\link{calibrationPlot}}, which does not use the
+#'   model.
+#' * `"ipcw"`: only subjects whose status is certain are used --
+#'   cases detected inside the window after a negative visit at or after
+#'   \code{s}, controls with a negative visit at or after
+#'   \code{s + horizon} -- weighted by the inverse Kaplan--Meier probability
+#'   of still being followed up. It does not use the model, but these weights
+#'   do not account for how likely the status of a subject is to be certain, which
+#'   depends on the visit schedule: in the same simulations only about 5 of
+#'   60 cases were certain, the Brier score came out at about 0.03 instead
+#'   of 0.13, and the AUC was about 0.01 too high with three times the
+#'   error of \code{"model"}. With visits every 3--9 months the Brier score
+#'   was still about 25% too low. Use it as a model-free check of the AUC.
+#'
 #' @param data_predict_all The evaluation data, in the same format as for
 #' \code{\link{predictRisk}}: a list of long-format \code{data.frame}s, one
 #' per longitudinal outcome (or a single \code{data.frame} used for all).
@@ -48,6 +79,11 @@
 #' \code{\link{predictRisk}}.
 #' @param bandcount1,bandcount2 As for \code{\link{predictRisk}}; passed to
 #' it at each landmark.
+#' @param interval_method Only for an interval-censored
+#' \code{survival_fit_all}: \code{"model"} (default) or \code{"ipcw"}; see
+#' Description. For an interval-censored fit, \code{data_predict_all} must
+#' contain the interval columns of \code{form_marginal_surv} (and the event
+#' type) instead of a survival time and status.
 #'
 #' @return A \code{ggplot} object with one panel per measure, the landmark
 #' time on the horizontal axis. Its \code{data} element is a
@@ -76,16 +112,29 @@
 #' @export
 performancePlot <- function(data_predict_all, long_fit_all, survival_fit_all, prediction_time,
                             horizon, time_variable, survival_variable_all, survival_trans_function,
-                            bandcount1 = "auto", bandcount2 = "auto") {
-
+                            bandcount1 = "auto", bandcount2 = "auto",
+                            interval_method = c("model", "ipcw")) {
+  interval_method <- match.arg(interval_method)
+  interval <- is_interval_censored(survival_fit_all)
   preds <- landmark_predictions(data_predict_all, long_fit_all, survival_fit_all, prediction_time,
                                 horizon, time_variable, survival_variable_all, survival_trans_function,
-                                bandcount1, bandcount2)
+                                bandcount1, bandcount2, posterior = interval && interval_method == "model")
   rows <- list()
   for (lp in preds) {
     for (k in seq_along(lp$risks)) {
-      m <- performance_metrics(lp$risks[[k]], lp$outcome$time, lp$outcome$status, lp$outcome$cause,
-                               k, lp$landmark, horizon)
+      o <- lp$outcome
+      m <- if (!interval) {
+        performance_metrics(lp$risks[[k]], o$time, o$status, o$cause, k, lp$landmark, horizon)
+      } else if (interval_method == "ipcw") {
+        performance_metrics_interval_ipcw(lp$risks[[k]], o$L, o$R, o$followup, o$cause, k,
+                                          lp$landmark, horizon)
+      } else {
+        probs <- t(vapply(seq_len(nrow(o)), function(i) {
+          window_status_probs(lp$posterior[[o$id[i]]], o$L[i], o$R[i], o$cause[i],
+                              lp$landmark, lp$landmark + horizon, k)
+        }, numeric(2)))
+        performance_metrics_interval_model(lp$risks[[k]], probs[, "case"], probs[, "control"])
+      }
       rows[[length(rows) + 1]] <- data.frame(
         landmark = lp$landmark, measure = c("AUC", "Brier score"),
         cause = outcome_cause_label(survival_fit_all, k),
@@ -129,9 +178,10 @@ performancePlot <- function(data_predict_all, long_fit_all, survival_fit_all, pr
 #' @keywords internal
 landmark_predictions <- function(data_predict_all, long_fit_all, survival_fit_all, prediction_time,
                                  horizon, time_variable, survival_variable_all, survival_trans_function,
-                                 bandcount1, bandcount2) {
+                                 bandcount1, bandcount2, posterior = FALSE) {
   assert_class(long_fit_all, "longitudinalSub.BJM", "long_fit_all", "longitudinalSub")
   assert_class(survival_fit_all, "survivalSub.BJM", "survival_fit_all", "survivalSub")
+  interval <- is_interval_censored(survival_fit_all)
   assert_data_list(data_predict_all, "data_predict_all", length(long_fit_all$lfit), allow_bare_df = TRUE)
   if (!is.list(data_predict_all) || is.data.frame(data_predict_all)) {
     data_predict_all <- rep(list(data_predict_all), each = length(long_fit_all$lfit))
@@ -143,9 +193,18 @@ landmark_predictions <- function(data_predict_all, long_fit_all, survival_fit_al
   assert_string(time_variable, "time_variable")
 
   id_variable <- as.character(nlme::splitFormula(long_fit_all$long_sub_random[[1]], "|")[[2]])[2]
-  outcome <- performance_outcome(data_predict_all[[1]], survival_fit_all, id_variable)
-  hidden <- unique(c(all.vars(formula(survival_fit_all$coxph_fit)[[2]]),
-                     if (!is.null(survival_fit_all$glm_fit)) all.vars(survival_fit_all$form_conditional_cr[[2]])))
+  if (interval) {
+    ### event known only to lie in (L, R]; at risk at s while followed up
+    ### past s without a detected event (follow-up ends at R or L)
+    outcome <- performance_outcome_interval(data_predict_all[[1]], survival_fit_all, id_variable)
+    outcome$time <- outcome$followup
+    hidden <- unique(c(all.vars(survival_fit_all$form_marginal_surv[[2]]),
+                       if (!is.null(survival_fit_all$glm_fit)) all.vars(survival_fit_all$form_conditional_cr[[2]])))
+  } else {
+    outcome <- performance_outcome(data_predict_all[[1]], survival_fit_all, id_variable)
+    hidden <- unique(c(all.vars(formula(survival_fit_all$coxph_fit)[[2]]),
+                       if (!is.null(survival_fit_all$glm_fit)) all.vars(survival_fit_all$form_conditional_cr[[2]])))
+  }
   for (i in seq_along(data_predict_all)) {
     assert_vars_in_data(c(time_variable, id_variable), data_predict_all[[i]],
                         "time_variable/the subject ID", sprintf("data_predict_all[[%d]]", i))
@@ -162,6 +221,8 @@ landmark_predictions <- function(data_predict_all, long_fit_all, survival_fit_al
     landmark_data <- lapply(data_predict_all, function(d) {
       d <- d[as.character(d[[id_variable]]) %in% at_risk & d[[time_variable]] <= s, , drop = FALSE]
       d[intersect(hidden, names(d))] <- NA
+      ### the event time an interval-censored fit conditions on: unknown
+      if (interval) d[[survival_time_variable(survival_fit_all)]] <- rep(NA_real_, nrow(d))
       d
     })
     if (nrow(landmark_data[[1]]) == 0) {
@@ -176,7 +237,21 @@ landmark_predictions <- function(data_predict_all, long_fit_all, survival_fit_al
     o <- outcome[match(names(risk$risk_prob_1), outcome$id), , drop = FALSE]
     risks <- if (is.null(risk$risk_prob_2)) list(risk$risk_prob_1) else
       list(risk$risk_prob_1, risk$risk_prob_2)
-    out[[length(out) + 1]] <- list(landmark = s, outcome = o, risks = risks)
+    lp <- list(landmark = s, outcome = o, risks = risks)
+    if (interval) {
+      ### each subject's last visit up to s: predictRisk() conditions on T > V
+      times <- unlist(lapply(landmark_data, function(d) d[[time_variable]]))
+      ids <- unlist(lapply(landmark_data, function(d) as.character(d[[id_variable]])))
+      lp$last_visit <- unname(tapply(times, ids, max)[o$id])
+      if (posterior) {
+        lp$posterior <- event_time_posterior(
+          landmark_data, long_fit_all, survival_fit_all, s, time_variable, survival_variable_all,
+          survival_trans_function,
+          n_inf = if (is.numeric(bandcount2)) bandcount2 else 100,
+          n_gap = if (is.numeric(bandcount1)) bandcount1 else 20)
+      }
+    }
+    out[[length(out) + 1]] <- lp
   }
   if (length(out) == 0) {
     stop("No landmark in `prediction_time` had subjects to evaluate.", call. = FALSE)

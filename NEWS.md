@@ -21,6 +21,56 @@
 
 ## New features
 
+* Interval-censored event times -- **experimental**. `survivalSub()` now
+  accepts `Surv(L, R, type = "interval2")` outcomes (event known only to lie
+  in `(L, R]`, e.g. between two clinic visits) and fits them with a
+  proportional hazards model by maximum likelihood (new arguments
+  `event_time`, `baseline` and `df`). The baseline is by default a
+  Royston-Parmar spline for the log cumulative hazard in log time
+  (`baseline = "spline"`, `df = 3`); a piecewise-constant hazard
+  (`baseline = "piecewise"`) is also available, but in simulations its
+  flat hazard within each visit interval biased the imputed event times,
+  and so `fitIntervalBJM()`'s longitudinal fit, when the true hazard was
+  increasing.
+  Because no event time is known exactly, the longitudinal sub-model
+  `f(Y | T)` cannot be fit on the observed events as it is for
+  right-censored data; the new `fitIntervalBJM()` fills `T` in by
+  stochastic EM and multiple imputation, drawing each subject's `T` from
+  `f(Y | T) f(T)` on `(L, R]` -- the same conditional density dynamic
+  prediction already evaluates -- and pools the resulting
+  `longitudinalSub()` fits with `poolLongitudinalSub()`. Its
+  `survival_fit_all` and `long_fit_all` plug into `predictRisk()`,
+  `predictLongitudinal()` and `simulateTrajectory()` unchanged. A `strata()`
+  term gives each stratum its own baseline hazard, as in a stratified Cox
+  model. Competing risks are supported with the event type taken as known
+  once the event is detected: `fitIntervalBJM(form_conditional_cr = )`
+  draws `T` from `f(Y | T, D) P(D | T) f(T)` and refits the event-type
+  model, which uses `T`, on every draw. `performancePlot()` evaluates
+  interval-censored fits with the landmark AUC and Brier score of Yang,
+  Rizopoulos, Newcomb and Erler (2026, Biometrical Journal 68:e70108),
+  by default with model-based case and control probabilities
+  (`interval_method = "model"`), or by IPCW over the subjects whose status
+  in the window is certain (`"ipcw"`). In simulations the IPCW Brier score
+  was far too low when visits were sparse (about 0.03 instead of 0.13, with
+  visits every 1-3 years), while the model-based measures stayed within
+  about 0.003 of the truth, also with a misspecified survival sub-model;
+  `calibrationPlot()` estimates each
+  risk group's observed risk nonparametrically from the intervals
+  (Turnbull-type, left-truncated at the last visit; Hudgens, Satten and
+  Longini, 2001, with competing risks).
+  Because an event is only detected at a visit, `predictRisk()` and
+  `predictLongitudinal()` condition an interval-censored prediction on
+  being event-free at each patient's last visit rather than at
+  `prediction_time`, and `predictRisk()` also returns `prob_undetected_1`
+  (and, with competing risks, `prob_undetected_2`), the probability that
+  the event already happened in between; `simulateTrajectory()` requires
+  `prediction_time` to be the last visit. `print()` of an interval-censored fit reports how
+  many events fell before the subject's first visit, where the baseline
+  hazard is extrapolated rather than estimated (see `?survivalSub`).
+  Right-censored fits are unaffected: every prediction
+  helper now reads the survival model through internal accessors, and a new
+  reference test checks their output is unchanged to 1e-12.
+
 * New `simulateTrajectory()` draws complete futures from the fitted backward
   joint model -- an event time, an event type under competing risks, and
   every biomarker's values at chosen times -- conditional on a patient's
