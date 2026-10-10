@@ -8,3 +8,4 @@
 ^\.Rhistory$
 ^\.Rd2pdf
 ^vignettes/articles$
+^simulations$
