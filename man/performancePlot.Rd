@@ -62,8 +62,68 @@ columns \code{landmark}, \code{measure}, \code{cause}, \code{value},
 type observed in the window).
 }
 \description{
-
+Evaluates how well the backward joint model's dynamic risk predictions
+discriminate and are calibrated, at each of several landmark times. For
+each landmark \code{s} in \code{prediction_time}, every subject in
+\code{data_predict_all} still event-free at \code{s} gets a predicted risk
+from \code{\link{predictRisk}}, using only their longitudinal history up
+to \code{s}, of an event in \code{(s, s + horizon]}; this is compared with
+what actually happened, by
+\describe{
+\item{AUC}{the time-dependent (cumulative/dynamic) area under the ROC
+curve: the probability that a subject with an event in the window has a
+higher predicted risk than one still event-free at \code{s + horizon}.
+0.5 is no better than chance, 1 is perfect.}
+\item{Brier score}{the mean squared difference between the predicted
+risk and the observed event indicator in the window. Lower is better.}
 }
+Subjects censored within the window are handled by inverse probability of
+censoring weighting (IPCW), with the censoring distribution among the
+subjects at risk at \code{s} estimated by Kaplan--Meier. With competing
+risks, both measures are computed separately for each event type: the
+cases are the subjects with that event type in the window, and for the
+Brier score a subject with the other event type in the window counts as
+not having the event.
+
+Evaluating on the data the sub-models were fit on gives an optimistic
+(apparent) performance; pass held-out validation data in
+\code{data_predict_all} when available.
+}
+\section{Interval-censored fits (experimental)}{
+
+The event is then only
+known to lie between the last negative visit \eqn{L} and the visit
+\eqn{R} that detected it. A subject is at risk at \code{s} when followed
+up past \code{s} without a detected event, and the predicted risk is
+that of \code{predictRisk()} (conditional on being event-free at the last
+visit). Following Yang, Rizopoulos, Newcomb and Erler (2026, Biometrical
+Journal 68:e70108), \code{interval_method} chooses how subjects whose
+interval straddles \code{s} or \code{s + horizon} are handled:
+\itemize{
+\item \code{"model"} (default): every subject at risk counts, as a case
+or a control with the probability the fitted model gives their event
+time given their observed interval. The model only splits the interval
+observed for each subject, so in our simulations (visits every 1--3 years,
+2-year window) both measures were within about 0.003 of their true
+values, also with a survival sub-model that left out a covariate. The
+model does grade itself, though: for a deliberately miscalibrated model
+the Brier score came out slightly too good (by about 0.003), so judge
+calibration with \code{\link{calibrationPlot}}, which does not use the
+model.
+\item \code{"ipcw"}: only subjects whose status is certain are used --
+cases detected inside the window after a negative visit at or after
+\code{s}, controls with a negative visit at or after
+\code{s + horizon} -- weighted by the inverse Kaplan--Meier probability
+of still being followed up. It does not use the model, but these weights
+do not account for how likely the status of a subject is to be certain, which
+depends on the visit schedule: in the same simulations only about 5 of
+60 cases were certain, the Brier score came out at about 0.03 instead
+of 0.13, and the AUC was about 0.01 too high with three times the
+error of \code{"model"}. With visits every 3--9 months the Brier score
+was still about 25\% too low. Use it as a model-free check of the AUC.
+}
+}
+
 \examples{
 \donttest{
 data(pbc3)
