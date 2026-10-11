@@ -25,7 +25,7 @@ reference:
   - checkBandcountConvergence
   - survivalTrans
 
-- title: Interval-censored events (experimental)
+- title: Interval-censored events
   desc: Fit the backward joint model when the event time is only known to lie between two visits.
   contents:
   - fitIntervalBJM
