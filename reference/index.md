@@ -26,7 +26,7 @@ sub-models.
 - [`survivalTrans()`](https://wenhaoli18.github.io/BJM/reference/survivalTrans.md)
   : Build a survival-time transform basis from cut points
 
-## Interval-censored events (experimental)
+## Interval-censored events
 
 Fit the backward joint model when the event time is only known to lie
 between two visits.

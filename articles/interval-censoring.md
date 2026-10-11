@@ -1,4 +1,4 @@
-# Interval-censored events (experimental)
+# Interval-censored events
 
 In many longitudinal studies the event is not seen when it happens. It
 is found at a visit: a biopsy turns positive, a scan shows progression,
