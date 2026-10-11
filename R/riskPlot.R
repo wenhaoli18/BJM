@@ -110,8 +110,7 @@ riskPlot = function(data_predict_all_pre, long_fit_all, survival_fit_all,
                          sprintf("data_predict_all_pre[[%d]]", i))
   }
 
-  coxph_fit = survival_fit_all$coxph_fit
-  survival_variable = as.character(formula(coxph_fit)[[2]])[2]
+  survival_variable = survival_time_variable(survival_fit_all)
   
   ### event type variable name
   if(length(survival_fit_all$form_conditional_cr) != 0){
@@ -185,7 +184,7 @@ riskPlot = function(data_predict_all_pre, long_fit_all, survival_fit_all,
   ### accumulation.
   has_cr <- length(survival_fit_all$form_conditional_cr) != 0
 
-  survival_variable <- as.character(formula(survival_fit_all$coxph_fit)[[2]])[2]
+  survival_variable <- survival_time_variable(survival_fit_all)
   compute_one_landmark <- function(time.cutoff) {
     data_predict_all = list()
     for(i in seq_len(length(long_fit_all$long_sub_fixed))){

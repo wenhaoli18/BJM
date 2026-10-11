@@ -4,7 +4,14 @@
 \alias{survivalSub}
 \title{Fit the survival sub-model}
 \usage{
-survivalSub(data_survival_fitting, form_marginal_surv, form_conditional_cr)
+survivalSub(
+  data_survival_fitting,
+  form_marginal_surv,
+  form_conditional_cr,
+  event_time = NULL,
+  baseline = c("spline", "piecewise"),
+  df = NULL
+)
 }
 \arguments{
 \item{data_survival_fitting}{One row per subject, containing the
@@ -21,11 +28,25 @@ covariates referenced in \code{form_marginal_surv} or
 \code{\link[stats]{glm}} with \code{family = binomial}. Set to
 \code{NULL} when there is only a single event type (no competing
 risks).}
+
+\item{event_time}{Only for an interval-censored outcome: the name of the
+event-time column that the longitudinal sub-model's formulas use (the
+exact time is unknown, so it is not part of \code{form_marginal_surv}).}
+
+\item{baseline}{Only for an interval-censored outcome: the baseline
+hazard, \code{"spline"} (default; Royston--Parmar spline for the log
+cumulative hazard in log time) or \code{"piecewise"}
+(piecewise-constant hazard).}
+
+\item{df}{Only for an interval-censored outcome: spline degrees of
+freedom (default 3) or number of pieces (default 6).}
 }
 \value{
 An object of class \code{"survivalSub.BJM"}, a named list with elements:
 \describe{
-\item{coxph_fit}{The fitted \code{\link[survival]{coxph}} marginal survival model.}
+\item{coxph_fit}{The fitted \code{\link[survival]{coxph}} marginal survival model
+(\code{ic_fit}, an interval-censored PH fit, in its place for an
+interval-censored outcome).}
 \item{form_marginal_surv}{The \code{form_marginal_surv} formula, as supplied.}
 \item{glm_fit}{The fitted \code{\link[stats]{glm}} competing-risks (event type) model,
 or \code{NULL} if \code{form_conditional_cr} was not supplied.}
@@ -45,6 +66,32 @@ competing-risks model is fit only among subjects who experienced an event
 event occurred conditional on an event having occurred. Together with
 \code{\link{longitudinalSub}}, the object returned here forms the pair of
 sub-models that dynamic prediction is built on.
+}
+\details{
+\strong{Interval censoring (experimental).} When
+\code{form_marginal_surv} is \code{Surv(L, R, type = "interval2") ~
+  covariates} -- the event is only known to lie in \code{(L, R]}, with
+\code{R = NA} or \code{Inf} for right-censored subjects -- the marginal
+model is a proportional hazards model with a smooth spline (or
+piecewise-constant) baseline hazard fit by maximum likelihood (see
+\code{icphFit()}), stored as \code{ic_fit} in place of
+\code{coxph_fit}. A \code{strata()} term gives each stratum its own
+baseline hazard. With competing risks, the event type (0/1) is taken as
+known once the event is detected, and \code{form_conditional_cr} is fit
+among subjects with an observed event (finite \code{R}); if it uses the
+event time, that column must be filled for them, as
+\code{\link{fitIntervalBJM}} does with imputed times. Ordinary right-censored \code{Surv(time,
+  status)} outcomes are fit with \code{coxph} exactly as before.
+
+Events that happened before a subject's first visit (\code{L = 0}) only
+say that the event fell between time 0 and that visit. Before the
+earliest visit in the data there are no interval endpoints, so the
+baseline hazard there is extrapolated, not estimated, and
+\code{\link{fitIntervalBJM}} places these subjects' event times
+according to that extrapolation. \code{print()} reports how many events
+are of this kind: when they are a large share of all events (in
+simulations, around a third or more), results can depend noticeably on
+the assumed shape of the early hazard.
 }
 \examples{
 
