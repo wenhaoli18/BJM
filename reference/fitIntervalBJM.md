@@ -1,0 +1,157 @@
+# Fit the backward joint model to interval-censored event times
+
+**Experimental.** With interval censoring nobody's event time \\T\\ is
+known exactly – only \\L \< T \le R\\ – so the longitudinal sub-model
+\\f(Y \mid T)\\, which has \\T\\ as a covariate, cannot be fit on the
+subjects with an observed event the way it is for right-censored data.
+`fitIntervalBJM()` fills in \\T\\ by stochastic EM, then by multiple
+imputation:
+
+1.  fit the marginal survival model to the intervals
+    ([`survivalSub()`](https://wenhaoli18.github.io/BJM/reference/survivalSub.md)
+    with `Surv(L, R, type = "interval2")`); it does not depend on \\T\\,
+    so it is fit once;
+
+2.  start every interval-censored \\T\\ at its interval midpoint and fit
+    [`longitudinalSub()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md);
+
+3.  draw each subject's \\T\\ from \\f(T \mid L \< T \le R, Y, X)
+    \propto f(Y \mid T, X) f(T \mid X)\\ on \\(L, R\]\\
+    ([`imputeEventTime()`](https://wenhaoli18.github.io/BJM/reference/imputeEventTime.md)),
+    refit
+    [`longitudinalSub()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md),
+    and repeat for `n_burnin` iterations;
+
+4.  keep iterating, saving the next `n_imputations` draws and their
+    [`longitudinalSub()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md)
+    fits.
+
+Step 3 uses the backward model's own factorization: \\f(Y \mid T)\\ on a
+grid of \\T\\ is exactly what dynamic prediction already computes
+([`conditionalYT()`](https://wenhaoli18.github.io/BJM/reference/conditionalYT.md)),
+so each draw costs about one
+[`predictRisk()`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md)
+call per subject.
+
+By default only subjects whose event was observed (finite \\R\\) enter
+the longitudinal fit, mirroring the complete-case fit used for
+right-censored data, which is valid when censoring is independent of
+\\(T, Y)\\ given the covariates. `include_right_censored = TRUE` also
+imputes \\T \in (L, \infty)\\ for right-censored subjects and uses them;
+their draws then rely on the survival model's extrapolated tail.
+
+The saved draws come from successive iterations of one chain with the
+model parameters at their point estimates, not from their posterior, so
+the between-imputation variance in `pooled` can be somewhat understated.
+
+## Usage
+
+``` r
+fitIntervalBJM(
+  data_survival,
+  data_fit_all,
+  form_marginal_surv,
+  event_time,
+  long_sub_fixed,
+  long_sub_random,
+  time_variable,
+  survival_variable_all = NULL,
+  survival_trans_function = NULL,
+  form_conditional_cr = NULL,
+  n_burnin = 10,
+  n_imputations = 5,
+  n_grid = 40,
+  baseline = c("spline", "piecewise"),
+  df = NULL,
+  include_right_censored = FALSE,
+  seed = NULL
+)
+```
+
+## Arguments
+
+- data_survival:
+
+  One row per subject: the interval endpoints, the survival covariates
+  and the subject id.
+
+- data_fit_all:
+
+  As in
+  [`longitudinalSub`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md):
+  one data frame per biomarker (or one shared data frame), long format,
+  for every subject. The `event_time` column and the columns named in
+  `survival_variable_all` are (re)filled from the imputed \\T\\.
+
+- form_marginal_surv:
+
+  `Surv(L, R, type = "interval2") ~ covariates`.
+
+- event_time:
+
+  Name of the event-time column used in `long_sub_fixed`.
+
+- long_sub_fixed, long_sub_random:
+
+  As in
+  [`longitudinalSub`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md).
+
+- time_variable:
+
+  Name of the visit-time column.
+
+- survival_variable_all, survival_trans_function:
+
+  Transformed event-time columns, as in
+  [`predictRisk`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md)
+  (`NULL` if none).
+
+- form_conditional_cr:
+
+  Optional competing-risks (event-type) model, as in
+  [`survivalSub`](https://wenhaoli18.github.io/BJM/reference/survivalSub.md),
+  e.g. `type ~ Tev + x`. The event type (0/1, in `data_survival` and in
+  every `data_fit_all` data frame, alongside the covariates of this
+  formula) is taken as known once the event is detected; each subject's
+  \\T\\ is then drawn from \\f(Y \mid T, D) P(D \mid T) f(T)\\, and this
+  model, which uses \\T\\, is refit on every draw.
+
+- n_burnin:
+
+  Stochastic-EM iterations before draws are saved.
+
+- n_imputations:
+
+  Number of saved draws (and longitudinal fits).
+
+- n_grid:
+
+  Grid points per subject interval.
+
+- baseline, df:
+
+  Baseline hazard of the survival model (see
+  [`survivalSub`](https://wenhaoli18.github.io/BJM/reference/survivalSub.md)).
+
+- include_right_censored:
+
+  See Description.
+
+- seed:
+
+  Optional integer seed (the global RNG state is restored).
+
+## Value
+
+An object of class `"fitIntervalBJM"`, a list with `survival_fit_all`
+(with competing risks, the event-type model fit to the first imputation;
+`survival_fit_all_list` has one per imputation); `long_fit_all_list`
+(one
+[`longitudinalSub()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md)
+fit per imputation); `long_fit_all` (the first of them, for use with
+[`predictRisk()`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md)
+and friends); `pooled`
+([`poolLongitudinalSub`](https://wenhaoli18.github.io/BJM/reference/poolLongitudinalSub.md)
+of the fits, when `n_imputations > 1`); `imputed_T` (a subjects x
+imputations matrix); and `trace` (each iteration's fixed effects, to
+check the chain has settled).

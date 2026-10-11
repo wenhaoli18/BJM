@@ -124,14 +124,28 @@ An object of class `"predictRisk.BJM"`, a named list with elements:
   by patient id (all `0` when `horizon = 0`). `NULL` when there is no
   competing risk.
 
-Only patients still at risk at `prediction_time` are predicted: a
-patient whose recorded survival time is before `prediction_time` is left
-out (one with a missing survival time is kept). The names show which
-patients each value belongs to. The numerical integration grids are
-shared by all patients predicted in one call, so a patient's value can
-differ slightly (within the grid's discretization error, which shrinks
-as `bandcount1`/`bandcount2` grow) depending on which other patients are
-predicted alongside it.
+- prob_undetected_1, prob_undetected_2:
+
+  Only for an interval-censored `survival_fit_all` (see below): the
+  probability that the (first / competing) event already happened
+  between the patient's last visit and `prediction_time`, undetected.
+  `prob_undetected_2` is `NULL` without competing risks.
+
+**Interval-censored fits.** An event is then only detected at a visit,
+so at `prediction_time` \\s\\ a patient is known to be event-free only
+up to their last visit \\V\\ (the last time in their history up to
+\\s\\). `risk_prob_1` is then \\P(s \< T \le s + horizon \mid T \> V,
+history)\\ and `prob_undetected_1` is \\P(V \< T \le s \mid T \> V,
+history)\\ (with competing risks, each `_1`/`_2` value is that
+probability jointly with the event type); with \\V = s\\ they reduce to
+the usual conditioning on \\T \> s\\. Only patients still at risk at
+`prediction_time` are predicted: a patient whose recorded survival time
+is before `prediction_time` is left out (one with a missing survival
+time is kept). The names show which patients each value belongs to. The
+numerical integration grids are shared by all patients predicted in one
+call, so a patient's value can differ slightly (within the grid's
+discretization error, which shrinks as `bandcount1`/`bandcount2` grow)
+depending on which other patients are predicted alongside it.
 
 ## Details
 

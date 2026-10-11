@@ -45,7 +45,8 @@ performancePlot(
   survival_variable_all,
   survival_trans_function,
   bandcount1 = "auto",
-  bandcount2 = "auto"
+  bandcount2 = "auto",
+  interval_method = c("model", "ipcw")
 )
 ```
 
@@ -99,6 +100,14 @@ performancePlot(
   [`predictRisk`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md);
   passed to it at each landmark.
 
+- interval_method:
+
+  Only for an interval-censored `survival_fit_all`: `"model"` (default)
+  or `"ipcw"`; see Description. For an interval-censored fit,
+  `data_predict_all` must contain the interval columns of
+  `form_marginal_surv` (and the event type) instead of a survival time
+  and status.
+
 ## Value
 
 A `ggplot` object with one panel per measure, the landmark time on the
@@ -106,6 +115,42 @@ horizontal axis. Its `data` element is a `data.frame` with one row per
 landmark, measure (and event type), and columns `landmark`, `measure`,
 `cause`, `value`, `n_at_risk` (subjects predicted) and `n_cases` (events
 of that type observed in the window).
+
+## Interval-censored fits (experimental)
+
+The event is then only known to lie between the last negative visit
+\\L\\ and the visit \\R\\ that detected it. A subject is at risk at `s`
+when followed up past `s` without a detected event, and the predicted
+risk is that of
+[`predictRisk()`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md)
+(conditional on being event-free at the last visit). Following Yang,
+Rizopoulos, Newcomb and Erler (2026, Biometrical Journal 68:e70108),
+`interval_method` chooses how subjects whose interval straddles `s` or
+`s + horizon` are handled:
+
+- `"model"` (default): every subject at risk counts, as a case or a
+  control with the probability the fitted model gives their event time
+  given their observed interval. The model only splits the interval
+  observed for each subject, so in our simulations (visits every 1–3
+  years, 2-year window) both measures were within about 0.003 of their
+  true values, also with a survival sub-model that left out a covariate.
+  The model does grade itself, though: for a deliberately miscalibrated
+  model the Brier score came out slightly too good (by about 0.003), so
+  judge calibration with
+  [`calibrationPlot`](https://wenhaoli18.github.io/BJM/reference/calibrationPlot.md),
+  which does not use the model.
+
+- `"ipcw"`: only subjects whose status is certain are used – cases
+  detected inside the window after a negative visit at or after `s`,
+  controls with a negative visit at or after `s + horizon` – weighted by
+  the inverse Kaplan–Meier probability of still being followed up. It
+  does not use the model, but these weights do not account for how
+  likely the status of a subject is to be certain, which depends on the
+  visit schedule: in the same simulations only about 5 of 60 cases were
+  certain, the Brier score came out at about 0.03 instead of 0.13, and
+  the AUC was about 0.01 too high with three times the error of
+  `"model"`. With visits every 3–9 months the Brier score was still
+  about 25% too low. Use it as a model-free check of the AUC.
 
 ## Examples
 

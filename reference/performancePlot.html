@@ -73,6 +73,7 @@ data_predict_all when available."></head><body>
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/BJM-intro.html">Getting Started with BJM</a></li>
     <li><a class="dropdown-item" href="../articles/digital-twins.html">Digital twins</a></li>
+    <li><a class="dropdown-item" href="../articles/interval-censoring.html">Interval-censored events (experimental)</a></li>
     <li><a class="dropdown-item" href="../articles/nonlinear-terms.html">Nonlinear terms in longitudinal formulas</a></li>
     <li><a class="dropdown-item" href="../articles/plotting.html">Plotting with BJM</a></li>
   </ul></li>
@@ -136,7 +137,8 @@ not having the event.</p>
 <span>  <span class="va">survival_variable_all</span>,</span>
 <span>  <span class="va">survival_trans_function</span>,</span>
 <span>  bandcount1 <span class="op">=</span> <span class="st">"auto"</span>,</span>
-<span>  bandcount2 <span class="op">=</span> <span class="st">"auto"</span></span>
+<span>  bandcount2 <span class="op">=</span> <span class="st">"auto"</span>,</span>
+<span>  interval_method <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"model"</span>, <span class="st">"ipcw"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -187,6 +189,14 @@ window after each landmark in which events are counted.</p></dd>
 <dd><p>As for <code><a href="predictRisk.html">predictRisk</a></code>; passed to
 it at each landmark.</p></dd>
 
+
+<dt id="arg-interval-method">interval_method<a class="anchor" aria-label="anchor" href="#arg-interval-method"></a></dt>
+<dd><p>Only for an interval-censored
+<code>survival_fit_all</code>: <code>"model"</code> (default) or <code>"ipcw"</code>; see
+Description. For an interval-censored fit, <code>data_predict_all</code> must
+contain the interval columns of <code>form_marginal_surv</code> (and the event
+type) instead of a survival time and status.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
@@ -197,6 +207,39 @@ columns <code>landmark</code>, <code>measure</code>, <code>cause</code>, <code>v
 <code>n_at_risk</code> (subjects predicted) and <code>n_cases</code> (events of that
 type observed in the window).</p>
     </div>
+    <div class="section level2">
+    <h2 id="interval-censored-fits-experimental-">Interval-censored fits (experimental)<a class="anchor" aria-label="anchor" href="#interval-censored-fits-experimental-"></a></h2>
+
+
+<p>The event is then only
+known to lie between the last negative visit \(L\) and the visit
+\(R\) that detected it. A subject is at risk at <code>s</code> when followed
+up past <code>s</code> without a detected event, and the predicted risk is
+that of <code><a href="predictRisk.html">predictRisk()</a></code> (conditional on being event-free at the last
+visit). Following Yang, Rizopoulos, Newcomb and Erler (2026, Biometrical
+Journal 68:e70108), <code>interval_method</code> chooses how subjects whose
+interval straddles <code>s</code> or <code>s + horizon</code> are handled:</p><ul><li><p><code>"model"</code> (default): every subject at risk counts, as a case
+or a control with the probability the fitted model gives their event
+time given their observed interval. The model only splits the interval
+observed for each subject, so in our simulations (visits every 1–3 years,
+2-year window) both measures were within about 0.003 of their true
+values, also with a survival sub-model that left out a covariate. The
+model does grade itself, though: for a deliberately miscalibrated model
+the Brier score came out slightly too good (by about 0.003), so judge
+calibration with <code><a href="calibrationPlot.html">calibrationPlot</a></code>, which does not use the
+model.</p></li>
+<li><p><code>"ipcw"</code>: only subjects whose status is certain are used –
+cases detected inside the window after a negative visit at or after
+<code>s</code>, controls with a negative visit at or after
+<code>s + horizon</code> – weighted by the inverse Kaplan–Meier probability
+of still being followed up. It does not use the model, but these weights
+do not account for how likely the status of a subject is to be certain, which
+depends on the visit schedule: in the same simulations only about 5 of
+60 cases were certain, the Brier score came out at about 0.03 instead
+of 0.13, and the AUC was about 0.01 too high with three times the
+error of <code>"model"</code>. With visits every 3–9 months the Brier score
+was still about 25% too low. Use it as a model-free check of the AUC.</p></li>
+</ul></div>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>

@@ -22,7 +22,8 @@ landmark_predictions(
   survival_variable_all,
   survival_trans_function,
   bandcount1,
-  bandcount2
+  bandcount2,
+  posterior = FALSE
 )
 ```
 

@@ -51,6 +51,7 @@ with a warning, before predicting."></head><body>
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/BJM-intro.html">Getting Started with BJM</a></li>
     <li><a class="dropdown-item" href="../articles/digital-twins.html">Digital twins</a></li>
+    <li><a class="dropdown-item" href="../articles/interval-censoring.html">Interval-censored events (experimental)</a></li>
     <li><a class="dropdown-item" href="../articles/nonlinear-terms.html">Nonlinear terms in longitudinal formulas</a></li>
     <li><a class="dropdown-item" href="../articles/plotting.html">Plotting with BJM</a></li>
   </ul></li>
@@ -191,8 +192,24 @@ of dynamically predicted probabilities, one per at-risk patient, of experiencing
 competing event within the prediction horizon, named by patient id (all <code>0</code> when
 <code>horizon = 0</code>). <code>NULL</code> when there is no competing risk.</p></dd>
 
+<dt>prob_undetected_1, prob_undetected_2</dt>
+<dd><p>Only for an interval-censored
+<code>survival_fit_all</code> (see below): the probability that the (first /
+competing) event already happened between the patient's last visit and
+<code>prediction_time</code>, undetected. <code>prob_undetected_2</code> is
+<code>NULL</code> without competing risks.</p></dd>
 
-</dl><p>Only patients still at risk at <code>prediction_time</code> are predicted: a patient whose
+
+</dl><p><strong>Interval-censored fits.</strong> An event is then only detected at a visit,
+so at <code>prediction_time</code> \(s\) a patient is known to be event-free
+only up to their last visit \(V\) (the last time in their history up to
+\(s\)). <code>risk_prob_1</code> is then
+\(P(s &lt; T \le s + horizon \mid T &gt; V, history)\) and
+<code>prob_undetected_1</code> is \(P(V &lt; T \le s \mid T &gt; V, history)\) (with
+competing risks, each <code>_1</code>/<code>_2</code> value is that probability jointly
+with the event type); with
+\(V = s\) they reduce to the usual conditioning on \(T &gt; s\).
+Only patients still at risk at <code>prediction_time</code> are predicted: a patient whose
 recorded survival time is before <code>prediction_time</code> is left out (one with a missing
 survival time is kept). The names show which patients each value belongs to.
 The numerical integration grids are shared by all patients predicted in one

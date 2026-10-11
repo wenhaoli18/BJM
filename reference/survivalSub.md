@@ -21,7 +21,14 @@ prediction is built on.
 ## Usage
 
 ``` r
-survivalSub(data_survival_fitting, form_marginal_surv, form_conditional_cr)
+survivalSub(
+  data_survival_fitting,
+  form_marginal_surv,
+  form_conditional_cr,
+  event_time = NULL,
+  baseline = c("spline", "piecewise"),
+  df = NULL
+)
 ```
 
 ## Arguments
@@ -46,6 +53,23 @@ survivalSub(data_survival_fitting, form_marginal_surv, form_conditional_cr)
   Set to `NULL` when there is only a single event type (no competing
   risks).
 
+- event_time:
+
+  Only for an interval-censored outcome: the name of the event-time
+  column that the longitudinal sub-model's formulas use (the exact time
+  is unknown, so it is not part of `form_marginal_surv`).
+
+- baseline:
+
+  Only for an interval-censored outcome: the baseline hazard, `"spline"`
+  (default; Royston–Parmar spline for the log cumulative hazard in log
+  time) or `"piecewise"` (piecewise-constant hazard).
+
+- df:
+
+  Only for an interval-censored outcome: spline degrees of freedom
+  (default 3) or number of pieces (default 6).
+
 ## Value
 
 An object of class `"survivalSub.BJM"`, a named list with elements:
@@ -53,7 +77,8 @@ An object of class `"survivalSub.BJM"`, a named list with elements:
 - coxph_fit:
 
   The fitted [`coxph`](https://rdrr.io/pkg/survival/man/coxph.html)
-  marginal survival model.
+  marginal survival model (`ic_fit`, an interval-censored PH fit, in its
+  place for an interval-censored outcome).
 
 - form_marginal_surv:
 
@@ -68,6 +93,36 @@ An object of class `"survivalSub.BJM"`, a named list with elements:
 - form_conditional_cr:
 
   The `form_conditional_cr` formula, as supplied (or `NULL`).
+
+## Details
+
+**Interval censoring (experimental).** When `form_marginal_surv` is
+`Surv(L, R, type = "interval2") ~ covariates` – the event is only known
+to lie in `(L, R]`, with `R = NA` or `Inf` for right-censored subjects –
+the marginal model is a proportional hazards model with a smooth spline
+(or piecewise-constant) baseline hazard fit by maximum likelihood (see
+[`icphFit()`](https://wenhaoli18.github.io/BJM/reference/icphFit.md)),
+stored as `ic_fit` in place of `coxph_fit`. A
+[`strata()`](https://rdrr.io/pkg/survival/man/strata.html) term gives
+each stratum its own baseline hazard. With competing risks, the event
+type (0/1) is taken as known once the event is detected, and
+`form_conditional_cr` is fit among subjects with an observed event
+(finite `R`); if it uses the event time, that column must be filled for
+them, as
+[`fitIntervalBJM`](https://wenhaoli18.github.io/BJM/reference/fitIntervalBJM.md)
+does with imputed times. Ordinary right-censored `Surv(time, status)`
+outcomes are fit with `coxph` exactly as before.
+
+Events that happened before a subject's first visit (`L = 0`) only say
+that the event fell between time 0 and that visit. Before the earliest
+visit in the data there are no interval endpoints, so the baseline
+hazard there is extrapolated, not estimated, and
+[`fitIntervalBJM`](https://wenhaoli18.github.io/BJM/reference/fitIntervalBJM.md)
+places these subjects' event times according to that extrapolation.
+[`print()`](https://rdrr.io/r/base/print.html) reports how many events
+are of this kind: when they are a large share of all events (in
+simulations, around a third or more), results can depend noticeably on
+the assumed shape of the early hazard.
 
 ## Examples
 

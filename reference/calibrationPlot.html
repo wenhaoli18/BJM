@@ -15,7 +15,23 @@ calibrated; points below it mean the model overestimates the risk, above
 it that it underestimates it.
 Evaluating on the data the sub-models were fit on gives an optimistic
 (apparent) calibration; pass held-out validation data in
-data_predict_all when available."><meta property="og:description" content="Checks whether the predicted risks are numerically right, not just well
+data_predict_all when available.
+For an interval-censored fit (experimental), the observed risk
+of a group is a nonparametric (Turnbull-type) estimate from the
+subjects' intervals, left-truncated at each subject's last visit up to
+the landmark – with competing risks, the cumulative incidence estimate
+of Hudgens, Satten and Longini (2001) – so it estimates the same
+quantity predictRisk() predicts, without using the model. Within
+an interval the timing of the event is not identified, so the estimate
+is less precise than with exact times, and no confidence interval is
+drawn. In simulations it was unbiased when the visits were at most about
+horizon apart, but with visits further apart than horizon
+the window mostly falls inside the subjects' intervals and the observed
+risk of the higher-risk groups was much too high (up to +0.27 with visits
+every 2–6 years and a 2-year window). An observed risk computed from the
+model's own posterior was more precise, but followed the predictions of
+a deliberately miscalibrated model instead of the truth, so it is not
+offered."><meta property="og:description" content="Checks whether the predicted risks are numerically right, not just well
 ranked. At each landmark s in prediction_time, every subject
 in data_predict_all still event-free at s gets a predicted
 risk from predictRisk of an event in
@@ -31,7 +47,23 @@ calibrated; points below it mean the model overestimates the risk, above
 it that it underestimates it.
 Evaluating on the data the sub-models were fit on gives an optimistic
 (apparent) calibration; pass held-out validation data in
-data_predict_all when available."></head><body>
+data_predict_all when available.
+For an interval-censored fit (experimental), the observed risk
+of a group is a nonparametric (Turnbull-type) estimate from the
+subjects' intervals, left-truncated at each subject's last visit up to
+the landmark – with competing risks, the cumulative incidence estimate
+of Hudgens, Satten and Longini (2001) – so it estimates the same
+quantity predictRisk() predicts, without using the model. Within
+an interval the timing of the event is not identified, so the estimate
+is less precise than with exact times, and no confidence interval is
+drawn. In simulations it was unbiased when the visits were at most about
+horizon apart, but with visits further apart than horizon
+the window mostly falls inside the subjects' intervals and the observed
+risk of the higher-risk groups was much too high (up to +0.27 with visits
+every 2–6 years and a 2-year window). An observed risk computed from the
+model's own posterior was more precise, but followed the predictions of
+a deliberately miscalibrated model instead of the truth, so it is not
+offered."></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -51,6 +83,7 @@ data_predict_all when available."></head><body>
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/BJM-intro.html">Getting Started with BJM</a></li>
     <li><a class="dropdown-item" href="../articles/digital-twins.html">Digital twins</a></li>
+    <li><a class="dropdown-item" href="../articles/interval-censoring.html">Interval-censored events (experimental)</a></li>
     <li><a class="dropdown-item" href="../articles/nonlinear-terms.html">Nonlinear terms in longitudinal formulas</a></li>
     <li><a class="dropdown-item" href="../articles/plotting.html">Plotting with BJM</a></li>
   </ul></li>
@@ -90,6 +123,22 @@ it that it underestimates it.</p>
 <p>Evaluating on the data the sub-models were fit on gives an optimistic
 (apparent) calibration; pass held-out validation data in
 <code>data_predict_all</code> when available.</p>
+<p>For an <strong>interval-censored</strong> fit (experimental), the observed risk
+of a group is a nonparametric (Turnbull-type) estimate from the
+subjects' intervals, left-truncated at each subject's last visit up to
+the landmark – with competing risks, the cumulative incidence estimate
+of Hudgens, Satten and Longini (2001) – so it estimates the same
+quantity <code><a href="predictRisk.html">predictRisk()</a></code> predicts, without using the model. Within
+an interval the timing of the event is not identified, so the estimate
+is less precise than with exact times, and no confidence interval is
+drawn. In simulations it was unbiased when the visits were at most about
+<code>horizon</code> apart, but with visits further apart than <code>horizon</code>
+the window mostly falls inside the subjects' intervals and the observed
+risk of the higher-risk groups was much too high (up to +0.27 with visits
+every 2–6 years and a 2-year window). An observed risk computed from the
+model's own posterior was more precise, but followed the predictions of
+a deliberately miscalibrated model instead of the truth, so it is not
+offered.</p>
     </div>
 
     <div class="section level2">
