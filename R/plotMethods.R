@@ -158,6 +158,8 @@ plot.survivalSub.BJM <- function(x, which = c("forest", "basehaz"), ...) {
 
   if (which == "basehaz") {
     bh <- survival_cum_basehaz(x)
+    # an interval-censored fit tabulates its baseline beyond the data
+    bh <- bh[bh$time <= survival_max_followup(x), , drop = FALSE]
     bh <- rbind(if (is.null(bh$strata)) data.frame(time = 0, hazard = 0) else
                   data.frame(time = 0, hazard = 0, strata = unique(bh$strata)),
                 bh[, intersect(c("time", "hazard", "strata"), names(bh)), drop = FALSE])

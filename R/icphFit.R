@@ -134,6 +134,9 @@ icphFit <- function(formula, data, event_time, baseline = c("spline", "piecewise
     # region and stopped at a nonsensical baseline.
     weibull <- icphFit(formula, data, event_time, "spline", 1)
     start <- c(unlist(lapply(weibull$gammas, function(g) c(g, rep(0, df - 1)))), weibull$coefficients)
+    # d log H0 / d log t of the Weibull fit, per stratum, for the tail beyond the data
+    tail_shape <- vapply(seq_len(H), function(h) weibull$gammas[[h]][2] / weibull$bases[[h]]$scale[1],
+                         numeric(1))
     if (lower_tail == "weibull") {
       bases <- lapply(seq_len(H), function(h) {
         make_base(endpoints_of(rows[[h]]),
@@ -162,6 +165,21 @@ icphFit <- function(formula, data, event_time, baseline = c("spline", "piecewise
     knots <- bases[[h]]$knot_times
     grid <- sort(unique(c(seq(0, upper, length.out = 2001), knots[knots <= upper])))
     H0 <- bases[[h]]$cumhaz(grid, gammas[[h]])
+    # tabulated on to 20 times the last endpoint so that predictions beyond
+    # the data follow the fitted model's tail rather than a straight line
+    # fitted to the whole table, which understated an increasing hazard. The
+    # piecewise baseline continues with its last piece's hazard; the spline
+    # baseline as a Weibull, H0(upper) (t / upper)^shape, with the shape of
+    # the Weibull (df = 1) fit to all the data -- the spline's own slope at
+    # its boundary knot rests on the last few endpoints and overshot
+    tail <- upper * exp(seq(0, log(20), length.out = 1001))[-1]   # 0.3% apart: the table is read as steps
+    H_tail <- if (baseline == "spline" && df > 1) {
+      H0[length(H0)] * (tail / upper)^tail_shape[h]
+    } else {
+      bases[[h]]$cumhaz(tail, gammas[[h]])
+    }
+    grid <- c(grid, tail)
+    H0 <- c(H0, H_tail)
     if (is.unsorted(H0)) {
       warning("The fitted baseline cumulative hazard is not monotone; it was made monotone with cummax().",
               call. = FALSE)
