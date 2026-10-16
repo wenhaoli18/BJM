@@ -103,3 +103,10 @@ setup_copula_predict_fixture <- function() {
   list(pbc3 = pbc3, breaks = breaks, to_cat = to_cat,
        long_fit_all = long_fit_all, long_sub_fixed = long_sub_fixed)
 }
+
+# torch can be installed without its LibTorch backend (it is downloaded
+# separately by torch::install_torch()), so also check that the backend works
+skip_if_no_torch <- function() {
+  testthat::skip_if_not_installed("torch")
+  if (!torch::torch_is_installed()) testthat::skip("torch backend (LibTorch) is not installed")
+}

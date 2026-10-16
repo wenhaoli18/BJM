@@ -352,6 +352,17 @@ test_that("horizon <= 0 gives a zero risk for every at-risk patient", {
   expect_equal(out$risk_prob_2, c("2" = 0, "4" = 0))
 })
 
+test_that("event-type probabilities stay finite for an extreme linear predictor", {
+  surv <- survivalSub(pbc3[!duplicated(pbc3$id), ], Surv(years, status3) ~ age + sex,
+                      status4 ~ years + age + sex)
+  surv$glm_fit$coefficients[["(Intercept)"]] <- 1000
+  d <- pbc3[pbc3$id %in% c(2, 4) & pbc3$year <= 3, ]
+  p <- conditionalDT(list(d), pbc3_long_fit(), surv, l_i = c(3, 4, 5))
+  # 1 / (1 + exp(eta)) * exp(eta) used to give Inf * 0 = NaN here
+  expect_false(anyNA(p[[2]]))
+  expect_equal(p[[1]] + p[[2]], matrix(1, 3, 2))
+})
+
 test_that("predictions do not depend on the biomarkers' units (no underflow/overflow)", {
   # The conditional densities scale with det(2 * pi * Sigma), which grows with
   # the biomarkers' units and the number of observations. A "+ 1e-20" in the

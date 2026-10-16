@@ -336,7 +336,7 @@ longitudinalSubCopula <- function(data_fit_all, long_sub_fixed, long_sub_random,
 
     ffk <- nlme::splitFormula(long_sub_random[[m]], "|")[[1]]
     Zik[[m]] <- data.frame("id2" = factor(data.fit.one[[id]]), model.matrix(ffk, data.fit.one))
-    Zik.list[[m]] <- by(Zik[[m]], c(Zik[[m]]$id2), function(u) as.matrix(u[, -1]))
+    Zik.list[[m]] <- by(Zik[[m]], Zik[[m]]$id2, function(u) as.matrix(u[, -1]))
   }
 
   # Flatten lists to length = n

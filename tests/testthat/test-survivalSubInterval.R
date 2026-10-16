@@ -275,6 +275,10 @@ test_that("interval-censored predictions condition on being event-free at the la
   at_4 <- pr(hist, 4, 2, 40)
   expect_true(all(at_4$prob_undetected_1 > 0 & at_4$prob_undetected_1 < 1))
   expect_output(print(at_4), "Already, undetected")
+  # horizon = 0: no risk in the (empty) window, but the undetected mass is kept
+  at_4_h0 <- pr(hist, 4, 0, 40)
+  expect_equal(unname(at_4_h0$risk_prob_1), rep(0, length(ids)))
+  expect_equal(at_4_h0$prob_undetected_1, at_4$prob_undetected_1, tolerance = 1e-6)
   for (i in as.character(ids)) {
     from_V <- pr(hist[hist$id == i, ], last_visit[[i]], 6 - last_visit[[i]], 200)
     expect_equal(unname(from_V$risk_prob_1), unname(at_4$prob_undetected_1[i] + at_4$risk_prob_1[i]),

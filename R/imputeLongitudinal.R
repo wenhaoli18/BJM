@@ -146,7 +146,7 @@
 #'
 #' @examples
 #' \donttest{
-#' if (requireNamespace("torch", quietly = TRUE)) {
+#' if (requireNamespace("torch", quietly = TRUE) && torch::torch_is_installed()) {
 #'   data(pbc3)
 #'   data_fit_all <- pbc3[pbc3$status3 == 1, ]
 #'
@@ -330,6 +330,10 @@ imputeLongitudinal <- function(data_fit_all, long_sub_fixed, long_sub_random,
   ### once the arguments are known to be otherwise well-formed, do we require
   ### torch to actually fit the model
   assert_package_installed("torch", "imputeLongitudinal()")
+  if (!torch::torch_is_installed()) {
+    stop(paste0("imputeLongitudinal() needs the torch backend (LibTorch), which is not installed; ",
+                "run torch::install_torch() once to install it."), call. = FALSE)
+  }
 
   ### the MIWAE's importance resampling draws with R's own RNG
   ### (sample.int()/rnorm()), not torch's, so `seed` has to seed both --

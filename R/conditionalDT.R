@@ -67,11 +67,12 @@ conditionalDT = function(data_predict_all, long_fit_all, survival_fit_all, l_i){
   n_patients <- dim(data_matrix_probability)[1]
 
   ### conditional probability
-  surv_med_w1 = 1/ (1 +  exp(matrix(beta_time * l_i, length(l_i), n_patients)  +
-                                 t(matrix(covariate_para_matrix, n_patients, length(l_i))) ))
-
-  surv_med_w2 = exp(matrix(beta_time * l_i, length(l_i), n_patients)  +
-                      t(matrix(covariate_para_matrix, n_patients, length(l_i))) ) * surv_med_w1
+  ### plogis() rather than 1 / (1 + exp(eta)) and exp(eta) * that, which
+  ### gave Inf * 0 = NaN once exp(eta) overflowed
+  eta = matrix(beta_time * l_i, length(l_i), n_patients) +
+    t(matrix(covariate_para_matrix, n_patients, length(l_i)))
+  surv_med_w1 = stats::plogis(-eta)
+  surv_med_w2 = stats::plogis(eta)
 
   return(list(surv_med_w1, surv_med_w2))
 }
