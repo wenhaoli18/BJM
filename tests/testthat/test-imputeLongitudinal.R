@@ -270,3 +270,29 @@ test_that("imputeLongitudinal(seed =) is reproducible and leaves the caller's RN
   set.seed(10)
   expect_equal(runif(1), after_first)
 })
+
+test_that("the imputation model uses the visit time when long_sub_fixed does", {
+  # the visit time is also the key that aligns rows across biomarkers; it used
+  # to be dropped from the model along with the id
+  expect_equal(imputation_covariates(list(c("year", "age", "years"), c("year", "sex")), "id"),
+               c("year", "age", "years", "sex"))
+})
+
+test_that("imputed values follow a biomarker's trend over visit time (requires torch)", {
+  skip_on_cran()
+  skip_if_no_torch()
+  set.seed(1)
+  d <- expand.grid(year = 0:5, id = 1:40)
+  d$age <- stats::rnorm(40)[d$id]
+  d$y <- 2 * d$year + 0.5 * d$age + stats::rnorm(nrow(d), sd = 0.3)
+  missing <- sample(nrow(d), 40)
+  d$y[missing] <- NA
+  out <- imputeLongitudinal(d, y ~ year + age, ~ 1 | id, time_variable = "year", epochs = 300, seed = 1)
+  filled <- out$data_fit_all[[1]]
+  filled <- filled[order(filled$id, filled$year), ]
+  ref <- d[order(d$id, d$year), ]
+  m <- is.na(ref$y)
+  # without the visit time: correlation -0.24 with it, RMSE 4.1 against the truth
+  expect_gt(stats::cor(filled$y[m], ref$year[m]), 0.9)
+  expect_lt(sqrt(mean((filled$y[m] - (2 * ref$year[m] + 0.5 * ref$age[m]))^2)), 1)
+})

@@ -499,7 +499,7 @@ printBJM <- function(long_fit_all, survival_fit_all, digits = 4) {
     cat(dash_line, "\n", sep = "")
     if (!has_cr) {
       cat(sprintf("  Mean : %.4f\n", mean(risk0, na.rm = TRUE)))
-      cat(sprintf("  SD   : %.4f\n", stats::sd(risk0,   na.rm = TRUE)))
+      cat(sprintf("  SD   : %s\n", format_sd(risk0)))
       cat(sprintf("  Min / Max : %.4f / %.4f\n",
                   min(risk0, na.rm = TRUE), max(risk0, na.rm = TRUE)))
     } else {
@@ -507,10 +507,8 @@ printBJM <- function(long_fit_all, survival_fit_all, digits = 4) {
                   mean(risk0, na.rm = TRUE),
                   mean(risk1, na.rm = TRUE),
                   mean(risk0 + risk1, na.rm = TRUE)))
-      cat(sprintf("  SD   (Cause 1 / Cause 2 / Total): %.4f / %.4f / %.4f\n",
-                  stats::sd(risk0, na.rm = TRUE),
-                  stats::sd(risk1, na.rm = TRUE),
-                  stats::sd(risk0 + risk1, na.rm = TRUE)))
+      cat(sprintf("  SD   (Cause 1 / Cause 2 / Total): %s / %s / %s\n",
+                  format_sd(risk0), format_sd(risk1), format_sd(risk0 + risk1)))
     }
   }
 
@@ -648,13 +646,13 @@ summary.predictRisk.BJM <- function(object, prediction_time = NULL,
     cat(dash_line, "\n", sep = "")
     cat(" Predictive Distribution Summary (across subjects)\n")
     cat(dash_line, "\n", sep = "")
-    cat(sprintf("  MAP       - Mean (SD): %.4f (%.4f),  Range: [%.4f, %.4f]\n",
-                mean(Y_predict, na.rm = TRUE), stats::sd(Y_predict, na.rm = TRUE),
+    cat(sprintf("  MAP       - Mean (SD): %.4f (%s),  Range: [%.4f, %.4f]\n",
+                mean(Y_predict, na.rm = TRUE), format_sd(Y_predict),
                 min(Y_predict,  na.rm = TRUE), max(Y_predict, na.rm = TRUE)))
-    cat(sprintf("  Post.Mean - Mean (SD): %.4f (%.4f)\n",
-                mean(stats_mat[, "Mean"]), stats::sd(stats_mat[, "Mean"])))
-    cat(sprintf("  Post.SD   - Mean (SD): %.4f (%.4f)\n",
-                mean(stats_mat[, "SD"]),   stats::sd(stats_mat[, "SD"])))
+    cat(sprintf("  Post.Mean - Mean (SD): %.4f (%s)\n",
+                mean(stats_mat[, "Mean"]), format_sd(stats_mat[, "Mean"])))
+    cat(sprintf("  Post.SD   - Mean (SD): %.4f (%s)\n",
+                mean(stats_mat[, "SD"]),   format_sd(stats_mat[, "SD"])))
     cat(sprintf("  95%% CI width - Mean: %.4f\n",
                 mean(stats_mat[, "Upper"] - stats_mat[, "Lower"])))
   }
@@ -726,4 +724,11 @@ summary.predictLongitudinal.BJM <- function(object, bio_i = NULL,
                               subject_ids = subject_ids,
                               extended = TRUE)
   invisible(object)
+}
+
+# SD across subjects for the summary() methods: "-" when it is undefined
+# (a single subject) instead of printing NA
+format_sd <- function(x) {
+  out <- stats::sd(x, na.rm = TRUE)
+  if (is.na(out)) "-" else sprintf("%.4f", out)
 }

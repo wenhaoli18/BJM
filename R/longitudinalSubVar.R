@@ -11,20 +11,10 @@ longitudinalSubVar <- function(thetaLong, l, tol.em, verbose, max.iter = 1000) {
   # Multivariate longitudinal data
   yi <- l$yi
   Xi <- l$Xi
-  XtX.inv <- l$XtX.inv
-  Xtyi <- l$Xtyi
-  XtZi <- l$XtZi
   Zi <- l$Zi
   Zit <- l$Zit
   nik <- l$nik
-  yik <- l$yik
-  Xik.list <- l$Xik.list
-  Zik.list <- l$Zik.list
   n <- l$n    # number of subjects
-  p <- l$p    # vector of fixed effect dims
-  r <- l$r    # vector of random effect dims
-  M <- l$M    # number of longitudinal markers
-  nk <- l$nk  # vector of number of observations per outcome
   
   delta <- 1
   beta <- thetaLong$beta

@@ -4,7 +4,7 @@
 \alias{marginalT}
 \title{Marginal distribution of T}
 \usage{
-marginalT(data_predict_all, long_fit_all, survival_fit_all, l_i, upper_bound)
+marginalT(data_predict_all, long_fit_all, survival_fit_all, l_i)
 }
 \arguments{
 \item{data_predict_all}{This involves a collection of \code{data.frame} objects for
@@ -26,10 +26,6 @@ procedure, utilizing the \code{coxph} function. These outputs include the compre
 findings and variables derived from the analysis.}
 
 \item{l_i}{A vector of time points to calculate the conditional probability.}
-
-\item{upper_bound}{Upper limit for integration. To manage the hazard function,
-extrapolation is required. The \code{upper_bound} parameter specifies the upper time
-points at which extrapolation is performed.}
 }
 \value{
 Marginal density probability of the survival variable T is represented as a

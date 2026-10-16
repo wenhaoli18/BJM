@@ -167,10 +167,6 @@ predictPlot = function(data_predict_all_one, long_fit_all, survival_fit_all,
                          sprintf("data_predict_all_one[[%d]]", i))
   }
 
-  survival_variable = survival_time_variable(survival_fit_all)
-  ### event type variable name
-  if(length(survival_fit_all$form_conditional_cr) != 0)  event_type_variable = as.character(formula(survival_fit_all$form_conditional_cr)[[2]])
-  
   #name of biomarker
   bio_i_name = as.character(formula(long_fit_all$long_sub_fixed[[bio_his]])[[2]])
   
