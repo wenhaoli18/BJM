@@ -281,6 +281,20 @@
 
 ## Bug fixes
 
+* `predictRisk()` computes the normalizing denominator as the numerator's
+  own integral over the prediction window plus the integral beyond it.
+  Before, the denominator was a separate integral from `prediction_time`
+  on, evaluated on its own grid, which discretized the window differently
+  from the numerator: near the jumps of the Cox model's step-function
+  baseline hazard the two disagreed by several percent, even with fine
+  grids. For pbc3 patient 2 at `prediction_time = 5`, `horizon = 3` the
+  risk was 0.263 against 0.280 from a brute-force integral (now 0.281), and
+  at `prediction_time = 13` the ratio exceeded 1 and was reported as a risk
+  of exactly 1 (now 0.942). Risks change accordingly, typically by a few
+  percent; the `bandcount2` grid now spans `[prediction_time + horizon,
+  upper_bound]`. `riskPlot()`, `predictPlot()`, `performancePlot()` and
+  `calibrationPlot()` use the corrected risks.
+
 * `predictLongitudinal()` now predicts the biomarker at `prediction_time +
   horizon` conditional on survival through that time, as documented ("a
   future biomarker value conditional on survival"). The event time was

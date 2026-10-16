@@ -18,6 +18,9 @@
 # The `bio` entries were regenerated the same way when dynamicPredictionBio()
 # began conditioning on survival through prediction_time + horizon; nothing
 # else in the reference changed.
+# The `risk` entries were regenerated when predictRisk()'s denominator became
+# the window integral plus the integral beyond the window; again nothing else
+# changed.
 #
 # Printed output is normalized (normalize_printed()) so it does not depend
 # on the formula's environment address or on useFancyQuotes.
