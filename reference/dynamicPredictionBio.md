@@ -25,8 +25,9 @@ and survival
 sub-models, but instead of an event-risk probability this returns a
 predictive density for a future value of one chosen biomarker (`bio_i`)
 at `prediction_time + horizon`, conditional on the subject's observed
-longitudinal history up to `prediction_time` and on being event-free at
-`prediction_time`. The density (`Y_density`, evaluated over a
+longitudinal history up to `prediction_time` and on survival (being
+event-free) through `prediction_time + horizon`, the time the biomarker
+is predicted at. The density (`Y_density`, evaluated over a
 candidate-value grid `Y_all`) is obtained by integrating the biomarker's
 predictive distribution against the survival sub-model's hazard, using
 the subject's empirical-Bayes random-effects update from their observed
@@ -127,14 +128,15 @@ dynamicPredictionBio(
 
 - bandcount2:
 
-  The number of grid points spanning `[prediction_time, upper_bound]`,
-  where `upper_bound` is set internally as the earliest time by which
-  every at-risk patient's model-based probability of still being
-  event-free (given event-free at `prediction_time`) has dropped below
-  `1e-4`; this approximates integrating out to infinity for the
-  denominator that normalizes the predicted density. A wider follow-up
-  range needs a larger `bandcount2` to keep the grid spacing comparable.
-  Defaults to `"auto"` (see Details).
+  The number of grid points spanning
+  `[prediction_time + horizon, upper_bound]`, where `upper_bound` is set
+  internally as the earliest time by which every at-risk patient's
+  model-based probability of still being event-free (given event-free at
+  `prediction_time + horizon`) has dropped below `1e-4`; this
+  approximates integrating out to infinity for the denominator that
+  normalizes the predicted density. A wider follow-up range needs a
+  larger `bandcount2` to keep the grid spacing comparable. Defaults to
+  `"auto"` (see Details).
 
 - bandcount3:
 

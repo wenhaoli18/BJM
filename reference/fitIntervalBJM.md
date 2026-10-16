@@ -22,9 +22,9 @@ imputation:
     [`longitudinalSub()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md),
     and repeat for `n_burnin` iterations;
 
-4.  keep iterating, saving the next `n_imputations` draws and their
+4.  keep iterating, saving every `n_thin`-th draw and its
     [`longitudinalSub()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md)
-    fits.
+    fit until `n_imputations` are saved.
 
 Step 3 uses the backward model's own factorization: \\f(Y \mid T)\\ on a
 grid of \\T\\ is exactly what dynamic prediction already computes
@@ -40,9 +40,20 @@ right-censored data, which is valid when censoring is independent of
 imputes \\T \in (L, \infty)\\ for right-censored subjects and uses them;
 their draws then rely on the survival model's extrapolated tail.
 
-The saved draws come from successive iterations of one chain with the
-model parameters at their point estimates, not from their posterior, so
-the between-imputation variance in `pooled` can be somewhat understated.
+The saved draws come from one chain, so successive draws are correlated;
+saving only every `n_thin`-th iteration makes them closer to
+independent. They are drawn with the model parameters at their point
+estimates, not from their posterior, so the between-imputation variance
+in `pooled` can still be somewhat understated.
+
+For prediction, `long_fit_all` combines the imputations: its fixed
+effects are the Rubin's-rules pooled estimates and its residual and
+random-effects variances the averages over the imputations (see
+[`poolLongitudinalSub`](https://wenhaoli18.github.io/BJM/reference/poolLongitudinalSub.md)),
+so a prediction does not depend on which single imputation happened to
+come first. With competing risks the event-type model of
+`survival_fit_all` likewise has its coefficients averaged over the
+imputations.
 
 ## Usage
 
@@ -60,6 +71,7 @@ fitIntervalBJM(
   form_conditional_cr = NULL,
   n_burnin = 10,
   n_imputations = 5,
+  n_thin = 5,
   n_grid = 40,
   baseline = c("spline", "piecewise"),
   df = NULL,
@@ -124,6 +136,12 @@ fitIntervalBJM(
 
   Number of saved draws (and longitudinal fits).
 
+- n_thin:
+
+  Iterations between saved draws (1 saves every iteration after the
+  burn-in). Larger values make the saved draws less correlated at the
+  cost of `n_burnin + n_imputations * n_thin` iterations in all.
+
 - n_grid:
 
   Grid points per subject interval.
@@ -144,11 +162,14 @@ fitIntervalBJM(
 ## Value
 
 An object of class `"fitIntervalBJM"`, a list with `survival_fit_all`
-(with competing risks, the event-type model fit to the first imputation;
-`survival_fit_all_list` has one per imputation); `long_fit_all_list`
+(with competing risks, its event-type model has the coefficients
+averaged over the imputations, while the rest of that `glm` object, e.g.
+its standard errors, is the first imputation's fit;
+`survival_fit_all_list` has one fit per imputation); `long_fit_all_list`
 (one
 [`longitudinalSub()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md)
-fit per imputation); `long_fit_all` (the first of them, for use with
+fit per imputation); `long_fit_all` (the imputations combined, see
+Description, for use with
 [`predictRisk()`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md)
 and friends); `pooled`
 ([`poolLongitudinalSub`](https://wenhaoli18.github.io/BJM/reference/poolLongitudinalSub.md)

@@ -14,8 +14,8 @@ draw each subject's \(T\) from
 \(f(T \mid L &amp;lt; T \le R, Y, X) \propto f(Y \mid T, X) f(T \mid X)\)
 on \((L, R]\) (imputeEventTime()), refit
 longitudinalSub(), and repeat for n_burnin iterations;
-keep iterating, saving the next n_imputations draws and
-their longitudinalSub() fits.
+keep iterating, saving every n_thin-th draw and its
+longitudinalSub() fit until n_imputations are saved.
 Step 3 uses the backward model's own factorization: \(f(Y \mid T)\)
 on a grid of \(T\) is exactly what dynamic prediction already
 computes (conditionalYT()), so each draw costs about one
@@ -27,10 +27,18 @@ right-censored data, which is valid when censoring is independent of
 also imputes \(T \in (L, \infty)\) for right-censored subjects and
 uses them; their draws then rely on the survival model's extrapolated
 tail.
-The saved draws come from successive iterations of one chain with the
-model parameters at their point estimates, not from their posterior, so
-the between-imputation variance in pooled can be somewhat
-understated."><meta property="og:description" content="Experimental. With interval censoring nobody's
+The saved draws come from one chain, so successive draws are correlated;
+saving only every n_thin-th iteration makes them closer to
+independent. They are drawn with the model parameters at their point
+estimates, not from their posterior, so the between-imputation variance
+in pooled can still be somewhat understated.
+For prediction, long_fit_all combines the imputations: its fixed
+effects are the Rubin's-rules pooled estimates and its residual and
+random-effects variances the averages over the imputations (see
+poolLongitudinalSub), so a prediction does not depend on
+which single imputation happened to come first. With competing risks the
+event-type model of survival_fit_all likewise has its
+coefficients averaged over the imputations."><meta property="og:description" content="Experimental. With interval censoring nobody's
 event time \(T\) is known exactly – only \(L &amp;lt; T \le R\) – so the
 longitudinal sub-model \(f(Y \mid T)\), which has \(T\) as a
 covariate, cannot be fit on the subjects with an observed event the way
@@ -45,8 +53,8 @@ draw each subject's \(T\) from
 \(f(T \mid L &amp;lt; T \le R, Y, X) \propto f(Y \mid T, X) f(T \mid X)\)
 on \((L, R]\) (imputeEventTime()), refit
 longitudinalSub(), and repeat for n_burnin iterations;
-keep iterating, saving the next n_imputations draws and
-their longitudinalSub() fits.
+keep iterating, saving every n_thin-th draw and its
+longitudinalSub() fit until n_imputations are saved.
 Step 3 uses the backward model's own factorization: \(f(Y \mid T)\)
 on a grid of \(T\) is exactly what dynamic prediction already
 computes (conditionalYT()), so each draw costs about one
@@ -58,10 +66,18 @@ right-censored data, which is valid when censoring is independent of
 also imputes \(T \in (L, \infty)\) for right-censored subjects and
 uses them; their draws then rely on the survival model's extrapolated
 tail.
-The saved draws come from successive iterations of one chain with the
-model parameters at their point estimates, not from their posterior, so
-the between-imputation variance in pooled can be somewhat
-understated."></head><body>
+The saved draws come from one chain, so successive draws are correlated;
+saving only every n_thin-th iteration makes them closer to
+independent. They are drawn with the model parameters at their point
+estimates, not from their posterior, so the between-imputation variance
+in pooled can still be somewhat understated.
+For prediction, long_fit_all combines the imputations: its fixed
+effects are the Rubin's-rules pooled estimates and its residual and
+random-effects variances the averages over the imputations (see
+poolLongitudinalSub), so a prediction does not depend on
+which single imputation happened to come first. With competing risks the
+event-type model of survival_fit_all likewise has its
+coefficients averaged over the imputations."></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -118,8 +134,8 @@ and fit <code><a href="longitudinalSub.html">longitudinalSub()</a></code>;</p></
 \(f(T \mid L &lt; T \le R, Y, X) \propto f(Y \mid T, X) f(T \mid X)\)
 on \((L, R]\) (<code><a href="imputeEventTime.html">imputeEventTime()</a></code>), refit
 <code><a href="longitudinalSub.html">longitudinalSub()</a></code>, and repeat for <code>n_burnin</code> iterations;</p></li>
-<li><p>keep iterating, saving the next <code>n_imputations</code> draws and
-their <code><a href="longitudinalSub.html">longitudinalSub()</a></code> fits.</p></li>
+<li><p>keep iterating, saving every <code>n_thin</code>-th draw and its
+<code><a href="longitudinalSub.html">longitudinalSub()</a></code> fit until <code>n_imputations</code> are saved.</p></li>
 </ol><p>Step 3 uses the backward model's own factorization: \(f(Y \mid T)\)
 on a grid of \(T\) is exactly what dynamic prediction already
 computes (<code><a href="conditionalYT.html">conditionalYT()</a></code>), so each draw costs about one
@@ -131,10 +147,18 @@ right-censored data, which is valid when censoring is independent of
 also imputes \(T \in (L, \infty)\) for right-censored subjects and
 uses them; their draws then rely on the survival model's extrapolated
 tail.</p>
-<p>The saved draws come from successive iterations of one chain with the
-model parameters at their point estimates, not from their posterior, so
-the between-imputation variance in <code>pooled</code> can be somewhat
-understated.</p>
+<p>The saved draws come from one chain, so successive draws are correlated;
+saving only every <code>n_thin</code>-th iteration makes them closer to
+independent. They are drawn with the model parameters at their point
+estimates, not from their posterior, so the between-imputation variance
+in <code>pooled</code> can still be somewhat understated.</p>
+<p>For prediction, <code>long_fit_all</code> combines the imputations: its fixed
+effects are the Rubin's-rules pooled estimates and its residual and
+random-effects variances the averages over the imputations (see
+<code><a href="poolLongitudinalSub.html">poolLongitudinalSub</a></code>), so a prediction does not depend on
+which single imputation happened to come first. With competing risks the
+event-type model of <code>survival_fit_all</code> likewise has its
+coefficients averaged over the imputations.</p>
     </div>
 
     <div class="section level2">
@@ -152,6 +176,7 @@ understated.</p>
 <span>  form_conditional_cr <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  n_burnin <span class="op">=</span> <span class="fl">10</span>,</span>
 <span>  n_imputations <span class="op">=</span> <span class="fl">5</span>,</span>
+<span>  n_thin <span class="op">=</span> <span class="fl">5</span>,</span>
 <span>  n_grid <span class="op">=</span> <span class="fl">40</span>,</span>
 <span>  baseline <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"spline"</span>, <span class="st">"piecewise"</span><span class="op">)</span>,</span>
 <span>  df <span class="op">=</span> <span class="cn">NULL</span>,</span>
@@ -217,6 +242,13 @@ the event is detected; each subject's \(T\) is then drawn from
 <dd><p>Number of saved draws (and longitudinal fits).</p></dd>
 
 
+<dt id="arg-n-thin">n_thin<a class="anchor" aria-label="anchor" href="#arg-n-thin"></a></dt>
+<dd><p>Iterations between saved draws (1 saves every iteration
+after the burn-in). Larger values make the saved draws less correlated
+at the cost of <code>n_burnin + n_imputations * n_thin</code> iterations in
+all.</p></dd>
+
+
 <dt id="arg-n-grid">n_grid<a class="anchor" aria-label="anchor" href="#arg-n-grid"></a></dt>
 <dd><p>Grid points per subject interval.</p></dd>
 
@@ -237,11 +269,13 @@ the event is detected; each subject's \(T\) is then drawn from
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>An object of class <code>"fitIntervalBJM"</code>, a list with
-<code>survival_fit_all</code> (with competing risks, the event-type model fit
-to the first imputation; <code>survival_fit_all_list</code> has one per
-imputation); <code>long_fit_all_list</code> (one
-<code><a href="longitudinalSub.html">longitudinalSub()</a></code> fit per imputation); <code>long_fit_all</code> (the
-first of them, for use with <code><a href="predictRisk.html">predictRisk()</a></code> and friends);
+<code>survival_fit_all</code> (with competing risks, its event-type model has
+the coefficients averaged over the imputations, while the rest of that
+<code>glm</code> object, e.g. its standard errors, is the first imputation's
+fit; <code>survival_fit_all_list</code> has one fit per imputation);
+<code>long_fit_all_list</code> (one <code><a href="longitudinalSub.html">longitudinalSub()</a></code> fit per
+imputation); <code>long_fit_all</code> (the imputations combined, see
+Description, for use with <code><a href="predictRisk.html">predictRisk()</a></code> and friends);
 <code>pooled</code> (<code><a href="poolLongitudinalSub.html">poolLongitudinalSub</a></code> of the fits, when
 <code>n_imputations &gt; 1</code>); <code>imputed_T</code> (a subjects x imputations
 matrix); and <code>trace</code> (each iteration's fixed effects, to check

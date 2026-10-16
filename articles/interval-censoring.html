@@ -254,8 +254,9 @@ fills it in by stochastic EM and multiple imputation:</p>
 from
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>f</mi><mo stretchy="false" form="prefix">(</mo><mi>T</mi><mo>∣</mo><mi>L</mi><mo>&lt;</mo><mi>T</mi><mo>≤</mo><mi>R</mi><mo>,</mo><mi>Y</mi><mo stretchy="false" form="postfix">)</mo><mo>∝</mo><mi>f</mi><mo stretchy="false" form="prefix">(</mo><mi>Y</mi><mo>∣</mo><mi>T</mi><mo stretchy="false" form="postfix">)</mo><mspace width="0.167em"></mspace><mi>f</mi><mo stretchy="false" form="prefix">(</mo><mi>T</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">f(T \mid L &lt; T \le R, Y) \propto f(Y \mid T)\, f(T)</annotation></semantics></math>
 on their interval, and refit, for <code>n_burnin</code> iterations;</li>
-<li>keep iterating, saving <code>n_imputations</code> draws and their
-fits.</li>
+<li>keep iterating, saving every <code>n_thin</code>-th draw (5 by
+default, so the saved draws are less correlated) and its fit, until
+<code>n_imputations</code> are saved.</li>
 </ol>
 <p>Step 3 uses the backward model’s own structure:
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>f</mi><mo stretchy="false" form="prefix">(</mo><mi>Y</mi><mo>∣</mo><mi>T</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">f(Y \mid T)</annotation></semantics></math>
@@ -272,10 +273,10 @@ computes.</p>
 <span>  n_burnin <span class="op">=</span> <span class="fl">5</span>, n_imputations <span class="op">=</span> <span class="fl">3</span>, seed <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
 <span><span class="va">fit</span><span class="op">$</span><span class="va">pooled</span><span class="op">$</span><span class="va">pooled</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"estimate"</span>, <span class="st">"std_error"</span>, <span class="st">"fmi"</span><span class="op">)</span><span class="op">]</span></span>
 <span><span class="co">#&gt;               estimate  std_error         fmi</span></span>
-<span><span class="co">#&gt; (Intercept)  0.9901700 0.07564519 0.008480328</span></span>
-<span><span class="co">#&gt; year         0.2945536 0.01178673 0.006548311</span></span>
-<span><span class="co">#&gt; Tev         -0.2056589 0.01461895 0.024536635</span></span>
-<span><span class="co">#&gt; x            0.3966400 0.04214583 0.037332953</span></span></code></pre></div>
+<span><span class="co">#&gt; (Intercept)  0.9935203 0.07897851 0.084685775</span></span>
+<span><span class="co">#&gt; year         0.2945415 0.01180577 0.007636849</span></span>
+<span><span class="co">#&gt; Tev         -0.2044184 0.01508121 0.092819843</span></span>
+<span><span class="co">#&gt; x            0.3950136 0.04226324 0.038571666</span></span></code></pre></div>
 <p><code>fit$pooled</code> combines the imputations with Rubin’s rules
 (<code><a href="../reference/poolLongitudinalSub.html">poolLongitudinalSub()</a></code>); <code>fmi</code> is the fraction
 of missing information, here the information lost by not knowing
@@ -304,7 +305,7 @@ times, which a real study would not have:</p>
 <span><span class="co">#&gt; truth                  1.000 0.300 -0.200 0.400</span></span>
 <span><span class="co">#&gt; true event times       0.980 0.295 -0.201 0.375</span></span>
 <span><span class="co">#&gt; midpoint               0.948 0.295 -0.195 0.397</span></span>
-<span><span class="co">#&gt; fitIntervalBJM         0.990 0.295 -0.206 0.397</span></span></code></pre></div>
+<span><span class="co">#&gt; fitIntervalBJM         0.994 0.295 -0.204 0.395</span></span></code></pre></div>
 <p>One data set says little. In simulations of this design (300
 subjects, many replicates), the midpoint fit’s coefficient of
 <code>Tev</code> was attenuated by about 4%, and
@@ -316,8 +317,11 @@ years the midpoint bias grew to about 9%, and
 <h2 id="dynamic-prediction-between-visits">Dynamic prediction between visits<a class="anchor" aria-label="anchor" href="#dynamic-prediction-between-visits"></a>
 </h2>
 <p><code>fit$survival_fit_all</code> and <code>fit$long_fit_all</code>
-plug into the usual prediction functions. One thing changes: an event is
-only detected at a visit, so at a prediction time
+plug into the usual prediction functions; <code>fit$long_fit_all</code>
+combines the imputations (the pooled fixed effects and the averaged
+variances), so a prediction does not hinge on any single imputation. One
+thing changes: an event is only detected at a visit, so at a prediction
+time
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>s</mi><annotation encoding="application/x-tex">s</annotation></semantics></math>
 between visits, a patient is known to be event-free only up to their
 last visit
@@ -357,12 +361,12 @@ detected yet.</li>
 <span><span class="co">#&gt; -----------------------------------------------------------------</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  Subject Risk Prob Already, undetected</span></span>
-<span><span class="co">#&gt;        1    0.2773              0.6878</span></span>
+<span><span class="co">#&gt;        1    0.2761              0.6894</span></span>
 <span><span class="co">#&gt;        3    0.0015              0.0001</span></span>
-<span><span class="co">#&gt;        4    0.1498              0.8308</span></span>
-<span><span class="co">#&gt;        7    0.3922              0.3896</span></span>
-<span><span class="co">#&gt;        8    0.3944              0.4179</span></span>
-<span><span class="co">#&gt;       10    0.0247              0.0035</span></span>
+<span><span class="co">#&gt;        4    0.1512              0.8291</span></span>
+<span><span class="co">#&gt;        7    0.3930              0.3873</span></span>
+<span><span class="co">#&gt;        8    0.3954              0.4153</span></span>
+<span><span class="co">#&gt;       10    0.0241              0.0033</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;   Interval-censored: risks condition on being event-free at each subject's</span></span>
 <span><span class="co">#&gt;  last visit; 'Already, undetected' is the probability the event happened</span></span>

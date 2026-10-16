@@ -419,7 +419,7 @@ risk
 #> -----------------------------------------------------------------
 #> 
 #>  Subject Cause 1 Risk Cause 2 Risk Total Risk
-#>        2       0.0383       0.0017       0.04
+#>        2       0.0377       0.0017     0.0393
 #> 
 #> =================================================================
 ```
@@ -451,12 +451,13 @@ to `prediction_time`. (`risk_prob_2` is `NULL` whenever
 [`predictLongitudinal()`](https://wenhaoli18.github.io/BJM/reference/predictLongitudinal.md)
 answers a different question: not *whether* an event happens, but what a
 specific biomarker’s value is likely to be at
-`prediction_time + horizon`, conditional on survival. `bio_i` selects
-the biomarker(s) by position in `long_fit_all` (`1` = `serBilir` here);
-naming exactly one biomarker returns a single result, while naming more
-than one (or leaving `bio_i = NULL` for every biomarker) returns a named
-list of results instead, computing the shared, bio_i-independent part of
-the pipeline only once and reusing it across every biomarker.
+`prediction_time + horizon`, conditional on survival to that time.
+`bio_i` selects the biomarker(s) by position in `long_fit_all` (`1` =
+`serBilir` here); naming exactly one biomarker returns a single result,
+while naming more than one (or leaving `bio_i = NULL` for every
+biomarker) returns a named list of results instead, computing the
+shared, bio_i-independent part of the pipeline only once and reusing it
+across every biomarker.
 
 ``` r
 
@@ -468,8 +469,8 @@ bio_pred <- predictLongitudinal(
 )
 
 bio_pred$Y_predict
-#>        2 
-#> 1.206329
+#>       2 
+#> 1.19341
 ```
 
 `Y_predict` is the MAP (most likely) predicted value;
@@ -532,10 +533,10 @@ risk_doubled <- predictRisk(
 
 abs(risk_default$risk_prob_1 - risk_doubled$risk_prob_1)
 #>            2 
-#> 0.0005320418
+#> 0.0004505056
 abs(risk_default$risk_prob_2 - risk_doubled$risk_prob_2)
-#>            2 
-#> 2.343222e-05
+#>         2 
+#> 1.994e-05
 ```
 
 If doubling the `bandcount*` values changes the result by more than you
@@ -572,7 +573,7 @@ predictRisk(
 #> -----------------------------------------------------------------
 #> 
 #>  Subject Cause 1 Risk Cause 2 Risk Total Risk
-#>        2       0.0383       0.0017       0.04
+#>        2       0.0377       0.0017     0.0393
 #> 
 #> =================================================================
 ```

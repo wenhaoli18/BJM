@@ -456,7 +456,7 @@ integration grid; see <code><a href="../reference/predictRisk.html">?predictRisk
 <span><span class="co">#&gt; -----------------------------------------------------------------</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  Subject Cause 1 Risk Cause 2 Risk Total Risk</span></span>
-<span><span class="co">#&gt;        2       0.0383       0.0017       0.04</span></span>
+<span><span class="co">#&gt;        2       0.0377       0.0017     0.0393</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; =================================================================</span></span></code></pre></div>
 <p><code>survival_variable_all</code>/<code>survival_trans_function</code>
@@ -486,13 +486,13 @@ longitudinal history and survival to <code>prediction_time</code>.
 <p><code><a href="../reference/predictLongitudinal.html">predictLongitudinal()</a></code> answers a different question: not
 <em>whether</em> an event happens, but what a specific biomarker’s value
 is likely to be at <code>prediction_time + horizon</code>, conditional
-on survival. <code>bio_i</code> selects the biomarker(s) by position in
-<code>long_fit_all</code> (<code>1</code> = <code>serBilir</code> here);
-naming exactly one biomarker returns a single result, while naming more
-than one (or leaving <code>bio_i = NULL</code> for every biomarker)
-returns a named list of results instead, computing the shared,
-bio_i-independent part of the pipeline only once and reusing it across
-every biomarker.</p>
+on survival to that time. <code>bio_i</code> selects the biomarker(s) by
+position in <code>long_fit_all</code> (<code>1</code> =
+<code>serBilir</code> here); naming exactly one biomarker returns a
+single result, while naming more than one (or leaving
+<code>bio_i = NULL</code> for every biomarker) returns a named list of
+results instead, computing the shared, bio_i-independent part of the
+pipeline only once and reusing it across every biomarker.</p>
 <div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">bio_pred</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/predictLongitudinal.html">predictLongitudinal</a></span><span class="op">(</span></span>
 <span>  bio_i <span class="op">=</span> <span class="fl">1</span>, <span class="va">data_predict_all</span>, <span class="va">long_fit_all</span>, <span class="va">survival_fit_all</span>,</span>
@@ -502,8 +502,8 @@ every biomarker.</p>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">bio_pred</span><span class="op">$</span><span class="va">Y_predict</span></span>
-<span><span class="co">#&gt;        2 </span></span>
-<span><span class="co">#&gt; 1.206329</span></span></code></pre></div>
+<span><span class="co">#&gt;       2 </span></span>
+<span><span class="co">#&gt; 1.19341</span></span></code></pre></div>
 <p><code>Y_predict</code> is the MAP (most likely) predicted value;
 <code>Y_density</code>/<code>Y_all</code> give the full predicted
 density over a grid of candidate values, which is what
@@ -564,10 +564,10 @@ and confirm the results barely move.</p>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="va">risk_default</span><span class="op">$</span><span class="va">risk_prob_1</span> <span class="op">-</span> <span class="va">risk_doubled</span><span class="op">$</span><span class="va">risk_prob_1</span><span class="op">)</span></span>
 <span><span class="co">#&gt;            2 </span></span>
-<span><span class="co">#&gt; 0.0005320418</span></span>
+<span><span class="co">#&gt; 0.0004505056</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="va">risk_default</span><span class="op">$</span><span class="va">risk_prob_2</span> <span class="op">-</span> <span class="va">risk_doubled</span><span class="op">$</span><span class="va">risk_prob_2</span><span class="op">)</span></span>
-<span><span class="co">#&gt;            2 </span></span>
-<span><span class="co">#&gt; 2.343222e-05</span></span></code></pre></div>
+<span><span class="co">#&gt;         2 </span></span>
+<span><span class="co">#&gt; 1.994e-05</span></span></code></pre></div>
 <p>If doubling the <code>bandcount*</code> values changes the result by
 more than you can tolerate, keep doubling until it doesn’t; if it barely
 changes anything (as above), the smaller, cheaper value is fine to use.
@@ -599,7 +599,7 @@ example, passing a single <code>data.frame</code> instead of a list to
 <span><span class="co">#&gt; -----------------------------------------------------------------</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  Subject Cause 1 Risk Cause 2 Risk Total Risk</span></span>
-<span><span class="co">#&gt;        2       0.0383       0.0017       0.04</span></span>
+<span><span class="co">#&gt;        2       0.0377       0.0017     0.0393</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; =================================================================</span></span></code></pre></div>
 <p>or a formula referencing a column that doesn’t exist:</p>

@@ -159,7 +159,9 @@ fills it in by stochastic EM and multiple imputation:
 3.  draw each subject’s $`T`$ from
     $`f(T \mid L < T \le R, Y) \propto f(Y \mid T)\, f(T)`$ on their
     interval, and refit, for `n_burnin` iterations;
-4.  keep iterating, saving `n_imputations` draws and their fits.
+4.  keep iterating, saving every `n_thin`-th draw (5 by default, so the
+    saved draws are less correlated) and its fit, until `n_imputations`
+    are saved.
 
 Step 3 uses the backward model’s own structure: $`f(Y \mid T)`$ on a
 grid of event times is exactly what dynamic prediction already computes.
@@ -176,10 +178,10 @@ fit <- fitIntervalBJM(
   n_burnin = 5, n_imputations = 3, seed = 1)
 fit$pooled$pooled[[1]][, c("estimate", "std_error", "fmi")]
 #>               estimate  std_error         fmi
-#> (Intercept)  0.9901700 0.07564519 0.008480328
-#> year         0.2945536 0.01178673 0.006548311
-#> Tev         -0.2056589 0.01461895 0.024536635
-#> x            0.3966400 0.04214583 0.037332953
+#> (Intercept)  0.9935203 0.07897851 0.084685775
+#> year         0.2945415 0.01180577 0.007636849
+#> Tev         -0.2044184 0.01508121 0.092819843
+#> x            0.3950136 0.04226324 0.038571666
 ```
 
 `fit$pooled` combines the imputations with Rubin’s rules
@@ -219,7 +221,7 @@ round(rbind(truth = c(1, 0.3, -0.2, 0.4),
 #> truth                  1.000 0.300 -0.200 0.400
 #> true event times       0.980 0.295 -0.201 0.375
 #> midpoint               0.948 0.295 -0.195 0.397
-#> fitIntervalBJM         0.990 0.295 -0.206 0.397
+#> fitIntervalBJM         0.994 0.295 -0.204 0.395
 ```
 
 One data set says little. In simulations of this design (300 subjects,
@@ -234,9 +236,12 @@ left about 1–2%.
 ## Dynamic prediction between visits
 
 `fit$survival_fit_all` and `fit$long_fit_all` plug into the usual
-prediction functions. One thing changes: an event is only detected at a
-visit, so at a prediction time $`s`$ between visits, a patient is known
-to be event-free only up to their last visit $`V`$, not up to $`s`$.
+prediction functions; `fit$long_fit_all` combines the imputations (the
+pooled fixed effects and the averaged variances), so a prediction does
+not hinge on any single imputation. One thing changes: an event is only
+detected at a visit, so at a prediction time $`s`$ between visits, a
+patient is known to be event-free only up to their last visit $`V`$, not
+up to $`s`$.
 [`predictRisk()`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md)
 therefore returns
 
@@ -269,12 +274,12 @@ risk
 #> -----------------------------------------------------------------
 #> 
 #>  Subject Risk Prob Already, undetected
-#>        1    0.2773              0.6878
+#>        1    0.2761              0.6894
 #>        3    0.0015              0.0001
-#>        4    0.1498              0.8308
-#>        7    0.3922              0.3896
-#>        8    0.3944              0.4179
-#>       10    0.0247              0.0035
+#>        4    0.1512              0.8291
+#>        7    0.3930              0.3873
+#>        8    0.3954              0.4153
+#>       10    0.0241              0.0033
 #> 
 #>   Interval-censored: risks condition on being event-free at each subject's
 #>  last visit; 'Already, undetected' is the probability the event happened

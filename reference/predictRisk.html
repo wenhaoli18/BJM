@@ -7,11 +7,12 @@ their individual random effects (empirical Bayes), which are then
 integrated against the survival sub-model's hazard to give the predicted
 probability of experiencing the event within
 (prediction_time, prediction_time + horizon], conditional on being
-event-free at prediction_time. The integrals in both the numerator
-(event within the window) and denominator (survival to
-prediction_time, used for normalization) are evaluated on
-numerical grids whose resolution is controlled by bandcount1/
-bandcount2; see Details.
+event-free at prediction_time. The numerator (event within the
+window) is evaluated on a grid over the window whose resolution is
+controlled by bandcount1; the denominator (survival to
+prediction_time, used for normalization) is that same window
+integral plus the integral beyond the window, evaluated on a grid
+controlled by bandcount2; see Details.
 The prediction is conditional on the longitudinal history observed up to
 prediction_time: rows of data_predict_all whose
 time_variable is later than prediction_time are dropped,
@@ -23,11 +24,12 @@ their individual random effects (empirical Bayes), which are then
 integrated against the survival sub-model's hazard to give the predicted
 probability of experiencing the event within
 (prediction_time, prediction_time + horizon], conditional on being
-event-free at prediction_time. The integrals in both the numerator
-(event within the window) and denominator (survival to
-prediction_time, used for normalization) are evaluated on
-numerical grids whose resolution is controlled by bandcount1/
-bandcount2; see Details.
+event-free at prediction_time. The numerator (event within the
+window) is evaluated on a grid over the window whose resolution is
+controlled by bandcount1; the denominator (survival to
+prediction_time, used for normalization) is that same window
+integral plus the integral beyond the window, evaluated on a grid
+controlled by bandcount2; see Details.
 The prediction is conditional on the longitudinal history observed up to
 prediction_time: rows of data_predict_all whose
 time_variable is later than prediction_time are dropped,
@@ -82,11 +84,12 @@ their individual random effects (empirical Bayes), which are then
 integrated against the survival sub-model's hazard to give the predicted
 probability of experiencing the event within
 <code>(prediction_time, prediction_time + horizon]</code>, conditional on being
-event-free at <code>prediction_time</code>. The integrals in both the numerator
-(event within the window) and denominator (survival to
-<code>prediction_time</code>, used for normalization) are evaluated on
-numerical grids whose resolution is controlled by <code>bandcount1</code>/
-<code>bandcount2</code>; see Details.</p>
+event-free at <code>prediction_time</code>. The numerator (event within the
+window) is evaluated on a grid over the window whose resolution is
+controlled by <code>bandcount1</code>; the denominator (survival to
+<code>prediction_time</code>, used for normalization) is that same window
+integral plus the integral beyond the window, evaluated on a grid
+controlled by <code>bandcount2</code>; see Details.</p>
 <p>The prediction is conditional on the longitudinal history observed up to
 <code>prediction_time</code>: rows of <code>data_predict_all</code> whose
 <code>time_variable</code> is later than <code>prediction_time</code> are dropped,
@@ -170,11 +173,12 @@ slower estimate. Defaults to <code>"auto"</code> (see Details).</p></dd>
 
 <dt id="arg-bandcount-">bandcount2<a class="anchor" aria-label="anchor" href="#arg-bandcount-"></a></dt>
 <dd><p>The number of grid points spanning
-<code>[prediction_time, upper_bound]</code>, where <code>upper_bound</code> is set
-internally as the earliest time by which every at-risk patient's
+<code>[prediction_time + horizon, upper_bound]</code>, where <code>upper_bound</code>
+is set internally as the earliest time by which every at-risk patient's
 model-based probability of still being event-free (given event-free at
-<code>prediction_time</code>) has dropped below <code>1e-4</code>; this approximates
-integrating out to infinity for the denominator that normalizes the risk probability. A wider follow-up range
+<code>prediction_time + horizon</code>) has dropped below <code>1e-4</code>; this
+approximates integrating out to infinity for the part of the denominator
+beyond the prediction window. A wider follow-up range
 needs a larger <code>bandcount2</code> to keep the grid spacing comparable.
 Defaults to <code>"auto"</code> (see Details).</p></dd>
 
@@ -348,10 +352,10 @@ reproducible results.</p>
 <span class="r-in"><span><span class="co"># both give a sane, non-degenerate risk_prob_1 (not 0, no error)</span></span></span>
 <span class="r-in"><span><span class="va">risk.prob.normal</span><span class="op">$</span><span class="va">risk_prob_1</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>          2 </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 0.09646473 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 0.08962798 </span>
 <span class="r-in"><span><span class="va">risk.prob.sparse</span><span class="op">$</span><span class="va">risk_prob_1</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>        2 </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 0.127205 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>         2 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 0.1202161 </span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># }</span></span></span>
 <span class="r-in"><span></span></span>

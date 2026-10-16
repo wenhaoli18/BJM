@@ -5,7 +5,8 @@ fitted longitudinal (longitudinalSub) and survival
 probability this returns a predictive density for a future value of one
 or more chosen biomarkers (bio_i) at prediction_time +
 horizon, conditional on the subject's observed longitudinal history up
-to prediction_time and on being event-free at prediction_time.
+to prediction_time and on survival (being event-free) through
+prediction_time + horizon, the time the biomarker is predicted at.
 This is the single, unified entry point for biomarker-value prediction:
 If bio_i names exactly one biomarker, this
 predicts just that biomarker and returns a single
@@ -53,7 +54,8 @@ fitted longitudinal (longitudinalSub) and survival
 probability this returns a predictive density for a future value of one
 or more chosen biomarkers (bio_i) at prediction_time +
 horizon, conditional on the subject's observed longitudinal history up
-to prediction_time and on being event-free at prediction_time.
+to prediction_time and on survival (being event-free) through
+prediction_time + horizon, the time the biomarker is predicted at.
 This is the single, unified entry point for biomarker-value prediction:
 If bio_i names exactly one biomarker, this
 predicts just that biomarker and returns a single
@@ -144,7 +146,8 @@ fitted longitudinal (<code><a href="longitudinalSub.html">longitudinalSub</a></c
 probability this returns a predictive density for a future value of one
 or more chosen biomarkers (<code>bio_i</code>) at <code>prediction_time +
 horizon</code>, conditional on the subject's observed longitudinal history up
-to <code>prediction_time</code> and on being event-free at <code>prediction_time</code>.</p>
+to <code>prediction_time</code> and on survival (being event-free) through
+<code>prediction_time + horizon</code>, the time the biomarker is predicted at.</p>
 <p>This is the single, unified entry point for biomarker-value prediction:</p><ul><li><p>If <code>bio_i</code> names <strong>exactly one</strong> biomarker, this
 predicts just that biomarker and returns a single
 <code>"predictLongitudinal.BJM"</code> object.</p></li>
@@ -269,11 +272,11 @@ time-to-event outcomes, in the order of <code>survival_variable_all</code>.</p><
 
 <dt id="arg-bandcount-">bandcount2<a class="anchor" aria-label="anchor" href="#arg-bandcount-"></a></dt>
 <dd><p>The number of grid points spanning
-<code>[prediction_time, upper_bound]</code>, where <code>upper_bound</code> is set
-internally as the earliest time by which every at-risk patient's
+<code>[prediction_time + horizon, upper_bound]</code>, where <code>upper_bound</code>
+is set internally as the earliest time by which every at-risk patient's
 model-based probability of still being event-free (given event-free at
-<code>prediction_time</code>) has dropped below <code>1e-4</code>; this approximates
-integrating out to infinity for the denominator that normalizes the predicted density. A wider follow-up
+<code>prediction_time + horizon</code>) has dropped below <code>1e-4</code>; this
+approximates integrating out to infinity for the denominator that normalizes the predicted density. A wider follow-up
 range needs a larger <code>bandcount2</code> to keep the grid spacing
 comparable. Defaults to <code>"auto"</code> (see Details).</p></dd>
 

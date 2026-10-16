@@ -10,11 +10,12 @@ that time is used to update their individual random effects (empirical
 Bayes), which are then integrated against the survival sub-model's
 hazard to give the predicted probability of experiencing the event
 within `(prediction_time, prediction_time + horizon]`, conditional on
-being event-free at `prediction_time`. The integrals in both the
-numerator (event within the window) and denominator (survival to
-`prediction_time`, used for normalization) are evaluated on numerical
-grids whose resolution is controlled by `bandcount1`/ `bandcount2`; see
-Details.
+being event-free at `prediction_time`. The numerator (event within the
+window) is evaluated on a grid over the window whose resolution is
+controlled by `bandcount1`; the denominator (survival to
+`prediction_time`, used for normalization) is that same window integral
+plus the integral beyond the window, evaluated on a grid controlled by
+`bandcount2`; see Details.
 
 The prediction is conditional on the longitudinal history observed up to
 `prediction_time`: rows of `data_predict_all` whose `time_variable` is
@@ -97,13 +98,14 @@ predictRisk(
 
 - bandcount2:
 
-  The number of grid points spanning `[prediction_time, upper_bound]`,
-  where `upper_bound` is set internally as the earliest time by which
-  every at-risk patient's model-based probability of still being
-  event-free (given event-free at `prediction_time`) has dropped below
-  `1e-4`; this approximates integrating out to infinity for the
-  denominator that normalizes the risk probability. A wider follow-up
-  range needs a larger `bandcount2` to keep the grid spacing comparable.
+  The number of grid points spanning
+  `[prediction_time + horizon, upper_bound]`, where `upper_bound` is set
+  internally as the earliest time by which every at-risk patient's
+  model-based probability of still being event-free (given event-free at
+  `prediction_time + horizon`) has dropped below `1e-4`; this
+  approximates integrating out to infinity for the part of the
+  denominator beyond the prediction window. A wider follow-up range
+  needs a larger `bandcount2` to keep the grid spacing comparable.
   Defaults to `"auto"` (see Details).
 
 ## Value
@@ -285,10 +287,10 @@ risk.prob.sparse = predictRisk(data_predict_sparse, long_fit_nonlinear,
 # both give a sane, non-degenerate risk_prob_1 (not 0, no error)
 risk.prob.normal$risk_prob_1
 #>          2 
-#> 0.09646473 
+#> 0.08962798 
 risk.prob.sparse$risk_prob_1
-#>        2 
-#> 0.127205 
+#>         2 
+#> 0.1202161 
 
 # }
 ```

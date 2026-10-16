@@ -4,8 +4,10 @@ Internal helper factoring out the part of
 [`dynamicPredictionBio()`](https://wenhaoli18.github.io/BJM/reference/dynamicPredictionBio.md)'s
 pipeline that does not depend on which biomarker (`bio_i`) is being
 predicted: restricting to at-risk patients, building the survival-side
-integration grid out to `upper_bound`, dispatching to the
-Gaussian-copula conditional-density variants when needed (see
+integration grid over \\T \> \\ `prediction_time + horizon` out to
+`upper_bound` (the prediction is conditional on survival through the
+time the biomarker is predicted at), dispatching to the Gaussian-copula
+conditional-density variants when needed (see
 [`predictRisk()`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md)),
 and evaluating the denominator conditional density
 (`conditionalYT`/`conditionalYDT`).
@@ -26,6 +28,7 @@ compute_bio_shared_step(
   long_fit_all,
   survival_fit_all,
   prediction_time,
+  horizon,
   time_variable,
   survival_variable_all,
   survival_trans_function,
@@ -51,6 +54,11 @@ compute_bio_shared_step(
   [`dynamicPredictionBio`](https://wenhaoli18.github.io/BJM/reference/dynamicPredictionBio.md).
 
 - prediction_time:
+
+  See
+  [`dynamicPredictionBio`](https://wenhaoli18.github.io/BJM/reference/dynamicPredictionBio.md).
+
+- horizon:
 
   See
   [`dynamicPredictionBio`](https://wenhaoli18.github.io/BJM/reference/dynamicPredictionBio.md).
