@@ -134,7 +134,7 @@ conditionalYTBio = function(Y_all, time_new, bio_i, data_predict_all,
         target_covariate = survival_variable 
         ### if fuyrs exists or not
         if(target_covariate %in% all_variables != TRUE)
-          stop("Error: Condition is false. Please add survival variable to linear mixed model.")
+          stop(sprintf("The longitudinal sub-model for biomarker %d does not include the survival-time variable `%s`; the backward joint model needs it as a covariate in every long_sub_fixed formula.", i, survival_variable), call. = FALSE)
         else
           ### NA in nlme outcome (longitudinal biomarkers), replace with 999
           data_num_i_list_1[[i]][as.character(formula(long_fit_all$long_sub_fixed[[i]])[[2]])][is.na(data_num_i_list_1[[i]][as.character(formula(long_fit_all$long_sub_fixed[[i]])[[2]])])] <- 999

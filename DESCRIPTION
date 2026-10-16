@@ -19,6 +19,3 @@ Imports: nlme, mvtnorm, ggplot2 (>= 3.4.0), Matrix, parallel, graphics
 Suggests: testthat (>= 3.0.0), knitr, rmarkdown, torch, ordinal, timeROC, riskRegression, prodlim
 Config/testthat/edition: 3
 VignetteBuilder: knitr
-Author: Wenhao Li [aut, cre],
-  Liang Li [aut]
-NeedsCompilation: no

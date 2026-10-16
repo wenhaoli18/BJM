@@ -60,3 +60,18 @@ test_that("the survival time may only enter the event-type model as a main effec
   expect_no_error(survivalSub(d, Surv(years, status3) ~ age + sex, status4 ~ years + age))
   expect_no_error(survivalSub(d, Surv(years, status3) ~ age + sex, status4 ~ age + sex))
 })
+
+test_that("the event rows come from the Surv() status, whatever its form", {
+  data(pbc3, envir = environment())
+  d <- pbc3[!duplicated(pbc3$id), ]
+  ref <- survivalSub(d, Surv(years, status3) ~ age + sex, status4 ~ years + age + sex)
+
+  # an expression as the status (previously "undefined columns selected")
+  expr <- survivalSub(d, Surv(years, status3 == 1) ~ age + sex, status4 ~ years + age + sex)
+  expect_equal(coef(expr$glm_fit), coef(ref$glm_fit))
+
+  # 1 = censored / 2 = event coding (previously every subject entered the glm)
+  d$status12 <- d$status3 + 1
+  coded <- survivalSub(d, Surv(years, status12) ~ age + sex, status4 ~ years + age + sex)
+  expect_equal(coef(coded$glm_fit), coef(ref$glm_fit))
+})

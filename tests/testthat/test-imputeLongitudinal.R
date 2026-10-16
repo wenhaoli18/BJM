@@ -135,7 +135,7 @@ test_that("assert_package_installed reports a missing optional package with an a
 })
 
 test_that("imputeLongitudinal fills all missing biomarker cells and preserves row/subject counts (requires torch)", {
-  skip_if_not_installed("torch")
+  skip_if_no_torch()
   f <- setup_impute_fixture()
 
   n_missing_pre <- sum(is.na(f$data_fit_all$serBilir)) + sum(is.na(f$data_fit_all$albumin))
@@ -180,7 +180,7 @@ test_that("imputeLongitudinal fills all missing biomarker cells and preserves ro
 })
 
 test_that("imputeLongitudinal(impute = 'multiple') returns n_imputations distinct completed datasets (requires torch)", {
-  skip_if_not_installed("torch")
+  skip_if_no_torch()
   f <- setup_impute_fixture()
 
   imputed <- imputeLongitudinal(f$data_fit_all, f$long_sub_fixed, f$long_sub_random,
@@ -197,7 +197,7 @@ test_that("imputeLongitudinal(impute = 'multiple') returns n_imputations distinc
 })
 
 test_that("imputeLongitudinal(method = 'diffusion') fills all missing biomarker cells, preserves observed values exactly, and preserves row/subject counts (requires torch)", {
-  skip_if_not_installed("torch")
+  skip_if_no_torch()
   f <- setup_impute_fixture()
 
   imputed <- imputeLongitudinal(f$data_fit_all, f$long_sub_fixed, f$long_sub_random,
@@ -232,7 +232,7 @@ test_that("imputeLongitudinal(method = 'diffusion') fills all missing biomarker 
 })
 
 test_that("imputeLongitudinal(method = 'diffusion', impute = 'multiple') returns n_imputations distinct completed datasets (requires torch)", {
-  skip_if_not_installed("torch")
+  skip_if_no_torch()
   f <- setup_impute_fixture()
 
   imputed <- imputeLongitudinal(f$data_fit_all, f$long_sub_fixed, f$long_sub_random,
@@ -249,7 +249,7 @@ test_that("imputeLongitudinal(method = 'diffusion', impute = 'multiple') returns
 })
 
 test_that("imputeLongitudinal(seed =) is reproducible and leaves the caller's RNG stream alone (requires torch)", {
-  skip_if_not_installed("torch")
+  skip_if_no_torch()
   f <- setup_impute_fixture()
   impute <- function() {
     imputeLongitudinal(f$data_fit_all, f$long_sub_fixed, f$long_sub_random,

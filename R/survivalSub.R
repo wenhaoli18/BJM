@@ -114,10 +114,13 @@ survivalSub = function(data_survival_fitting, form_marginal_surv, form_condition
   ### object is not literally named `data_survival_fitting`.
   coxph_fit = coxph(form_marginal_surv, data = data_survival_fitting, ties = "breslow",
                      x = TRUE, y = TRUE)
-  ### censoring indicator name
-  censor_variable = as.character(formula(coxph_fit)[[2]])[3]
-  
-  data.glm = data_survival_fitting[data_survival_fitting[censor_variable] != 0, ]
+  ### subjects with an observed event, read off the evaluated Surv() object
+  ### rather than a column named after its second argument: that name was
+  ### not a column for e.g. Surv(time, status == 1), and Surv()'s own 0/1
+  ### status also covers 1/2 (censored/event) and logical codings
+  surv_y = eval(form_marginal_surv[[2]], data_survival_fitting, environment(form_marginal_surv))
+  event_status = surv_y[, "status"]
+  data.glm = data_survival_fitting[!is.na(event_status) & event_status != 0, , drop = FALSE]
   ##with or without competing risk
   if(length(form_conditional_cr) != 0){
     ## competing risks outcomes
