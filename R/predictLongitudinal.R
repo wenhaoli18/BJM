@@ -6,7 +6,8 @@
 #' probability this returns a predictive density for a future value of one
 #' or more chosen biomarkers (\code{bio_i}) at \code{prediction_time +
 #' horizon}, conditional on the subject's observed longitudinal history up
-#' to \code{prediction_time} and on being event-free at \code{prediction_time}.
+#' to \code{prediction_time} and on survival (being event-free) through
+#' \code{prediction_time + horizon}, the time the biomarker is predicted at.
 #'
 #' This is the single, unified entry point for biomarker-value prediction:
 #' \itemize{
@@ -127,11 +128,11 @@
 #' @param survival_trans_function The transformation function used for
 #' time-to-event outcomes, in the order of \code{survival_variable_all}.
 #' @param bandcount2 The number of grid points spanning
-#' \code{[prediction_time, upper_bound]}, where \code{upper_bound} is set
-#' internally as the earliest time by which every at-risk patient's
+#' \code{[prediction_time + horizon, upper_bound]}, where \code{upper_bound}
+#' is set internally as the earliest time by which every at-risk patient's
 #' model-based probability of still being event-free (given event-free at
-#' \code{prediction_time}) has dropped below \code{1e-4}; this approximates
-#' integrating out to infinity for the denominator that normalizes the predicted density. A wider follow-up
+#' \code{prediction_time + horizon}) has dropped below \code{1e-4}; this
+#' approximates integrating out to infinity for the denominator that normalizes the predicted density. A wider follow-up
 #' range needs a larger \code{bandcount2} to keep the grid spacing
 #' comparable. Defaults to \code{"auto"} (see Details).
 #' @param bandcount3 The number of points in the candidate-biomarker-value

@@ -47,6 +47,12 @@
 # not negligible (continuous_value_grid()): the same bandcount3 = 50 points
 # now lie on a narrower range (finer step, so the density values sum higher),
 # the density still integrates to 1, and the mode moved in the 5th digit.
+# Y_predict_mode/Y_density_summary then changed when dynamicPredictionBio()
+# began conditioning on survival through prediction_time + horizon (the time
+# the biomarker is predicted at) instead of only through prediction_time:
+# the event time is integrated from prediction_time + horizon on, which drops
+# the event times before the biomarker's own time (mode 1.206 -> 1.193 without
+# competing risks). This is a correction, not grid noise.
 
 test_that("no-competing-risk pipeline output matches pre-refactor baseline", {
   skip_on_cran()

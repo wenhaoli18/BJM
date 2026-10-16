@@ -3,8 +3,10 @@
 #' @description Internal helper factoring out the part of
 #' \code{dynamicPredictionBio()}'s pipeline that does not depend on which
 #' biomarker (\code{bio_i}) is being predicted: restricting to at-risk
-#' patients, building the survival-side integration grid out to
-#' \code{upper_bound}, dispatching to the Gaussian-copula conditional-density
+#' patients, building the survival-side integration grid over
+#' \eqn{T > } \code{prediction_time + horizon} out to \code{upper_bound}
+#' (the prediction is conditional on survival through the time the biomarker
+#' is predicted at), dispatching to the Gaussian-copula conditional-density
 #' variants when needed (see \code{predictRisk()}), and evaluating the
 #' denominator conditional density (\code{conditionalYT}/\code{conditionalYDT}).
 #' \code{dynamicPredictionBioAll()} computes this once and reuses it across
@@ -16,6 +18,7 @@
 #' @param long_fit_all See \code{\link{dynamicPredictionBio}}.
 #' @param survival_fit_all See \code{\link{dynamicPredictionBio}}.
 #' @param prediction_time See \code{\link{dynamicPredictionBio}}.
+#' @param horizon See \code{\link{dynamicPredictionBio}}.
 #' @param time_variable See \code{\link{dynamicPredictionBio}}.
 #' @param survival_variable_all See \code{\link{dynamicPredictionBio}}.
 #' @param survival_trans_function See \code{\link{dynamicPredictionBio}}.
@@ -28,7 +31,7 @@
 #' \code{conditionalYTBio_fun}/\code{conditionalYDTBio_fun} functions.
 #' @keywords internal
 compute_bio_shared_step <- function(data_predict_all, long_fit_all, survival_fit_all,
-                                     prediction_time, time_variable,
+                                     prediction_time, horizon, time_variable,
                                      survival_variable_all, survival_trans_function,
                                      bandcount2) {
   survival_variable = survival_time_variable(survival_fit_all)
@@ -36,11 +39,17 @@ compute_bio_shared_step <- function(data_predict_all, long_fit_all, survival_fit
   ## at risk sample
   data_predict_all = subset_at_risk(data_predict_all, survival_variable, prediction_time)
 
+  ### the biomarker at prediction_time + horizon is predicted for a patient
+  ### who survives that long, so T is integrated over (prediction_time +
+  ### horizon, upper_bound] -- in numerator and denominator alike. It used to
+  ### start at prediction_time, which also averaged over event times before
+  ### the biomarker's own measurement time.
+  grid_start = prediction_time + horizon
   upper_bound = integration_upper_bound(data_predict_all, long_fit_all, survival_fit_all,
-                                        prediction_time)
+                                        grid_start)
 
   infinity_grid <- prepare_infinity_grid(data_predict_all, long_fit_all, survival_fit_all,
-                                          prediction_time, upper_bound, bandcount2)
+                                          grid_start, upper_bound, bandcount2)
   predict.time.infinity = infinity_grid$predict.time.infinity
   S_T_all_infinity = infinity_grid$S_T_all_infinity
 
@@ -75,36 +84,20 @@ compute_bio_shared_step <- function(data_predict_all, long_fit_all, survival_fit
 
   ### per-patient shift for the log densities (see patient_log_shift());
   ### the same shift is applied to every candidate value's numerator in
-  ### compute_bio_marker_step(), so it cancels in the predicted density
-  ### interval-censored fits: also integrate over (last visit, prediction_time]
-  ### (see interval_gap_grid() and predictRisk()); NULL for right-censored fits
-  gap = interval_gap_grid(data_predict_all, long_fit_all, survival_fit_all,
-                          prediction_time, time_variable, bandcount2)
-  f_y_gap = D_T_gap = NULL
-  if (!is.null(gap) && has_cr) {
-    D_T_gap = gap$eval(function(d, l) conditionalDT(d, long_fit_all, survival_fit_all, l_i = l), fill = 0)
-    f_y_gap = gap$eval(function(d, l) conditionalYDT_fun(d, long_fit_all, survival_fit_all, l_i = l,
-                                                         survival_variable, time_variable,
-                                                         survival_variable_all, survival_trans_function))
-  } else if (!is.null(gap)) {
-    f_y_gap = gap$eval(function(d, l) conditionalYT_fun(d, long_fit_all, l_i = l, survival_variable,
-                                                        time_variable, survival_variable_all,
-                                                        survival_trans_function)[[1]])
-  }
-
+  ### compute_bio_marker_step(), so it cancels in the predicted density.
+  ### Interval-censored fits need no (last visit, prediction_time] term here,
+  ### unlike predictRisk(): surviving past prediction_time + horizon rules
+  ### out an event in that gap.
   log_shift = if (has_cr) {
-    if (is.null(gap)) patient_log_shift(f_y_D_all_infinity[[1]], f_y_D_all_infinity[[2]]) else
-      patient_log_shift(f_y_D_all_infinity[[1]], f_y_D_all_infinity[[2]], f_y_gap[[1]], f_y_gap[[2]])
+    patient_log_shift(f_y_D_all_infinity[[1]], f_y_D_all_infinity[[2]])
   } else {
-    if (is.null(gap)) patient_log_shift(f_y_D_all_infinity[[1]]) else
-      patient_log_shift(f_y_D_all_infinity[[1]], f_y_gap)
+    patient_log_shift(f_y_D_all_infinity[[1]])
   }
 
   list(data_predict_all = data_predict_all, survival_variable = survival_variable,
        predict.time.infinity = predict.time.infinity, S_T_all_infinity = S_T_all_infinity,
        has_cr = has_cr, D_T_all_infinity = D_T_all_infinity,
        f_y_D_all_infinity = f_y_D_all_infinity, log_shift = log_shift,
-       gap = gap, f_y_gap = f_y_gap, D_T_gap = D_T_gap,
        conditionalYTBio_fun = conditionalYTBio_fun, conditionalYDTBio_fun = conditionalYDTBio_fun)
 }
 
@@ -182,25 +175,12 @@ compute_bio_marker_step <- function(shared, bio_i, long_fit_all, survival_fit_al
       T.surv.infinity.1 = t(exp_shifted(shared$f_y_D_all_infinity[[2]], shared$log_shift) *
                               shared$D_T_all_infinity[[2]] * shared$S_T_all_infinity)
       denominator = rowSums(T.surv.infinity.1 + T.surv.infinity.0)
-      f_y_gap_bio = NULL
-      if (!is.null(shared$gap)) {
-        # interval-censored: (last visit, prediction_time] too, per event type
-        gap_term = function(log_f, k) t(exp_shifted(log_f, shared$log_shift) * shared$D_T_gap[[k]] * shared$gap$S)
-        denominator = denominator + rowSums(gap_term(shared$f_y_gap[[1]], 1) + gap_term(shared$f_y_gap[[2]], 2))
-        f_y_gap_bio = shared$gap$eval(function(d, l) shared$conditionalYDTBio_fun(
-          Y_query, time_new = prediction_time + horizon, bio_i, d, long_fit_all, survival_fit_all,
-          l_i = l, shared$survival_variable, time_variable, survival_variable_all, survival_trans_function))
-      }
       Y_density = NULL
       for (Y_i in seq_len(length(Y_all))) {
         T.surv.predict.0 = t(exp_shifted(f_y_D_all_predict[[1]][[Y_i]], shared$log_shift) *
                                shared$D_T_all_infinity[[1]] * shared$S_T_all_infinity)
         T.surv.predict.1 = t(exp_shifted(f_y_D_all_predict[[2]][[Y_i]], shared$log_shift) *
                                shared$D_T_all_infinity[[2]] * shared$S_T_all_infinity)
-        if (!is.null(f_y_gap_bio)) {
-          T.surv.predict.0 = cbind(T.surv.predict.0, gap_term(f_y_gap_bio[[1]][[Y_i]], 1))
-          T.surv.predict.1 = cbind(T.surv.predict.1, gap_term(f_y_gap_bio[[2]][[Y_i]], 2))
-        }
 
         ### a density, not a probability: it may exceed 1 (a narrow predictive
         ### distribution), so it must not go through clamp_risk_prob()
@@ -224,22 +204,12 @@ compute_bio_marker_step <- function(shared, bio_i, long_fit_all, survival_fit_al
       ### the densities were small and drove the predicted density towards 0
       denominator = rowSums(t(exp_shifted(shared$f_y_D_all_infinity[[1]], shared$log_shift) *
                                 shared$S_T_all_infinity))
-      f_y_gap_bio = NULL
-      if (!is.null(shared$gap)) {
-        denominator = denominator + rowSums(t(exp_shifted(shared$f_y_gap, shared$log_shift) * shared$gap$S))
-        f_y_gap_bio = shared$gap$eval(function(d, l) shared$conditionalYTBio_fun(
-          Y_query, time_new = prediction_time + horizon, bio_i, d, long_fit_all, l_i = l,
-          shared$survival_variable, time_variable, survival_variable_all, survival_trans_function)[[1]])
-      }
       Y_density = NULL
       for (Y_i in seq_len(length(Y_all))) {
 
         T.surv.predict.0 = t(exp_shifted(f_y_D_all_predict[[1]][[Y_i]], shared$log_shift) *
                                shared$S_T_all_infinity)
         numerator = rowSums(T.surv.predict.0)
-        if (!is.null(f_y_gap_bio)) {
-          numerator = numerator + rowSums(t(exp_shifted(f_y_gap_bio[[Y_i]], shared$log_shift) * shared$gap$S))
-        }
 
         ### a density, not a probability: see the competing-risk branch
         Y_density_row = pmax(numerator / denominator, 0)
@@ -293,7 +263,8 @@ compute_bio_marker_step <- function(shared, bio_i, long_fit_all, survival_fit_al
 #' probability this returns a predictive density for a future value of one
 #' chosen biomarker (\code{bio_i}) at \code{prediction_time + horizon},
 #' conditional on the subject's observed longitudinal history up to
-#' \code{prediction_time} and on being event-free at \code{prediction_time}.
+#' \code{prediction_time} and on survival (being event-free) through
+#' \code{prediction_time + horizon}, the time the biomarker is predicted at.
 #' The density (\code{Y_density}, evaluated over a candidate-value grid
 #' \code{Y_all}) is obtained by integrating the biomarker's predictive
 #' distribution against the survival sub-model's hazard, using the subject's
@@ -346,11 +317,11 @@ compute_bio_marker_step <- function(shared, bio_i, long_fit_all, survival_fit_al
 #' @param survival_trans_function The transformation function used for time-to-event outcomes,
 #' in the order of \code{survival_variable_all}.
 #' @param bandcount2 The number of grid points spanning
-#' \code{[prediction_time, upper_bound]}, where \code{upper_bound} is set
-#' internally as the earliest time by which every at-risk patient's
+#' \code{[prediction_time + horizon, upper_bound]}, where \code{upper_bound}
+#' is set internally as the earliest time by which every at-risk patient's
 #' model-based probability of still being event-free (given event-free at
-#' \code{prediction_time}) has dropped below \code{1e-4}; this approximates
-#' integrating out to infinity for the denominator that normalizes the predicted density. A wider follow-up range
+#' \code{prediction_time + horizon}) has dropped below \code{1e-4}; this
+#' approximates integrating out to infinity for the denominator that normalizes the predicted density. A wider follow-up range
 #' needs a larger \code{bandcount2} to keep the grid spacing comparable.
 #' Defaults to \code{"auto"} (see Details).
 #' @param bandcount3 The number of points in the candidate-biomarker-value
@@ -450,7 +421,7 @@ dynamicPredictionBio = function(bio_i, data_predict_all, long_fit_all, survival_
   # directly so the shared step can be reused across several biomarkers
   # instead of being recomputed once per call the way this does.
   shared <- compute_bio_shared_step(data_predict_all, long_fit_all, survival_fit_all,
-                                     prediction_time, time_variable, survival_variable_all,
+                                     prediction_time, horizon, time_variable, survival_variable_all,
                                      survival_trans_function, bandcount2)
   marker <- compute_bio_marker_step(shared, bio_i, long_fit_all, survival_fit_all,
                                      prediction_time, horizon, time_variable,
