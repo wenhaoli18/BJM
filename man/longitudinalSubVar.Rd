@@ -8,9 +8,9 @@ Reference: package "lmm" and package "joineRML" function \code{mvlme}.}
 longitudinalSubVar(thetaLong, l, tol.em, verbose, max.iter = 1000)
 }
 \description{
-The EM loop stops after \code{max.iter} iterations even if the relative
-change in \code{D} is still above \code{tol.em} (previously it had no
-limit, so a fit that never met the tolerance never returned), and warns
-when that happens.
+The EM is accelerated by SQUAREM (Varadhan and Roland, 2008), and stops
+once the relative change in \code{D} over an accelerated cycle (three EM
+updates) is at most \code{tol.em}, or after \code{max.iter} EM updates
+with a warning.
 }
 \keyword{internal}

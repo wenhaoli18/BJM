@@ -21,6 +21,8 @@
 # The `risk` entries were regenerated when predictRisk()'s denominator became
 # the window integral plus the integral beyond the window; again nothing else
 # changed.
+# All entries were regenerated once more when the joint covariance EM got
+# SQUAREM acceleration (changes below 1e-3 relative).
 #
 # Printed output is normalized (normalize_printed()) so it does not depend
 # on the formula's environment address or on useFancyQuotes.

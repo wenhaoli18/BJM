@@ -47,7 +47,14 @@ network: the encoder (and, reversed, the decoder) when
 \code{method = "miwae"}, or the denoising network's body when
 \code{method = "diffusion"}.}
 
-\item{epochs}{Number of full-batch training epochs.}
+\item{epochs}{Number of training epochs: full-batch gradient steps for
+\code{method = "miwae"}, passes over the data in mini-batches of 128
+rows for \code{method = "diffusion"}. The default suits data sets of a
+few hundred to a few thousand rows; many more epochs can overfit, which
+shows as imputations that vary too little between draws (and so pooled
+standard errors that are too small) -- in a simulation, MIWAE's spread
+between draws fell from about the true residual SD at 300 epochs to 80\\%
+of it at 3000.}
 
 \item{importance_samples}{Number of importance samples (\code{K}) used
 both in the training objective and at imputation time. Only used when
@@ -88,12 +95,17 @@ afterwards.}
 \value{
 A named list with elements:
 \describe{
-\item{data_fit_all}{A completed version of \code{data_fit_all}, in the
-same list/data.frame shape, with every missing biomarker cell filled.
-Ready to pass straight to \code{\link{longitudinalSub}}.}
+\item{data_fit_all}{A list with one completed data frame per
+biomarker (also when \code{data_fit_all} was a single data frame), with
+every missing biomarker cell filled. Each holds one row per
+(id, \code{time_variable}) pair seen for any biomarker, and only the
+columns its model uses: the id, \code{time_variable}, the biomarker and
+the covariates of its \code{long_sub_fixed} formula -- other columns of
+the input are not carried over. Ready to pass straight to
+\code{\link{longitudinalSub}} with the same formulas.}
 \item{data_fit_all_list}{When \code{impute = "multiple"}, a list of
-\code{n_imputations} independently completed versions of
-\code{data_fit_all}; \code{NULL} when \code{impute = "single"}.}
+\code{n_imputations} completed versions of \code{data_fit_all}, each
+from its own draw; \code{NULL} when \code{impute = "single"}.}
 \item{diagnostics}{A named list, one element per biomarker, each with
 the number of missing cells and observed-vs-imputed mean/sd for both
 the deep-generative and classical-baseline completions.}
@@ -123,16 +135,14 @@ fitted decoder to draw one or more plausible completions of the
 missing cells.
 \item \code{"diffusion"} fits a conditional denoising diffusion
 probabilistic model (DDPM; Ho, Jain & Abbeel, 2020) over the same
-per-row biomarker vector, trained with a masked denoising
-score-matching loss that -- like the MIWAE objective above -- is only
-evaluated on observed entries (the same masking principle used by
-Ouyang et al.'s MissDiff, 2023, for training diffusion models on
-incomplete tabular data). Missing cells are then filled by a
-RePaint-style (Lugmayr et al., 2022) reverse-diffusion sampler: at
-every denoising step, observed dimensions are re-noised directly from
-their true value and only the unobserved dimensions are drawn from the
-learned reverse process, so the final sample matches the data exactly
-wherever it was actually observed.
+per-row biomarker vector, trained as in CSDI (Tashiro et al., 2021):
+in every mini-batch, each row's observed entries are split at random
+into targets and conditions, and the network learns to denoise the
+targets given the conditions' values, the covariates and the
+observation mask, so the loss only ever involves observed entries.
+Missing cells are then filled by running the reverse diffusion with
+the missing entries as targets and all observed ones as conditions;
+observed entries are returned unchanged.
 }
 Both backends draw one or more plausible completions of the missing
 cells, and the completed data.frame(s) can be passed directly to
@@ -140,7 +150,9 @@ cells, and the completed data.frame(s) can be passed directly to
 }
 \details{
 Only the biomarker (response) columns named on the left-hand
-side of \code{long_sub_fixed} are imputed; every covariate referenced on
+side of \code{long_sub_fixed} are imputed, and they must be numeric
+(continuous): an ordinal biomarker cannot be imputed with this function,
+and gives an error. Every covariate referenced on
 the right-hand side of \code{long_sub_fixed}/\code{long_sub_random} is
 assumed fully observed (an error is raised if any covariate has missing
 values). Each biomarker's own within-subject serial correlation continues
@@ -211,13 +223,8 @@ Ho, J., Jain, A., and Abbeel, P. (2020). Denoising Diffusion
 Probabilistic Models. \emph{Advances in Neural Information Processing
 Systems}, 33:6840-6851.
 
-Lugmayr, A., Danelljan, M., Romero, A., Yu, F., Timofte, R.,
-and Van Gool, L. (2022). RePaint: Inpainting using Denoising Diffusion
-Probabilistic Models. \emph{Proceedings of the IEEE/CVF Conference on
-Computer Vision and Pattern Recognition}, 11461-11471.
-
-Ouyang, Y., Xie, L., Li, C., and Cheng, G. (2023). MissDiff:
-Training Diffusion Models on Tabular Data with Missing Values.
-\emph{ICML 2023 Workshop on Structured Probabilistic Inference &
-Generative Modeling}.
+Tashiro, Y., Song, J., Song, Y., and Ermon, S. (2021). CSDI:
+Conditional Score-based Diffusion Models for Probabilistic Time Series
+Imputation. \emph{Advances in Neural Information Processing Systems},
+34:24804-24816.
 }

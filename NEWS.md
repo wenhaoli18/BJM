@@ -288,6 +288,35 @@
 
 ## Bug fixes
 
+* `imputeLongitudinal(method = "diffusion")` is now a conditional diffusion
+  model trained as in CSDI (Tashiro et al., 2021): each training row's
+  observed entries are split at random into targets and conditions, the
+  network denoises the targets given the conditions' values, and missing
+  cells are imputed conditional on all the row's observed values. The
+  earlier sampler did not give the network the other observed values, so
+  it made little use of the row's other biomarkers: in a simulation its
+  imputations had an RMSE of 0.55 against 0.35 now (MIWAE: 0.35; best
+  possible: 0.31), a spread between draws of 0.46 against 0.29 now (true
+  residual SD 0.30), and the pooled time slope after imputation was 0.374
+  against 0.396 now (0.401 with no missing data). Training now uses
+  mini-batches of 128 rows, so `epochs` counts passes over the data.
+
+* `imputeLongitudinal(method = "miwae")` draws every completion from its own
+  importance-sampling pass, so multiple imputations are independent draws
+  as documented (they resampled one shared set of latent samples).
+
+* `imputeLongitudinal()` gives an error for repeated (id, time) rows in a
+  biomarker's data, which it aligns rows across biomarkers by. Its
+  documentation now says that it returns a list of data frames that keep
+  only the columns each biomarker's model uses, and that many more epochs
+  than the default can overfit and make the imputations vary too little.
+
+* The EM that estimates the joint random-effects covariance `Sigma_fit` of
+  continuous biomarkers is accelerated by SQUAREM and reuses the parts that
+  do not change between iterations; `longitudinalSub()` is 3 to 7 times
+  faster, and no longer runs into the 1000-iteration cap (with a warning) on
+  ordinary data. The estimates move only within the convergence tolerance.
+
 * `fitIntervalBJM()` leaves out, with a message, the longitudinal
   measurements of a subject with a detected event taken after the last visit
   without the event (`L`), i.e. at the detecting visit `R` or later. They
@@ -333,6 +362,11 @@
   so an unused lowest or middle level (common after subsetting the data)
   misaligned every category above it with the thresholds and stopped the
   fit with "missing value where TRUE/FALSE needed".
+
+* `imputeLongitudinal()` gives an error for a non-numeric (e.g. ordinal)
+  biomarker, which its Gaussian imputation model cannot handle. Such a
+  column used to be coerced to numeric and came back entirely `NaN`, with
+  only a coercion warning.
 
 * `imputeLongitudinal()` now uses the visit time (`time_variable`) as a
   covariate of the imputation model whenever `long_sub_fixed` uses it, as
