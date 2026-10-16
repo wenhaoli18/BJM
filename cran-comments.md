@@ -45,7 +45,7 @@ are installed (`torch::torch_is_installed()`).
 tests are long-running ones (reference results, plots, and repeated
 fits of ordinal biomarkers with `ordinal::clmm()`), skipped to keep the
 check time down; each model path still runs at least one test on CRAN,
-and all 822 tests pass with `NOT_CRAN=true`.
+and all 829 tests pass with `NOT_CRAN=true`.
 
 ## Downstream dependencies
 

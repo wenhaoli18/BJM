@@ -94,7 +94,7 @@ test_that("performancePlot and calibrationPlot evaluate an interval-censored fit
   long <- do.call(rbind, long)
   fit <- suppressWarnings(fitIntervalBJM(surv, long, Surv(L, R, type = "interval2") ~ x, "Tev",
                                          y ~ year + Tev + x, ~ year | id, "year",
-                                         n_burnin = 2, n_imputations = 1, seed = 1))
+                                         n_burnin = 2, n_imputations = 1, n_thin = 1, seed = 1))
   ev <- merge(long, surv[, c("id", "L", "R")], by = "id")
 
   p_model <- performancePlot(ev, fit$long_fit_all, fit$survival_fit_all, c(2, 4), 2, "year", NULL, NULL,

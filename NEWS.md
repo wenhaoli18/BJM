@@ -281,6 +281,18 @@
 
 ## Bug fixes
 
+* `fitIntervalBJM()`'s `long_fit_all`, the fit its predictions use, now
+  combines the imputations -- the Rubin's-rules pooled fixed effects and the
+  averaged residual and random-effects variances (`pooled$long_fit_all`) --
+  instead of being the first imputation's fit, so a prediction no longer
+  carries one imputation's randomness. With competing risks the event-type
+  model in `survival_fit_all` likewise has its coefficients averaged over the
+  imputations. A new `n_thin` argument (default 5) saves only every
+  `n_thin`-th iteration after the burn-in, so the imputations, which come
+  from one chain, are less correlated and the between-imputation variance
+  less understated; `n_thin = 1` gives the previous behaviour, and the run
+  takes `n_burnin + n_imputations * n_thin` iterations in all.
+
 * `predictRisk()` computes the normalizing denominator as the numerator's
   own integral over the prediction window plus the integral beyond it.
   Before, the denominator was a separate integral from `prediction_time`
