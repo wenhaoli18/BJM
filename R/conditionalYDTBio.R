@@ -41,8 +41,6 @@ conditionalYDTBio = function(Y_all, time_new, bio_i, data_predict_all,
   
   #LME model fitting
   lfit = long_fit_all$lfit
-  #variance-covariance matrix
-  Sigma = long_fit_all$Sigma_fit
   #patient ID
   num <- as.character(nlme::splitFormula(long_fit_all$long_sub_random[[1]], "|")[[2]])[2]
   ### event type variable name
@@ -101,7 +99,6 @@ conditionalYDTBio = function(Y_all, time_new, bio_i, data_predict_all,
     patient_data <- select_patient_longitudinal_data_bio(data.long, num, num_i, n_longitudinal, time_variable,
                                                           bio_i, time_new, Y_all, long_fit_all)
     if(is.null(patient_data)) next
-    rep_num_i_list <- patient_data$rep_num_i_list
     data_num_i_list <- patient_data$data_num_i_list
     Y_select_all <- patient_data$Y_select_all
 

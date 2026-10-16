@@ -317,12 +317,11 @@ predictRisk = function(data_predict_all, long_fit_all, survival_fit_all,
   infinity_grid <- prepare_infinity_grid(data_predict_all, long_fit_all, survival_fit_all,
                                           prediction_time + horizon, upper_bound, bandcount2)
   predict.time.infinity = infinity_grid$predict.time.infinity
-  predict.time.infinity.1 = infinity_grid$predict.time.infinity.1
   S_T_all_infinity = infinity_grid$S_T_all_infinity
 
   risk.prob.0 = risk.prob.1 = NULL
   ### marginal probability T
-  S_T_all_predict = marginalT(data_predict_all, long_fit_all, survival_fit_all, l_i = predict.time.horizon.1, upper_bound)
+  S_T_all_predict = marginalT(data_predict_all, long_fit_all, survival_fit_all, l_i = predict.time.horizon.1)
 
   ### Mixed continuous/ordinal (Gaussian-copula) fits -- see
   ### longitudinalSubCopula() -- need conditionalYTCopula()/

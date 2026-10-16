@@ -100,7 +100,6 @@ conditionalYT = function(data_predict_all, long_fit_all, l_i, survival_variable,
         ### conditionalYDT.R for why this matters for poly()/
         ### splines::ns()/splines::bs()/factor() terms.
         terms_model <- lfit[[i]]$terms
-        variable_names <- attr(terms_model, "term.labels")
         all_variables <- all.vars(model_formula)
         
         #survival variable replaced by l_i[it]
