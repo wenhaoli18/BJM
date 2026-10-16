@@ -11,7 +11,7 @@
 #' cumulative-link thresholds (\code{long_fit_all$thresholds[[m]]}) bracketing
 #' the observed category is known (the classical Albert & Chib probit
 #' data-augmentation representation, same convention as
-#' \code{impute_latent_ordinal()} in \code{R/copulaLongitudinal.R}: latent
+#' \code{longitudinalSubVarCopula()} in \code{R/copulaLongitudinal.R}: latent
 #' score \code{Z = eta + epsilon}, \code{epsilon ~ N(0, 1)}, category
 #' \code{k} iff \code{full_alpha[k] < Z <= full_alpha[k+1]} with
 #' \code{full_alpha = c(-Inf, alpha_m, Inf)}, thresholds used directly with

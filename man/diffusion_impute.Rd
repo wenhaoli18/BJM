@@ -2,7 +2,7 @@
 % Please edit documentation in R/imputeLongitudinal.R
 \name{diffusion_impute}
 \alias{diffusion_impute}
-\title{Draw RePaint-style conditional reverse-diffusion completions}
+\title{Draw conditional reverse-diffusion completions}
 \usage{
 diffusion_impute(
   net,
@@ -17,19 +17,28 @@ diffusion_impute(
   n_imputations
 )
 }
+\arguments{
+\item{net}{Trained network.}
+
+\item{X_cov, X_resp, X_mask}{As in \code{train_diffusion()}.}
+
+\item{resp_mean, resp_sd}{Means and standard deviations that undo the
+responses' standardization.}
+
+\item{schedule, diffusion_steps, time_emb_dim}{As used in training.}
+
+\item{n_imputations}{Number of completions to draw.}
+}
+\value{
+A list of \code{n_imputations} completed response matrices on the
+original scale.
+}
 \description{
 Internal helper for \code{\link{imputeLongitudinal}}'s
-\code{method = "diffusion"} backend: implements the RePaint (Lugmayr et
-al., 2022) inpainting sampler, adapted from image patches to a per-row
-biomarker vector. Starting from pure noise, at every reverse step
-\code{t}, observed dimensions are overwritten by re-noising the true
-(standardized) observed value directly to noise level \code{t - 1} (the
-"known" branch, sampled from the forward process posterior, not the
-network), while unobserved dimensions are drawn from the network's
-learned reverse step (the "unknown" branch); the two are recombined with
-the mask before the next step. This guarantees the final sample matches
-the data exactly at every previously-observed cell, and only genuinely
-extrapolates the missing ones. Already-observed cells are left untouched
-by the caller, matching \code{\link{miwae_impute}}'s contract.
+\code{method = "diffusion"} backend. The missing entries of every row are
+the targets and all its observed entries the conditions: starting from
+pure noise on the targets, the DDPM reverse process (Ho et al., 2020) is
+run with the network conditioned on the observed values at every step.
+Observed entries are returned unchanged.
 }
 \keyword{internal}
