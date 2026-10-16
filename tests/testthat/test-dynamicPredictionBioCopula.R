@@ -83,6 +83,7 @@ reference_bio_density <- function(long_fit_all, long_sub_fixed, num_i, data_pred
 }
 
 test_that("conditionalYTBioCopula matches an independent from-scratch reconstruction", {
+  skip_on_cran()
   skip_if_ordinal()
   fx <- setup_copula_predict_fixture()
 
@@ -108,6 +109,7 @@ test_that("conditionalYTBioCopula matches an independent from-scratch reconstruc
 })
 
 test_that("conditionalYDTBioCopula matches an independent from-scratch reconstruction (w0/w1)", {
+  skip_on_cran()
   skip_if_ordinal()
   fx <- setup_copula_predict_fixture()
 
@@ -163,6 +165,7 @@ test_that("dynamicPredictionBio dispatches to the copula path for a mixed fit an
 })
 
 test_that("dynamicPredictionBio dispatches to the copula path under competing risk and returns a sane prediction", {
+  skip_on_cran()
   skip_if_ordinal()
   fx <- setup_copula_predict_fixture()
 
@@ -184,6 +187,7 @@ test_that("dynamicPredictionBio dispatches to the copula path under competing ri
 })
 
 test_that("dynamicPredictionBio on an ordinal bio_i predicts its future category", {
+  skip_on_cran()
   skip_if_ordinal()
   fx <- setup_copula_predict_fixture()
 

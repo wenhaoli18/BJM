@@ -156,6 +156,7 @@ simulate_sparse_long <- function(n, seed) {
 }
 
 test_that("longitudinalSub refits with more lme iterations when a variance is near zero", {
+  skip_on_cran()
   d <- simulate_sparse_long(300, 14)
   # the original settings fail on this dataset
   expect_error(nlme::lme(y ~ year + x, random = ~ year | id, data = d, method = "ML",

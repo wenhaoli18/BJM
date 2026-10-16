@@ -14,6 +14,16 @@ prediction could condition on future information. They are now dropped
 
 ## R CMD check results
 
+win-builder, R-devel (2026-10-14 r90673 ucrt), Windows:
+
+0 errors | 0 warnings | 1 note
+
+* `checking CRAN incoming feasibility ... NOTE` -- "Possibly misspelled
+  words in DESCRIPTION: Shen, al, et". These are false positives from the
+  method references in the Description field, written in the requested
+  "authors (year) <doi:...>" form: "Shen" is an author's surname (Shen and
+  Li (2021)), and "et al." abbreviates the author list of Li et al. (2026).
+
 `R CMD check --as-cran` (R 4.4.1, macOS 14.4 aarch64, local) reports:
 
 0 errors | 0 warnings | 2 notes
@@ -30,9 +40,12 @@ Examples, including those in `\donttest{}`, run without error. The `torch`
 examples run only when both the `torch` package and its LibTorch backend
 are installed (`torch::torch_is_installed()`).
 
-`testthat` (3rd edition), as run by `R CMD check`: 683 passed, 0 failed,
-0 warnings, 17 skipped on CRAN (long-running reference and plotting
-tests; all 814 pass with `NOT_CRAN=true`).
+`testthat` (3rd edition), as run by `R CMD check`: 580 passed, 0 failed,
+0 warnings, 45 skipped on CRAN, in about 1 minute locally. The skipped
+tests are long-running ones (reference results, plots, and repeated
+fits of ordinal biomarkers with `ordinal::clmm()`), skipped to keep the
+check time down; each model path still runs at least one test on CRAN,
+and all 822 tests pass with `NOT_CRAN=true`.
 
 ## Downstream dependencies
 
