@@ -464,3 +464,63 @@ test_that("fitIntervalBJM handles competing risks with the event type known at d
                               form_conditional_cr = type ~ Tev + x, include_right_censored = TRUE),
                "not supported with competing risks")
 })
+
+test_that("beyond the data the baseline follows the fitted model, not a straight line", {
+  d <- simulate_interval_data(600, seed = 3)
+  form <- Surv(L, R, type = "interval2") ~ x1 + x2
+  spline <- survivalSub(d, form, NULL, event_time = "Tev")$ic_fit
+  up <- spline$max_followup
+  tt <- up * c(1.5, 2, 3)
+  # the spline baseline continues as a Weibull with the shape of the Weibull
+  # (df = 1) fit; a line fitted to the whole table understated an increasing
+  # hazard (in a Weibull simulation, 0.68 of the truth at twice the last
+  # endpoint, against 0.96 now)
+  weibull <- icphFit(form, d, "Tev", "spline", 1)
+  shape <- weibull$gammas[[1]][2] / weibull$bases[[1]]$scale[1]
+  H_up <- cumulative_baseline_at(spline$cum_basehaz, up)
+  expect_equal(cumulative_baseline_at(spline$cum_basehaz, tt), H_up * (tt / up)^shape, tolerance = 5e-3)
+  # the piecewise baseline continues with its last piece's hazard
+  pw <- survivalSub(d, form, NULL, event_time = "Tev", baseline = "piecewise")$ic_fit
+  H <- cumulative_baseline_at(pw$cum_basehaz, c(up, 2 * up))
+  expect_equal(diff(H) / up, pw$lambda[length(pw$lambda)], tolerance = 5e-3)
+  # the baseline plot stays within the data
+  p <- plot(survivalSub(d, form, NULL, event_time = "Tev"), which = "basehaz")
+  expect_lte(max(p$data$time), up)
+})
+
+test_that("fitIntervalBJM leaves out measurements at and after the detecting visit", {
+  skip_on_cran()
+  set.seed(7)
+  n <- 80
+  x <- stats::rnorm(n)
+  T <- (-log(stats::runif(n)) / (0.05 * exp(0.5 * x)))^(1 / 1.5)
+  surv <- data.frame(id = seq_len(n), x = x, L = NA_real_, R = NA_real_)
+  long <- list()
+  for (i in seq_len(n)) {
+    v <- c(0, cumsum(stats::runif(30, 1, 3)))
+    v <- v[v < 12]
+    if (T[i] > max(v)) {
+      surv$L[i] <- max(v)
+      seen <- v
+    } else {
+      k <- findInterval(T[i], v)
+      surv$L[i] <- v[k]
+      surv$R[i] <- v[k + 1]
+      seen <- v[seq_len(k + 1)]                     # including the detecting visit
+    }
+    long[[i]] <- data.frame(id = i, year = seen, x = x[i],
+                            y = 1 + 0.3 * seen - 0.2 * T[i] + 0.4 * x[i] + 1 * (seen >= T[i]) +
+                              stats::rnorm(length(seen), 0, 0.3))
+  }
+  long <- do.call(rbind, long)
+  pre <- merge(long, surv[, c("id", "R")], by = "id")
+  pre <- pre[is.na(pre$R) | pre$year < pre$R, names(long)]
+  fit_ic <- function(d) {
+    suppressWarnings(fitIntervalBJM(surv, d, Surv(L, R, type = "interval2") ~ x, "Tev",
+                                    y ~ year + Tev + x, ~ year | id, "year",
+                                    n_burnin = 1, n_imputations = 1, n_thin = 1, n_grid = 10, seed = 1))
+  }
+  expect_message(with_detection <- fit_ic(long), "Left out \\d+ longitudinal row")
+  only_before <- fit_ic(pre)
+  expect_equal(nlme::fixef(with_detection$long_fit_all$lfit[[1]]), nlme::fixef(only_before$long_fit_all$lfit[[1]]))
+})

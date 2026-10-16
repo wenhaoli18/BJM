@@ -288,6 +288,24 @@
 
 ## Bug fixes
 
+* `fitIntervalBJM()` leaves out, with a message, the longitudinal
+  measurements of a subject with a detected event taken after the last visit
+  without the event (`L`), i.e. at the detecting visit `R` or later. They
+  follow the event, which the backward model `f(Y | T)` does not describe;
+  kept in, they biased the longitudinal sub-model whenever a biomarker
+  changes after the event (in a simulation with a shift of 1 at the event,
+  the time trend 0.45 against 0.30 and the event-time effect -0.26 against
+  -0.20; now 0.30 and -0.20).
+
+* An interval-censored survival sub-model's baseline cumulative hazard now
+  continues beyond the last interval endpoint as the fitted model does: as a
+  Weibull with the shape of the Weibull (`df = 1`) fit for the spline
+  baseline, and with the last piece's hazard for the piecewise one. It was
+  extended by a straight line fitted to the whole baseline, which
+  understated an increasing hazard there (in a Weibull simulation, 0.68 of
+  the true cumulative hazard at twice the last endpoint, against 0.96 now).
+  Predictions whose integration reaches past the data change accordingly.
+
 * `longitudinalSub()` with an ordinal biomarker now estimates the joint
   random-effects covariance `Sigma_fit` by maximum likelihood. Its EM used
   to plug in, for every ordinal observation, the mean of the latent score

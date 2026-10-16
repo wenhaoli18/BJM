@@ -24,6 +24,14 @@
 #' computes (\code{conditionalYT()}), so each draw costs about one
 #' \code{predictRisk()} call per subject.
 #'
+#' For a subject whose event was detected, only the longitudinal
+#' measurements up to the last visit without the event (\eqn{L}) are used:
+#' the one at the detecting visit \eqn{R} (and any later one) is taken after
+#' the event, which \eqn{f(Y \mid T)} does not describe, and they are left out
+#' with a message. As in the rest of the interval-censoring support, the
+#' biomarker visits are taken to be the inspection visits, so no measurement
+#' lies between \eqn{L} and \eqn{R}.
+#'
 #' By default only subjects whose event was observed (finite \eqn{R}) enter
 #' the longitudinal fit, mirroring the complete-case fit used for
 #' right-censored data, which is valid when censoring is independent of
@@ -180,6 +188,24 @@ fitIntervalBJM <- function(data_survival, data_fit_all, form_marginal_surv, even
   use <- is.finite(bounds$R) | include_right_censored
   bounds <- bounds[use, , drop = FALSE]
   data_fit_all <- lapply(data_fit_all, function(d) d[as.character(d[[id]]) %in% bounds$id, , drop = FALSE])
+  # f(Y | T) describes the biomarkers before the event, so for a subject whose
+  # event was detected only the visits up to the last negative one (L) enter;
+  # the detecting visit at R and any later one are after the event. Kept,
+  # they biased the time trend and the event-time effect.
+  last_negative <- stats::setNames(ifelse(is.finite(bounds$R), bounds$L, Inf), bounds$id)
+  n_dropped <- 0
+  data_fit_all <- lapply(data_fit_all, function(d) {
+    after <- d[[time_variable]] > last_negative[as.character(d[[id]])]
+    after[is.na(after)] <- FALSE
+    n_dropped <<- n_dropped + sum(after)
+    d[!after, , drop = FALSE]
+  })
+  if (n_dropped > 0) {
+    message(sprintf(paste0(
+      "Left out %d longitudinal row(s) measured after the last visit without the event (L): ",
+      "at or after the detecting visit they follow the event, which the longitudinal sub-model ",
+      "does not describe."), n_dropped))
+  }
 
   T_cur <- stats::setNames(ifelse(is.finite(bounds$R), (bounds$L + bounds$R) / 2, NA_real_), bounds$id)
   if (anyNA(T_cur)) {

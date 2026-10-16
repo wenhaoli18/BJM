@@ -291,6 +291,13 @@ everywhere in BJM, evaluating on the fitting data gives an optimistic
   beyond the observed data (non-informative inspection).
 - **Biomarker visits are inspection visits.** The last visit $V$ used in
   prediction is the last biomarker measurement up to the prediction time.
+  When fitting, `fitIntervalBJM()` uses a subject's measurements up to the
+  last visit without the event ($L$) only: the one at the detecting visit
+  $R$ is taken after the event, which the backward model does not describe,
+  and is left out (with a message).
+- **Beyond the data.** Past the last interval endpoint, the spline baseline
+  continues as a Weibull with the shape of a Weibull fit to all the data,
+  and the piecewise baseline with its last piece's hazard.
 - **Before the first visit.** The baseline hazard is extrapolated there, so
   the share of events before the first visit (reported by `print()`)
   indicates how much the results lean on it.
