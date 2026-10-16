@@ -350,7 +350,7 @@ prepare_infinity_grid <- function(data_predict_all, long_fit_all, survival_fit_a
   predict.time.infinity = (edges[-1] + edges[-length(edges)]) / 2
 
   S_T_all_infinity = marginalT(data_predict_all, long_fit_all, survival_fit_all,
-                                l_i = predict.time.infinity.1, upper_bound)
+                                l_i = predict.time.infinity.1)
 
   list(predict.time.infinity = predict.time.infinity,
        predict.time.infinity.1 = predict.time.infinity.1,
@@ -719,8 +719,7 @@ interval_gap_grid <- function(data_predict_all, long_fit_all, survival_fit_all,
   for (j in which(has_gap)) {
     edges <- seq(last_visit[j], prediction_time, length.out = n + 1)
     mids[, j] <- (edges[-1] + edges[-(n + 1)]) / 2
-    S[, j] <- marginalT(patient_data(j), long_fit_all, survival_fit_all, l_i = edges,
-                        upper_bound = prediction_time)[, 1]
+    S[, j] <- marginalT(patient_data(j), long_fit_all, survival_fit_all, l_i = edges)[, 1]
   }
   eval_gap <- function(fun, fill = -Inf) {
     cols <- lapply(seq_len(P), function(j) {

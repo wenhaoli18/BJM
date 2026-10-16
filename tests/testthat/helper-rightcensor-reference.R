@@ -66,7 +66,7 @@ right_censor_reference_outputs <- function() {
       upper_bound = upper,
       grid_edges = grid$predict.time.infinity.1,
       S_T_infinity = grid$S_T_all_infinity,
-      marginalT = marginalT(at_risk, long_fit_all, fit, l_i = seq(5, 6, by = 0.1), upper),
+      marginalT = marginalT(at_risk, long_fit_all, fit, l_i = seq(5, 6, by = 0.1)),
       risk = unclass(predictRisk(data_predict_all, long_fit_all, fit,
                                  prediction_time = 5, horizon = 1, time_variable = "year",
                                  survival_variable_all, survival_trans_function,

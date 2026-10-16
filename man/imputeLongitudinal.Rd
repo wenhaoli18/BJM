@@ -147,7 +147,9 @@ values). Each biomarker's own within-subject serial correlation continues
 to be modeled downstream by \code{nlme::lme()} inside
 \code{longitudinalSub()}, exactly as today; this function only models
 \code{p(biomarkers | covariates, missingness mask)} row by row (one row
-per subject-visit), so it does not need to know the random-effects
+per subject-visit; the covariates include the visit time
+\code{time_variable} when \code{long_sub_fixed} uses it), so it does not
+need to know the random-effects
 structure in \code{long_sub_random} beyond the id variable it names.
 
 Rows are aligned across biomarkers by \code{(id, time_variable)}: when

@@ -46,7 +46,9 @@
 #' to be modeled downstream by \code{nlme::lme()} inside
 #' \code{longitudinalSub()}, exactly as today; this function only models
 #' \code{p(biomarkers | covariates, missingness mask)} row by row (one row
-#' per subject-visit), so it does not need to know the random-effects
+#' per subject-visit; the covariates include the visit time
+#' \code{time_variable} when \code{long_sub_fixed} uses it), so it does not
+#' need to know the random-effects
 #' structure in \code{long_sub_random} beyond the id variable it names.
 #'
 #' Rows are aligned across biomarkers by \code{(id, time_variable)}: when
@@ -287,8 +289,9 @@ imputeLongitudinal <- function(data_fit_all, long_sub_fixed, long_sub_random,
     stop("`data_fit_all` has no missing values in the biomarker columns named by `long_sub_fixed`; there is nothing to impute.", call. = FALSE)
   }
 
-  if (length(all_covariates) > 0) {
-    cov_formula <- as.formula(paste("~", paste(all_covariates, collapse = " + "), "- 1"))
+  design_covariates <- imputation_covariates(covariate_vars, id)
+  if (length(design_covariates) > 0) {
+    cov_formula <- as.formula(paste("~", paste(design_covariates, collapse = " + "), "- 1"))
     cov_design <- model.matrix(cov_formula, data = aligned)
   } else {
     cov_design <- matrix(numeric(0), nrow = nrow(aligned), ncol = 0)
@@ -409,6 +412,23 @@ imputeLongitudinal <- function(data_fit_all, long_sub_fixed, long_sub_random,
 
   list(data_fit_all = data_fit_all_single, data_fit_all_list = data_fit_all_list,
        diagnostics = diagnostics)
+}
+
+#' Covariates of the imputation model
+#'
+#' @description The right-hand-side variables of \code{long_sub_fixed}
+#' other than the subject id, including the visit time
+#' \code{time_variable} when a formula uses it. The visit time is also the
+#' key that aligns rows across biomarkers, and it used to be left out of the
+#' model along with the id, so values were imputed without knowing when the
+#' measurement was taken (pulling a trending biomarker towards its overall
+#' level).
+#' @param covariate_vars List of each biomarker's right-hand-side variables.
+#' @param id Name of the id column.
+#' @return Character vector of covariate names.
+#' @keywords internal
+imputation_covariates <- function(covariate_vars, id) {
+  setdiff(unique(unlist(covariate_vars)), id)
 }
 
 #' Build the MIWAE encoder/decoder network

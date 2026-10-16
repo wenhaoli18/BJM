@@ -40,12 +40,12 @@ Examples, including those in `\donttest{}`, run without error. The `torch`
 examples run only when both the `torch` package and its LibTorch backend
 are installed (`torch::torch_is_installed()`).
 
-`testthat` (3rd edition), as run by `R CMD check`: 580 passed, 0 failed,
-0 warnings, 45 skipped on CRAN, in about 1 minute locally. The skipped
+`testthat` (3rd edition), as run by `R CMD check`: 581 passed, 0 failed,
+0 warnings, 46 skipped on CRAN, in about 1 minute locally. The skipped
 tests are long-running ones (reference results, plots, and repeated
 fits of ordinal biomarkers with `ordinal::clmm()`), skipped to keep the
 check time down; each model path still runs at least one test on CRAN,
-and all 829 tests pass with `NOT_CRAN=true`.
+and all 832 tests pass with `NOT_CRAN=true`.
 
 ## Downstream dependencies
 

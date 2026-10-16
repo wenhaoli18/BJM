@@ -10,7 +10,6 @@
 #' @importFrom survival coxph basehaz Surv strata survfit
 #' @importFrom nlme lme lmeControl splitFormula getVarCov fixef
 #' @importFrom Matrix bdiag
-#' @importFrom mvtnorm dmvnorm
 NULL
 
 utils::globalVariables(c(

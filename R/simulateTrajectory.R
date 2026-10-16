@@ -263,7 +263,7 @@ simulateTrajectory <- function(data_predict_all, long_fit_all, survival_fit_all,
                             prediction_time, upper_bound, bandcount2 + 1)
   if (max_event_time < upper_bound) edges <- sort(unique(c(edges, max_event_time)))
   l_grid <- (edges[-1] + edges[-length(edges)]) / 2
-  S_T_grid <- marginalT(data_predict_all, long_fit_all, survival_fit_all, l_i = edges, upper_bound)
+  S_T_grid <- marginalT(data_predict_all, long_fit_all, survival_fit_all, l_i = edges)
   ### the event time the model is evaluated at: past max_event_time, the
   ### patient is taken to follow the trajectory of an event at max_event_time
   l_model <- pmin(l_grid, max_event_time)

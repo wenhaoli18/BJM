@@ -18,6 +18,13 @@
   behind it. Code that checks `inherits(x, "dynamicPredictionBio.BJM")` (or
   the `All` variant) needs to switch to the new names; the object contents
   and the `print()`/`summary()` output are unchanged.
+* `dynamicPredictionBio()` is no longer exported: `predictLongitudinal()`
+  replaces it, with the same arguments (`predictLongitudinal(bio_i = 1,
+  ...)` predicts one biomarker, as `dynamicPredictionBio(bio_i = 1, ...)`
+  did).
+* `printBJM()` is no longer exported. Print the two sub-model fits
+  separately instead: `print(long_fit_all)` and `print(survival_fit_all)`
+  (or just type their names at the console).
 
 ## New features
 
@@ -280,6 +287,14 @@
   rounding (relative differences around 1e-14 on `pbc3`).
 
 ## Bug fixes
+
+* `imputeLongitudinal()` now uses the visit time (`time_variable`) as a
+  covariate of the imputation model whenever `long_sub_fixed` uses it, as
+  documented. It was left out along with the subject id (both serve to align
+  rows across biomarkers), so values were imputed without knowing when they
+  were measured, which pulled a biomarker with a time trend towards its
+  overall level (in a simulated linear trend: correlation of the imputed
+  values with time -0.24 before, 0.99 now).
 
 * `fitIntervalBJM()`'s `long_fit_all`, the fit its predictions use, now
   combines the imputations -- the Rubin's-rules pooled fixed effects and the

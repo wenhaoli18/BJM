@@ -290,7 +290,6 @@ longitudinalSubGaussian <- function(data_fit_all, long_sub_fixed, long_sub_rando
   }
   
   lfit <- list()
-  lfit_0 <- list()
   mf.fixed <- list()
   xlevels <- list()
   yik <- list()
