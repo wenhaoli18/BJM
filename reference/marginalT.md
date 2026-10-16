@@ -5,7 +5,7 @@ Marginal distribution of T
 ## Usage
 
 ``` r
-marginalT(data_predict_all, long_fit_all, survival_fit_all, l_i, upper_bound)
+marginalT(data_predict_all, long_fit_all, survival_fit_all, l_i)
 ```
 
 ## Arguments
@@ -37,12 +37,6 @@ marginalT(data_predict_all, long_fit_all, survival_fit_all, l_i, upper_bound)
 - l_i:
 
   A vector of time points to calculate the conditional probability.
-
-- upper_bound:
-
-  Upper limit for integration. To manage the hazard function,
-  extrapolation is required. The `upper_bound` parameter specifies the
-  upper time points at which extrapolation is performed.
 
 ## Value
 

@@ -69,11 +69,16 @@ riskPlot(
 
 - prediction_time:
 
-  Time used to make the prediction.
+  The landmark time(s) at which risks are predicted and plotted: `NULL`
+  (the default) uses every visit time (`time_variable`) in the patient's
+  data; a single value `s` uses the three landmarks `s`, `1.5 * s` and
+  `2 * s`; a vector uses those times. At each landmark only the history
+  up to it is used.
 
 - bio_i:
 
-  Biomarker used to do prediction.
+  Biomarker whose observed history is drawn alongside the predicted
+  risks (by position in `long_fit_all`); `NULL` draws the first one.
 
 - horizon:
 
@@ -141,3 +146,25 @@ riskPlot(
 ## Value
 
 Plot of risk using dynamic prediction.
+
+## Examples
+
+``` r
+# \donttest{
+data(pbc3)
+survival_fit_all <- survivalSub(pbc3[!duplicated(pbc3$id), ],
+                                Surv(years, status3) ~ age + sex, NULL)
+long_fit_all <- longitudinalSub(pbc3[pbc3$status3 == 1, ],
+                                list(serBilir ~ year + age + sex + years,
+                                     albumin ~ year + age + sex + years),
+                                list(~ year | id, ~ year | id))
+
+# one patient's whole history; risks within 2 years of landmarks 2, 3, 4
+patient <- pbc3[pbc3$id == 2, ]
+riskPlot(patient, long_fit_all, survival_fit_all, prediction_time = c(2, 3, 4),
+         bio_i = 1, horizon = 2, time_variable = "year",
+         survival_variable_all = list(), survival_trans_function = list(),
+         bandcount1 = 10, bandcount2 = 20)
+
+# }
+```

@@ -176,3 +176,88 @@ and friends); `pooled`
 of the fits, when `n_imputations > 1`); `imputed_T` (a subjects x
 imputations matrix); and `trace` (each iteration's fixed effects, to
 check the chain has settled).
+
+## Examples
+
+``` r
+# \donttest{
+# simulated study: visits every 1-3 years, an event known only to lie
+# between the last visit without it (L) and the first visit with it (R)
+set.seed(1)
+n <- 60
+x <- rnorm(n)
+event_time <- (-log(runif(n)) / (0.05 * exp(0.5 * x)))^(1 / 1.5)
+surv <- data.frame(id = seq_len(n), x = x, L = NA_real_, R = NA_real_)
+long <- list()
+for (i in seq_len(n)) {
+  visits <- c(0, cumsum(runif(30, 1, 3)))
+  visits <- visits[visits < 12]
+  if (event_time[i] > max(visits)) {
+    surv$L[i] <- max(visits)
+    seen <- visits
+  } else {
+    k <- findInterval(event_time[i], visits)
+    surv$L[i] <- visits[k]
+    surv$R[i] <- visits[k + 1]
+    seen <- visits[visits <= event_time[i]]
+  }
+  long[[i]] <- data.frame(id = i, year = seen, x = x[i],
+                          y = 1 + 0.3 * seen - 0.2 * event_time[i] + 0.4 * x[i] +
+                            rnorm(1, 0, 0.5) + rnorm(length(seen), 0, 0.3))
+}
+long <- do.call(rbind, long)
+
+fit <- fitIntervalBJM(surv, long, Surv(L, R, type = "interval2") ~ x,
+                      event_time = "Tev", long_sub_fixed = y ~ year + Tev + x,
+                      long_sub_random = ~ year | id, time_variable = "year",
+                      n_burnin = 2, n_imputations = 2, n_thin = 1, n_grid = 15,
+                      seed = 1)
+fit$pooled
+#> 
+#> Call:
+#> poolLongitudinalSub(m = 2 completed-data fits, M = 1 longitudinal outcome)
+#> 
+#> =================================================================
+#>  Rubin's-Rules-Pooled Longitudinal Sub-model(s)
+#> -----------------------------------------------------------------
+#>  [1] Outcome 1
+#> 
+#>                Value       SE    DF      t  p-value    
+#> (Intercept)  0.85680  0.19666 36.31  4.357 0.000104 ***
+#> year         0.29168  0.01648 92.54 17.696  < 2e-16 ***
+#> Tev         -0.16460  0.03693 20.72 -4.458 0.000224 ***
+#> x            0.38435  0.09815 45.43  3.916 0.000300 ***
+#> ---
+#> Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+#> 
+#>   Fraction of missing information (FMI), by coefficient:
+#>   (Intercept) = 0.169,  year = 0.033,  Tev = 0.222,  x = 0.051 
+#> 
+#> =================================================================
+
+# the fit plugs into the prediction functions; Tev is unknown for a new patient
+history <- long[long$id == 1 & long$year <= 2, ]
+history$Tev <- NA_real_
+predictRisk(history, fit$long_fit_all, fit$survival_fit_all,
+            prediction_time = 2, horizon = 2, time_variable = "year",
+            survival_variable_all = NULL, survival_trans_function = NULL,
+            bandcount1 = 10, bandcount2 = 20)
+#> 
+#> =================================================================
+#>  Dynamic Prediction - Event Risk
+#> -----------------------------------------------------------------
+#>   Competing risks   : No
+#>   Subjects          : 1
+#> -----------------------------------------------------------------
+#> 
+#>  Subject Risk Prob Already, undetected
+#>        1    0.3007               0.592
+#> 
+#>   Interval-censored: risks condition on being event-free at each subject's
+#>  last visit; 'Already, undetected' is the probability the event happened
+#>  between that visit and the prediction time.
+#> 
+#> =================================================================
+#> 
+# }
+```

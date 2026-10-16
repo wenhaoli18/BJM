@@ -191,8 +191,10 @@ modeled downstream by
 [`longitudinalSub()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md),
 exactly as today; this function only models
 `p(biomarkers | covariates, missingness mask)` row by row (one row per
-subject-visit), so it does not need to know the random-effects structure
-in `long_sub_random` beyond the id variable it names.
+subject-visit; the covariates include the visit time `time_variable`
+when `long_sub_fixed` uses it), so it does not need to know the
+random-effects structure in `long_sub_random` beyond the id variable it
+names.
 
 Rows are aligned across biomarkers by `(id, time_variable)`: when
 `data_fit_all` is a list of different data.frames with different visit

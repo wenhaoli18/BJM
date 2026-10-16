@@ -285,7 +285,9 @@ values). Each biomarker's own within-subject serial correlation continues
 to be modeled downstream by <code><a href="https://rdrr.io/pkg/nlme/man/lme.html" class="external-link">nlme::lme()</a></code> inside
 <code><a href="longitudinalSub.html">longitudinalSub()</a></code>, exactly as today; this function only models
 <code>p(biomarkers | covariates, missingness mask)</code> row by row (one row
-per subject-visit), so it does not need to know the random-effects
+per subject-visit; the covariates include the visit time
+<code>time_variable</code> when <code>long_sub_fixed</code> uses it), so it does not
+need to know the random-effects
 structure in <code>long_sub_random</code> beyond the id variable it names.</p>
 <p>Rows are aligned across biomarkers by <code>(id, time_variable)</code>: when
 <code>data_fit_all</code> is a list of different data.frames with different

@@ -28,6 +28,15 @@
   to switch to the new names; the object contents and the
   [`print()`](https://rdrr.io/r/base/print.html)/[`summary()`](https://rdrr.io/r/base/summary.html)
   output are unchanged.
+- [`dynamicPredictionBio()`](https://wenhaoli18.github.io/BJM/reference/dynamicPredictionBio.md)
+  is no longer exported:
+  [`predictLongitudinal()`](https://wenhaoli18.github.io/BJM/reference/predictLongitudinal.md)
+  replaces it, with the same arguments
+  (`predictLongitudinal(bio_i = 1, ...)` predicts one biomarker, as
+  `dynamicPredictionBio(bio_i = 1, ...)` did).
+- `printBJM()` is no longer exported. Print the two sub-model fits
+  separately instead: `print(long_fit_all)` and
+  `print(survival_fit_all)` (or just type their names at the console).
 
 ### New features
 
@@ -385,6 +394,15 @@
   differences around 1e-14 on `pbc3`).
 
 ### Bug fixes
+
+- [`imputeLongitudinal()`](https://wenhaoli18.github.io/BJM/reference/imputeLongitudinal.md)
+  now uses the visit time (`time_variable`) as a covariate of the
+  imputation model whenever `long_sub_fixed` uses it, as documented. It
+  was left out along with the subject id (both serve to align rows
+  across biomarkers), so values were imputed without knowing when they
+  were measured, which pulled a biomarker with a time trend towards its
+  overall level (in a simulated linear trend: correlation of the imputed
+  values with time -0.24 before, 0.99 now).
 
 - [`fitIntervalBJM()`](https://wenhaoli18.github.io/BJM/reference/fitIntervalBJM.md)’s
   `long_fit_all`, the fit its predictions use, now combines the

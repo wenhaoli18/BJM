@@ -140,11 +140,17 @@ findings and variables derived from the analysis.</p></dd>
 
 
 <dt id="arg-prediction-time">prediction_time<a class="anchor" aria-label="anchor" href="#arg-prediction-time"></a></dt>
-<dd><p>Time used to make the prediction.</p></dd>
+<dd><p>The landmark time(s) at which risks are predicted
+and plotted: <code>NULL</code> (the default) uses every visit time
+(<code>time_variable</code>) in the patient's data; a single value <code>s</code> uses the three
+landmarks <code>s</code>, <code>1.5 * s</code> and <code>2 * s</code>; a vector uses those
+times. At each landmark only the history up to it is used.</p></dd>
 
 
 <dt id="arg-bio-i">bio_i<a class="anchor" aria-label="anchor" href="#arg-bio-i"></a></dt>
-<dd><p>Biomarker used to do prediction.</p></dd>
+<dd><p>Biomarker whose observed history is drawn alongside the
+predicted risks (by position in <code>long_fit_all</code>); <code>NULL</code> draws
+the first one.</p></dd>
 
 
 <dt id="arg-horizon">horizon<a class="anchor" aria-label="anchor" href="#arg-horizon"></a></dt>
@@ -209,6 +215,27 @@ are computed (not the order results are assembled in) changes.</p></dd>
     <p>Plot of risk using dynamic prediction.</p>
     </div>
 
+    <div class="section level2">
+    <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># \donttest{</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">pbc3</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">survival_fit_all</span> <span class="op">&lt;-</span> <span class="fu"><a href="survivalSub.html">survivalSub</a></span><span class="op">(</span><span class="va">pbc3</span><span class="op">[</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/duplicated.html" class="external-link">duplicated</a></span><span class="op">(</span><span class="va">pbc3</span><span class="op">$</span><span class="va">id</span><span class="op">)</span>, <span class="op">]</span>,</span></span>
+<span class="r-in"><span>                                <span class="fu"><a href="https://rdrr.io/pkg/survival/man/Surv.html" class="external-link">Surv</a></span><span class="op">(</span><span class="va">years</span>, <span class="va">status3</span><span class="op">)</span> <span class="op">~</span> <span class="va">age</span> <span class="op">+</span> <span class="va">sex</span>, <span class="cn">NULL</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">long_fit_all</span> <span class="op">&lt;-</span> <span class="fu"><a href="longitudinalSub.html">longitudinalSub</a></span><span class="op">(</span><span class="va">pbc3</span><span class="op">[</span><span class="va">pbc3</span><span class="op">$</span><span class="va">status3</span> <span class="op">==</span> <span class="fl">1</span>, <span class="op">]</span>,</span></span>
+<span class="r-in"><span>                                <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">serBilir</span> <span class="op">~</span> <span class="va">year</span> <span class="op">+</span> <span class="va">age</span> <span class="op">+</span> <span class="va">sex</span> <span class="op">+</span> <span class="va">years</span>,</span></span>
+<span class="r-in"><span>                                     <span class="va">albumin</span> <span class="op">~</span> <span class="va">year</span> <span class="op">+</span> <span class="va">age</span> <span class="op">+</span> <span class="va">sex</span> <span class="op">+</span> <span class="va">years</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>                                <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">~</span> <span class="va">year</span> <span class="op">|</span> <span class="va">id</span>, <span class="op">~</span> <span class="va">year</span> <span class="op">|</span> <span class="va">id</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># one patient's whole history; risks within 2 years of landmarks 2, 3, 4</span></span></span>
+<span class="r-in"><span><span class="va">patient</span> <span class="op">&lt;-</span> <span class="va">pbc3</span><span class="op">[</span><span class="va">pbc3</span><span class="op">$</span><span class="va">id</span> <span class="op">==</span> <span class="fl">2</span>, <span class="op">]</span></span></span>
+<span class="r-in"><span><span class="fu">riskPlot</span><span class="op">(</span><span class="va">patient</span>, <span class="va">long_fit_all</span>, <span class="va">survival_fit_all</span>, prediction_time <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2</span>, <span class="fl">3</span>, <span class="fl">4</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>         bio_i <span class="op">=</span> <span class="fl">1</span>, horizon <span class="op">=</span> <span class="fl">2</span>, time_variable <span class="op">=</span> <span class="st">"year"</span>,</span></span>
+<span class="r-in"><span>         survival_variable_all <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>, survival_trans_function <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>         bandcount1 <span class="op">=</span> <span class="fl">10</span>, bandcount2 <span class="op">=</span> <span class="fl">20</span><span class="op">)</span></span></span>
+<span class="r-plt img"><img src="riskPlot-1.png" alt="" width="700" height="433"></span>
+<span class="r-in"><span><span class="co"># }</span></span></span>
+</code></pre></div>
+    </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>
 

@@ -130,7 +130,7 @@ like — see
 - Shen F, Li L (2021). Backward joint model and dynamic prediction of
   survival with multivariate longitudinal data. *Statistics in
   Medicine*, 40(20), 4395–4409.
-  [doi:10.1002/sim.9037](https://onlinelibrary.wiley.com/doi/10.1002/sim.9037)
+  [doi:10.1002/sim.9037](https://doi.org/10.1002/sim.9037)
 - Li W, Wang S, Yin Z, Astor BC, Yang W, Greene TH, Li L (2026).
   Backward joint model for the joint dynamic prediction of time-to-event
   and longitudinal data: basic formulation and new developments.
