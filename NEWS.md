@@ -281,6 +281,14 @@
 
 ## Bug fixes
 
+* `imputeLongitudinal()` now uses the visit time (`time_variable`) as a
+  covariate of the imputation model whenever `long_sub_fixed` uses it, as
+  documented. It was left out along with the subject id (both serve to align
+  rows across biomarkers), so values were imputed without knowing when they
+  were measured, which pulled a biomarker with a time trend towards its
+  overall level (in a simulated linear trend: correlation of the imputed
+  values with time -0.24 before, 0.99 now).
+
 * `fitIntervalBJM()`'s `long_fit_all`, the fit its predictions use, now
   combines the imputations -- the Rubin's-rules pooled fixed effects and the
   averaged residual and random-effects variances (`pooled$long_fit_all`) --
