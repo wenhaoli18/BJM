@@ -56,11 +56,12 @@ numerator of the risk probability). Larger values give a more accurate but
 slower estimate. Defaults to \code{"auto"} (see Details).}
 
 \item{bandcount2}{The number of grid points spanning
-\code{[prediction_time, upper_bound]}, where \code{upper_bound} is set
-internally as the earliest time by which every at-risk patient's
+\code{[prediction_time + horizon, upper_bound]}, where \code{upper_bound}
+is set internally as the earliest time by which every at-risk patient's
 model-based probability of still being event-free (given event-free at
-\code{prediction_time}) has dropped below \code{1e-4}; this approximates
-integrating out to infinity for the denominator that normalizes the risk probability. A wider follow-up range
+\code{prediction_time + horizon}) has dropped below \code{1e-4}; this
+approximates integrating out to infinity for the part of the denominator
+beyond the prediction window. A wider follow-up range
 needs a larger \code{bandcount2} to keep the grid spacing comparable.
 Defaults to \code{"auto"} (see Details).}
 }
@@ -106,11 +107,12 @@ their individual random effects (empirical Bayes), which are then
 integrated against the survival sub-model's hazard to give the predicted
 probability of experiencing the event within
 \code{(prediction_time, prediction_time + horizon]}, conditional on being
-event-free at \code{prediction_time}. The integrals in both the numerator
-(event within the window) and denominator (survival to
-\code{prediction_time}, used for normalization) are evaluated on
-numerical grids whose resolution is controlled by \code{bandcount1}/
-\code{bandcount2}; see Details.
+event-free at \code{prediction_time}. The numerator (event within the
+window) is evaluated on a grid over the window whose resolution is
+controlled by \code{bandcount1}; the denominator (survival to
+\code{prediction_time}, used for normalization) is that same window
+integral plus the integral beyond the window, evaluated on a grid
+controlled by \code{bandcount2}; see Details.
 
 The prediction is conditional on the longitudinal history observed up to
 \code{prediction_time}: rows of \code{data_predict_all} whose

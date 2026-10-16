@@ -53,6 +53,13 @@
 # the event time is integrated from prediction_time + horizon on, which drops
 # the event times before the biomarker's own time (mode 1.206 -> 1.193 without
 # competing risks). This is a correction, not grid noise.
+# risk_pred then changed (0.0400 -> 0.0394 without competing risks) when
+# predictRisk()'s denominator became the numerator's own window integral plus
+# the integral beyond the window. It used to be a separate integral over the
+# whole range on its own grid, which near the jumps of the step-function
+# baseline hazard disagreed with the numerator's grid by several percent
+# (risks above 1 were cut to 1). A brute-force integral with the jump masses at
+# their own event times agrees with the new value. A correction, not noise.
 
 test_that("no-competing-risk pipeline output matches pre-refactor baseline", {
   skip_on_cran()
