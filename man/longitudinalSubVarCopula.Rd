@@ -2,8 +2,7 @@
 % Please edit documentation in R/copulaLongitudinal.R
 \name{longitudinalSubVarCopula}
 \alias{longitudinalSubVarCopula}
-\title{EM re-estimation of the shared random-effects covariance (Gaussian-copula
-extension)}
+\title{Joint random-effects covariance with ordinal biomarkers (Gaussian copula)}
 \usage{
 longitudinalSubVarCopula(
   thetaLong,
@@ -12,21 +11,56 @@ longitudinalSubVarCopula(
   thresholds,
   tol.em = 1e-04,
   max.iter = 500,
+  max_quadrature_dim = 3,
   verbose = FALSE
 )
 }
+\arguments{
+\item{thetaLong}{List with the stacked fixed effects \code{beta}, the
+starting \code{D} and the residual variances \code{sigma2} (1 for an
+ordinal biomarker).}
+
+\item{l}{Per-subject design bookkeeping built by
+\code{longitudinalSubCopula()}; \code{l$yik[[m]]} holds an ordinal
+biomarker's category codes.}
+
+\item{biomarker_type, thresholds}{As stored in the fit.}
+
+\item{tol.em, max.iter}{Convergence tolerance on \code{D} and iteration cap
+of the quadrature EM.}
+
+\item{max_quadrature_dim}{Largest number of ordinal random effects handled
+by quadrature.}
+
+\item{verbose}{Print the change in \code{D} at every iteration.}
+}
+\value{
+A list with the estimate \code{D}.
+}
 \description{
-Extends \code{longitudinalSubVar()}'s EM algorithm with one
-additional "inner" E-step (\code{impute_latent_ordinal()}), run before the
-existing "outer" E-step (posterior mean/second-moment of the random
-effects) at every iteration -- an ECM (Expectation-Conditional-Maximization)
-scheme. The outer E-step and M-step formulas are otherwise completely
-unchanged from \code{longitudinalSubVar()}: only the stacked outcome
-vector \code{yi} fed into them differs, since ordinal biomarkers'
-observed category codes are replaced by the inner E-step's imputed latent
-scores before every outer-step update. As in \code{longitudinalSubVar()},
-\code{sigma2} is never updated (for ordinal biomarkers it stays fixed at
-1, the identification constraint for a probit latent variable); only
-\code{D} is re-estimated.
+Re-estimates the shared random-effects covariance \code{D}
+across all biomarkers by maximum likelihood, holding each biomarker's fixed
+effects, residual variance and (for an ordinal biomarker) thresholds at
+their separate-fit values, as \code{longitudinalSubVar()} does for
+continuous ones. An ordinal observation is the category of a latent score
+\eqn{Z = \eta + \epsilon}, \eqn{\epsilon \sim N(0, 1)} (probit link,
+Albert & Chib), observed only through the thresholds that bracket it, so
+the posterior of the random effects given the data is not Gaussian and the
+EM's \eqn{E[b b^T \mid y]} has no closed form. It is computed by
+\itemize{
+\item \code{copula_D_aghq()}, an EM with adaptive Gauss-Hermite
+quadrature over the ordinal biomarkers' random effects (the continuous
+biomarkers' random effects are integrated out exactly), when those
+number at most \code{max_quadrature_dim}; deterministic, with the usual
+convergence check;
+\item otherwise \code{copula_D_saem()}, a stochastic-approximation EM
+(SAEM) that draws the latent scores, whose cost does not grow with that
+dimension.
+}
+Both target the same maximum-likelihood estimate. The earlier version
+plugged in the mean of each latent score given its category, which ignored
+the score's own variance and underestimated the ordinal biomarkers'
+random-effects variances (by about 40\\% for a random intercept and 75\\%
+for a random slope in simulations).
 }
 \keyword{internal}
