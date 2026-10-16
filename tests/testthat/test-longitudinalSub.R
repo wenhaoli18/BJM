@@ -189,3 +189,26 @@ test_that("lme_with_retry only retries convergence failures", {
   expect_error(lme_with_retry(never_converges(control = 1), "y"), "simpler long_sub_random")
   expect_equal(calls, 2)
 })
+
+test_that("longitudinalSub rejects responses that prediction cannot rebuild", {
+  data(pbc3, envir = environment())
+  d <- pbc3[pbc3$status3 == 1, ]
+  d$bili <- exp(d$serBilir)
+  # a transformed response used to fit, then fail in predictRisk()
+  expect_error(longitudinalSub(d, log(bili) ~ year + age + years, ~ year | id),
+               "transformed left-hand side")
+  d$grade <- factor(d$serBilir > 0)
+  expect_error(longitudinalSub(d, grade ~ year + age + years, ~ year | id, biomarker_type = "continuous"),
+               "not numeric")
+})
+
+test_that("subjects are matched by id across biomarkers when ids are not 1..n", {
+  data(pbc3, envir = environment())
+  d <- pbc3[pbc3$status3 == 1, ]
+  fixed <- list(serBilir ~ year + age + years, albumin ~ year + years)
+  random <- list(~ year | id, ~ year | id)
+  ref <- longitudinalSub(d, fixed, random)
+  d$id <- factor(paste0("P", 1000 - as.integer(as.character(d$id))))
+  relabelled <- longitudinalSub(d, fixed, random)
+  expect_equal(unname(relabelled$Sigma_fit), unname(ref$Sigma_fit))
+})

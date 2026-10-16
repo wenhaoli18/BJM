@@ -183,7 +183,7 @@ test_that("print.poolLongitudinalSub.BJM runs without error and reports FMI", {
 })
 
 test_that("poolLongitudinalSub(imputeLongitudinal(impute = 'multiple') completions) pools end to end (requires torch)", {
-  skip_if_not_installed("torch")
+  skip_if_no_torch()
   f <- setup_impute_fixture()
 
   imputed <- imputeLongitudinal(f$data_fit_all, f$long_sub_fixed, f$long_sub_random,

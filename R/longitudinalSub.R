@@ -173,7 +173,29 @@ longitudinalSub <- function(data_fit_all, long_sub_fixed, long_sub_random, bioma
     data_fit_all
   }
 
+  ### prediction rebuilds each response from its data column by name, so a
+  ### transformed left-hand side (e.g. log(y)) fit fine here but failed later
+  ### in predictRisk() with "undefined columns selected"
+  for (m in seq_len(M)) {
+    lhs <- long_sub_fixed_check[[m]][[2]]
+    if (!is.symbol(lhs)) {
+      stop(sprintf(paste0(
+        "`long_sub_fixed[[%d]]` has a transformed left-hand side (%s); each response must be a ",
+        "bare column name. Add the transformed variable to the data as its own column instead."),
+        m, deparse(lhs)), call. = FALSE)
+    }
+  }
+
   biomarker_type_resolved <- resolve_biomarker_type(biomarker_type, data_fit_all_norm, long_sub_fixed_check, M)
+  for (m in which(biomarker_type_resolved == "continuous")) {
+    resp_name <- as.character(long_sub_fixed_check[[m]][[2]])
+    resp <- data_fit_all_norm[[m]][[resp_name]]
+    if (!is.null(resp) && !is.numeric(resp)) {
+      stop(sprintf(paste0(
+        "Biomarker %d (`%s`) is treated as continuous but is not numeric; convert it with ",
+        "as.numeric() or set its biomarker_type to \"ordinal\"."), m, resp_name), call. = FALSE)
+    }
+  }
 
   ### Hard requirement: an all-continuous input must behave exactly as
   ### before. longitudinalSubGaussian() is a verbatim copy of this
@@ -366,7 +388,7 @@ longitudinalSubGaussian <- function(data_fit_all, long_sub_fixed, long_sub_rando
     #Zik.list[[m]] <- by(Zik[[m]], c(unlist(Zik[[m]][id])), function(u) {
     #  as.matrix(u[, -1])
     #})
-    Zik.list[[m]] <- by(Zik[[m]], c(Zik[[m]]$id2), function(u) {
+    Zik.list[[m]] <- by(Zik[[m]], Zik[[m]]$id2, function(u) {
       as.matrix(u[, -1])
     })
     
