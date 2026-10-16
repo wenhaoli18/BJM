@@ -237,6 +237,17 @@ landmark_predictions <- function(data_predict_all, long_fit_all, survival_fit_al
     o <- outcome[match(names(risk$risk_prob_1), outcome$id), , drop = FALSE]
     risks <- if (is.null(risk$risk_prob_2)) list(risk$risk_prob_1) else
       list(risk$risk_prob_1, risk$risk_prob_2)
+    ### a subject predictRisk() could not predict (NA risk, e.g. no
+    ### measurement of some biomarker by the landmark) is left out of the
+    ### evaluation; kept in, it made the landmark's AUC and Brier score NA
+    predicted <- Reduce(`&`, lapply(risks, is.finite))
+    if (!all(predicted)) {
+      message(sprintf("Landmark %g: %d at-risk subject(s) without a prediction are left out of the evaluation.",
+                      s, sum(!predicted)))
+      o <- o[predicted, , drop = FALSE]
+      risks <- lapply(risks, function(r) r[predicted])
+      if (nrow(o) == 0) next
+    }
     lp <- list(landmark = s, outcome = o, risks = risks)
     if (interval) {
       ### each subject's last visit up to s: predictRisk() conditions on T > V

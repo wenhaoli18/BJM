@@ -16,8 +16,8 @@
 #'   \eqn{f(T \mid L < T \le R, Y, X) \propto f(Y \mid T, X) f(T \mid X)}
 #'   on \eqn{(L, R]} (\code{imputeEventTime()}), refit
 #'   \code{longitudinalSub()}, and repeat for \code{n_burnin} iterations;
-#'   \item keep iterating, saving the next \code{n_imputations} draws and
-#'   their \code{longitudinalSub()} fits.
+#'   \item keep iterating, saving every \code{n_thin}-th draw and its
+#'   \code{longitudinalSub()} fit until \code{n_imputations} are saved.
 #' }
 #' Step 3 uses the backward model's own factorization: \eqn{f(Y \mid T)}
 #' on a grid of \eqn{T} is exactly what dynamic prediction already
@@ -32,10 +32,19 @@
 #' uses them; their draws then rely on the survival model's extrapolated
 #' tail.
 #'
-#' The saved draws come from successive iterations of one chain with the
-#' model parameters at their point estimates, not from their posterior, so
-#' the between-imputation variance in \code{pooled} can be somewhat
-#' understated.
+#' The saved draws come from one chain, so successive draws are correlated;
+#' saving only every \code{n_thin}-th iteration makes them closer to
+#' independent. They are drawn with the model parameters at their point
+#' estimates, not from their posterior, so the between-imputation variance
+#' in \code{pooled} can still be somewhat understated.
+#'
+#' For prediction, \code{long_fit_all} combines the imputations: its fixed
+#' effects are the Rubin's-rules pooled estimates and its residual and
+#' random-effects variances the averages over the imputations (see
+#' \code{\link{poolLongitudinalSub}}), so a prediction does not depend on
+#' which single imputation happened to come first. With competing risks the
+#' event-type model of \code{survival_fit_all} likewise has its
+#' coefficients averaged over the imputations.
 #'
 #' @param data_survival One row per subject: the interval endpoints, the
 #'   survival covariates and the subject id.
@@ -60,6 +69,10 @@
 #'   \eqn{T}, is refit on every draw.
 #' @param n_burnin Stochastic-EM iterations before draws are saved.
 #' @param n_imputations Number of saved draws (and longitudinal fits).
+#' @param n_thin Iterations between saved draws (1 saves every iteration
+#'   after the burn-in). Larger values make the saved draws less correlated
+#'   at the cost of \code{n_burnin + n_imputations * n_thin} iterations in
+#'   all.
 #' @param n_grid Grid points per subject interval.
 #' @param baseline,df Baseline hazard of the survival model (see
 #'   \code{\link{survivalSub}}).
@@ -67,11 +80,13 @@
 #' @param seed Optional integer seed (the global RNG state is restored).
 #'
 #' @return An object of class \code{"fitIntervalBJM"}, a list with
-#'   \code{survival_fit_all} (with competing risks, the event-type model fit
-#'   to the first imputation; \code{survival_fit_all_list} has one per
-#'   imputation); \code{long_fit_all_list} (one
-#'   \code{longitudinalSub()} fit per imputation); \code{long_fit_all} (the
-#'   first of them, for use with \code{predictRisk()} and friends);
+#'   \code{survival_fit_all} (with competing risks, its event-type model has
+#'   the coefficients averaged over the imputations, while the rest of that
+#'   \code{glm} object, e.g. its standard errors, is the first imputation's
+#'   fit; \code{survival_fit_all_list} has one fit per imputation);
+#'   \code{long_fit_all_list} (one \code{longitudinalSub()} fit per
+#'   imputation); \code{long_fit_all} (the imputations combined, see
+#'   Description, for use with \code{predictRisk()} and friends);
 #'   \code{pooled} (\code{\link{poolLongitudinalSub}} of the fits, when
 #'   \code{n_imputations > 1}); \code{imputed_T} (a subjects x imputations
 #'   matrix); and \code{trace} (each iteration's fixed effects, to check
@@ -81,9 +96,10 @@ fitIntervalBJM <- function(data_survival, data_fit_all, form_marginal_surv, even
                            long_sub_fixed, long_sub_random, time_variable,
                            survival_variable_all = NULL, survival_trans_function = NULL,
                            form_conditional_cr = NULL,
-                           n_burnin = 10, n_imputations = 5, n_grid = 40,
+                           n_burnin = 10, n_imputations = 5, n_thin = 5, n_grid = 40,
                            baseline = c("spline", "piecewise"), df = NULL,
                            include_right_censored = FALSE, seed = NULL) {
+  assert_positive_integer(n_thin, "n_thin")
   if (!is.null(seed)) local_r_seed(seed)
   if (inherits(long_sub_fixed, "formula")) long_sub_fixed <- list(long_sub_fixed)
   if (inherits(long_sub_random, "formula")) long_sub_random <- list(long_sub_random)
@@ -158,7 +174,12 @@ fitIntervalBJM <- function(data_survival, data_fit_all, form_marginal_surv, even
       "(e.g. ~ 1 | id) may help."), conditionMessage(long_fit_all)), call. = FALSE)
   }
 
-  n_iter <- n_burnin + n_imputations
+  # after the burn-in, every n_thin-th iteration is saved
+  n_iter <- n_burnin + n_imputations * n_thin
+  saved_index <- function(it) {
+    k <- (it - n_burnin) / n_thin
+    if (it > n_burnin && k == round(k)) k else NA_integer_
+  }
   trace <- vector("list", n_iter)
   imputed_T <- matrix(NA_real_, nrow(bounds), n_imputations, dimnames = list(bounds$id, NULL))
   long_fit_all_list <- vector("list", n_imputations)
@@ -169,7 +190,7 @@ fitIntervalBJM <- function(data_survival, data_fit_all, form_marginal_surv, even
     for (attempt in seq_len(5)) {
       T_new <- imputeEventTime(data_fit_all, long_fit_all, survival_fit_all, bounds, time_variable,
                                survival_variable_all, survival_trans_function, n_grid = n_grid)
-      new_fit <- tryCatch(fit_long(T_new, quiet = it <= n_burnin), error = function(e) e)
+      new_fit <- tryCatch(fit_long(T_new, quiet = is.na(saved_index(it))), error = function(e) e)
       if (!inherits(new_fit, "error")) break
     }
     if (inherits(new_fit, "error")) {
@@ -183,19 +204,44 @@ fitIntervalBJM <- function(data_survival, data_fit_all, form_marginal_surv, even
     trace[[it]] <- c(unlist(lapply(long_fit_all$lfit, nlme::fixef)),
                      if (has_cr) stats::setNames(stats::coef(survival_fit_all$glm_fit),
                                                  paste0("cr.", names(stats::coef(survival_fit_all$glm_fit)))))
-    if (it > n_burnin) {
-      imputed_T[, it - n_burnin] <- T_cur[bounds$id]
-      long_fit_all_list[[it - n_burnin]] <- long_fit_all
-      survival_fit_all_list[[it - n_burnin]] <- survival_fit_all
+    k <- saved_index(it)
+    if (!is.na(k)) {
+      imputed_T[, k] <- T_cur[bounds$id]
+      long_fit_all_list[[k]] <- long_fit_all
+      survival_fit_all_list[[k]] <- survival_fit_all
     }
   }
 
-  out <- list(survival_fit_all = survival_fit_all_list[[1]], long_fit_all_list = long_fit_all_list,
+  # predictions use the imputations combined, not whichever came first
+  pooled <- if (n_imputations > 1) poolLongitudinalSub(long_fit_all_list)
+  out <- list(survival_fit_all = pool_event_type_fit(survival_fit_all_list),
+              long_fit_all_list = long_fit_all_list,
               survival_fit_all_list = survival_fit_all_list,
-              long_fit_all = long_fit_all_list[[1]],
-              pooled = if (n_imputations > 1) poolLongitudinalSub(long_fit_all_list),
+              long_fit_all = if (n_imputations > 1) pooled$long_fit_all else long_fit_all_list[[1]],
+              pooled = pooled,
               imputed_T = imputed_T, trace = do.call(rbind, trace))
   class(out) <- "fitIntervalBJM"
+  out
+}
+
+#' Average the event-type model over the imputations
+#'
+#' @description With competing risks \code{fitIntervalBJM()} refits the
+#' event-type \code{glm} on every imputation, since it uses the event time.
+#' For prediction the coefficients are averaged over the imputations (the
+#' Rubin's-rules point estimate); the rest of the returned \code{glm} object
+#' is the first imputation's fit.
+#'
+#' @param survival_fit_all_list One \code{survivalSub.BJM} fit per imputation.
+#' @return The first fit, with the averaged event-type coefficients.
+#' @keywords internal
+pool_event_type_fit <- function(survival_fit_all_list) {
+  out <- survival_fit_all_list[[1]]
+  if (is.null(out$glm_fit) || length(survival_fit_all_list) == 1) return(out)
+  coefs <- vapply(survival_fit_all_list, function(f) stats::coef(f$glm_fit),
+                  numeric(length(stats::coef(out$glm_fit))))
+  out$glm_fit$coefficients <- rowMeans(matrix(coefs, nrow = length(stats::coef(out$glm_fit))))
+  names(out$glm_fit$coefficients) <- names(stats::coef(survival_fit_all_list[[1]]$glm_fit))
   out
 }
 

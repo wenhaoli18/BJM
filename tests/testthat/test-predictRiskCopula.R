@@ -89,6 +89,7 @@ reference_mixed_density <- function(long_fit_all, long_sub_fixed, num_i, data_pr
 }
 
 test_that("conditionalYTCopula matches an independent from-scratch reconstruction", {
+  skip_on_cran()
   skip_if_ordinal()
   fx <- setup_copula_predict_fixture()
 
@@ -110,6 +111,7 @@ test_that("conditionalYTCopula matches an independent from-scratch reconstructio
 })
 
 test_that("conditionalYDTCopula matches an independent from-scratch reconstruction (w0/w1)", {
+  skip_on_cran()
   skip_if_ordinal()
   fx <- setup_copula_predict_fixture()
 
@@ -161,6 +163,7 @@ test_that("predictRisk dispatches to the copula path for a mixed fit and returns
 })
 
 test_that("predictRisk dispatches to the copula path under competing risk and returns sane risk", {
+  skip_on_cran()
   skip_if_ordinal()
   fx <- setup_copula_predict_fixture()
 
@@ -202,6 +205,7 @@ test_that("an all-continuous fit's predictRisk is unaffected by the copula dispa
 })
 
 test_that("predictRisk matches ordinal categories to the fitted ones by label", {
+  skip_on_cran()
   skip_if_ordinal()
   fx <- setup_copula_predict_fixture()
 

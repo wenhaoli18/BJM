@@ -135,6 +135,7 @@ test_that("assert_package_installed reports a missing optional package with an a
 })
 
 test_that("imputeLongitudinal fills all missing biomarker cells and preserves row/subject counts (requires torch)", {
+  skip_on_cran()
   skip_if_no_torch()
   f <- setup_impute_fixture()
 

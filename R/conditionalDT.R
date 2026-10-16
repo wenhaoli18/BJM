@@ -32,11 +32,11 @@ conditionalDT = function(data_predict_all, long_fit_all, survival_fit_all, l_i){
   ### censor variable name
   ### time-to-event variable name
   survival_variable = survival_time_variable(survival_fit_all)
-  ### event type variable name
-  event_type_variable = as.character(formula(survival_fit_all$form_conditional_cr)[[2]])
-  
-  ### NA in glm outcome (event type), replace with 999
-  data.surv[event_type_variable][is.na( data.surv[event_type_variable])] <- 999
+  ### the event type (the glm response) is not needed: only the right-hand
+  ### side is used below. It used to be read from the data and its missing
+  ### values set to 999, which failed when the column was absent (as it is
+  ### for a new patient) and warned when it was a factor.
+  rhs_cr = stats::delete.response(stats::terms(survival_fit_all$form_conditional_cr))
   ## data matrix used to calculate the probability
   ### the survival-time column only contributes through l_i below, so its
   ### value here is irrelevant -- but it may be NA for a new patient, and an
@@ -46,9 +46,9 @@ conditionalDT = function(data_predict_all, long_fit_all, survival_fit_all, l_i){
   ### na.pass keeps one row per patient: a missing covariate should give
   ### that patient NA rather than drop the row and misalign every later
   ### patient.
-  mf_cr = model.frame(survival_fit_all$form_conditional_cr, data.surv,
+  mf_cr = model.frame(rhs_cr, data.surv,
                       na.action = stats::na.pass, xlev = survival_fit_all$glm_fit$xlevels)
-  data_matrix_probability = model.matrix(survival_fit_all$form_conditional_cr, mf_cr)
+  data_matrix_probability = model.matrix(rhs_cr, mf_cr)
   
   ## fit glm vertical model
   glm_fit = survival_fit_all$glm_fit

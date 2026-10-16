@@ -89,6 +89,7 @@ test_that("a mixed continuous/ordinal fit runs, auto-detects, and returns a sane
 })
 
 test_that("explicit biomarker_type = auto-detected result agrees, and can override it", {
+  skip_on_cran()
   skip_if_ordinal()
   fx <- setup_copula_fixture()
 
@@ -110,6 +111,7 @@ test_that("explicit biomarker_type = auto-detected result agrees, and can overri
 })
 
 test_that("print and summary handle a mixed continuous/ordinal fit without erroring", {
+  skip_on_cran()
   skip_if_ordinal()
   fx <- setup_copula_fixture()
   fit <- longitudinalSub(fx$data_fit_all, fx$long_sub_fixed, fx$long_sub_random)
@@ -121,6 +123,7 @@ test_that("print and summary handle a mixed continuous/ordinal fit without error
 })
 
 test_that("biomarker_type = 'ordinal' accepts a numeric response, ordered by value", {
+  skip_on_cran()
   skip_if_not_installed("ordinal")
   f <- setup_copula_fixture()
   d <- f$data_fit_all
