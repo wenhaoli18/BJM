@@ -121,7 +121,9 @@ multiple imputation:
 3. draw each subject's $T$ from
    $f(T \mid L < T \le R, Y) \propto f(Y \mid T)\, f(T)$ on their
    interval, and refit, for `n_burnin` iterations;
-4. keep iterating, saving `n_imputations` draws and their fits.
+4. keep iterating, saving every `n_thin`-th draw (5 by default, so the
+   saved draws are less correlated) and its fit, until `n_imputations`
+   are saved.
 
 Step 3 uses the backward model's own structure: $f(Y \mid T)$ on a grid of
 event times is exactly what dynamic prediction already computes.
@@ -174,7 +176,9 @@ years the midpoint bias grew to about 9%, and `fitIntervalBJM()` left about
 ## Dynamic prediction between visits
 
 `fit$survival_fit_all` and `fit$long_fit_all` plug into the usual prediction
-functions. One thing changes: an event is only detected at a visit, so at a
+functions; `fit$long_fit_all` combines the imputations (the pooled fixed
+effects and the averaged variances), so a prediction does not hinge on any
+single imputation. One thing changes: an event is only detected at a visit, so at a
 prediction time $s$ between visits, a patient is known to be event-free only
 up to their last visit $V$, not up to $s$. `predictRisk()` therefore returns
 

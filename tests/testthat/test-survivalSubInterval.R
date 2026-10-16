@@ -148,7 +148,7 @@ test_that("fitIntervalBJM imputes event times inside each interval and fits f(Y 
                         y ~ year + Tev + x, ~ year | id, "year",
                         survival_variable_all = list("Tev_1"),
                         survival_trans_function = list(function(t) abs(t - 1)),
-                        n_burnin = 2, n_imputations = 2, n_grid = 15, seed = 1))
+                        n_burnin = 2, n_imputations = 2, n_thin = 1, n_grid = 15, seed = 1))
 
   expect_s3_class(fit, "fitIntervalBJM")
   observed <- surv[!is.na(surv$R), ]
@@ -159,6 +159,12 @@ test_that("fitIntervalBJM imputes event times inside each interval and fits f(Y 
   expect_s3_class(fit$pooled, "poolLongitudinalSub.BJM")
   expect_equal(nrow(fit$trace), 4)
   expect_true("Tev" %in% names(nlme::fixef(fit$long_fit_all$lfit[[1]])))
+  # long_fit_all, used for prediction, combines the imputations rather than
+  # being the first of them
+  expect_equal(nlme::fixef(fit$long_fit_all$lfit[[1]]),
+               rowMeans(sapply(fit$long_fit_all_list, function(f) nlme::fixef(f$lfit[[1]]))))
+  expect_equal(fit$long_fit_all$Sigma_fit,
+               (fit$long_fit_all_list[[1]]$Sigma_fit + fit$long_fit_all_list[[2]]$Sigma_fit) / 2)
 
   # the fit plugs into the existing prediction functions
   hist <- long[long$id == observed$id[1] & long$year <= 2, ]
@@ -185,8 +191,22 @@ test_that("fitIntervalBJM imputes event times inside each interval and fits f(Y 
                          y ~ year + Tev + x, ~ year | id, "year",
                          survival_variable_all = list("Tev_1"),
                          survival_trans_function = list(function(t) abs(t - 1)),
-                         n_burnin = 2, n_imputations = 2, n_grid = 15, seed = 1))
+                         n_burnin = 2, n_imputations = 2, n_thin = 1, n_grid = 15, seed = 1))
   expect_identical(fit2$imputed_T, fit$imputed_T)
+
+  # n_thin: every n_thin-th iteration after the burn-in is saved
+  fit3 <- suppressWarnings(fitIntervalBJM(surv, long, Surv(L, R, type = "interval2") ~ x, "Tev",
+                         y ~ year + Tev + x, ~ year | id, "year",
+                         survival_variable_all = list("Tev_1"),
+                         survival_trans_function = list(function(t) abs(t - 1)),
+                         n_burnin = 1, n_imputations = 2, n_thin = 2, n_grid = 15, seed = 1))
+  expect_equal(nrow(fit3$trace), 1 + 2 * 2)
+  for (k in 1:2) {
+    expect_equal(unlist(lapply(fit3$long_fit_all_list[[k]]$lfit, nlme::fixef)), fit3$trace[1 + 2 * k, ])
+  }
+  expect_error(fitIntervalBJM(surv, long, Surv(L, R, type = "interval2") ~ x, "Tev",
+                              y ~ year + Tev + x, ~ year | id, "year", n_thin = 0),
+               "n_thin")
 })
 
 test_that("the spline baseline stays increasing before the first visit", {
@@ -259,7 +279,7 @@ test_that("interval-censored predictions condition on being event-free at the la
   long <- do.call(rbind, long)
   fit <- suppressWarnings(fitIntervalBJM(surv, long, Surv(L, R, type = "interval2") ~ x, "Tev",
                                          y ~ year + Tev + x, ~ year | id, "year",
-                                         n_burnin = 2, n_imputations = 1, seed = 1))
+                                         n_burnin = 2, n_imputations = 1, n_thin = 1, seed = 1))
   ids <- unique(long$id[long$year > 0 & long$year < 4])[1:4]
   hist <- long[long$id %in% ids & long$year <= 4, ]
   hist$Tev <- NA_real_
@@ -397,13 +417,16 @@ test_that("fitIntervalBJM handles competing risks with the event type known at d
   fit <- suppressWarnings(fitIntervalBJM(d$surv, d$long, Surv(L, R, type = "interval2") ~ x, "Tev",
                                          y ~ year + Tev + type + x, ~ year | id, "year",
                                          form_conditional_cr = type ~ Tev + x,
-                                         n_burnin = 3, n_imputations = 2, seed = 1))
+                                         n_burnin = 3, n_imputations = 2, n_thin = 1, seed = 1))
   observed <- d$surv[!is.na(d$surv$R), ]
   expect_true(all(fit$imputed_T > observed$L & fit$imputed_T <= observed$R))
   expect_length(fit$survival_fit_all_list, 2)
   expect_s3_class(fit$survival_fit_all$glm_fit, "glm")
   expect_equal(nrow(fit$survival_fit_all$glm_fit$data), nrow(observed))
   expect_true(all(c("cr.(Intercept)", "cr.Tev", "cr.x") %in% colnames(fit$trace)))
+  # the event-type model used for prediction averages the imputations' fits
+  expect_equal(stats::coef(fit$survival_fit_all$glm_fit),
+               rowMeans(sapply(fit$survival_fit_all_list, function(f) stats::coef(f$glm_fit))))
   # rough recovery (the formal check is a simulation study)
   expect_equal(unname(stats::coef(fit$survival_fit_all$glm_fit)["Tev"]), 0.3, tolerance = 0.5)
   expect_equal(unname(nlme::fixef(fit$long_fit_all$lfit[[1]])[c("Tev", "type")]), c(-0.2, 0.5),
