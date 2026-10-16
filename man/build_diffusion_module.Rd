@@ -2,17 +2,29 @@
 % Please edit documentation in R/imputeLongitudinal.R
 \name{build_diffusion_module}
 \alias{build_diffusion_module}
-\title{Build the diffusion denoising network}
+\title{Build the conditional diffusion denoising network}
 \usage{
 build_diffusion_module(n_cov, M, hidden_units, time_emb_dim)
 }
+\arguments{
+\item{n_cov}{Number of (standardized) covariate columns.}
+
+\item{M}{Number of biomarkers.}
+
+\item{hidden_units}{Hidden-layer sizes of the MLP body.}
+
+\item{time_emb_dim}{Width of the timestep embedding.}
+}
+\value{
+An instantiated \code{torch::nn_module}.
+}
 \description{
 Internal helper for \code{\link{imputeLongitudinal}}'s
-\code{method = "diffusion"} backend. A single MLP predicts the noise
-\code{eps} added to the (standardized) biomarker vector, conditioned on
-the noisy input itself, the observed-data mask, the fully-observed
-covariates, and an embedding of the current timestep -- the same
-"condition the generative model on fully-observed covariates and the
-mask" design used by \code{\link{build_miwae_module}}.
+\code{method = "diffusion"} backend. A single MLP predicts the noise in
+the target entries of a row from: the noisy target entries (zero
+elsewhere), the conditioning entries' values (zero elsewhere), the
+conditioning mask, the covariates and an embedding of the diffusion step
+-- a tabular version of CSDI's conditional denoiser (Tashiro et al.,
+2021).
 }
 \keyword{internal}

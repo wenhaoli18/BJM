@@ -2,7 +2,7 @@
 % Please edit documentation in R/imputeLongitudinal.R
 \name{train_diffusion}
 \alias{train_diffusion}
-\title{Train the diffusion network with a masked denoising score-matching loss}
+\title{Train the conditional diffusion network}
 \usage{
 train_diffusion(
   net,
@@ -12,20 +12,39 @@ train_diffusion(
   epochs,
   diffusion_steps,
   time_emb_dim,
+  batch_size = 128,
   learning_rate = 0.001
 )
 }
+\arguments{
+\item{net}{Network from \code{build_diffusion_module()}.}
+
+\item{X_cov, X_resp, X_mask}{Covariates, standardized responses (0 where
+missing) and the observation mask, as \code{torch} tensors.}
+
+\item{epochs}{Passes over the data.}
+
+\item{diffusion_steps}{Number of diffusion steps.}
+
+\item{time_emb_dim}{Width of the timestep embedding.}
+
+\item{batch_size}{Rows per mini-batch.}
+
+\item{learning_rate}{Adam learning rate.}
+}
+\value{
+A list with the trained \code{net} and its noise \code{schedule}.
+}
 \description{
 Internal helper for \code{\link{imputeLongitudinal}}'s
-\code{method = "diffusion"} backend. At every epoch, each row is noised
-to an independently-sampled random timestep, the network predicts the
-noise that was added, and the squared-error loss is averaged only over
-\emph{observed} entries (\code{X_mask == 1}) -- missing entries have no
-real \code{x0} to noise in the first place, so scoring them would just
-train the network to fit whatever placeholder (zero) value they were
-filled with. This mirrors \code{\link{train_miwae}}'s
-observed-entries-only reconstruction term, and matches the masked
-training objective used by MissDiff (Ouyang et al., 2023) for diffusion
-models on incomplete tabular data.
+\code{method = "diffusion"} backend, following CSDI's self-supervised
+training (Tashiro et al., 2021): in every mini-batch, each row's observed
+entries are split at random into targets (each with a probability drawn
+uniformly per row) and conditions; the targets are noised to a random
+diffusion step and the network learns to predict that noise from the
+conditions' true values. Only observed entries ever serve as targets, so
+the loss never touches a missing cell. An earlier version noised whole
+rows without giving the network the other observed values, so imputations
+made little use of the row's other biomarkers.
 }
 \keyword{internal}

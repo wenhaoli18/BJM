@@ -12,7 +12,9 @@ implements the MIWAE multiple-imputation procedure (Mattei & Frellsen,
 2019, Section 3.2) -- draw K decoder samples per row, importance-weight
 them by their (masked-to-observed-entries) likelihood, then resample one
 index per completion and use that draw's decoder mean plus Gaussian
-noise as the imputed value. Already-observed cells are left untouched by
-the caller; this only needs to return sensible values for missing cells.
+noise as the imputed value. Each completion uses its own K samples, so
+completions are independent draws. Already-observed cells are left
+untouched by the caller; this only needs to return sensible values for
+missing cells.
 }
 \keyword{internal}
