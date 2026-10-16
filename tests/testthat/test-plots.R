@@ -271,6 +271,24 @@ test_that("performancePlot() evaluates each landmark and event type", {
                "years")
 })
 
+test_that("a subject without a prediction is left out of performancePlot(), not NA for everyone", {
+  skip_on_cran()
+  f <- setup_dp_fixture()
+  ids <- unique(pbc3$id)[1:60]
+  d <- pbc3[pbc3$id %in% ids, ]
+  d$albumin[d$id == ids[3]] <- NA  # never has albumin: predictRisk() gives NA
+  expect_message(
+    p <- suppressWarnings(performancePlot(d, f$long_fit_all, f$survival_fit_all, prediction_time = 2,
+                                          horizon = 2, time_variable = "year", f$survival_variable_all,
+                                          f$survival_trans_function, bandcount1 = 10, bandcount2 = 20)),
+    "1 at-risk subject\\(s\\) without a prediction")
+  # Brier is defined whenever anyone is evaluated (AUC can still be NA for a
+  # cause with no cases in the window)
+  expect_false(anyNA(p$data$value[p$data$measure == "Brier score"]))
+  first <- d[!duplicated(d$id), ]
+  expect_equal(p$data$n_at_risk[1], sum(first$years > 2) - 1)
+})
+
 test_that("calibration_groups() gives 1 - Kaplan-Meier and Aalen-Johansen per risk group", {
   set.seed(3)
   n <- 200
