@@ -281,6 +281,42 @@
 
 ## Bug fixes
 
+* `longitudinalSub()` now rejects a transformed response such as
+  `log(y) ~ ...` with a clear error. Such a model used to fit, and then fail
+  in `predictRisk()` and the other prediction functions with "undefined
+  columns selected"; add the transformed variable to the data as a column
+  instead. A non-numeric response treated as continuous (e.g. an ordered
+  factor with `biomarker_type = "continuous"`) is also rejected up front.
+
+* `longitudinalSub()` matched subjects across biomarkers by
+  `by(..., c(factor))`, which before R 4.1.0 grouped by the factor's integer
+  codes instead of its labels, so with ids other than `1..n` the
+  random-effects design of one subject could be paired with another
+  subject's data. It now groups by the factor itself on every R version.
+
+* `survivalSub()` now takes the subjects with an observed event (the data
+  of the competing-risks event-type model) from the evaluated `Surv()`
+  status rather than from a column named after its second argument. That
+  failed for e.g. `Surv(time, status == 1)` ("undefined columns selected"),
+  and with a 1 = censored / 2 = event coding put every subject in the
+  event-type model.
+
+* The event-type probabilities `P(D | T)` are computed with `plogis()`.
+  `1 / (1 + exp(eta))` and `exp(eta)` times that gave `NaN` once `exp(eta)`
+  overflowed (linear predictor above about 709).
+
+* `predictRisk()` with `horizon = 0` and an interval-censored fit now also
+  returns `prob_undetected_1`/`prob_undetected_2`, as it does for any other
+  horizon; the risk in the empty window is still 0.
+
+* `imputeLongitudinal()` checks that torch's LibTorch backend is installed,
+  not just the torch package, and says how to install it; the torch
+  examples and tests are likewise skipped without the backend.
+
+* The error for a `long_sub_fixed` formula without the survival-time
+  variable now names the biomarker and the variable, instead of "Error:
+  Condition is false".
+
 * `longitudinalSub()` no longer fails when `nlme::lme()` stops at its
   default 50 optimizer iterations ("optim problem, convergence error code =
   1"), which happened when a random-effect variance was close to zero --

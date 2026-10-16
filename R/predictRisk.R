@@ -280,7 +280,10 @@ predictRisk = function(data_predict_all, long_fit_all, survival_fit_all,
   has_cr <- length(survival_fit_all$form_conditional_cr) != 0
 
   #### handle horizon = 0 edge case: probability of event in zero-length window is 0
-  if(horizon == 0){
+  #### (interval-censored fits go through the general code below, which also
+  #### returns prob_undetected_*, the mass before prediction_time; the window
+  #### itself then has zero width, so the risk is still 0)
+  if(horizon == 0 && !is_interval_censored(survival_fit_all)){
     zeros <- stats::setNames(rep(0, length(patient_ids)), patient_ids)
     out <- list(risk_prob_1 = zeros, risk_prob_2 = if (has_cr) zeros else NULL)
     class(out) <- "predictRisk.BJM"

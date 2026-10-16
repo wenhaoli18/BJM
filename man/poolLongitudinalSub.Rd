@@ -75,7 +75,7 @@ rate is modest.
 }
 \examples{
 \donttest{
-if (requireNamespace("torch", quietly = TRUE)) {
+if (requireNamespace("torch", quietly = TRUE) && torch::torch_is_installed()) {
   data(pbc3)
   data_fit_all <- pbc3[pbc3$status3 == 1, ]
 

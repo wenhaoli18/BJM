@@ -91,7 +91,7 @@ conditionalYTBioCopula <- function(Y_all, time_new, bio_i, data_predict_all, lon
 
         all_variables <- all.vars(formula(long_sub_fixed[[i]]))
         if (!(survival_variable %in% all_variables)) {
-          stop("Error: Condition is false. Please add survival variable to linear mixed model.")
+          stop(sprintf("The longitudinal sub-model for biomarker %d does not include the survival-time variable `%s`; the backward joint model needs it as a covariate in every long_sub_fixed formula.", i, survival_variable), call. = FALSE)
         }
 
         if (biomarker_type[i] == "continuous") {
