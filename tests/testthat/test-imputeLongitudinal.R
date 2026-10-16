@@ -296,3 +296,41 @@ test_that("imputed values follow a biomarker's trend over visit time (requires t
   expect_gt(stats::cor(filled$y[m], ref$year[m]), 0.9)
   expect_lt(sqrt(mean((filled$y[m] - (2 * ref$year[m] + 0.5 * ref$age[m]))^2)), 1)
 })
+
+test_that("imputeLongitudinal rejects a non-numeric (e.g. ordinal) biomarker", {
+  f <- setup_impute_fixture()
+  d <- f$data_fit_all
+  d$albumin <- cut(d$albumin, 3, ordered_result = TRUE)
+  # it used to be coerced to numeric, turning the whole column into NaN
+  expect_error(imputeLongitudinal(d, f$long_sub_fixed, f$long_sub_random, time_variable = "year"),
+               "`albumin` is not numeric")
+})
+
+test_that("imputeLongitudinal rejects repeated (id, time) rows", {
+  f <- setup_impute_fixture()
+  d <- rbind(f$data_fit_all, f$data_fit_all[1, ])
+  expect_error(imputeLongitudinal(d, f$long_sub_fixed, f$long_sub_random, time_variable = "year"),
+               "repeating an \\(id, year\\) pair")
+})
+
+test_that("the diffusion backend imputes from the row's other biomarkers (requires torch)", {
+  skip_on_cran()
+  skip_if_no_torch()
+  set.seed(2)
+  n <- 150
+  d <- expand.grid(year = 0:5, id = seq_len(n))
+  d$age <- stats::rnorm(n)[d$id]
+  d$y1 <- 1 + 0.5 * d$year + 0.4 * d$age + stats::rnorm(n, 0, 0.7)[d$id] + stats::rnorm(nrow(d), 0, 0.4)
+  d$y2 <- 0.8 * d$y1 + 0.3 * d$age + stats::rnorm(nrow(d), 0, 0.3)
+  truth <- d$y2
+  m <- stats::runif(nrow(d)) < stats::plogis(-1.5 + (d$y1 - mean(d$y1)))   # MAR given y1
+  d$y2[m] <- NA
+  out <- imputeLongitudinal(d, list(y1 ~ year + age, y2 ~ year + age), list(~ 1 | id, ~ 1 | id),
+                            time_variable = "year", method = "diffusion", seed = 1)
+  filled <- out$data_fit_all[[2]]
+  filled <- filled[order(filled$id, filled$year), ]
+  ref <- d[order(d$id, d$year), ]
+  # residual SD given y1 is 0.3; the earlier sampler, which barely used y1,
+  # gave an RMSE of about 0.55
+  expect_lt(sqrt(mean((filled$y2[is.na(ref$y2)] - truth[order(d$id, d$year)][is.na(ref$y2)])^2)), 0.42)
+})

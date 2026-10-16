@@ -62,6 +62,10 @@
 # baseline hazard disagreed with the numerator's grid by several percent
 # (risks above 1 were cut to 1). A brute-force integral with the jump masses at
 # their own event times agrees with the new value. A correction, not noise.
+# risk_pred, Y_predict_mode/Y_density_summary (and long_fit_all_D) then moved
+# in the 5th-6th significant digit (Sigma_fit by up to 0.25%) when the joint
+# covariance EM got SQUAREM acceleration and so stopped closer to its fixed
+# point (plain EM had crept towards it in tiny steps). Convergence noise.
 
 test_that("full pipeline output matches pre-refactor baseline", {
   skip_on_cran()

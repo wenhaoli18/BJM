@@ -112,6 +112,14 @@ on a grid of \eqn{T} is exactly what dynamic prediction already
 computes (\code{conditionalYT()}), so each draw costs about one
 \code{predictRisk()} call per subject.
 
+For a subject whose event was detected, only the longitudinal
+measurements up to the last visit without the event (\eqn{L}) are used:
+the one at the detecting visit \eqn{R} (and any later one) is taken after
+the event, which \eqn{f(Y \mid T)} does not describe, and they are left out
+with a message. As in the rest of the interval-censoring support, the
+biomarker visits are taken to be the inspection visits, so no measurement
+lies between \eqn{L} and \eqn{R}.
+
 By default only subjects whose event was observed (finite \eqn{R}) enter
 the longitudinal fit, mirroring the complete-case fit used for
 right-censored data, which is valid when censoring is independent of

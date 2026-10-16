@@ -23,23 +23,23 @@
 #'   missing cells.
 #'   \item \code{"diffusion"} fits a conditional denoising diffusion
 #'   probabilistic model (DDPM; Ho, Jain & Abbeel, 2020) over the same
-#'   per-row biomarker vector, trained with a masked denoising
-#'   score-matching loss that -- like the MIWAE objective above -- is only
-#'   evaluated on observed entries (the same masking principle used by
-#'   Ouyang et al.'s MissDiff, 2023, for training diffusion models on
-#'   incomplete tabular data). Missing cells are then filled by a
-#'   RePaint-style (Lugmayr et al., 2022) reverse-diffusion sampler: at
-#'   every denoising step, observed dimensions are re-noised directly from
-#'   their true value and only the unobserved dimensions are drawn from the
-#'   learned reverse process, so the final sample matches the data exactly
-#'   wherever it was actually observed.
+#'   per-row biomarker vector, trained as in CSDI (Tashiro et al., 2021):
+#'   in every mini-batch, each row's observed entries are split at random
+#'   into targets and conditions, and the network learns to denoise the
+#'   targets given the conditions' values, the covariates and the
+#'   observation mask, so the loss only ever involves observed entries.
+#'   Missing cells are then filled by running the reverse diffusion with
+#'   the missing entries as targets and all observed ones as conditions;
+#'   observed entries are returned unchanged.
 #' }
 #' Both backends draw one or more plausible completions of the missing
 #' cells, and the completed data.frame(s) can be passed directly to
 #' \code{longitudinalSub()} in place of the original \code{data_fit_all}.
 #'
 #' @details Only the biomarker (response) columns named on the left-hand
-#' side of \code{long_sub_fixed} are imputed; every covariate referenced on
+#' side of \code{long_sub_fixed} are imputed, and they must be numeric
+#' (continuous): an ordinal biomarker cannot be imputed with this function,
+#' and gives an error. Every covariate referenced on
 #' the right-hand side of \code{long_sub_fixed}/\code{long_sub_random} is
 #' assumed fully observed (an error is raised if any covariate has missing
 #' values). Each biomarker's own within-subject serial correlation continues
@@ -84,7 +84,14 @@
 #' network: the encoder (and, reversed, the decoder) when
 #' \code{method = "miwae"}, or the denoising network's body when
 #' \code{method = "diffusion"}.
-#' @param epochs Number of full-batch training epochs.
+#' @param epochs Number of training epochs: full-batch gradient steps for
+#' \code{method = "miwae"}, passes over the data in mini-batches of 128
+#' rows for \code{method = "diffusion"}. The default suits data sets of a
+#' few hundred to a few thousand rows; many more epochs can overfit, which
+#' shows as imputations that vary too little between draws (and so pooled
+#' standard errors that are too small) -- in a simulation, MIWAE's spread
+#' between draws fell from about the true residual SD at 300 epochs to 80\%
+#' of it at 3000.
 #' @param importance_samples Number of importance samples (\code{K}) used
 #' both in the training objective and at imputation time. Only used when
 #' \code{method = "miwae"}.
@@ -119,12 +126,17 @@
 #'
 #' @return A named list with elements:
 #' \describe{
-#'   \item{data_fit_all}{A completed version of \code{data_fit_all}, in the
-#'   same list/data.frame shape, with every missing biomarker cell filled.
-#'   Ready to pass straight to \code{\link{longitudinalSub}}.}
+#'   \item{data_fit_all}{A list with one completed data frame per
+#'   biomarker (also when \code{data_fit_all} was a single data frame), with
+#'   every missing biomarker cell filled. Each holds one row per
+#'   (id, \code{time_variable}) pair seen for any biomarker, and only the
+#'   columns its model uses: the id, \code{time_variable}, the biomarker and
+#'   the covariates of its \code{long_sub_fixed} formula -- other columns of
+#'   the input are not carried over. Ready to pass straight to
+#'   \code{\link{longitudinalSub}} with the same formulas.}
 #'   \item{data_fit_all_list}{When \code{impute = "multiple"}, a list of
-#'   \code{n_imputations} independently completed versions of
-#'   \code{data_fit_all}; \code{NULL} when \code{impute = "single"}.}
+#'   \code{n_imputations} completed versions of \code{data_fit_all}, each
+#'   from its own draw; \code{NULL} when \code{impute = "single"}.}
 #'   \item{diagnostics}{A named list, one element per biomarker, each with
 #'   the number of missing cells and observed-vs-imputed mean/sd for both
 #'   the deep-generative and classical-baseline completions.}
@@ -137,14 +149,10 @@
 #' @references Ho, J., Jain, A., and Abbeel, P. (2020). Denoising Diffusion
 #' Probabilistic Models. \emph{Advances in Neural Information Processing
 #' Systems}, 33:6840-6851.
-#' @references Lugmayr, A., Danelljan, M., Romero, A., Yu, F., Timofte, R.,
-#' and Van Gool, L. (2022). RePaint: Inpainting using Denoising Diffusion
-#' Probabilistic Models. \emph{Proceedings of the IEEE/CVF Conference on
-#' Computer Vision and Pattern Recognition}, 11461-11471.
-#' @references Ouyang, Y., Xie, L., Li, C., and Cheng, G. (2023). MissDiff:
-#' Training Diffusion Models on Tabular Data with Missing Values.
-#' \emph{ICML 2023 Workshop on Structured Probabilistic Inference &
-#' Generative Modeling}.
+#' @references Tashiro, Y., Song, J., Song, Y., and Ermon, S. (2021). CSDI:
+#' Conditional Score-based Diffusion Models for Probabilistic Time Series
+#' Imputation. \emph{Advances in Neural Information Processing Systems},
+#' 34:24804-24816.
 #'
 #' @examples
 #' \donttest{
@@ -239,6 +247,14 @@ imputeLongitudinal <- function(data_fit_all, long_sub_fixed, long_sub_random,
                          data_fit_all[[m]],
                          sprintf("long_sub_fixed[[%d]]/long_sub_random[[%d]]/time_variable", m, m),
                          sprintf("data_fit_all[[%d]]", m))
+    ### rows are aligned across biomarkers by (id, time_variable), which must
+    ### therefore identify a visit
+    dup <- duplicated(data_fit_all[[m]][, c(id, time_variable)])
+    if (any(dup)) {
+      stop(sprintf(paste0(
+        "data_fit_all[[%d]] has %d row(s) repeating an (%s, %s) pair; imputeLongitudinal() needs ",
+        "one row per subject and visit time."), m, sum(dup), id, time_variable), call. = FALSE)
+    }
   }
 
   resp_vars <- unname(vapply(long_sub_fixed, function(f) as.character(f[[2]]), character(1)))
@@ -247,6 +263,15 @@ imputeLongitudinal <- function(data_fit_all, long_sub_fixed, long_sub_random,
       "`long_sub_fixed` response variables must be distinct across biomarkers; found a repeated response: %s.",
       resp_vars[duplicated(resp_vars)][1]
     ), call. = FALSE)
+  }
+  ### the imputation model is Gaussian: a factor (e.g. ordinal) response
+  ### used to be coerced to numeric, turning the whole column into NaN
+  for (m in seq_len(M)) {
+    if (!is.numeric(data_fit_all[[m]][[resp_vars[m]]])) {
+      stop(sprintf(paste0(
+        "Biomarker `%s` is not numeric; imputeLongitudinal() imputes continuous biomarkers only ",
+        "(an ordinal biomarker cannot be imputed with it)."), resp_vars[m]), call. = FALSE)
+    }
   }
   covariate_vars <- lapply(seq_len(M), function(m) setdiff(all.vars(long_sub_fixed[[m]]), resp_vars[m]))
   all_covariates <- setdiff(unique(unlist(covariate_vars)), c(id, time_variable))
@@ -542,8 +567,10 @@ train_miwae <- function(net, X_cov, X_resp, X_mask, epochs, K, learning_rate = 1
 #' 2019, Section 3.2) -- draw K decoder samples per row, importance-weight
 #' them by their (masked-to-observed-entries) likelihood, then resample one
 #' index per completion and use that draw's decoder mean plus Gaussian
-#' noise as the imputed value. Already-observed cells are left untouched by
-#' the caller; this only needs to return sensible values for missing cells.
+#' noise as the imputed value. Each completion uses its own K samples, so
+#' completions are independent draws. Already-observed cells are left
+#' untouched by the caller; this only needs to return sensible values for
+#' missing cells.
 #' @keywords internal
 miwae_impute <- function(net, X_cov, X_resp, X_mask, resp_mean, resp_sd, K, n_imputations) {
   n <- X_resp$shape[1]
@@ -551,14 +578,15 @@ miwae_impute <- function(net, X_cov, X_resp, X_mask, resp_mean, resp_sd, K, n_im
   imputations <- vector("list", n_imputations)
 
   torch::with_no_grad({
-    fwd <- miwae_forward(net, X_cov, X_resp, X_mask, K)
-    w <- torch::nnf_softmax(fwd$log_w, dim = 2)
-
-    dec_mean_arr <- torch::as_array(fwd$dec_mean)
-    dec_logvar_arr <- torch::as_array(fwd$dec_logvar)
-    w_arr <- torch::as_array(w)
-
     for (imp in seq_len(n_imputations)) {
+      ### a fresh importance-sampling pass for every imputation, so the
+      ### completions are independent draws (they used to resample one shared
+      ### set of K latent samples)
+      fwd <- miwae_forward(net, X_cov, X_resp, X_mask, K)
+      w_arr <- torch::as_array(torch::nnf_softmax(fwd$log_w, dim = 2))
+      dec_mean_arr <- torch::as_array(fwd$dec_mean)
+      dec_logvar_arr <- torch::as_array(fwd$dec_logvar)
+
       completed_z <- matrix(nrow = n, ncol = M)
       for (i in seq_len(n)) {
         k_draw <- sample.int(K, size = 1, prob = w_arr[i, ])
@@ -616,18 +644,23 @@ sinusoidal_time_embedding <- function(t, dim) {
   emb
 }
 
-#' Build the diffusion denoising network
+#' Build the conditional diffusion denoising network
 #'
 #' @description Internal helper for \code{\link{imputeLongitudinal}}'s
-#' \code{method = "diffusion"} backend. A single MLP predicts the noise
-#' \code{eps} added to the (standardized) biomarker vector, conditioned on
-#' the noisy input itself, the observed-data mask, the fully-observed
-#' covariates, and an embedding of the current timestep -- the same
-#' "condition the generative model on fully-observed covariates and the
-#' mask" design used by \code{\link{build_miwae_module}}.
+#' \code{method = "diffusion"} backend. A single MLP predicts the noise in
+#' the target entries of a row from: the noisy target entries (zero
+#' elsewhere), the conditioning entries' values (zero elsewhere), the
+#' conditioning mask, the covariates and an embedding of the diffusion step
+#' -- a tabular version of CSDI's conditional denoiser (Tashiro et al.,
+#' 2021).
+#' @param n_cov Number of (standardized) covariate columns.
+#' @param M Number of biomarkers.
+#' @param hidden_units Hidden-layer sizes of the MLP body.
+#' @param time_emb_dim Width of the timestep embedding.
+#' @return An instantiated \code{torch::nn_module}.
 #' @keywords internal
 build_diffusion_module <- function(n_cov, M, hidden_units, time_emb_dim) {
-  input_dim <- M + M + n_cov + time_emb_dim
+  input_dim <- 3 * M + n_cov + time_emb_dim
 
   diffusion_module <- torch::nn_module(
     "diffusion_module",
@@ -645,112 +678,115 @@ build_diffusion_module <- function(n_cov, M, hidden_units, time_emb_dim) {
       self$body <- do.call(torch::nn_sequential, body_layers)
       self$out <- torch::nn_linear(in_dim, M)
     },
-    forward = function(x_t, mask, cov, t_emb) {
+    forward = function(x_t, x_cond, cond_mask, cov, t_emb) {
       te <- self$time_mlp(t_emb)
-      input <- torch::torch_cat(list(x_t, mask, cov, te), dim = -1)
-      h <- self$body(input)
+      h <- self$body(torch::torch_cat(list(x_t, x_cond, cond_mask, cov, te), dim = -1))
       self$out(h)
     }
   )
   diffusion_module()
 }
 
-#' Train the diffusion network with a masked denoising score-matching loss
+#' Train the conditional diffusion network
 #'
 #' @description Internal helper for \code{\link{imputeLongitudinal}}'s
-#' \code{method = "diffusion"} backend. At every epoch, each row is noised
-#' to an independently-sampled random timestep, the network predicts the
-#' noise that was added, and the squared-error loss is averaged only over
-#' \emph{observed} entries (\code{X_mask == 1}) -- missing entries have no
-#' real \code{x0} to noise in the first place, so scoring them would just
-#' train the network to fit whatever placeholder (zero) value they were
-#' filled with. This mirrors \code{\link{train_miwae}}'s
-#' observed-entries-only reconstruction term, and matches the masked
-#' training objective used by MissDiff (Ouyang et al., 2023) for diffusion
-#' models on incomplete tabular data.
+#' \code{method = "diffusion"} backend, following CSDI's self-supervised
+#' training (Tashiro et al., 2021): in every mini-batch, each row's observed
+#' entries are split at random into targets (each with a probability drawn
+#' uniformly per row) and conditions; the targets are noised to a random
+#' diffusion step and the network learns to predict that noise from the
+#' conditions' true values. Only observed entries ever serve as targets, so
+#' the loss never touches a missing cell. An earlier version noised whole
+#' rows without giving the network the other observed values, so imputations
+#' made little use of the row's other biomarkers.
+#' @param net Network from \code{build_diffusion_module()}.
+#' @param X_cov,X_resp,X_mask Covariates, standardized responses (0 where
+#'   missing) and the observation mask, as \code{torch} tensors.
+#' @param epochs Passes over the data.
+#' @param diffusion_steps Number of diffusion steps.
+#' @param time_emb_dim Width of the timestep embedding.
+#' @param batch_size Rows per mini-batch.
+#' @param learning_rate Adam learning rate.
+#' @return A list with the trained \code{net} and its noise \code{schedule}.
 #' @keywords internal
 train_diffusion <- function(net, X_cov, X_resp, X_mask, epochs, diffusion_steps,
-                             time_emb_dim, learning_rate = 1e-3) {
+                            time_emb_dim, batch_size = 128, learning_rate = 1e-3) {
   schedule <- diffusion_beta_schedule(diffusion_steps)
+  alpha_bar <- torch::torch_tensor(schedule$alpha_bar, dtype = torch::torch_float())
   n <- X_resp$shape[1]
+  M <- X_resp$shape[2]
   optimizer <- torch::optim_adam(net$parameters, lr = learning_rate)
 
   for (epoch in seq_len(epochs)) {
-    optimizer$zero_grad()
-
-    t_idx <- sample.int(diffusion_steps, size = n, replace = TRUE)
-    ab_t <- torch::torch_tensor(schedule$alpha_bar[t_idx], dtype = torch::torch_float())$unsqueeze(2)
-    eps <- torch::torch_randn_like(X_resp)
-    x_t <- torch::torch_sqrt(ab_t) * X_resp + torch::torch_sqrt(1 - ab_t) * eps
-
-    t_emb <- sinusoidal_time_embedding(
-      torch::torch_tensor(t_idx, dtype = torch::torch_float()), time_emb_dim)
-    eps_hat <- net(x_t, X_mask, X_cov, t_emb)
-
-    sq_err <- (eps_hat - eps)^2 * X_mask
-    loss <- sq_err$sum() / torch::torch_clamp(X_mask$sum(), min = 1)
-    loss$backward()
-    optimizer$step()
+    order <- sample.int(n)
+    for (start in seq(1, n, by = batch_size)) {
+      idx <- torch::torch_tensor(order[start:min(n, start + batch_size - 1)], dtype = torch::torch_long())
+      x0 <- X_resp[idx, ]
+      observed <- X_mask[idx, ]
+      b <- x0$shape[1]
+      share <- torch::torch_rand(c(b, 1))
+      target <- observed * (torch::torch_rand(c(b, M)) < share)$to(dtype = torch::torch_float())
+      cond <- observed - target
+      t_idx <- torch::torch_randint(1, diffusion_steps + 1, c(b), dtype = torch::torch_long())
+      ab_t <- alpha_bar[t_idx]$unsqueeze(2)
+      eps <- torch::torch_randn_like(x0)
+      x_t <- (torch::torch_sqrt(ab_t) * x0 + torch::torch_sqrt(1 - ab_t) * eps) * target
+      t_emb <- sinusoidal_time_embedding(t_idx$to(dtype = torch::torch_float()), time_emb_dim)
+      eps_hat <- net(x_t, x0 * cond, cond, X_cov[idx, ], t_emb)
+      loss <- ((eps_hat - eps)^2 * target)$sum() / torch::torch_clamp(target$sum(), min = 1)
+      optimizer$zero_grad()
+      loss$backward()
+      optimizer$step()
+    }
   }
 
   list(net = net, schedule = schedule)
 }
 
-#' Draw RePaint-style conditional reverse-diffusion completions
+#' Draw conditional reverse-diffusion completions
 #'
 #' @description Internal helper for \code{\link{imputeLongitudinal}}'s
-#' \code{method = "diffusion"} backend: implements the RePaint (Lugmayr et
-#' al., 2022) inpainting sampler, adapted from image patches to a per-row
-#' biomarker vector. Starting from pure noise, at every reverse step
-#' \code{t}, observed dimensions are overwritten by re-noising the true
-#' (standardized) observed value directly to noise level \code{t - 1} (the
-#' "known" branch, sampled from the forward process posterior, not the
-#' network), while unobserved dimensions are drawn from the network's
-#' learned reverse step (the "unknown" branch); the two are recombined with
-#' the mask before the next step. This guarantees the final sample matches
-#' the data exactly at every previously-observed cell, and only genuinely
-#' extrapolates the missing ones. Already-observed cells are left untouched
-#' by the caller, matching \code{\link{miwae_impute}}'s contract.
+#' \code{method = "diffusion"} backend. The missing entries of every row are
+#' the targets and all its observed entries the conditions: starting from
+#' pure noise on the targets, the DDPM reverse process (Ho et al., 2020) is
+#' run with the network conditioned on the observed values at every step.
+#' Observed entries are returned unchanged.
+#' @param net Trained network.
+#' @param X_cov,X_resp,X_mask As in \code{train_diffusion()}.
+#' @param resp_mean,resp_sd Means and standard deviations that undo the
+#'   responses' standardization.
+#' @param schedule,diffusion_steps,time_emb_dim As used in training.
+#' @param n_imputations Number of completions to draw.
+#' @return A list of \code{n_imputations} completed response matrices on the
+#'   original scale.
 #' @keywords internal
 diffusion_impute <- function(net, X_cov, X_resp, X_mask, resp_mean, resp_sd,
-                              schedule, diffusion_steps, time_emb_dim, n_imputations) {
+                             schedule, diffusion_steps, time_emb_dim, n_imputations) {
   n <- X_resp$shape[1]
   M <- X_resp$shape[2]
+  target <- 1 - X_mask
+  x_cond <- X_resp * X_mask
   imputations <- vector("list", n_imputations)
 
   torch::with_no_grad({
     for (imp in seq_len(n_imputations)) {
-      x <- torch::torch_randn(c(n, M))
-
+      x <- torch::torch_randn(c(n, M)) * target
       for (t in diffusion_steps:1) {
         t_emb <- sinusoidal_time_embedding(
           torch::torch_tensor(rep(t, n), dtype = torch::torch_float()), time_emb_dim)
-        eps_hat <- net(x, X_mask, X_cov, t_emb)
-
-        alpha_t <- schedule$alpha[t]
+        eps_hat <- net(x, x_cond, X_mask, X_cov, t_emb)
         alpha_bar_t <- schedule$alpha_bar[t]
         beta_t <- schedule$beta[t]
-        mu <- (x - (beta_t / sqrt(1 - alpha_bar_t)) * eps_hat) / sqrt(alpha_t)
-
+        mu <- (x - (beta_t / sqrt(1 - alpha_bar_t)) * eps_hat) / sqrt(schedule$alpha[t])
         if (t > 1) {
-          z <- torch::torch_randn_like(x)
-          x_unknown <- mu + sqrt(beta_t) * z
-
-          alpha_bar_prev <- schedule$alpha_bar[t - 1]
-          eps_known <- torch::torch_randn_like(x)
-          x_known <- sqrt(alpha_bar_prev) * X_resp + sqrt(1 - alpha_bar_prev) * eps_known
+          # variance of the true reverse step q(x_{t-1} | x_t, x_0)
+          var_t <- beta_t * (1 - schedule$alpha_bar[t - 1]) / (1 - alpha_bar_t)
+          x <- (mu + sqrt(var_t) * torch::torch_randn_like(x)) * target
         } else {
-          x_unknown <- mu
-          x_known <- X_resp
+          x <- mu * target
         }
-
-        x <- X_mask * x_known + (1 - X_mask) * x_unknown
       }
-
-      ### numerical hygiene: guarantee observed cells are exactly preserved
-      ### regardless of any residual sampling noise accumulated above
-      x <- X_mask * X_resp + (1 - X_mask) * x
-      x_arr <- torch::as_array(x)
+      x_arr <- torch::as_array(X_mask * X_resp + target * x)
       imputations[[imp]] <- sweep(sweep(x_arr, 2, resp_sd, "*"), 2, resp_mean, "+")
     }
   })

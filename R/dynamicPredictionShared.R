@@ -284,7 +284,9 @@ conditional_survival_setup <- function(data_predict_all, long_fit_all, survival_
       list(cum_basehaz = cum_basehaz_all[cum_basehaz_all$strata == s, c("hazard", "time")],
            patients = which(patient_strata == s)))
   }
-  list(lp = lp, groups = groups, last_time = max(cum_basehaz_all$time))
+  ### the last follow-up time (the baseline table of an interval-censored fit
+  ### extends beyond it)
+  list(lp = lp, groups = groups, last_time = survival_max_followup(survival_fit_all))
 }
 
 #' Time by which conditional survival falls below a threshold
