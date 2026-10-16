@@ -18,6 +18,13 @@
   behind it. Code that checks `inherits(x, "dynamicPredictionBio.BJM")` (or
   the `All` variant) needs to switch to the new names; the object contents
   and the `print()`/`summary()` output are unchanged.
+* `dynamicPredictionBio()` is no longer exported: `predictLongitudinal()`
+  replaces it, with the same arguments (`predictLongitudinal(bio_i = 1,
+  ...)` predicts one biomarker, as `dynamicPredictionBio(bio_i = 1, ...)`
+  did).
+* `printBJM()` is no longer exported. Print the two sub-model fits
+  separately instead: `print(long_fit_all)` and `print(survival_fit_all)`
+  (or just type their names at the console).
 
 ## New features
 
