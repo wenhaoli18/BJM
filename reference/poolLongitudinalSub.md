@@ -107,7 +107,7 @@ with Multiple Imputation. *Biometrika*, 86(4):948-955.
 
 ``` r
 # \donttest{
-if (requireNamespace("torch", quietly = TRUE)) {
+if (requireNamespace("torch", quietly = TRUE) && torch::torch_is_installed()) {
   data(pbc3)
   data_fit_all <- pbc3[pbc3$status3 == 1, ]
 
@@ -131,6 +131,5 @@ if (requireNamespace("torch", quietly = TRUE)) {
   pooled <- poolLongitudinalSub(long_fit_all_list)
   pooled
 }
-#> Error: Lantern is not loaded. Please use `install_torch()` to install additional dependencies.
 # }
 ```
