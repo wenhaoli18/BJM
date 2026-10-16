@@ -17,9 +17,6 @@
 #' procedure, utilizing the \code{coxph} function. These outputs include the comprehensive 
 #' findings and variables derived from the analysis.
 #' @param l_i A vector of time points to calculate the conditional probability.
-#' @param upper_bound Upper limit for integration. To manage the hazard function, 
-#' extrapolation is required. The \code{upper_bound} parameter specifies the upper time 
-#' points at which extrapolation is performed.
 #' 
 #' @return Marginal density probability of the survival variable T is represented as a 
 #' probability matrix. In this matrix, the rows (l_i) are aligned with specific 
@@ -27,7 +24,7 @@
 #' Each entry in the matrix denotes the marginal density probability of 
 #' survival for a given patient at a particular time point.
 #' @keywords internal
-marginalT = function(data_predict_all, long_fit_all, survival_fit_all, l_i, upper_bound){
+marginalT = function(data_predict_all, long_fit_all, survival_fit_all, l_i){
   
   # survival data frame
   num <- as.character(nlme::splitFormula(long_fit_all$long_sub_random[[1]], "|")[[2]])[2]

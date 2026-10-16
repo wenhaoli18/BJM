@@ -278,11 +278,11 @@ test_that("a stratified Cox model uses each patient's own stratum", {
   # compare the marginal survival densities rather than the risks)
   grid <- seq(3, 10, 1)
   data_both <- list(both, both)
-  joint <- marginalT(data_both, fit, surv, grid, 20)
+  joint <- marginalT(data_both, fit, surv, grid)
   patients <- unique(as.character(both$id))  # marginalT's column order
   for (k in seq_along(patients)) {
     one <- pbc3[pbc3$id == patients[k] & pbc3$year <= 3, ]
-    expect_equal(joint[, k], c(marginalT(list(one, one), fit, surv, grid, 20)))
+    expect_equal(joint[, k], c(marginalT(list(one, one), fit, surv, grid)))
   }
   # and the two strata really do differ
   expect_false(isTRUE(all.equal(joint[, 1], joint[, 2])))

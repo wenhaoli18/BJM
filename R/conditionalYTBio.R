@@ -41,8 +41,6 @@ conditionalYTBio = function(Y_all, time_new, bio_i, data_predict_all,
                             time_variable, survival_variable_all, survival_trans_function){
   #LME model fitting
   lfit = long_fit_all$lfit
-  #variance-covariance matrix
-  Sigma = long_fit_all$Sigma_fit
   #patient ID
   num <- as.character(nlme::splitFormula(long_fit_all$long_sub_random[[1]], "|")[[2]])[2]
   
@@ -74,7 +72,7 @@ conditionalYTBio = function(Y_all, time_new, bio_i, data_predict_all,
   # A probability matrix, 
   # with the number of rows (l_i) corresponding to specific time points and 
   # columns representing different patients. 
-  f_Y_T_D_w1 = list(); f_Y_T_D_w0 = list()
+  f_Y_T_D_w1 = list()
   for(Y_i in 1 : length(Y_all)){
     f_Y_T_D_w1[[Y_i]] = matrix(NA, length(l_i), length(unlist(data.long[[1]][!duplicated(data.long[[1]][num]), ][num])))
   }
@@ -89,7 +87,6 @@ conditionalYTBio = function(Y_all, time_new, bio_i, data_predict_all,
     patient_data <- select_patient_longitudinal_data_bio(data.long, num, num_i, n_longitudinal, time_variable,
                                                           bio_i, time_new, Y_all, long_fit_all)
     if(is.null(patient_data)) next
-    rep_num_i_list <- patient_data$rep_num_i_list
     data_num_i_list <- patient_data$data_num_i_list
     Y_select_all <- patient_data$Y_select_all
 

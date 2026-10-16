@@ -351,7 +351,7 @@ imputeEventTime <- function(data_fit_all, long_fit_all, survival_fit_all, bounds
     if (!all(has_rows)) data_j <- rep(data_j[which(has_rows)[1]], length(data_j))
     if (is.finite(R)) {
       edges <- seq(L, R, length.out = n_grid + 1)
-      mass <- marginalT(data_j, long_fit_all, survival_fit_all, l_i = edges, upper_bound = R)[, 1]
+      mass <- marginalT(data_j, long_fit_all, survival_fit_all, l_i = edges)[, 1]
     } else {
       upper <- integration_upper_bound(data_j, long_fit_all, survival_fit_all, L, min_upper = L)
       grid <- prepare_infinity_grid(data_j, long_fit_all, survival_fit_all, L, upper, n_grid - 1)
