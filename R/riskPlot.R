@@ -34,8 +34,14 @@
 #' @param survival_fit_all Results and parameters generated from the model fitting 
 #' procedure, utilizing the \code{coxph} function. These outputs include the comprehensive 
 #' findings and variables derived from the analysis.
-#' @param prediction_time Time used to make the prediction.
-#' @param bio_i Biomarker used to do prediction. 
+#' @param prediction_time The landmark time(s) at which risks are predicted
+#' and plotted: \code{NULL} (the default) uses every visit time
+#' (\code{time_variable}) in the patient's data; a single value \code{s} uses the three
+#' landmarks \code{s}, \code{1.5 * s} and \code{2 * s}; a vector uses those
+#' times. At each landmark only the history up to it is used.
+#' @param bio_i Biomarker whose observed history is drawn alongside the
+#' predicted risks (by position in \code{long_fit_all}); \code{NULL} draws
+#' the first one.
 #' @param horizon Prediction horizon.
 #' @param time_variable The name of time variable in linear mixed model.
 #' @param survival_variable_all The name of the transformed time-to-event outcomes variable.
@@ -75,6 +81,23 @@
 #' numeric result as serial execution -- only the order in which iterations
 #' are computed (not the order results are assembled in) changes.
 #' @return Plot of risk using dynamic prediction.
+#' @examples
+#' \donttest{
+#' data(pbc3)
+#' survival_fit_all <- survivalSub(pbc3[!duplicated(pbc3$id), ],
+#'                                 Surv(years, status3) ~ age + sex, NULL)
+#' long_fit_all <- longitudinalSub(pbc3[pbc3$status3 == 1, ],
+#'                                 list(serBilir ~ year + age + sex + years,
+#'                                      albumin ~ year + age + sex + years),
+#'                                 list(~ year | id, ~ year | id))
+#'
+#' # one patient's whole history; risks within 2 years of landmarks 2, 3, 4
+#' patient <- pbc3[pbc3$id == 2, ]
+#' riskPlot(patient, long_fit_all, survival_fit_all, prediction_time = c(2, 3, 4),
+#'          bio_i = 1, horizon = 2, time_variable = "year",
+#'          survival_variable_all = list(), survival_trans_function = list(),
+#'          bandcount1 = 10, bandcount2 = 20)
+#' }
 #' @export
 riskPlot = function(data_predict_all_pre, long_fit_all, survival_fit_all,
                        prediction_time = NULL, bio_i = NULL,
@@ -96,8 +119,8 @@ riskPlot = function(data_predict_all_pre, long_fit_all, survival_fit_all,
   assert_bandcount(bandcount1, "bandcount1")
   assert_bandcount(bandcount2, "bandcount2")
   assert_positive_integer(n_cores, "n_cores")
-  # prediction_time may be NULL (landmark defaults to each patient's first
-  # observed time_variable value) or a vector of landmark times; probe with
+  # prediction_time may be NULL (landmarks at every visit time in the
+  # data) or a vector of landmark times; probe with
   # the first usable value, or skip the probe entirely if none is available yet.
   survival_trans_probe <- if (is.numeric(prediction_time) && length(prediction_time) >= 1 && !anyNA(prediction_time[1])) {
     prediction_time[1]
