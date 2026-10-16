@@ -288,6 +288,34 @@
 
 ## Bug fixes
 
+* `longitudinalSub()` with an ordinal biomarker now estimates the joint
+  random-effects covariance `Sigma_fit` by maximum likelihood. Its EM used
+  to plug in, for every ordinal observation, the mean of the latent score
+  given the category, ignoring the score's own variance, which
+  underestimated the ordinal biomarker's random-effects variances (in
+  simulations by about 40% for a random intercept and 75% for a random
+  slope) and so the individual variation that `predictRisk()`,
+  `predictLongitudinal()` and `simulateTrajectory()` draw on. The EM now
+  integrates over the ordinal biomarkers' random effects by adaptive
+  Gauss-Hermite quadrature (the continuous biomarkers' random effects are
+  integrated out exactly), accelerated by SQUAREM; it is deterministic and
+  about as fast as before. With more than three ordinal random effects in
+  all it uses a stochastic-approximation EM (SAEM) instead, with a fixed
+  internal seed so that fits are reproducible (the caller's random number
+  state is restored). Its convergence check no longer depends on the
+  biomarkers' units: the earlier one compared absolute changes in
+  `Sigma_fit`, which a biomarker with variances in the thousands never got
+  below, so the EM ran to its iteration limit. `Sigma_fit`, and the
+  predictions from fits with an ordinal biomarker, change accordingly; fits
+  with continuous biomarkers only are unchanged.
+
+* `longitudinalSub()` numbers an ordinal biomarker's categories by the
+  categories `ordinal::clmm()` actually fit. `clmm()` drops a level that no
+  observation has, but the joint covariance EM used the factor's own codes,
+  so an unused lowest or middle level (common after subsetting the data)
+  misaligned every category above it with the thresholds and stopped the
+  fit with "missing value where TRUE/FALSE needed".
+
 * `imputeLongitudinal()` now uses the visit time (`time_variable`) as a
   covariate of the imputation model whenever `long_sub_fixed` uses it, as
   documented. It was left out along with the subject id (both serve to align

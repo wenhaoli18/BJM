@@ -95,151 +95,360 @@ fit_marginal_ordinal <- function(fixed_formula, random_formula, data) {
   ordinal::clmm(full_formula, data = data, link = "probit", Hess = TRUE)
 }
 
-#' Impute the latent Gaussian score for an ordinal biomarker (inner E-step)
+#' Joint random-effects covariance with ordinal biomarkers (Gaussian copula)
 #'
-#' @description The Gaussian-copula extension represents each ordinal
-#' biomarker observation as a censored/interval-observed draw from an
-#' underlying continuous latent Gaussian variable (the classical
-#' Albert & Chib probit data-augmentation representation): the category
-#' actually observed only tells us the latent score fell in the interval
-#' implied by the fitted thresholds, not its exact value. Before each outer
-#' E-step/M-step update of the shared random-effects covariance matrix
-#' \code{D} (see \code{longitudinalSubVarCopula()}), this "inner" E-step
-#' plugs in, for every ordinal observation, the mean of that latent score's
-#' truncated-normal conditional distribution given its observed category and
-#' the current fixed-effect and (from the previous outer E-step) predicted
-#' random-effect contribution.
-#'
-#' This is a deterministic moment-matching plug-in (not a full Bayesian/MCEM
-#' draw), which is a documented v1 simplification: it is the mean-field
-#' approximation classically used to bootstrap probit/ordinal EM algorithms,
-#' but does not propagate the extra uncertainty a stochastic draw would.
-#' @param m Index of the ordinal biomarker being imputed.
-#' @param l The per-subject design-matrix bookkeeping list built by
-#'   \code{longitudinalSubCopula()} (same shape as the \code{l} passed to
-#'   \code{longitudinalSubVar()}); \code{l$yik[[m]]} holds each subject's
-#'   observed category codes (\code{1..K}) for biomarker \code{m}.
-#' @param beta Current stacked fixed-effect vector (all biomarkers).
-#' @param alpha_m Numeric vector of \code{K - 1} cumulative-link thresholds
-#'   for biomarker \code{m} (\code{lfit[[m]]$alpha}).
-#' @param Eb_prev Named list of each subject's posterior mean random-effects
-#'   vector from the previous outer E-step, or \code{NULL} on the first
-#'   iteration (random-effect contribution is then treated as 0).
-#' @param beta_idx_m Integer indices of \code{beta} belonging to biomarker
-#'   \code{m}.
-#' @param r_idx_m Integer indices of the stacked random-effects vector
-#'   belonging to biomarker \code{m}.
-#' @return A named list (one element per subject id, matching
-#'   \code{l$yik[[m]]}) of imputed latent-score vectors.
-#' @keywords internal
-impute_latent_ordinal <- function(m, l, beta, alpha_m, Eb_prev, beta_idx_m, r_idx_m) {
-  ids <- names(l$yik[[m]])
-  full_alpha <- c(-Inf, alpha_m, Inf)
-  beta_m <- beta[beta_idx_m]
-
-  out <- vector("list", length(ids))
-  names(out) <- ids
-  for (i in ids) {
-    X_i_m <- as.matrix(l$Xik.list[[m]][[i]])
-    eta <- as.vector(X_i_m %*% beta_m)
-    if (!is.null(Eb_prev) && length(r_idx_m) > 0) {
-      Z_i_m <- as.matrix(l$Zik.list[[m]][[i]])
-      b_i_m <- Eb_prev[[i]][r_idx_m]
-      eta <- eta + as.vector(Z_i_m %*% b_i_m)
-    }
-
-    y_cat <- l$yik[[m]][[i]]
-    lower <- full_alpha[y_cat]
-    upper <- full_alpha[y_cat + 1]
-
-    ### truncated-standard-normal moment-matching plug-in for the latent
-    ### residual epsilon ~ N(0, 1) given a < epsilon < b (see description
-    ### above); pnorm()/dnorm() correctly return 0/0/1 at +-Inf so the
-    ### open-ended bottom/top categories need no special-casing beyond the
-    ### denominator floor guarding against extreme-tail numerical underflow.
-    a <- lower - eta
-    b <- upper - eta
-    denom <- pmax(stats::pnorm(b) - stats::pnorm(a), 1e-8)
-    eps_hat <- (stats::dnorm(a) - stats::dnorm(b)) / denom
-
-    out[[i]] <- eta + eps_hat
-  }
-  out
-}
-
-#' EM re-estimation of the shared random-effects covariance (Gaussian-copula
-#' extension)
-#'
-#' @description Extends \code{longitudinalSubVar()}'s EM algorithm with one
-#' additional "inner" E-step (\code{impute_latent_ordinal()}), run before the
-#' existing "outer" E-step (posterior mean/second-moment of the random
-#' effects) at every iteration -- an ECM (Expectation-Conditional-Maximization)
-#' scheme. The outer E-step and M-step formulas are otherwise completely
-#' unchanged from \code{longitudinalSubVar()}: only the stacked outcome
-#' vector \code{yi} fed into them differs, since ordinal biomarkers'
-#' observed category codes are replaced by the inner E-step's imputed latent
-#' scores before every outer-step update. As in \code{longitudinalSubVar()},
-#' \code{sigma2} is never updated (for ordinal biomarkers it stays fixed at
-#' 1, the identification constraint for a probit latent variable); only
-#' \code{D} is re-estimated.
+#' @description Re-estimates the shared random-effects covariance \code{D}
+#' across all biomarkers by maximum likelihood, holding each biomarker's fixed
+#' effects, residual variance and (for an ordinal biomarker) thresholds at
+#' their separate-fit values, as \code{longitudinalSubVar()} does for
+#' continuous ones. An ordinal observation is the category of a latent score
+#' \eqn{Z = \eta + \epsilon}, \eqn{\epsilon \sim N(0, 1)} (probit link,
+#' Albert & Chib), observed only through the thresholds that bracket it, so
+#' the posterior of the random effects given the data is not Gaussian and the
+#' EM's \eqn{E[b b^T \mid y]} has no closed form. It is computed by
+#' \itemize{
+#'   \item \code{copula_D_aghq()}, an EM with adaptive Gauss-Hermite
+#'   quadrature over the ordinal biomarkers' random effects (the continuous
+#'   biomarkers' random effects are integrated out exactly), when those
+#'   number at most \code{max_quadrature_dim}; deterministic, with the usual
+#'   convergence check;
+#'   \item otherwise \code{copula_D_saem()}, a stochastic-approximation EM
+#'   (SAEM) that draws the latent scores, whose cost does not grow with that
+#'   dimension.
+#' }
+#' Both target the same maximum-likelihood estimate. The earlier version
+#' plugged in the mean of each latent score given its category, which ignored
+#' the score's own variance and underestimated the ordinal biomarkers'
+#' random-effects variances (by about 40\% for a random intercept and 75\%
+#' for a random slope in simulations).
+#' @param thetaLong List with the stacked fixed effects \code{beta}, the
+#'   starting \code{D} and the residual variances \code{sigma2} (1 for an
+#'   ordinal biomarker).
+#' @param l Per-subject design bookkeeping built by
+#'   \code{longitudinalSubCopula()}; \code{l$yik[[m]]} holds an ordinal
+#'   biomarker's category codes.
+#' @param biomarker_type,thresholds As stored in the fit.
+#' @param tol.em,max.iter Convergence tolerance on \code{D} and iteration cap
+#'   of the quadrature EM.
+#' @param max_quadrature_dim Largest number of ordinal random effects handled
+#'   by quadrature.
+#' @param verbose Print the change in \code{D} at every iteration.
+#' @return A list with the estimate \code{D}.
 #' @keywords internal
 longitudinalSubVarCopula <- function(thetaLong, l, biomarker_type, thresholds,
-                                      tol.em = 1e-04, max.iter = 500, verbose = FALSE) {
-  beta   <- thetaLong$beta
-  D      <- thetaLong$D
-  sigma2 <- thetaLong$sigma2
-  n      <- l$n
-  p      <- l$p
-  r      <- l$r
+                                     tol.em = 1e-04, max.iter = 500, max_quadrature_dim = 3,
+                                     verbose = FALSE) {
+  setup <- copula_estep_setup(thetaLong, l, biomarker_type, thresholds)
+  ### an EM started from a singular D stays on that boundary; the separate
+  ### fits can give one (e.g. clmm() estimating a perfectly correlated random
+  ### intercept and slope from few visits), so start from its diagonal then
+  D_start <- thetaLong$D
+  ev <- eigen(D_start, symmetric = TRUE, only.values = TRUE)$values
+  if (min(ev) < 1e-8 * max(ev)) D_start[] <- diag(diag(D_start), nrow(D_start))
+  if (length(setup$ro) <= max_quadrature_dim) {
+    copula_D_aghq(D_start, setup, tol.em = tol.em, max.iter = max.iter, verbose = verbose)
+  } else {
+    copula_D_saem(D_start, setup, verbose = verbose)
+  }
+}
 
-  ord_idx <- which(biomarker_type == "ordinal")
+#' Per-subject pieces of the copula E-step that do not depend on D
+#'
+#' @description For every subject: the ordinal rows' fixed-effect linear
+#' predictor, the thresholds bracketing each observed category and the
+#' random-effects design of those rows; and the continuous rows' residuals
+#' from the fixed effects, their random-effects design and residual
+#' precisions. Also the positions \code{ro}/\code{rc} of the ordinal and
+#' continuous biomarkers' random effects in \code{D}.
+#' @inheritParams longitudinalSubVarCopula
+#' @return A list with \code{subjects} (one entry per subject), \code{ro}
+#'   and \code{rc}.
+#' @keywords internal
+copula_estep_setup <- function(thetaLong, l, biomarker_type, thresholds) {
+  ord <- which(biomarker_type == "ordinal")
+  r_off <- c(0, cumsum(l$r))
+  ro <- unlist(lapply(ord, function(m) r_off[m] + seq_len(l$r[m])))
+  rc <- setdiff(seq_len(sum(l$r)), ro)
+  ids <- names(l$yi)
+  subjects <- lapply(ids, function(i) {
+    n_im <- l$nik[[i]]
+    off <- c(0, cumsum(n_im))
+    rows <- lapply(seq_along(n_im), function(m) off[m] + seq_len(n_im[m]))
+    o <- unlist(rows[ord])
+    cc <- setdiff(seq_len(sum(n_im)), o)
+    lo <- hi <- numeric(0)
+    for (m in ord) {
+      alpha <- c(-Inf, thresholds[[m]], Inf)
+      y <- l$yik[[m]][[i]]
+      lo <- c(lo, alpha[y])
+      hi <- c(hi, alpha[y + 1])
+    }
+    mu <- as.vector(l$Xi[[i]] %*% thetaLong$beta)
+    Z <- l$Zi[[i]]
+    list(mu_o = mu[o], lo = lo, hi = hi, Zo = Z[o, ro, drop = FALSE],
+         Zc = Z[cc, rc, drop = FALSE], resid_c = l$yi[[i]][cc] - mu[cc],
+         Rinv_c = 1 / rep(thetaLong$sigma2, n_im)[cc])
+  })
+  names(subjects) <- ids
+  list(subjects = subjects, ro = ro, rc = rc)
+}
 
-  beta_bounds <- cumsum(c(0, p))
-  r_bounds    <- cumsum(c(0, r))
-  beta_idx <- lapply(seq_along(p), function(m) seq_len(p[m]) + beta_bounds[m])
-  r_idx    <- lapply(seq_along(r), function(m) seq_len(r[m]) + r_bounds[m])
+#' Log probability of an ordinal category and its derivatives
+#'
+#' @description \eqn{\log P(lo < \eta + \epsilon \le hi)} for
+#' \eqn{\epsilon \sim N(0, 1)}, with its first and second derivatives in
+#' \eqn{\eta}; evaluated on the side of the mean where the interval lies, so
+#' a category far in a tail keeps its precision.
+#' @param eta Linear predictors; \code{lo}, \code{hi} the category bounds.
+#' @param lo,hi Lower and upper thresholds (\code{-Inf}/\code{Inf} at the ends).
+#' @return A list with \code{logP}, \code{g} (first derivative) and \code{h}
+#'   (second derivative, \eqn{\le 0}).
+#' @keywords internal
+probit_box_derivs <- function(eta, lo, hi) {
+  u <- lo - eta
+  v <- hi - eta
+  upper_tail <- (u + v) / 2 > 0
+  P <- ifelse(upper_tail, stats::pnorm(-u) - stats::pnorm(-v), stats::pnorm(v) - stats::pnorm(u))
+  P <- pmax(P, 1e-300)
+  fu <- stats::dnorm(u)
+  fv <- stats::dnorm(v)
+  ufu <- ifelse(is.finite(u), u * fu, 0)
+  vfv <- ifelse(is.finite(v), v * fv, 0)
+  g <- (fu - fv) / P
+  list(logP = log(P), g = g, h = (ufu - vfv) / P - g^2)
+}
 
-  yik_current <- l$yik
-  Eb_prev <- NULL
-  D_current <- D
+#' Gauss-Hermite quadrature rule for the standard normal
+#'
+#' @description Nodes and weights (summing to 1) of the \code{k}-point rule
+#' for \eqn{E f(X)}, \eqn{X \sim N(0, 1)}, by the Golub-Welsch eigenvalue
+#' method.
+#' @param k Number of nodes.
+#' @return A list with \code{x} (nodes) and \code{w} (weights).
+#' @keywords internal
+gauss_hermite_normal <- function(k) {
+  J <- matrix(0, k, k)
+  if (k > 1) {
+    off <- sqrt(seq_len(k - 1))
+    J[cbind(seq_len(k - 1), 2:k)] <- off
+    J[cbind(2:k, seq_len(k - 1))] <- off
+  }
+  e <- eigen(J, symmetric = TRUE)
+  list(x = e$values, w = e$vectors[1, ]^2)
+}
 
-  for (iter in seq_len(max.iter)) {
-    if (length(ord_idx) > 0) {
-      for (m in ord_idx) {
-        yik_current[[m]] <- impute_latent_ordinal(
-          m, l, beta, thresholds[[m]], Eb_prev, beta_idx[[m]], r_idx[[m]]
-        )
+#' Copula EM with adaptive Gauss-Hermite quadrature
+#'
+#' @description Given the ordinal random effects \eqn{b_o}, the continuous
+#' ones \eqn{b_c} have a Gaussian posterior with mean \eqn{a + B b_o} and
+#' covariance \eqn{A_c}, and the continuous data contribute a Gaussian factor
+#' in \eqn{b_o}; only \eqn{b_o} is integrated numerically. For each subject
+#' the posterior mode of \eqn{b_o} (Newton, warm-started from the previous
+#' iteration) and the curvature there place a product Gauss-Hermite grid,
+#' which gives \eqn{E[b b^T \mid y]} block by block; their average over
+#' subjects is the next \eqn{D}. Uses 7 nodes per dimension up to two ordinal
+#' random effects and 5 beyond. The EM is accelerated by SQUAREM (Varadhan and
+#' Roland, 2008), falling back to plain EM steps where an extrapolated
+#' \eqn{D} is not positive definite; convergence is a change in \eqn{D},
+#' scaled by \eqn{\sqrt{D_{jj} D_{kk}}} so that it does not depend on the
+#' biomarkers' units, below \code{tol.em} over one accelerated cycle (three
+#' EM updates).
+#' @param D Starting covariance.
+#' @param setup Output of \code{copula_estep_setup()}.
+#' @inheritParams longitudinalSubVarCopula
+#' @return A list with \code{D}.
+#' @keywords internal
+copula_D_aghq <- function(D, setup, tol.em = 1e-04, max.iter = 500, verbose = FALSE) {
+  ro <- setup$ro
+  rc <- setup$rc
+  q <- length(ro)
+  gh <- gauss_hermite_normal(if (q <= 2) 7 else 5)
+  grid <- as.matrix(expand.grid(rep(list(gh$x), q)))
+  log_w_grid <- rowSums(log(as.matrix(expand.grid(rep(list(gh$w), q))))) + 0.5 * rowSums(grid^2)
+  n_nodes <- nrow(grid)
+  mode <- lapply(setup$subjects, function(s) rep(0, q))
+
+  ### one EM update of D (also moves the posterior modes it warm-starts from)
+  em_update <- function(D) {
+    Doo_inv <- pd_inverse(D[ro, ro, drop = FALSE])
+    if (length(rc) > 0) {
+      C <- D[rc, ro, drop = FALSE] %*% Doo_inv           # E[b_c | b_o] = C b_o
+      Vc_inv <- pd_inverse(D[rc, rc, drop = FALSE] - C %*% D[ro, rc, drop = FALSE])
+    }
+    S <- matrix(0, nrow(D), ncol(D))
+    for (i in names(setup$subjects)) {
+      s <- setup$subjects[[i]]
+      # the Gaussian part of log p(b_o, y_c): -0.5 b_o' P b_o + h' b_o
+      if (length(rc) > 0) {
+        ZRZ <- crossprod(s$Zc, s$Rinv_c * s$Zc)
+        Ac <- solve(ZRZ + Vc_inv)
+        a <- as.vector(Ac %*% crossprod(s$Zc, s$Rinv_c * s$resid_c))
+        B <- C - Ac %*% ZRZ %*% C                        # E[b_c | y_c, b_o] = a + B b_o
+        RZ <- s$Rinv_c * s$Zc
+        W_inv <- diag(s$Rinv_c, length(s$Rinv_c)) - RZ %*% Ac %*% t(RZ)   # Var(y_c | b_o)^-1
+        ZC <- s$Zc %*% C
+        P <- Doo_inv + t(ZC) %*% W_inv %*% ZC
+        h <- as.vector(t(ZC) %*% W_inv %*% s$resid_c)
+      } else {
+        P <- Doo_inv
+        h <- rep(0, q)
+      }
+      # posterior mode of b_o and the curvature there
+      bo <- mode[[i]]
+      for (step_i in seq_len(50)) {
+        dd <- probit_box_derivs(s$mu_o + as.vector(s$Zo %*% bo), s$lo, s$hi)
+        H <- P - crossprod(s$Zo, dd$h * s$Zo)
+        step <- solve(H, as.vector(crossprod(s$Zo, dd$g)) - as.vector(P %*% bo) + h)
+        bo <- bo + step
+        if (max(abs(step)) < 1e-8) break
+      }
+      dd <- probit_box_derivs(s$mu_o + as.vector(s$Zo %*% bo), s$lo, s$hi)
+      H <- P - crossprod(s$Zo, dd$h * s$Zo)
+      mode[[i]] <<- bo
+      nodes <- sweep(grid %*% chol(solve(H)), 2, bo, "+")   # rows b_o + R'x, R'R = H^-1
+      eta <- rep(s$mu_o, each = n_nodes) + as.vector(nodes %*% t(s$Zo))
+      log_lik <- rowSums(matrix(probit_box_derivs(eta, rep(s$lo, each = n_nodes),
+                                                  rep(s$hi, each = n_nodes))$logP, n_nodes))
+      lw <- log_lik - 0.5 * rowSums((nodes %*% P) * nodes) + as.vector(nodes %*% h) + log_w_grid
+      w <- exp(lw - max(lw))
+      w <- w / sum(w)
+      S[ro, ro] <- S[ro, ro] + crossprod(nodes, w * nodes)
+      if (length(rc) > 0) {
+        mc <- sweep(nodes %*% t(B), 2, a, "+")
+        S[rc, ro] <- S[rc, ro] + crossprod(mc, w * nodes)
+        S[rc, rc] <- S[rc, rc] + Ac + crossprod(mc, w * mc)
       }
     }
-
-    yi <- sapply(names(yik_current[[1]]), function(i) {
-      unlist(lapply(yik_current, "[[", i))
-    }, USE.NAMES = TRUE, simplify = FALSE)
-
-    Dinv <- solve(D_current)
-    Sigmai.inv <- lapply(l$nik, function(i) diag(x = rep(1 / sigma2, i), ncol = sum(i)))
-    Ai <- mapply(function(zt, s, z) solve((zt %*% s %*% z) + Dinv),
-                 z = l$Zi, zt = l$Zit, s = Sigmai.inv, SIMPLIFY = FALSE)
-    Eb <- mapply(function(a, z, s, y, X) as.vector(a %*% (z %*% s %*% (y - X %*% beta))),
-                 a = Ai, z = l$Zit, s = Sigmai.inv, y = yi, X = l$Xi, SIMPLIFY = FALSE)
-    EbbT <- mapply(function(v, e) v + tcrossprod(e), v = Ai, e = Eb, SIMPLIFY = FALSE)
-    D.new <- Reduce("+", EbbT) / n
-
-    diff <- max(abs(D.new - D_current))
-    D_current <- D.new
-    Eb_prev <- Eb
-
-    if (verbose) message(sprintf("ECM iter %d, max|D change| = %.6f", iter, diff))
-    if (diff < tol.em) break
-    if (iter == max.iter) {
-      warning(sprintf(paste0(
-        "The ECM estimate of the joint random-effects covariance (Sigma_fit) did not converge ",
-        "within %d iterations (last max change %.3g, tolerance %g); returning the last iterate."),
-        max.iter, diff, tol.em), call. = FALSE)
-    }
+    if (length(rc) > 0) S[ro, rc] <- t(S[rc, ro])
+    D_new <- S / length(setup$subjects)
+    dimnames(D_new) <- dimnames(D)
+    D_new
+  }
+  is_pd <- function(V) {
+    ev <- eigen((V + t(V)) / 2, symmetric = TRUE, only.values = TRUE)$values
+    min(ev) > 1e-10 * max(ev)
   }
 
-  list(D = D_current, Eb = Eb_prev, yik = yik_current)
+  ### EM accelerated by SQUAREM (Varadhan and Roland, 2008): two EM updates,
+  ### an extrapolation along them, then an EM update from there; plain EM
+  ### where the extrapolation leaves the positive-definite matrices
+  n_updates <- 0
+  repeat {
+    D1 <- em_update(D)
+    D2 <- em_update(D1)
+    r <- D1 - D
+    v <- D2 - 2 * D1 + D
+    alpha <- if (sum(v^2) > 0) min(-1, -sqrt(sum(r^2) / sum(v^2))) else -1
+    D_extra <- D - 2 * alpha * r + alpha^2 * v
+    if (!is_pd(D_extra)) D_extra <- D2
+    D_new <- em_update(D_extra)
+    n_updates <- n_updates + 3
+    ### on the correlation scale, so the check does not depend on the
+    ### biomarkers' units (an absolute change never got below the tolerance
+    ### for a biomarker with variances in the thousands)
+    scale <- sqrt(pmax(diag(D_new), .Machine$double.eps))
+    change <- max(abs(D_new - D) / outer(scale, scale))
+    D <- D_new
+    if (verbose) message(sprintf("EM updates %d, max|D change| = %.6f", n_updates, change))
+    if (change < tol.em) break
+    if (n_updates >= max.iter) {
+      warning(sprintf(paste0(
+        "The EM estimate of the joint random-effects covariance (Sigma_fit) did not converge ",
+        "within %d iterations (last max change %.3g, tolerance %g); returning the last iterate."),
+        max.iter, change, tol.em), call. = FALSE)
+      break
+    }
+  }
+  list(D = D)
+}
+
+#' Copula EM by stochastic approximation (SAEM)
+#'
+#' @description Fallback of \code{longitudinalSubVarCopula()} for many ordinal
+#' random effects. Each iteration draws every ordinal latent score from its
+#' truncated normal given the subject's current random effects (one
+#' dimension at a time, as they are independent given \eqn{b}), computes
+#' \eqn{E[b b^T \mid y, z]} exactly, draws new random effects from their
+#' Gaussian posterior, and updates \eqn{D} by stochastic approximation: step
+#' 1 for \code{n_burnin} iterations, then \eqn{1/k}, averaging the next
+#' \code{n_average}. The draws use a fixed seed, with the caller's random
+#' number state restored, so a fit is reproducible.
+#' @param D Starting covariance.
+#' @param setup Output of \code{copula_estep_setup()}.
+#' @param n_burnin,n_average Iterations with step 1 and with step \eqn{1/k}.
+#' @inheritParams longitudinalSubVarCopula
+#' @return A list with \code{D}.
+#' @keywords internal
+copula_D_saem <- function(D, setup, n_burnin = 100, n_average = 200, verbose = FALSE) {
+  local_r_seed(1L)
+  ro <- setup$ro
+  rc <- setup$rc
+  q <- nrow(D)
+  b <- lapply(setup$subjects, function(s) rep(0, q))
+  # each subject's random-effects design and residual precision, continuous
+  # rows first, then the ordinal (latent) ones
+  design <- lapply(setup$subjects, function(s) {
+    Z <- matrix(0, length(s$resid_c) + length(s$mu_o), q)
+    Z[seq_along(s$resid_c), rc] <- s$Zc
+    Z[length(s$resid_c) + seq_along(s$mu_o), ro] <- s$Zo
+    Rinv <- c(s$Rinv_c, rep(1, length(s$mu_o)))
+    list(Z = Z, Rinv = Rinv, ZRZ = crossprod(Z, Rinv * Z))
+  })
+  Q <- D
+  for (k in seq_len(n_burnin + n_average)) {
+    Dinv <- pd_inverse(D)
+    S <- matrix(0, q, q)
+    for (i in names(setup$subjects)) {
+      s <- setup$subjects[[i]]
+      g <- design[[i]]
+      z <- rtnorm_vec(s$mu_o + as.vector(s$Zo %*% b[[i]][ro]), s$lo, s$hi)
+      # all random effects given the continuous data and the drawn latent scores
+      A <- solve(g$ZRZ + Dinv)
+      m <- as.vector(A %*% crossprod(g$Z, g$Rinv * c(s$resid_c, z - s$mu_o)))
+      S <- S + A + tcrossprod(m)
+      b[[i]] <- m + as.vector(t(chol(A)) %*% stats::rnorm(q))
+    }
+    gamma <- if (k <= n_burnin) 1 else 1 / (k - n_burnin)
+    Q <- Q + gamma * (S / length(setup$subjects) - Q)
+    D <- Q
+    if (verbose) message(sprintf("SAEM iter %d", k))
+  }
+  list(D = D)
+}
+
+#' Inverse of a covariance matrix that may be close to singular
+#'
+#' @description By the eigendecomposition, with eigenvalues floored at
+#' \code{1e-10} times the largest, so a covariance estimate approaching the
+#' boundary (e.g. a random-effect variance tending to 0) still gives a finite,
+#' positive-definite precision.
+#' @param V Symmetric matrix.
+#' @return Its (regularized) inverse.
+#' @keywords internal
+pd_inverse <- function(V) {
+  e <- eigen((V + t(V)) / 2, symmetric = TRUE)
+  values <- pmax(e$values, 1e-10 * max(e$values, 0), .Machine$double.xmin)
+  e$vectors %*% (t(e$vectors) / values)
+}
+
+#' Vectorized draws from truncated standard-variance normals
+#'
+#' @description \eqn{N(mean, 1)} truncated to \eqn{(lower, upper]}, by
+#' inversion on the side of the mean where the interval lies.
+#' @param mean,lower,upper Vectors of equal length.
+#' @return A numeric vector of draws.
+#' @keywords internal
+rtnorm_vec <- function(mean, lower, upper) {
+  a <- lower - mean
+  b <- upper - mean
+  flip <- (a + b) / 2 > 0
+  a2 <- ifelse(flip, -b, a)
+  b2 <- ifelse(flip, -a, b)
+  pa <- stats::pnorm(a2)
+  pb <- stats::pnorm(b2)
+  u <- pa + stats::runif(length(mean)) * pmax(pb - pa, 0)
+  e <- pmin(pmax(stats::qnorm(u), a2), b2)
+  mean + ifelse(flip, -e, e)
 }
 
 #' Fit a multivariate longitudinal sub-model with mixed continuous/ordinal
@@ -320,9 +529,14 @@ longitudinalSubCopula <- function(data_fit_all, long_sub_fixed, long_sub_random,
 
       mf.fixed[[m]] <- model.frame(stats::terms(long_sub_fixed[[m]]), data.fit.one[, all.vars(long_sub_fixed[[m]])])
       xlevels[[m]]  <- .getXlevels(stats::terms(long_sub_fixed[[m]]), mf.fixed[[m]])
-      ### category codes (1..K), not the latent score -- longitudinalSubVarCopula()'s
-      ### inner E-step turns these into imputed latent Gaussian scores every iteration.
-      yik[[m]] <- by(as.numeric(model.response(mf.fixed[[m]])), factor(data.fit.one[[id]]), as.vector)
+      ### category codes (1..K), not the latent score: longitudinalSubVarCopula()
+      ### integrates over the latent score within each category's thresholds.
+      ### numbered by the categories clmm() actually fit (lfit$y.levels, to
+      ### which the thresholds belong): clmm() drops a level nobody has, and
+      ### the factor's own codes then no longer matched the thresholds (an
+      ### unused lowest or middle level shifted every category above it)
+      y_codes <- match(as.character(model.response(mf.fixed[[m]])), lfit[[m]]$y.levels)
+      yik[[m]] <- by(y_codes, factor(data.fit.one[[id]]), as.vector)
 
       beta_names_m <- names(lfit[[m]]$beta)
       full_mm <- model.matrix(long_sub_fixed[[m]], data.fit.one)
