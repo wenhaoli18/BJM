@@ -141,6 +141,7 @@ test_that("dynamicPredictionBioAll with explicit numeric bandcounts resolves ban
 })
 
 test_that("dynamicPredictionBioAll bio_i = NULL default includes ordinal biomarkers, for a mixed fit", {
+  skip_on_cran()
   skip_if_not_installed("ordinal")
   fx <- setup_copula_bioall_fixture()
 
@@ -163,6 +164,7 @@ test_that("dynamicPredictionBioAll bio_i = NULL default includes ordinal biomark
 })
 
 test_that("dynamicPredictionBioAll on an explicit bio_i vector including an ordinal marker predicts it instead of erroring", {
+  skip_on_cran()
   skip_if_not_installed("ordinal")
   fx <- setup_copula_bioall_fixture()
 
@@ -183,6 +185,7 @@ test_that("dynamicPredictionBioAll on an explicit bio_i vector including an ordi
 })
 
 test_that("dynamicPredictionBioAll for the continuous marker of a mixed fit matches dynamicPredictionBio", {
+  skip_on_cran()
   skip_if_not_installed("ordinal")
   fx <- setup_copula_bioall_fixture()
 
@@ -208,6 +211,7 @@ test_that("dynamicPredictionBioAll for the continuous marker of a mixed fit matc
 })
 
 test_that("dynamicPredictionBioAll for the ordinal marker of a mixed fit matches dynamicPredictionBio", {
+  skip_on_cran()
   skip_if_not_installed("ordinal")
   fx <- setup_copula_bioall_fixture()
 

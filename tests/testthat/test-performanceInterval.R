@@ -1,6 +1,7 @@
 # Performance measures for interval-censored fits (experimental).
 
 test_that("npmle_interval reduces to Kaplan-Meier and Aalen-Johansen for (nearly) exact times", {
+  skip_on_cran()
   set.seed(1)
   n <- 300
   T <- stats::rexp(n, 0.2)

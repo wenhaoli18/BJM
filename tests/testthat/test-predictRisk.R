@@ -227,6 +227,7 @@ pbc3_long_fit <- function(long_sub_random = list(~ year | id, ~ year | id), data
 }
 
 test_that("predictions do not depend on the type of the patient id", {
+  skip_on_cran()
   surv <- survivalSub(pbc3[!duplicated(pbc3$id), ], Surv(years, status3) ~ age + sex, NULL)
   ref_fit <- pbc3_long_fit()
   ref <- pbc3_risk(pbc3[pbc3$id == 2 & pbc3$year <= 3, ], ref_fit, surv)
@@ -364,6 +365,7 @@ test_that("event-type probabilities stay finite for an extreme linear predictor"
 })
 
 test_that("predictions do not depend on the biomarkers' units (no underflow/overflow)", {
+  skip_on_cran()
   # The conditional densities scale with det(2 * pi * Sigma), which grows with
   # the biomarkers' units and the number of observations. A "+ 1e-20" in the
   # no-competing-risk denominator then swamped it (risk 0.35 -> 1e-26 after

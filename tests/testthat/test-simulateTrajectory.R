@@ -118,6 +118,7 @@ test_that("synthetic patients drawn from the prior keep biomarkers near the obse
 })
 
 test_that("rtmvnorm_box()'s Gibbs fallback matches its rejection draws", {
+  skip_on_cran()
   set.seed(1)
   S <- matrix(c(1, 0.6, 0.3, 0.6, 1, 0.5, 0.3, 0.5, 1), 3)
   lower <- c(0.5, -Inf, 1)
@@ -158,6 +159,7 @@ ordinal_sim_fixture <- local({
 })
 
 test_that("an ordinal biomarker is simulated as an ordered factor matching predictLongitudinal()", {
+  skip_on_cran()
   testthat::skip_if_not_installed("ordinal")
   ox <- ordinal_sim_fixture()
   sims <- simulateTrajectory(ox$data_predict_all, ox$long_fit_all, ox$survival_fit_all,
