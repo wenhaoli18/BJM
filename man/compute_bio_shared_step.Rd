@@ -9,6 +9,7 @@ compute_bio_shared_step(
   long_fit_all,
   survival_fit_all,
   prediction_time,
+  horizon,
   time_variable,
   survival_variable_all,
   survival_trans_function,
@@ -23,6 +24,8 @@ compute_bio_shared_step(
 \item{survival_fit_all}{See \code{\link{dynamicPredictionBio}}.}
 
 \item{prediction_time}{See \code{\link{dynamicPredictionBio}}.}
+
+\item{horizon}{See \code{\link{dynamicPredictionBio}}.}
 
 \item{time_variable}{See \code{\link{dynamicPredictionBio}}.}
 
@@ -44,8 +47,10 @@ A list with the pieces \code{compute_bio_marker_step()} needs:
 Internal helper factoring out the part of
 \code{dynamicPredictionBio()}'s pipeline that does not depend on which
 biomarker (\code{bio_i}) is being predicted: restricting to at-risk
-patients, building the survival-side integration grid out to
-\code{upper_bound}, dispatching to the Gaussian-copula conditional-density
+patients, building the survival-side integration grid over
+\eqn{T > } \code{prediction_time + horizon} out to \code{upper_bound}
+(the prediction is conditional on survival through the time the biomarker
+is predicted at), dispatching to the Gaussian-copula conditional-density
 variants when needed (see \code{predictRisk()}), and evaluating the
 denominator conditional density (\code{conditionalYT}/\code{conditionalYDT}).
 \code{dynamicPredictionBioAll()} computes this once and reuses it across

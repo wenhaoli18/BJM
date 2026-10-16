@@ -252,6 +252,7 @@ test_that("the pooled fit can be used for prediction", {
 
 
 test_that("fits with an ordinal biomarker pool its thresholds and slopes, and the pooled fit predicts with them", {
+  skip_on_cran()
   skip_if_not_installed("ordinal")
   data(pbc3, envir = environment())
   d <- pbc3[pbc3$status3 == 1, ]

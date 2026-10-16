@@ -561,13 +561,23 @@ auto_tune_bandcount <- function(predict_fun, args, auto_names, tol = 0.01, max_r
   for (n in auto_names) {
     args[[n]] <- unname(bandcount_auto_start[n])
   }
+  ### the caller has already warned about patients it cannot predict before
+  ### getting here; the repeated predictions below would warn again, once per
+  ### call
+  predict_fun_quiet <- function(...) {
+    withCallingHandlers(predict_fun(...), warning = function(w) {
+      if (grepl("have no non-missing measurement", conditionMessage(w), fixed = TRUE)) {
+        invokeRestart("muffleWarning")
+      }
+    })
+  }
 
-  prev_result <- do.call(predict_fun, args)
+  prev_result <- do.call(predict_fun_quiet, args)
   round_i <- 0
   repeat {
     scaled_args <- args
     for (n in auto_names) scaled_args[[n]] <- scaled_args[[n]] * multiplier
-    new_result <- do.call(predict_fun, scaled_args)
+    new_result <- do.call(predict_fun_quiet, scaled_args)
     round_i <- round_i + 1
 
     comparison <- max_relative_diff(prev_result, new_result)

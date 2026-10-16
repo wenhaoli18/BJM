@@ -9,11 +9,12 @@
 #' integrated against the survival sub-model's hazard to give the predicted
 #' probability of experiencing the event within
 #' \code{(prediction_time, prediction_time + horizon]}, conditional on being
-#' event-free at \code{prediction_time}. The integrals in both the numerator
-#' (event within the window) and denominator (survival to
-#' \code{prediction_time}, used for normalization) are evaluated on
-#' numerical grids whose resolution is controlled by \code{bandcount1}/
-#' \code{bandcount2}; see Details.
+#' event-free at \code{prediction_time}. The numerator (event within the
+#' window) is evaluated on a grid over the window whose resolution is
+#' controlled by \code{bandcount1}; the denominator (survival to
+#' \code{prediction_time}, used for normalization) is that same window
+#' integral plus the integral beyond the window, evaluated on a grid
+#' controlled by \code{bandcount2}; see Details.
 #'
 #' The prediction is conditional on the longitudinal history observed up to
 #' \code{prediction_time}: rows of \code{data_predict_all} whose
@@ -50,11 +51,12 @@
 #' numerator of the risk probability). Larger values give a more accurate but
 #' slower estimate. Defaults to \code{"auto"} (see Details).
 #' @param bandcount2 The number of grid points spanning
-#' \code{[prediction_time, upper_bound]}, where \code{upper_bound} is set
-#' internally as the earliest time by which every at-risk patient's
+#' \code{[prediction_time + horizon, upper_bound]}, where \code{upper_bound}
+#' is set internally as the earliest time by which every at-risk patient's
 #' model-based probability of still being event-free (given event-free at
-#' \code{prediction_time}) has dropped below \code{1e-4}; this approximates
-#' integrating out to infinity for the denominator that normalizes the risk probability. A wider follow-up range
+#' \code{prediction_time + horizon}) has dropped below \code{1e-4}; this
+#' approximates integrating out to infinity for the part of the denominator
+#' beyond the prediction window. A wider follow-up range
 #' needs a larger \code{bandcount2} to keep the grid spacing comparable.
 #' Defaults to \code{"auto"} (see Details).
 #'
@@ -290,8 +292,16 @@ predictRisk = function(data_predict_all, long_fit_all, survival_fit_all,
     return(out)
   }
 
+  ### the denominator is the window (prediction_time, prediction_time +
+  ### horizon] -- the numerator itself -- plus the tail beyond it, so the tail
+  ### grid starts at the end of the window. The denominator used to be one
+  ### integral over (prediction_time, upper_bound] on its own grid, which
+  ### discretized the window differently from the numerator: near a large
+  ### jump of the step-function baseline hazard (e.g. a late event with few
+  ### subjects at risk) the two disagreed by several percent, and the risk
+  ### came out above 1 and was cut to exactly 1.
   upper_bound = integration_upper_bound(data_predict_all, long_fit_all, survival_fit_all,
-                                        prediction_time, min_upper = prediction_time + horizon)
+                                        prediction_time + horizon)
 
   #### time frame used to do the integral
   ### bandcount1 intervals tiling exactly (prediction_time, prediction_time +
@@ -305,7 +315,7 @@ predictRisk = function(data_predict_all, long_fit_all, survival_fit_all,
   predict.time.horizon = (predict.time.horizon.1[-1] + predict.time.horizon.1[-(bandcount1 + 1)]) / 2
 
   infinity_grid <- prepare_infinity_grid(data_predict_all, long_fit_all, survival_fit_all,
-                                          prediction_time, upper_bound, bandcount2)
+                                          prediction_time + horizon, upper_bound, bandcount2)
   predict.time.infinity = infinity_grid$predict.time.infinity
   predict.time.infinity.1 = infinity_grid$predict.time.infinity.1
   S_T_all_infinity = infinity_grid$S_T_all_infinity
@@ -358,8 +368,9 @@ predictRisk = function(data_predict_all, long_fit_all, survival_fit_all,
       T.surv.predict.1 = t(exp_shifted(f_y_D_all_predict[[2]], shift) * D_T_all_predict[[2]] * S_T_all_predict)
       T.surv.infinity.1 = t(exp_shifted(f_y_D_all_infinity[[2]], shift) * D_T_all_infinity[[2]] * S_T_all_infinity)
 
-      risk.prob.0 = clamp_risk_prob(rowSums(T.surv.predict.0), rowSums(T.surv.infinity.0 + T.surv.infinity.1))
-      risk.prob.1 = clamp_risk_prob(rowSums(T.surv.predict.1), rowSums(T.surv.infinity.0 + T.surv.infinity.1))
+      denominator = rowSums(T.surv.predict.0 + T.surv.predict.1) + rowSums(T.surv.infinity.0 + T.surv.infinity.1)
+      risk.prob.0 = clamp_risk_prob(rowSums(T.surv.predict.0), denominator)
+      risk.prob.1 = clamp_risk_prob(rowSums(T.surv.predict.1), denominator)
       if (is_interval_censored(survival_fit_all)) {
         prob.undetected.0 = prob.undetected.1 = rep(0, length(risk.prob.0))
       }
@@ -376,7 +387,8 @@ predictRisk = function(data_predict_all, long_fit_all, survival_fit_all,
       T.surv.infinity.1 = t(exp_shifted(f_y_D_all_infinity[[2]], shift) * D_T_all_infinity[[2]] * S_T_all_infinity)
       T.surv.gap.0 = t(exp_shifted(f_y_gap[[1]], shift) * D_T_gap[[1]] * gap$S)
       T.surv.gap.1 = t(exp_shifted(f_y_gap[[2]], shift) * D_T_gap[[2]] * gap$S)
-      denominator = rowSums(T.surv.infinity.0 + T.surv.infinity.1) + rowSums(T.surv.gap.0 + T.surv.gap.1)
+      denominator = rowSums(T.surv.predict.0 + T.surv.predict.1) + rowSums(T.surv.infinity.0 + T.surv.infinity.1) +
+        rowSums(T.surv.gap.0 + T.surv.gap.1)
 
       risk.prob.0 = clamp_risk_prob(rowSums(T.surv.predict.0), denominator)
       risk.prob.1 = clamp_risk_prob(rowSums(T.surv.predict.1), denominator)
@@ -410,7 +422,7 @@ predictRisk = function(data_predict_all, long_fit_all, survival_fit_all,
       T.surv.predict.0 = t(exp_shifted(f_y_D_all_predict[[1]], shift) * S_T_all_predict)
       T.surv.infinity.0 = t(exp_shifted(f_y_D_all_infinity[[1]], shift) * S_T_all_infinity)
 
-      risk.prob.0 = clamp_risk_prob(rowSums(T.surv.predict.0), rowSums(T.surv.infinity.0))
+      risk.prob.0 = clamp_risk_prob(rowSums(T.surv.predict.0), rowSums(T.surv.predict.0) + rowSums(T.surv.infinity.0))
       if (is_interval_censored(survival_fit_all)) prob.undetected.0 = rep(0, length(risk.prob.0))
     } else {
       f_y_gap = gap$eval(function(d, l) conditionalYT_fun(d, long_fit_all, l_i = l, survival_variable,
@@ -420,7 +432,7 @@ predictRisk = function(data_predict_all, long_fit_all, survival_fit_all,
       T.surv.predict.0 = t(exp_shifted(f_y_D_all_predict[[1]], shift) * S_T_all_predict)
       T.surv.infinity.0 = t(exp_shifted(f_y_D_all_infinity[[1]], shift) * S_T_all_infinity)
       T.surv.gap = t(exp_shifted(f_y_gap, shift) * gap$S)
-      denominator = rowSums(T.surv.infinity.0) + rowSums(T.surv.gap)
+      denominator = rowSums(T.surv.predict.0) + rowSums(T.surv.infinity.0) + rowSums(T.surv.gap)
 
       risk.prob.0 = clamp_risk_prob(rowSums(T.surv.predict.0), denominator)
       prob.undetected.0 = clamp_risk_prob(rowSums(T.surv.gap), denominator)

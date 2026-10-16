@@ -281,6 +281,46 @@
 
 ## Bug fixes
 
+* `fitIntervalBJM()`'s `long_fit_all`, the fit its predictions use, now
+  combines the imputations -- the Rubin's-rules pooled fixed effects and the
+  averaged residual and random-effects variances (`pooled$long_fit_all`) --
+  instead of being the first imputation's fit, so a prediction no longer
+  carries one imputation's randomness. With competing risks the event-type
+  model in `survival_fit_all` likewise has its coefficients averaged over the
+  imputations. A new `n_thin` argument (default 5) saves only every
+  `n_thin`-th iteration after the burn-in, so the imputations, which come
+  from one chain, are less correlated and the between-imputation variance
+  less understated; `n_thin = 1` gives the previous behaviour, and the run
+  takes `n_burnin + n_imputations * n_thin` iterations in all.
+
+* `predictRisk()` computes the normalizing denominator as the numerator's
+  own integral over the prediction window plus the integral beyond it.
+  Before, the denominator was a separate integral from `prediction_time`
+  on, evaluated on its own grid, which discretized the window differently
+  from the numerator: near the jumps of the Cox model's step-function
+  baseline hazard the two disagreed by several percent, even with fine
+  grids. For pbc3 patient 2 at `prediction_time = 5`, `horizon = 3` the
+  risk was 0.263 against 0.280 from a brute-force integral (now 0.281), and
+  at `prediction_time = 13` the ratio exceeded 1 and was reported as a risk
+  of exactly 1 (now 0.942). Risks change accordingly, typically by a few
+  percent; the `bandcount2` grid now spans `[prediction_time + horizon,
+  upper_bound]`. `riskPlot()`, `predictPlot()`, `performancePlot()` and
+  `calibrationPlot()` use the corrected risks.
+
+* `predictLongitudinal()` now predicts the biomarker at `prediction_time +
+  horizon` conditional on survival through that time, as documented ("a
+  future biomarker value conditional on survival"). The event time was
+  integrated from `prediction_time` on, so the prediction also averaged
+  over event times before the biomarker's own measurement time; it is now
+  integrated from `prediction_time + horizon` on, in the numerator and the
+  normalizing denominator alike. Predicted values change accordingly (for
+  pbc3 patient 2 at `prediction_time = 5`, `horizon = 1`, the serBilir mode
+  moves from 1.206 to 1.193); `predictRisk()` is unchanged. For an
+  interval-censored fit the probability of an undetected event before
+  `prediction_time` no longer enters, since survival past `prediction_time
+  + horizon` rules it out. `predictPlot()`'s predicted biomarker curve uses
+  the same computation.
+
 * `longitudinalSub()` now rejects a transformed response such as
   `log(y) ~ ...` with a clear error. Such a model used to fit, and then fail
   in `predictRisk()` and the other prediction functions with "undefined
@@ -304,6 +344,22 @@
 * The event-type probabilities `P(D | T)` are computed with `plogis()`.
   `1 / (1 + exp(eta))` and `exp(eta)` times that gave `NaN` once `exp(eta)`
   overflowed (linear predictor above about 709).
+
+* `performancePlot()` and `calibrationPlot()` leave out, with a message,
+  the at-risk subjects `predictRisk()` cannot predict (e.g. no measurement
+  of some biomarker by the landmark). Their `NA` risk used to make that
+  landmark's AUC and Brier score `NA` for everyone, reported as "no cases
+  or no event-free subjects in the window".
+
+* The event-type probabilities `P(D | T)` use only the right-hand side of
+  `form_conditional_cr`, so the data of the patients to predict no longer
+  need an event-type column ("undefined columns selected" before), and a
+  factor event type no longer warns "invalid factor level, NA generated"
+  on every prediction.
+
+* With `bandcount1`/`bandcount2`/`bandcount3 = "auto"`, the warning about a
+  patient without a measurement of some biomarker is given once instead
+  of once per tuning round.
 
 * `predictRisk()` with `horizon = 0` and an interval-censored fit now also
   returns `prob_undetected_1`/`prob_undetected_2`, as it does for any other

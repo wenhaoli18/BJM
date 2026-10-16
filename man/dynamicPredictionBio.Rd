@@ -55,11 +55,11 @@ findings and variables derived from the analysis.}
 in the order of \code{survival_variable_all}.}
 
 \item{bandcount2}{The number of grid points spanning
-\code{[prediction_time, upper_bound]}, where \code{upper_bound} is set
-internally as the earliest time by which every at-risk patient's
+\code{[prediction_time + horizon, upper_bound]}, where \code{upper_bound}
+is set internally as the earliest time by which every at-risk patient's
 model-based probability of still being event-free (given event-free at
-\code{prediction_time}) has dropped below \code{1e-4}; this approximates
-integrating out to infinity for the denominator that normalizes the predicted density. A wider follow-up range
+\code{prediction_time + horizon}) has dropped below \code{1e-4}; this
+approximates integrating out to infinity for the denominator that normalizes the predicted density. A wider follow-up range
 needs a larger \code{bandcount2} to keep the grid spacing comparable.
 Defaults to \code{"auto"} (see Details).}
 
@@ -103,7 +103,8 @@ longitudinal (\code{\link{longitudinalSub}}) and survival
 probability this returns a predictive density for a future value of one
 chosen biomarker (\code{bio_i}) at \code{prediction_time + horizon},
 conditional on the subject's observed longitudinal history up to
-\code{prediction_time} and on being event-free at \code{prediction_time}.
+\code{prediction_time} and on survival (being event-free) through
+\code{prediction_time + horizon}, the time the biomarker is predicted at.
 The density (\code{Y_density}, evaluated over a candidate-value grid
 \code{Y_all}) is obtained by integrating the biomarker's predictive
 distribution against the survival sub-model's hazard, using the subject's

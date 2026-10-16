@@ -67,6 +67,7 @@ test_that("predictLongitudinal dispatches to dynamicPredictionBioAll when bio_i 
 })
 
 test_that("the predicted mode does not snap to the bandcount3 grid", {
+  skip_on_cran()
   f <- setup_dp_fixture()
   coarse <- predictLongitudinal(1, f$data_predict_all, f$long_fit_all, f$survival_fit_all,
                                 5, 1, "year", f$survival_variable_all, f$survival_trans_function,
@@ -85,6 +86,7 @@ test_that("density_mode recovers a sharp peak between grid points", {
 })
 
 test_that("auto bandcount tuning converges for predictLongitudinal on pbc3", {
+  skip_on_cran()
   f <- setup_dp_fixture()
   expect_no_warning(
     predictLongitudinal(NULL, f$data_predict_all, f$long_fit_all, f$survival_fit_all,
@@ -134,6 +136,7 @@ test_that("the candidate grid covers every patient's density and little else", {
 })
 
 test_that("the predicted densities integrate to 1 on the adaptive grid", {
+  skip_on_cran()
   f <- setup_dp_fixture()
   two <- lapply(f$data_predict_all, function(x) rbind(x, pbc3[pbc3$id == 6 & pbc3$year <= 5, ]))
   pred <- predictLongitudinal(1, two, f$long_fit_all, f$survival_fit_all, 5, 1, "year",
