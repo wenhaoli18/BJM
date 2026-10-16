@@ -305,6 +305,22 @@
   `1 / (1 + exp(eta))` and `exp(eta)` times that gave `NaN` once `exp(eta)`
   overflowed (linear predictor above about 709).
 
+* `performancePlot()` and `calibrationPlot()` leave out, with a message,
+  the at-risk subjects `predictRisk()` cannot predict (e.g. no measurement
+  of some biomarker by the landmark). Their `NA` risk used to make that
+  landmark's AUC and Brier score `NA` for everyone, reported as "no cases
+  or no event-free subjects in the window".
+
+* The event-type probabilities `P(D | T)` use only the right-hand side of
+  `form_conditional_cr`, so the data of the patients to predict no longer
+  need an event-type column ("undefined columns selected" before), and a
+  factor event type no longer warns "invalid factor level, NA generated"
+  on every prediction.
+
+* With `bandcount1`/`bandcount2`/`bandcount3 = "auto"`, the warning about a
+  patient without a measurement of some biomarker is given once instead
+  of once per tuning round.
+
 * `predictRisk()` with `horizon = 0` and an interval-censored fit now also
   returns `prob_undetected_1`/`prob_undetected_2`, as it does for any other
   horizon; the risk in the empty window is still 0.

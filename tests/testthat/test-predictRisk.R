@@ -364,6 +364,36 @@ test_that("event-type probabilities stay finite for an extreme linear predictor"
   expect_equal(p[[1]] + p[[2]], matrix(1, 3, 2))
 })
 
+test_that("a factor event type works, and new patients need no event-type column", {
+  first <- pbc3[!duplicated(pbc3$id), ]
+  numeric_cr <- survivalSub(first, Surv(years, status3) ~ age + sex, status4 ~ years + age + sex)
+  first$cause <- factor(first$status4)
+  factor_cr <- survivalSub(first, Surv(years, status3) ~ age + sex, cause ~ years + age + sex)
+  d <- pbc3[pbc3$id %in% c(2, 4) & pbc3$year <= 3, ]
+  fit <- pbc3_long_fit()
+  ref <- predictRisk(d, fit, numeric_cr, 3, 3, "year", list(), list(), 10, 20)
+  # the event type of the patients predicted is never read: no column needed
+  # (previously "undefined columns selected"), and no factor-level warnings
+  expect_false("cause" %in% names(d))
+  expect_no_warning(out <- predictRisk(d, fit, factor_cr, 3, 3, "year", list(), list(), 10, 20))
+  expect_equal(out$risk_prob_1, ref$risk_prob_1)
+  expect_equal(out$risk_prob_2, ref$risk_prob_2)
+})
+
+test_that("auto bandcounts warn once about a patient that cannot be predicted", {
+  skip_on_cran()
+  surv <- survivalSub(pbc3[!duplicated(pbc3$id), ], Surv(years, status3) ~ age + sex, NULL)
+  d <- pbc3[pbc3$id %in% c(2, 6) & pbc3$year <= 3, ]
+  d$albumin[d$id == 6] <- NA
+  n <- 0
+  withCallingHandlers(predictRisk(d, pbc3_long_fit(), surv, 3, 3, "year", list(), list()),
+                      warning = function(w) {
+                        if (grepl("no non-missing measurement", conditionMessage(w))) n <<- n + 1
+                        invokeRestart("muffleWarning")
+                      })
+  expect_equal(n, 1)
+})
+
 test_that("predictions do not depend on the biomarkers' units (no underflow/overflow)", {
   skip_on_cran()
   # The conditional densities scale with det(2 * pi * Sigma), which grows with
