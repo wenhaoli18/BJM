@@ -314,7 +314,7 @@ fit without `form_conditional_cr`.)
 
 `predictLongitudinal()` answers a different question: not *whether* an
 event happens, but what a specific biomarker's value is likely to be at
-`prediction_time + horizon`, conditional on survival. `bio_i` selects the
+`prediction_time + horizon`, conditional on survival to that time. `bio_i` selects the
 biomarker(s) by position in `long_fit_all` (`1` = `serBilir` here); naming
 exactly one biomarker returns a single result, while naming more than one
 (or leaving `bio_i = NULL` for every biomarker) returns a named list of

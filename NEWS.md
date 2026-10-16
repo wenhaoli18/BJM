@@ -281,6 +281,20 @@
 
 ## Bug fixes
 
+* `predictLongitudinal()` now predicts the biomarker at `prediction_time +
+  horizon` conditional on survival through that time, as documented ("a
+  future biomarker value conditional on survival"). The event time was
+  integrated from `prediction_time` on, so the prediction also averaged
+  over event times before the biomarker's own measurement time; it is now
+  integrated from `prediction_time + horizon` on, in the numerator and the
+  normalizing denominator alike. Predicted values change accordingly (for
+  pbc3 patient 2 at `prediction_time = 5`, `horizon = 1`, the serBilir mode
+  moves from 1.206 to 1.193); `predictRisk()` is unchanged. For an
+  interval-censored fit the probability of an undetected event before
+  `prediction_time` no longer enters, since survival past `prediction_time
+  + horizon` rules it out. `predictPlot()`'s predicted biomarker curve uses
+  the same computation.
+
 * `longitudinalSub()` now rejects a transformed response such as
   `log(y) ~ ...` with a clear error. Such a model used to fit, and then fail
   in `predictRisk()` and the other prediction functions with "undefined

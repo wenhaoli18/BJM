@@ -124,7 +124,7 @@ dynamicPredictionBioAll <- function(bio_i = NULL, data_predict_all, long_fit_all
   }
 
   shared <- compute_bio_shared_step(data_predict_all, long_fit_all, survival_fit_all,
-                                     prediction_time, time_variable, survival_variable_all,
+                                     prediction_time, horizon, time_variable, survival_variable_all,
                                      survival_trans_function, resolved_bandcount2)
 
   results <- list()

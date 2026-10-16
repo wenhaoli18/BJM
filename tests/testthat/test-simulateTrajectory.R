@@ -51,8 +51,10 @@ test_that("untruncated simulated biomarkers agree with predictLongitudinal()", {
   w <- pl$Y_density[, 1] / sum(pl$Y_density[, 1])
   m <- sum(w * pl$Y_all)
   s <- sqrt(sum(w * (pl$Y_all - m)^2))
-  expect_equal(mean(sims$serBilir), m, tolerance = 0.05 / abs(m))
-  expect_equal(sd(sims$serBilir), s, tolerance = 0.1)
+  # predictLongitudinal() conditions on survival through year 7
+  alive <- sims$event_time > 7
+  expect_equal(mean(sims$serBilir[alive]), m, tolerance = 0.05 / abs(m))
+  expect_equal(sd(sims$serBilir[alive]), s, tolerance = 0.1)
 })
 
 test_that("a patient with no biomarker history is simulated from the prior", {
@@ -173,10 +175,12 @@ test_that("an ordinal biomarker is simulated as an ordered factor matching predi
                             prediction_time = 3, horizon = 3, time_variable = "year",
                             survival_variable_all = list(), survival_trans_function = list(),
                             bandcount2 = 40, bandcount3 = 200)
+  # predictLongitudinal() conditions on survival through year 6
+  alive <- sims$event_time > 6
   probs <- pl[[2]]$Y_density[, 1] / sum(pl[[2]]$Y_density[, 1])
-  expect_equal(as.numeric(prop.table(table(sims$albumin_cat))), probs, tolerance = 0.03)
+  expect_equal(as.numeric(prop.table(table(sims$albumin_cat[alive]))), probs, tolerance = 0.03)
   w <- pl[[1]]$Y_density[, 1] / sum(pl[[1]]$Y_density[, 1])
-  expect_equal(mean(sims$serBilir), sum(w * pl[[1]]$Y_all), tolerance = 0.05)
+  expect_equal(mean(sims$serBilir[alive]), sum(w * pl[[1]]$Y_all), tolerance = 0.05)
 })
 
 test_that("with an ordinal history, simulated event times agree with predictRisk()", {
