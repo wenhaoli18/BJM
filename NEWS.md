@@ -39,33 +39,24 @@
   keeps labs drawn during the stay (or before the index discharge) as
   negative `time_in_episode`. Unlike the single-event and competing-risks
   cases (Shen and Li, 2021; Li et al., 2026), this gap-time extension is
-  unpublished. `validation/` has simulation checks, not part of the
-  installed package: `discharge-firstevent-calibration.R` (one index
-  discharge per patient, readmission vs death within 30 days; ordinary
-  BJM, no recurrent machinery) finds BJM calibrated (slope ~1.0 for
-  readmission, ~0.9 for death, over 10 seeds) and more discriminating
-  than a last-value logistic regression, under a correctly specified model;
-  `recurrent-discharge-calibration.R` (several hospitalizations per patient,
-  every discharge a landmark, episodes started at discharge via
-  `restart_variable`/`lookback`; 10 seeds) finds the same: calibration slope
-  ~0.97 (readmission) / ~0.95 (death) and AUC 0.81 / 0.79 vs 0.77 / 0.77 for
-  a last-value logistic regression. With a subject-level frailty that BJM's
-  survival sub-model does not have (a misspecified case), calibration slopes
-  fall to ~0.76 / ~0.90 and the AUC advantage over the baseline shrinks
-  (readmission 0.72 vs 0.68, death 0.75 vs 0.74). The same script also
-  scores frailtypack's joint frailty model (event history only, no
-  biomarker; gap-time scale, fixed spline smoothing, one comparator among
-  several, not a like-for-like rival -- the like-for-like one,
-  `trivPenal()`, was too slow and does not fit episode-wise labs): AUC
-  0.55-0.61, and it failed to fit in 5 of the 10 seeds of the no-frailty
-  process;
-  `recurrent-event-calibration.R` checks mid-episode landmarks and has a
-  known test-design flaw (it scores only episodes that eventually
-  resolved, which inflates the observed event rate), so its numbers should
-  not be read as a bias estimate. Both only check that the code
-  implements the intended Bayes combination under a correctly specified
-  model, not robustness to misspecification. It predicts only the *next*
-  event, not the total number of future recurrences; see
+  unpublished, and has so far been checked only in simulation studies, which
+  are kept outside the package. With one discharge per patient (ordinary BJM,
+  readmission vs death within 30 days), BJM was calibrated (slope about 1.0
+  for readmission and 0.9 for death, over 10 seeds) and discriminated better
+  than a logistic regression on the last lab value. With several
+  hospitalizations per patient and every discharge a landmark, the same held
+  (calibration slope about 0.97 / 0.95; AUC 0.81 / 0.79 against 0.77 / 0.77).
+  A subject-level frailty that BJM's survival sub-model does not have (a
+  misspecified case) lowered the slopes to about 0.76 / 0.90 and shrank the
+  AUC advantage (readmission 0.72 vs 0.68, death 0.75 vs 0.74). A joint
+  frailty model from `frailtypack`, which uses event history but no
+  biomarker, discriminated much worse (AUC 0.55-0.61) and failed to fit in
+  5 of the 10 seeds of the no-frailty process; its biomarker version,
+  `trivPenal()`, was too slow to compare and does not fit labs measured
+  afresh at each discharge. These checks show that the code implements the
+  intended Bayes combination in the cases simulated; there is no check on
+  real data. With `buildRecurrentEpisodes()`, `predictRisk()` gives the next
+  event and `predictRecurrentCount()` (below) the number of recurrences; see
   `?buildRecurrentEpisodes`.
 
 * Interval-censored event times -- **experimental**. `survivalSub()` now
@@ -178,7 +169,7 @@
   model's prior given their covariates and an advanced episode counter, with
   stay lengths resampled from data you supply. Only the first step uses the
   biomarkers, so a patient-level tendency to recur that is not in the
-  covariates is not carried forward. `validation/recurrent-count-calibration.R`
+  covariates is not carried forward. A simulation study kept outside the package
   (6 seeds, plain and frailty processes, 6-month window) finds expected counts
   within about 5% of the truth (plain 1.17 vs 1.23; frailty 1.31 vs 1.29), the
   probability of two or more recurrences within 0.02 of the observed rate, and

@@ -334,8 +334,7 @@ ggplot(dist, aes(n, p)) +
   recur that is not in the covariates (a frailty) is not carried forward.
 * The stay length is resampled from the data, independently of everything
   else.
-* Checks so far are simulations (`validation/` in the source, not part of the
-  installed package): ordinary BJM with one discharge per patient; several
+* Checks so far are simulations (kept outside the package): ordinary BJM with one discharge per patient; several
   hospitalizations per patient, with and without a patient-level frailty; and
   the count prediction. In them, the predicted probabilities of the next event
   and the expected counts were close to the truth, and ranked patients better
