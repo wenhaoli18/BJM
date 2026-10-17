@@ -84,8 +84,9 @@ imputation); \code{long_fit_all} (the imputations combined, see
 Description, for use with \code{predictRisk()} and friends);
 \code{pooled} (\code{\link{poolLongitudinalSub}} of the fits, when
 \code{n_imputations > 1}); \code{imputed_T} (a subjects x imputations
-matrix); and \code{trace} (each iteration's fixed effects, to check
-the chain has settled).
+matrix); \code{trace} (each iteration's fixed effects, to check
+the chain has settled); and \code{settings} (the iteration settings).
+\code{print()} shows a short summary.
 }
 \description{
 \strong{Experimental.} With interval censoring nobody's

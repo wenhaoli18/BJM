@@ -44,8 +44,12 @@
 #' \code{prediction_time}, \code{>= 0}.
 #' @param time_variable The name of time variable in linear mixed model.
 #' @param survival_variable_all The name of the transformed time-to-event outcomes variable.
-#' @param survival_trans_function The transformation function used for time-to-event outcomes, 
-#' in the order of \code{survival_variable_all}.
+#' The longitudinal sub-model must use the event time, directly or through one
+#' of these transformations.
+#' @param survival_trans_function The transformation function used for time-to-event outcomes,
+#' in the order of \code{survival_variable_all}. They are checked against the
+#' columns the longitudinal sub-model was fit on, and a mismatch (e.g. two
+#' functions in the wrong order) is an error.
 #' @param bandcount1 The number of grid points spanning the prediction window,
 #' from \code{prediction_time} to \code{prediction_time + horizon} (the
 #' numerator of the risk probability). Larger values give a more accurate but
@@ -247,6 +251,8 @@ predictRisk = function(data_predict_all, long_fit_all, survival_fit_all,
   assert_bandcount(bandcount1, "bandcount1")
   assert_bandcount(bandcount2, "bandcount2")
   assert_survival_trans(survival_variable_all, survival_trans_function, probe_value = prediction_time)
+  check_survival_trans_training(long_fit_all, survival_fit_all, survival_variable_all,
+                                survival_trans_function)
   data_predict_all <- drop_after_prediction_time(data_predict_all, time_variable, prediction_time)
   data_predict_all <- align_ordinal_levels(data_predict_all, long_fit_all)
   data_predict_all <- drop_missing_longitudinal(data_predict_all, long_fit_all,

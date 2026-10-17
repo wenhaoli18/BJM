@@ -113,6 +113,10 @@ which biomarker's observed trajectory is overlaid on the plot for visual
 reference -- it does not affect the risk computation itself (unlike
 \code{\link{predictPlot}}'s \code{bio_pred}, which drives a biomarker
 density prediction).
+
+When the data give the subject's survival time and status, a vertical
+line marks the end of follow-up: solid for an observed event (coloured by
+event type with competing risks), dashed grey for a censoring.
 }
 \examples{
 \donttest{

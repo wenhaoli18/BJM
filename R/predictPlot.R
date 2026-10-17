@@ -63,7 +63,9 @@
 #'
 #' @param bio_his Which biomarker history will be plotted
 #' @param bio_pred Indicator, predict future biomarker or not, if NULL do not predict
-#' @param density Indicator, plot future biomarker density or not, if NULL do not plot
+#' @param density Indicator, plot future biomarker density or not, if NULL do not plot.
+#' For an ordinal biomarker the prediction is instead drawn as each category's
+#' predicted probability (points sized by it), with the axis labelled by category.
 #' @param n_cores Number of CPU cores to use for computing the prediction at
 #' each point in \code{horizon}. Each point is computed independently, so
 #' this loop can be dispatched across cores. Defaults to \code{1} (serial
@@ -181,6 +183,11 @@ predictPlot = function(data_predict_all_one, long_fit_all, survival_fit_all,
     DP_data_bio$longitudinal <- if (is.null(training_levels)) as.integer(DP_data_bio$longitudinal) else
       match(as.character(DP_data_bio$longitudinal), training_levels)
   }
+  ### an ordinal biomarker: its axis is labelled with the categories, and its
+  ### prediction drawn as each category's probability (quantile bands of a
+  ### handful of categories came out as overlapping blocks)
+  is_ordinal_bio <- !is.null(long_fit_all$biomarker_type) && long_fit_all$biomarker_type[bio_his] == "ordinal"
+  category_labels <- if (is_ordinal_bio) long_fit_all$lfit[[bio_his]]$y.levels
 
   ### data before the prediction time -- this does not depend on
   ### prediction.horizon, so it is built once here rather than inside the
@@ -256,6 +263,7 @@ predictPlot = function(data_predict_all_one, long_fit_all, survival_fit_all,
       }
       out$Y_predict_mode <- Y_predict_all$Y_predict
       out$quantiles <- quantiles
+      if (is_ordinal_bio) out$category_probs <- my_vector / sum(my_vector)
     }
 
     out
@@ -306,6 +314,15 @@ predictPlot = function(data_predict_all_one, long_fit_all, survival_fit_all,
     Y_predict_quantile_9_10 = Q[, 9]
   }
 
+  category_probs <- NULL
+  if (!is.null(bio_pred) && is_ordinal_bio) {
+    category_probs <- data.frame(
+      time = rep(prediction_time + horizon, each = length(category_labels)),
+      category = rep(seq_along(category_labels), times = length(horizon)),
+      prob = unlist(lapply(results_per_horizon, function(r) r$category_probs)))
+    density <- NULL   # the probabilities take the place of the density bands
+  }
+
   ### plot figure
   ### risks are drawn on the biomarker's axis, scaled by scale_prob; it has
   ### to be positive, which 2 * max(biomarker) was not when every value was
@@ -333,7 +350,7 @@ predictPlot = function(data_predict_all_one, long_fit_all, survival_fit_all,
                            values = c("Longitudinal" = "green",  
                                       "Event type1" = "black", "Event type2" = "red"),
                            guide = guide_legend(title = "Linetype"))  + 
-        scale_y_continuous(sec.axis = sec_axis(~./scale_prob, name="Risk Probabilities")) + 
+        risk_axis_scale(scale_prob, category_labels) + 
         ylab("Longitudinal biomarker") + xlab("Follow-up time") +   
         scale_x_continuous(breaks = seq(0, 15, 1))  +
         geom_vline(xintercept = prediction_time, linetype = "solid", color = "brown", linewidth = 1) + 
@@ -404,7 +421,7 @@ predictPlot = function(data_predict_all_one, long_fit_all, survival_fit_all,
                            values = c("Longitudinal" = "green",  
                                       "Event type1" = "black", "Event type2" = "red"),
                            guide = guide_legend(title = "Linetype"))  + 
-        scale_y_continuous(sec.axis = sec_axis(~./scale_prob, name="Risk Probabilities")) + 
+        risk_axis_scale(scale_prob, category_labels) + 
         ylab("Longitudinal biomarker") + xlab("Follow-up time") +  
         scale_x_continuous(breaks = seq(0, 15, 1))  +
         geom_vline(xintercept = prediction_time, linetype = "solid", color = "brown", linewidth = 1) + 
@@ -452,7 +469,7 @@ predictPlot = function(data_predict_all_one, long_fit_all, survival_fit_all,
                            values = c("Longitudinal" = "green",  
                                       "Event type1" = "black", "Event type2" = "red"),
                            guide = guide_legend(title = "Linetype"))  + 
-        scale_y_continuous(sec.axis = sec_axis(~./scale_prob, name="Risk Probabilities")) + 
+        risk_axis_scale(scale_prob, category_labels) + 
         ylab("Longitudinal biomarker") + xlab("Follow-up time") +   
         scale_x_continuous(breaks = seq(0, 15, 1))  +
         geom_vline(xintercept = prediction_time, linetype = "solid", color = "brown", linewidth = 1) + 
@@ -483,7 +500,7 @@ predictPlot = function(data_predict_all_one, long_fit_all, survival_fit_all,
                            values = c("Longitudinal" = "green",  
                                       "Risk probability" = "black"),
                            guide = guide_legend(title = "Linetype"))  + 
-        scale_y_continuous(sec.axis = sec_axis(~./scale_prob, name="Risk Probabilities")) + 
+        risk_axis_scale(scale_prob, category_labels) + 
         ylab("Longitudinal biomarker") + xlab("Follow-up time") +   
         scale_x_continuous(breaks = seq(0, 15, 1))  +
         geom_vline(xintercept = prediction_time, linetype = "solid", color = "brown", linewidth = 1) + 
@@ -549,7 +566,7 @@ predictPlot = function(data_predict_all_one, long_fit_all, survival_fit_all,
                            values = c("Longitudinal" = "green",  
                                       "Risk probability" = "black"),
                            guide = guide_legend(title = "Linetype"))  + 
-        scale_y_continuous(sec.axis = sec_axis(~./scale_prob, name="Risk Probabilities")) + 
+        risk_axis_scale(scale_prob, category_labels) + 
         ylab("Longitudinal biomarker") + xlab("Follow-up time") +   
         scale_x_continuous(breaks = seq(0, 15, 1))  +
         geom_vline(xintercept = prediction_time, linetype = "solid", color = "brown", linewidth = 1) + 
@@ -595,7 +612,7 @@ predictPlot = function(data_predict_all_one, long_fit_all, survival_fit_all,
                            values = c("Longitudinal" = "green",  
                                       "Risk probability" = "black"),
                            guide = guide_legend(title = "Linetype"))  + 
-        scale_y_continuous(sec.axis = sec_axis(~./scale_prob, name="Risk Probabilities")) + 
+        risk_axis_scale(scale_prob, category_labels) + 
         ylab("Longitudinal biomarker") + xlab("Follow-up time") +   
         scale_x_continuous(breaks = seq(0, 15, 1))  +
         geom_vline(xintercept = prediction_time, linetype = "solid", color = "brown", linewidth = 1) + 
@@ -610,6 +627,13 @@ predictPlot = function(data_predict_all_one, long_fit_all, survival_fit_all,
       
       
     }
-    
+
+  if (!is.null(category_probs)) {
+    dp_plot <- dp_plot +
+      geom_point(data = category_probs, aes(x = time, y = category, size = prob),
+                 color = "green4", alpha = 0.5) +
+      ggplot2::scale_size_area(name = "Predicted\nprobability", max_size = 10)
+  }
+
   return(dp_plot)
 }

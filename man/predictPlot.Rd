@@ -87,7 +87,9 @@ further guidance on choosing \code{bandcount1}/\code{bandcount2}/
 
 \item{bio_pred}{Indicator, predict future biomarker or not, if NULL do not predict}
 
-\item{density}{Indicator, plot future biomarker density or not, if NULL do not plot}
+\item{density}{Indicator, plot future biomarker density or not, if NULL do not plot.
+For an ordinal biomarker the prediction is instead drawn as each category's
+predicted probability (points sized by it), with the axis labelled by category.}
 
 \item{n_cores}{Number of CPU cores to use for computing the prediction at
 each point in \code{horizon}. Each point is computed independently, so
