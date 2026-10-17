@@ -152,6 +152,6 @@ test_that("full pipeline output matches pre-refactor baseline", {
                 event_type_variable = NULL, event_type = NULL,
                 bio_variable = "serBilir", time_variable = "year",
                 survival_variable = "years",
-                interval_time = 1/12)
+                interval_time = 1/12, status_variable = "status3")
   expect_equal(sapply(cp$layers, function(l) class(l$geom)[1]), baseline$cmtPlot_layer_classes)
 })

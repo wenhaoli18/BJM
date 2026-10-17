@@ -151,6 +151,12 @@ test_that("fitIntervalBJM imputes event times inside each interval and fits f(Y 
                         n_burnin = 2, n_imputations = 2, n_thin = 1, n_grid = 15, seed = 1))
 
   expect_s3_class(fit, "fitIntervalBJM")
+  # print() is a short summary (it used to dump every component, ~340 lines)
+  printed <- capture.output(print(fit))
+  expect_lt(length(printed), 40)
+  expect_true(any(grepl("2 imputation\\(s\\) after 2 burn-in iterations, keeping every iteration", printed)))
+  expect_true(any(grepl("pooled over the imputations", printed)))
+  expect_equal(fit$settings$n_thin, 1)
   observed <- surv[!is.na(surv$R), ]
   expect_equal(rownames(fit$imputed_T), as.character(observed$id))
   inside <- fit$imputed_T > observed$L & fit$imputed_T <= observed$R
@@ -523,4 +529,11 @@ test_that("fitIntervalBJM leaves out measurements at and after the detecting vis
   expect_message(with_detection <- fit_ic(long), "Left out \\d+ longitudinal row")
   only_before <- fit_ic(pre)
   expect_equal(nlme::fixef(with_detection$long_fit_all$lfit[[1]]), nlme::fixef(only_before$long_fit_all$lfit[[1]]))
+})
+
+test_that("the baseline plot of an interval-censored fit names the event time", {
+  d <- simulate_interval_data(200, seed = 4)
+  fit <- survivalSub(d, Surv(L, R, type = "interval2") ~ x1 + x2, NULL, event_time = "Tev")
+  # it showed "L", the lower end of the interval
+  expect_equal(plot(fit, which = "basehaz")$labels$x, "Tev")
 })

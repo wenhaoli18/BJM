@@ -215,6 +215,8 @@ simulateTrajectory <- function(data_predict_all, long_fit_all, survival_fit_all,
     stop("`truncate` must be TRUE or FALSE.", call. = FALSE)
   }
   assert_survival_trans(survival_variable_all, survival_trans_function, probe_value = prediction_time)
+  check_survival_trans_training(long_fit_all, survival_fit_all, survival_variable_all,
+                                survival_trans_function)
   if (!is.null(seed)) local_r_seed(seed)
 
   data_predict_all <- drop_after_prediction_time(data_predict_all, time_variable, prediction_time)

@@ -13,21 +13,24 @@ cmtPlot(
   time_variable,
   survival_variable,
   interval_time = 1/12,
-  id_variable = "id"
+  id_variable = "id",
+  status_variable = NULL,
+  event_window = 1
 )
 }
 \arguments{
 \item{data_plot_all}{A \code{data.frame} that includes the biomarker used for plotting.
 It is utilized to plot conditional mean trajectories (CMT).}
 
-\item{condi_time2event}{Conditional event time, indicating that all patients should
-have events at this time in the plot. If \code{NULL}, it defaults to the midpoint
-of the observed range of \code{time_variable} in \code{data_plot_all}.}
+\item{condi_time2event}{Event time the patients are selected around. If
+\code{NULL}, it defaults to the midpoint of the observed range of
+\code{time_variable} in \code{data_plot_all}.}
 
 \item{event_type_variable}{Competing risks variable indicator name. Set to NULL if
 there are no competing risks.}
 
-\item{event_type}{A vector containing the names of all event types.}
+\item{event_type}{A vector containing the values of \code{event_type_variable}
+for the event types to plot (at least two).}
 
 \item{bio_variable}{Name of the biomarker variable used for plotting.}
 
@@ -35,21 +38,44 @@ there are no competing risks.}
 
 \item{survival_variable}{Name of the time-to-event outcomes variable.}
 
-\item{interval_time}{The time interval between two time points. Time points are
-plotted within the baseline to event time.}
+\item{interval_time}{Length of the intervals the follow-up is cut into, in the
+units of \code{time_variable}.}
 
 \item{id_variable}{Name of the patient ID column in \code{data_plot_all}. Default is \code{"id"}.}
+
+\item{status_variable}{Without competing risks, the name of the event
+indicator (0 = censored), so that only patients with an event are used.
+Ignored with competing risks.}
+
+\item{event_window}{Width of the window of event times before
+\code{condi_time2event} that a patient's event must fall in, in the units of
+\code{survival_variable}. Default 1 (one year for data in years; use e.g. 12
+for months or 365 for days).}
 }
 \value{
 Conditional mean trajectories plot.
 }
 \description{
-This function generates the Conditional Mean Trajectories (CMT) plot.
-All patients in this plot experience events at the same time point,
-specified by \code{condi_time2event}. Several evenly spaced time points between
-the baseline and \code{condi_time2event} are selected for plotting. Each point is
-calculated using the mean value of all patients' biomarker values at that time point.
-The interval between two time points is defined by \code{interval_time}
+This function generates the Conditional Mean Trajectories (CMT)
+plot: the mean biomarker trajectory of the patients whose event happened in
+the window \code{(condi_time2event - event_window, condi_time2event]}. The
+time from the first measurement up to \code{condi_time2event} is cut into
+consecutive intervals of length \code{interval_time}; each point is the mean
+of those patients' biomarker values measured within one interval, plotted at
+the interval's end, and a straight line is fitted through the points. With
+competing risks there is one trajectory per event type.
+
+All times -- \code{time_variable}, \code{survival_variable},
+\code{condi_time2event}, \code{event_window} and \code{interval_time} -- are
+in the units of the data (years, months, days, ...), and the time axis shows
+\code{time_variable} on that scale, labelled with its name.
+
+Only patients with an observed event enter: with competing risks, those
+whose \code{event_type_variable} equals one of \code{event_type}; without,
+those whose \code{status_variable} is not 0. Without competing risks and
+with \code{status_variable = NULL}, patients are selected by their survival
+time alone, so censored ones are included too, with a warning. An interval
+without any measurement is left out rather than filled in.
 }
 \examples{
 
@@ -57,11 +83,11 @@ The interval between two time points is defined by \code{interval_time}
 
 data(pbc3)
 
-pbc.cmt <- cmtPlot(data_plot_all = pbc3, condi_time2event = 5, 
+pbc.cmt <- cmtPlot(data_plot_all = pbc3, condi_time2event = 5,
    event_type_variable = NULL, event_type = NULL,
-   bio_variable = "serBilir", time_variable = "year", 
-   survival_variable = "years", 
-   interval_time = 1/12
+   bio_variable = "serBilir", time_variable = "year",
+   survival_variable = "years",
+   interval_time = 1/12, status_variable = "status3"
 )
 
 pbc.cmt
@@ -71,12 +97,10 @@ pbc.cmt
 
 data(pbc3)
 
-data_plot_all = pbc3[!is.na(pbc3$status4),]
-
-pbc.cmt.cr <- cmtPlot(data_plot_all, condi_time2event = 5, 
+pbc.cmt.cr <- cmtPlot(pbc3, condi_time2event = 5,
    event_type_variable = 'status4', event_type = c("0", "1"),
-   bio_variable = "albumin", time_variable = "year", 
-   survival_variable = "years", 
+   bio_variable = "albumin", time_variable = "year",
+   survival_variable = "years",
    interval_time = 1/4
 )
 

@@ -115,8 +115,8 @@ conditionalYT = function(data_predict_all, long_fit_all, l_i, survival_variable,
 
         target_covariate = survival_variable 
         ### if fuyrs exists or not
-        if(target_covariate %in% all_variables != TRUE)
-          stop(sprintf("The longitudinal sub-model for biomarker %d does not include the survival-time variable `%s`; the backward joint model needs it as a covariate in every long_sub_fixed formula.", i, survival_variable), call. = FALSE)
+        if(!any(c(target_covariate, unlist(survival_variable_all)) %in% all_variables))
+          stop(sprintf("The longitudinal sub-model for biomarker %d uses neither the survival-time variable `%s` nor any of its transformations (survival_variable_all); the backward joint model needs the event time as a covariate, directly or transformed, in every long_sub_fixed formula.", i, survival_variable), call. = FALSE)
         else
           
           ### NA in nlme outcome (longitudinal biomarkers), replace with 999
