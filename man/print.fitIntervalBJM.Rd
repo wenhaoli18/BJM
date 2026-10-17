@@ -23,3 +23,4 @@ longitudinal sub-model's fixed effects (pooled over the imputations, with
 the fraction of missing information). The components themselves are in
 the returned list (e.g. \code{x$pooled}, \code{x$trace}).
 }
+\keyword{internal}
