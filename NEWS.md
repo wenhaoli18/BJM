@@ -52,7 +52,13 @@
   a last-value logistic regression. With a subject-level frailty that BJM's
   survival sub-model does not have (a misspecified case), calibration slopes
   fall to ~0.76 / ~0.90 and the AUC advantage over the baseline shrinks
-  (readmission 0.72 vs 0.68, death 0.75 vs 0.74);
+  (readmission 0.72 vs 0.68, death 0.75 vs 0.74). The same script also
+  scores frailtypack's joint frailty model (event history only, no
+  biomarker; gap-time scale, fixed spline smoothing, one comparator among
+  several, not a like-for-like rival -- the like-for-like one,
+  `trivPenal()`, was too slow and does not fit episode-wise labs): AUC
+  0.55-0.61, and it failed to fit in 5 of the 10 seeds of the no-frailty
+  process;
   `recurrent-event-calibration.R` checks mid-episode landmarks and has a
   known test-design flaw (it scores only episodes that eventually
   resolved, which inflates the observed event rate), so its numbers should

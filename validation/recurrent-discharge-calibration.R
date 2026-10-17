@@ -25,9 +25,20 @@
 ##             model class frailtypack is built for)
 ## Baselines: LR-last = logistic on age, sex, #prior hospitalizations, and the
 ## lab value at discharge; LR-cov = same without the lab.
+## FP-JFM = frailtypack's joint frailty model (recurrent readmissions + death,
+## gamma frailty, gap-time scale, spline hazards with fixed smoothing), predicted
+## with frailtypack::prediction() at t = 0 (the discharge) given the patient's
+## number of previous readmissions. It does NOT use the biomarker, so it answers
+## "what does a frailty model on the event history alone achieve". Note its two
+## outputs are not defined exactly like BJM's: its recurrent-event probability is
+## P(a readmission in the window | alive), not "the next event is a readmission"
+## (death is not treated as competing inside the window), and its death
+## probability is P(death in the window | alive, history).
 ## Run from the package root:  Rscript validation/recurrent-discharge-calibration.R
 
 suppressMessages(devtools::load_all(".", quiet = TRUE))
+have_fp <- requireNamespace("frailtypack", quietly = TRUE)
+if (have_fp) suppressMessages(library(frailtypack))
 
 seeds     <- 1:10
 n_train   <- 1000        # patients
@@ -115,6 +126,7 @@ one_run <- function(job) {
                               bio ~ time_in_episode + age + sex + gap + gap:time_in_episode,
                               ~ time_in_episode | id)
 
+  ed0 <- b$episode_data
   ## baselines: training episodes whose outcome within the horizon is known
   ed <- b$episode_data
   at0 <- b$long_data[b$long_data$time_in_episode == 0, ]
@@ -167,12 +179,42 @@ one_run <- function(job) {
                      episode = key$k,
                      last = at0t$bio[match(ids, as.character(at0t$id))])
   fit_lr <- function(y, f) predict(glm(f, data = cbind(ed, y = ed[[y]]), family = binomial), te_d, type = "response")
+  fp_pred <- NULL
+  if (have_fp) fp_pred <- tryCatch({
+    d <- data.frame(id = ed0$id, time = ed0$gap,
+                    event = as.integer(ed0$event_any == 1 & !is.na(ed0$event_type) & ed0$event_type == 0),
+                    death = as.integer(!is.na(ed0$event_type) & ed0$event_type == 1),
+                    age_c = (ed0$age - 70) / 10, sex = ed0$sex)
+    sink("/dev/null")
+    fp <- try(suppressWarnings(frailtyPenal(
+      Surv(time, event) ~ cluster(id) + age_c + sex + terminal(death),
+      formula.terminalEvent = ~ age_c + sex, data = d, hazard = "Splines", n.knots = 6,
+      kappa = c(10, 10), recurrentAG = FALSE)), silent = TRUE)
+    sink()
+    if (inherits(fp, "try-error")) stop("frailtypack fit failed")
+    # history at each landmark: its previous readmissions' gaps (event = 1), or
+    # a single event = 0 row for a patient with none
+    ebt <- bt$episode_data
+    prev <- ebt[ebt$episode < ave(ebt$episode, ebt$id, FUN = max), ]
+    lm_age <- ebt$age[match(key$id, ebt$id)]; lm_sex <- ebt$sex[match(key$id, ebt$id)]
+    hist_rows <- data.frame(time = prev$gap, event = 1L, id = prev$id,
+                            age_c = (prev$age - 70) / 10, sex = prev$sex)
+    none <- setdiff(key$id, prev$id)
+    none_rows <- data.frame(time = rep(0.01, length(none)), event = 0L, id = none,
+                            age_c = (lm_age[match(none, key$id)] - 70) / 10, sex = lm_sex[match(none, key$id)])
+    dp <- rbind(hist_rows, none_rows)
+    pr <- suppressWarnings(prediction(fp, dp, t = 0, window = horizon, event = "Both"))
+    ord <- match(key$id, as.integer(as.character(pr$group)))
+    list(readm = pr$pred1_rec[ord, 1], death = pr$pred1[ord, 1])
+  }, error = function(e) { try(sink(), silent = TRUE); message("frailtypack failed: ", conditionMessage(e)); NULL })
+
   pred <- list(
     BJM       = list(readm = unname(risk$risk_prob_1), death = unname(risk$risk_prob_2)),
     `LR-cov`  = list(readm = fit_lr("y_readm", y ~ age + sex + episode),
                      death = fit_lr("y_death", y ~ age + sex + episode)),
     `LR-last` = list(readm = fit_lr("y_readm", y ~ age + sex + episode + last),
                      death = fit_lr("y_death", y ~ age + sex + episode + last)))
+  if (!is.null(fp_pred)) pred[["FP-JFM"]] <- fp_pred
 
   subsets <- list(all = rep(TRUE, nrow(key)), `1st discharge` = key$k == 1, `2nd+ discharge` = key$k >= 2)
   rows <- list()
