@@ -99,13 +99,14 @@ when"; this answers "how many recurrences".</p>
 <dd><p>The rows of the patients' <em>open</em> episode, as
 <code><a href="predictRisk.html">predictRisk()</a></code> takes them (for example the <code>long_data</code>
 rows of <code><a href="buildRecurrentEpisodes.html">buildRecurrentEpisodes()</a></code> for each patient's last
-episode, whose <code>gap</code> is <code>NA</code>): one <code>data.frame</code> (it is
-used for every biomarker, as <code><a href="predictRisk.html">predictRisk()</a></code> allows), one patient
+episode, whose <code>gap</code> is <code>NA</code>): one <code>data.frame</code> used
+for every biomarker, or a list of data frames, one per biomarker, as
+<code><a href="buildRecurrentEpisodes.html">buildRecurrentEpisodes()</a></code> returns for a list <code>data_long</code>; one patient
 per <code>id</code>: more than one episode for the same patient is an error.
 A patient whose <code>gap</code> is not <code>NA</code> and lies below
 <code>prediction_time</code> counts as no longer at risk, and is an error too
-rather than a silent zero. The patient's last row supplies the covariates of later
-episodes.</p></dd>
+rather than a silent zero. The patient's last row (in the first data
+frame that has the patient) supplies the covariates of later episodes.</p></dd>
 
 
 <dt id="arg-long-fit-all-survival-fit-all">long_fit_all, survival_fit_all<a class="anchor" aria-label="anchor" href="#arg-long-fit-all-survival-fit-all"></a></dt>
@@ -200,8 +201,13 @@ recurrence counts.</p></dd>
 
 <dt>capped</dt>
 <dd><p><code>TRUE</code> if some path was still running when
-<code>max_stages</code> stopped it (a warning is also given): its later
-recurrences are not counted, so the counts are slightly low.</p></dd>
+<code>max_stages</code> stopped it (a warning, giving their share, is also
+given): its later recurrences are not counted, so the counts are
+slightly low.</p></dd>
+
+<dt>capped_fraction</dt>
+<dd><p>The share of all simulated paths stopped by
+<code>max_stages</code> (<code>0</code> if none).</p></dd>
 
 
 </dl></div>

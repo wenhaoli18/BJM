@@ -97,9 +97,9 @@ buildRecurrentEpisodes(
 
   Column names to create in the output (defaults `"episode"`, `"gap"`,
   `"time_in_episode"`, `"event_any"`, `"event_type"`, `"episode_id"`).
-  `episode_id` is `"<id>:<episode>"`, one value per episode: the
-  grouping variable to use for the biomarker model's random effects (see
-  Details). Change these if they collide with an existing column of
+  `episode_id` is `"<id>:<episode>"` (a factor), one value per episode:
+  the grouping variable to use for the biomarker model's random effects
+  (see Details). Change these if they collide with an existing column of
   `data_events`/`data_long` – collisions are an error, not a silent
   overwrite.
 
@@ -110,8 +110,9 @@ buildRecurrentEpisodes(
   (for hospitalizations, the discharge ending that stay; must not be
   earlier than the row's `time_variable`). The next episode starts there
   instead of at the event time. `NULL` (default) restarts at the event
-  time itself. Ignored on rows that end the process. Not carried into
-  `episode_data`.
+  time itself. A missing value on a recurrence row that starts another
+  episode is taken as no stay, with a warning. Ignored on rows that end
+  the process. Not carried into `episode_data`.
 
 - lookback:
 
@@ -172,7 +173,12 @@ and `event_type ~ gap + covariates` in place of `form_conditional_cr`
 respectively). Administratively-censored episodes get `event_any = 0`
 and `event_type = NA`, exactly like `status3 = 0`/`status4 = NA` for a
 censored subject in
-[`pbc3`](https://wenhaoli18.github.io/BJM/reference/pbc3.md).
+[`pbc3`](https://wenhaoli18.github.io/BJM/reference/pbc3.md). The
+episodes of one subject are then treated as independent: the
+coefficients are still consistent for the gap-time model, but the
+standard errors that [`summary()`](https://rdrr.io/r/base/summary.html)
+reports ignore the correlation between a subject's episodes and are too
+small.
 
 **Feeding the result into
 [`longitudinalSub()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md)/[`predictRisk()`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md).**
@@ -253,13 +259,13 @@ and
 
 ``` r
 ## A minimal example: reshaping alone (no model fitting).
+## Subject 1: two recurrences, then a terminal event; subject 2: censored.
 data_events <- data.frame(
-  id     = c(1, 1, 1, 2, 2),
-  time   = c(1.2, 2.5, 4.0, 3.1, 3.1 + 1e-9), # subject 2's 2nd row just illustrates ordering
-  status = c(1,   1,   2,   0,   0),
-  age    = c(58,  58,  58,  61,  61)
+  id     = c(1, 1, 1, 2),
+  time   = c(1.2, 2.5, 4.0, 3.1),
+  status = c(1,   1,   2,   0),
+  age    = c(58,  58,  58,  61)
 )
-data_events <- data_events[-5, ] # keep one row per subject/episode boundary above
 episodes <- buildRecurrentEpisodes(data_events)
 episodes$episode_data
 #>   id episode episode_id gap event_any event_type age

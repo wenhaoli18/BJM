@@ -43,13 +43,15 @@ predictRecurrentCount(
   takes them (for example the `long_data` rows of
   [`buildRecurrentEpisodes()`](https://wenhaoli18.github.io/BJM/reference/buildRecurrentEpisodes.md)
   for each patient's last episode, whose `gap` is `NA`): one
-  `data.frame` (it is used for every biomarker, as
-  [`predictRisk()`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md)
-  allows), one patient per `id`: more than one episode for the same
-  patient is an error. A patient whose `gap` is not `NA` and lies below
-  `prediction_time` counts as no longer at risk, and is an error too
-  rather than a silent zero. The patient's last row supplies the
-  covariates of later episodes.
+  `data.frame` used for every biomarker, or a list of data frames, one
+  per biomarker, as
+  [`buildRecurrentEpisodes()`](https://wenhaoli18.github.io/BJM/reference/buildRecurrentEpisodes.md)
+  returns for a list `data_long`; one patient per `id`: more than one
+  episode for the same patient is an error. A patient whose `gap` is not
+  `NA` and lies below `prediction_time` counts as no longer at risk, and
+  is an error too rather than a silent zero. The patient's last row (in
+  the first data frame that has the patient) supplies the covariates of
+  later episodes.
 
 - long_fit_all, survival_fit_all:
 
@@ -151,8 +153,13 @@ An object of class `"predictRecurrentCount.BJM"`, a list with
 - capped:
 
   `TRUE` if some path was still running when `max_stages` stopped it (a
-  warning is also given): its later recurrences are not counted, so the
-  counts are slightly low.
+  warning, giving their share, is also given): its later recurrences are
+  not counted, so the counts are slightly low.
+
+- capped_fraction:
+
+  The share of all simulated paths stopped by `max_stages` (`0` if
+  none).
 
 ## Details
 

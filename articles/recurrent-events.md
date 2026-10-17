@@ -1,10 +1,5 @@
 # Recurrent events: the next event and the number of recurrences
 
-**Experimental.** Everything on this page is new and unpublished, unlike
-the single-event and competing-risks methods the rest of BJM rests on.
-It has been checked only on simulated data (see the end), and none of
-the existing functions were changed to support it.
-
 The backward joint model assumes each patient has *one* terminal event.
 Many clinical processes do not: a heart-failure patient is discharged,
 readmitted, discharged again, and so on, until death or the end of
@@ -351,6 +346,10 @@ the whole distribution for each patient.
   carried forward.
 - The stay length is resampled from the data, independently of
   everything else.
+- The survival sub-model treats a patient’s episodes as independent. Its
+  coefficients are still estimates of the gap-time model, but the
+  standard errors in `summary(surv_fit)` ignore the correlation between
+  a patient’s episodes and are too small.
 - Checks so far are simulations (kept outside the package): ordinary BJM
   with one discharge per patient; several hospitalizations per patient,
   with and without a patient-level frailty; and the count prediction. In

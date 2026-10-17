@@ -70,13 +70,6 @@
 
     
     
-<div class="alert alert-warning">
-<p><strong>Experimental.</strong> Everything on this page is new and
-unpublished, unlike the single-event and competing-risks methods the
-rest of BJM rests on. It has been checked only on simulated data (see
-the end), and none of the existing functions were changed to support
-it.</p>
-</div>
 <p>The backward joint model assumes each patient has <em>one</em>
 terminal event. Many clinical processes do not: a heart-failure patient
 is discharged, readmitted, discharged again, and so on, until death or
@@ -428,6 +421,10 @@ a patient-level tendency to recur that is not in the covariates (a
 frailty) is not carried forward.</li>
 <li>The stay length is resampled from the data, independently of
 everything else.</li>
+<li>The survival sub-model treats a patient’s episodes as independent.
+Its coefficients are still estimates of the gap-time model, but the
+standard errors in <code>summary(surv_fit)</code> ignore the correlation
+between a patient’s episodes and are too small.</li>
 <li>Checks so far are simulations (kept outside the package): ordinary
 BJM with one discharge per patient; several hospitalizations per
 patient, with and without a patient-level frailty; and the count

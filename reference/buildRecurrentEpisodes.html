@@ -169,7 +169,7 @@ as in <code>data_events</code>) when <code>NULL</code>.</p></dd>
 <dd><p>Column names to create in the output (defaults <code>"episode"</code>,
 <code>"gap"</code>, <code>"time_in_episode"</code>, <code>"event_any"</code>,
 <code>"event_type"</code>, <code>"episode_id"</code>). <code>episode_id</code> is
-<code>"&lt;id&gt;:&lt;episode&gt;"</code>, one value per episode: the grouping variable
+<code>"&lt;id&gt;:&lt;episode&gt;"</code> (a factor), one value per episode: the grouping variable
 to use for the biomarker model's random effects (see Details). Change these if they collide with an existing
 column of <code>data_events</code>/<code>data_long</code> – collisions are an
 error, not a silent overwrite.</p></dd>
@@ -181,8 +181,10 @@ error, not a silent overwrite.</p></dd>
 the process restarts after it (for hospitalizations, the discharge ending
 that stay; must not be earlier than the row's <code>time_variable</code>). The
 next episode starts there instead of at the event time. <code>NULL</code>
-(default) restarts at the event time itself. Ignored on rows that end the
-process. Not carried into <code>episode_data</code>.</p></dd>
+(default) restarts at the event time itself. A missing value on a
+recurrence row that starts another episode is taken as no stay, with a
+warning. Ignored on rows that end the process. Not carried into
+<code>episode_data</code>.</p></dd>
 
 
 <dt id="arg-lookback">lookback<a class="anchor" aria-label="anchor" href="#arg-lookback"></a></dt>
@@ -241,7 +243,10 @@ recurrence, <code>1</code> for a terminal event – so <code><a href="predictRis
 risk respectively). Administratively-censored episodes get
 <code>event_any = 0</code> and <code>event_type = NA</code>, exactly like
 <code>status3 = 0</code>/<code>status4 = NA</code> for a censored subject in
-<code><a href="pbc3.html">pbc3</a></code>.</p>
+<code><a href="pbc3.html">pbc3</a></code>. The episodes of one subject are then treated as
+independent: the coefficients are still consistent for the gap-time
+model, but the standard errors that <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code> reports ignore the
+correlation between a subject's episodes and are too small.</p>
 <p><strong>Feeding the result into <code><a href="longitudinalSub.html">longitudinalSub()</a></code>/<code><a href="predictRisk.html">predictRisk()</a></code>.</strong>
 <code>gap</code> plays the same dual role <code>years</code> plays for <a href="pbc3.html">pbc3</a>: it
 is both the <code><a href="https://rdrr.io/pkg/survival/man/Surv.html" class="external-link">Surv()</a></code> time in <code>episode_data</code> and the backward
@@ -306,13 +311,13 @@ the whole stay (and, for the first episode, everything before time
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co">## A minimal example: reshaping alone (no model fitting).</span></span></span>
+<span class="r-in"><span><span class="co">## Subject 1: two recurrences, then a terminal event; subject 2: censored.</span></span></span>
 <span class="r-in"><span><span class="va">data_events</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span></span>
-<span class="r-in"><span>  id     <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">1</span>, <span class="fl">1</span>, <span class="fl">2</span>, <span class="fl">2</span><span class="op">)</span>,</span></span>
-<span class="r-in"><span>  time   <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1.2</span>, <span class="fl">2.5</span>, <span class="fl">4.0</span>, <span class="fl">3.1</span>, <span class="fl">3.1</span> <span class="op">+</span> <span class="fl">1e-9</span><span class="op">)</span>, <span class="co"># subject 2's 2nd row just illustrates ordering</span></span></span>
-<span class="r-in"><span>  status <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>,   <span class="fl">1</span>,   <span class="fl">2</span>,   <span class="fl">0</span>,   <span class="fl">0</span><span class="op">)</span>,</span></span>
-<span class="r-in"><span>  age    <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">58</span>,  <span class="fl">58</span>,  <span class="fl">58</span>,  <span class="fl">61</span>,  <span class="fl">61</span><span class="op">)</span></span></span>
+<span class="r-in"><span>  id     <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">1</span>, <span class="fl">1</span>, <span class="fl">2</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>  time   <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1.2</span>, <span class="fl">2.5</span>, <span class="fl">4.0</span>, <span class="fl">3.1</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>  status <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>,   <span class="fl">1</span>,   <span class="fl">2</span>,   <span class="fl">0</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>  age    <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">58</span>,  <span class="fl">58</span>,  <span class="fl">58</span>,  <span class="fl">61</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="va">data_events</span> <span class="op">&lt;-</span> <span class="va">data_events</span><span class="op">[</span><span class="op">-</span><span class="fl">5</span>, <span class="op">]</span> <span class="co"># keep one row per subject/episode boundary above</span></span></span>
 <span class="r-in"><span><span class="va">episodes</span> <span class="op">&lt;-</span> <span class="fu">buildRecurrentEpisodes</span><span class="op">(</span><span class="va">data_events</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">episodes</span><span class="op">$</span><span class="va">episode_data</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   id episode episode_id gap event_any event_type age</span>
