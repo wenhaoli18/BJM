@@ -122,6 +122,16 @@ The prediction is conditional on the longitudinal history observed up to
 \code{prediction_time}: rows of \code{data_predict_all} whose
 \code{time_variable} is later than \code{prediction_time} are dropped,
 with a warning, before predicting.
+
+A patient with no biomarker measurement up to \code{prediction_time}
+(rows whose biomarker values are all \code{NA}, or only rows after
+\code{prediction_time}, e.g. a \code{prediction_time} before the first
+visit) has no history to condition on. The longitudinal factor
+\eqn{f(Y \mid T)} of the model is then 1, and the patient's risk is that
+of the survival sub-model alone, given the covariates in their earliest
+row; a warning names these patients. The other patients' predictions do
+not change. A patient with measurements of some biomarkers but none of
+another is still not predicted (\code{NA}, with a warning).
 }
 \details{
 There is no universal correct value for \code{bandcount1}/\code{bandcount2}:

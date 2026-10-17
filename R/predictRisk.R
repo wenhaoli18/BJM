@@ -21,6 +21,16 @@
 #' \code{time_variable} is later than \code{prediction_time} are dropped,
 #' with a warning, before predicting.
 #'
+#' A patient with no biomarker measurement up to \code{prediction_time}
+#' (rows whose biomarker values are all \code{NA}, or only rows after
+#' \code{prediction_time}, e.g. a \code{prediction_time} before the first
+#' visit) has no history to condition on. The longitudinal factor
+#' \eqn{f(Y \mid T)} of the model is then 1, and the patient's risk is that
+#' of the survival sub-model alone, given the covariates in their earliest
+#' row; a warning names these patients. The other patients' predictions do
+#' not change. A patient with measurements of some biomarkers but none of
+#' another is still not predicted (\code{NA}, with a warning).
+#'
 #' @param data_predict_all This involves a collection of \code{data.frame} objects for 
 #' dynamic prediction, each corresponding to a distinct longitudinal outcome. 
 #' These data frames should contain the variables specified in \code{long_sub_fixed} 
@@ -253,11 +263,11 @@ predictRisk = function(data_predict_all, long_fit_all, survival_fit_all,
   assert_survival_trans(survival_variable_all, survival_trans_function, probe_value = prediction_time)
   check_survival_trans_training(long_fit_all, survival_fit_all, survival_variable_all,
                                 survival_trans_function)
-  data_predict_all <- drop_after_prediction_time(data_predict_all, time_variable, prediction_time)
-  data_predict_all <- align_ordinal_levels(data_predict_all, long_fit_all)
-  data_predict_all <- drop_missing_longitudinal(data_predict_all, long_fit_all,
-                                               outcome_variables(survival_fit_all),
-                                               survival_variable_all)
+  # also keeps one row per patient without any measurement up to
+  # prediction_time, who is predicted from the survival sub-model alone (see
+  # prepare_risk_data())
+  data_predict_all <- prepare_risk_data(data_predict_all, long_fit_all, survival_fit_all,
+                                        prediction_time, time_variable, survival_variable_all)
 
   # bandcount1/bandcount2 = "auto" (the default): resolve them by doubling
   # from their built-in starting values until the returned risk
@@ -282,9 +292,27 @@ predictRisk = function(data_predict_all, long_fit_all, survival_fit_all,
                          sprintf("data_predict_all[[%d]]", i))
   }
 
+  ### patients without any measurement up to prediction_time: f(Y | T) = 1,
+  ### so the code below, run on them with conditionalYT_none()/
+  ### conditionalYDT_none(), gives the survival sub-model's risk. They are
+  ### predicted separately, so the other patients' integration grids, and
+  ### hence their predictions, are exactly as without them.
+  id <- as.character(nlme::splitFormula(long_fit_all$long_sub_random[[1]], "|")[[2]])[2]
+  patient_order <- unique(unlist(lapply(data_predict_all, function(d) as.character(d[[id]]))))
+  parts <- split_no_measurement(data_predict_all, long_fit_all, outcome_variables(survival_fit_all),
+                                survival_variable_all)
+  data_predict_all <- parts$measured
+  data_no_measurement <- parts$no_measurement
+
   ## at risk sample
-  data_predict_all = subset_at_risk(data_predict_all, survival_variable, prediction_time)
+  data_predict_all = subset_at_risk(data_predict_all, survival_variable, prediction_time,
+                                    allow_empty = !is.null(data_no_measurement))
   patient_ids <- prediction_patient_ids(data_predict_all, long_fit_all)
+  if (!is.null(data_no_measurement)) {
+    data_no_measurement = subset_at_risk(data_no_measurement, survival_variable, prediction_time,
+                                         allow_empty = length(patient_ids) > 0)
+    if (nrow(data_no_measurement[[1]]) == 0) data_no_measurement <- NULL
+  }
   has_cr <- length(survival_fit_all$form_conditional_cr) != 0
 
   #### handle horizon = 0 edge case: probability of event in zero-length window is 0
@@ -292,42 +320,13 @@ predictRisk = function(data_predict_all, long_fit_all, survival_fit_all,
   #### returns prob_undetected_*, the mass before prediction_time; the window
   #### itself then has zero width, so the risk is still 0)
   if(horizon == 0 && !is_interval_censored(survival_fit_all)){
-    zeros <- stats::setNames(rep(0, length(patient_ids)), patient_ids)
+    all_ids <- c(patient_ids, prediction_patient_ids(data_no_measurement, long_fit_all))
+    if (!is.null(data_no_measurement)) all_ids <- intersect(patient_order, all_ids)
+    zeros <- stats::setNames(rep(0, length(all_ids)), all_ids)
     out <- list(risk_prob_1 = zeros, risk_prob_2 = if (has_cr) zeros else NULL)
     class(out) <- "predictRisk.BJM"
     return(out)
   }
-
-  ### the denominator is the window (prediction_time, prediction_time +
-  ### horizon] -- the numerator itself -- plus the tail beyond it, so the tail
-  ### grid starts at the end of the window. The denominator used to be one
-  ### integral over (prediction_time, upper_bound] on its own grid, which
-  ### discretized the window differently from the numerator: near a large
-  ### jump of the step-function baseline hazard (e.g. a late event with few
-  ### subjects at risk) the two disagreed by several percent, and the risk
-  ### came out above 1 and was cut to exactly 1.
-  upper_bound = integration_upper_bound(data_predict_all, long_fit_all, survival_fit_all,
-                                        prediction_time + horizon)
-
-  #### time frame used to do the integral
-  ### bandcount1 intervals tiling exactly (prediction_time, prediction_time +
-  ### horizon], each evaluated at its midpoint. The previous grid's edges ran
-  ### from half an interval before prediction_time to half an interval after
-  ### the horizon, so the window it integrated over was horizon + 1 interval
-  ### long, inflating the risk by roughly 1 / bandcount1 (about 10% at
-  ### bandcount1 = 10) -- the main reason "auto" bandcount tuning kept
-  ### reporting non-convergence.
-  predict.time.horizon.1 = seq(prediction_time, prediction_time + horizon, length.out = bandcount1 + 1)
-  predict.time.horizon = (predict.time.horizon.1[-1] + predict.time.horizon.1[-(bandcount1 + 1)]) / 2
-
-  infinity_grid <- prepare_infinity_grid(data_predict_all, long_fit_all, survival_fit_all,
-                                          prediction_time + horizon, upper_bound, bandcount2)
-  predict.time.infinity = infinity_grid$predict.time.infinity
-  S_T_all_infinity = infinity_grid$S_T_all_infinity
-
-  risk.prob.0 = risk.prob.1 = NULL
-  ### marginal probability T
-  S_T_all_predict = marginalT(data_predict_all, long_fit_all, survival_fit_all, l_i = predict.time.horizon.1)
 
   ### Mixed continuous/ordinal (Gaussian-copula) fits -- see
   ### longitudinalSubCopula() -- need conditionalYTCopula()/
@@ -341,115 +340,163 @@ predictRisk = function(data_predict_all, long_fit_all, survival_fit_all,
   conditionalYT_fun <- if (use_copula) conditionalYTCopula else conditionalYT
   conditionalYDT_fun <- if (use_copula) conditionalYDTCopula else conditionalYDT
 
-  #conditional probability D|T, survival_fit_all$form_conditional_cr == form_conditional_cr
-  #with competing risk
-  if(length(survival_fit_all$form_conditional_cr) != 0){
-    #conditional probability D|T
-    D_T_all_predict = conditionalDT(data_predict_all, long_fit_all, survival_fit_all,
-                                    l_i = predict.time.horizon)
-    D_T_all_infinity = conditionalDT(data_predict_all, long_fit_all, survival_fit_all,
-                                     l_i = predict.time.infinity)
-    #conditional probability Y|D,T
-    f_y_D_all_predict = conditionalYDT_fun(data_predict_all, long_fit_all, survival_fit_all,
-                                       l_i = predict.time.horizon, survival_variable,
-                                       time_variable, survival_variable_all,
-                                       survival_trans_function)
-    f_y_D_all_infinity = conditionalYDT_fun(data_predict_all, long_fit_all, survival_fit_all,
-                                        l_i = predict.time.infinity, survival_variable,
-                                        time_variable, survival_variable_all,
-                                        survival_trans_function)
-    ### the conditional densities are log densities: shift each patient's
-    ### by that patient's largest value before exponentiating, so they
-    ### neither underflow to 0 nor overflow (the shift cancels in the ratio)
-    ### interval-censored fits: also (last visit, prediction_time], per event
-    ### type (see the no-competing-risk branch below; NULL for right-censored)
-    gap = interval_gap_grid(data_predict_all, long_fit_all, survival_fit_all,
-                            prediction_time, time_variable, bandcount1)
-    if (is.null(gap)) {
-      shift = patient_log_shift(f_y_D_all_predict[[1]], f_y_D_all_predict[[2]],
-                                f_y_D_all_infinity[[1]], f_y_D_all_infinity[[2]])
-      T.surv.predict.0 = t(exp_shifted(f_y_D_all_predict[[1]], shift) * D_T_all_predict[[1]] * S_T_all_predict)
-      T.surv.infinity.0 = t(exp_shifted(f_y_D_all_infinity[[1]], shift) * D_T_all_infinity[[1]] * S_T_all_infinity)
-      T.surv.predict.1 = t(exp_shifted(f_y_D_all_predict[[2]], shift) * D_T_all_predict[[2]] * S_T_all_predict)
-      T.surv.infinity.1 = t(exp_shifted(f_y_D_all_infinity[[2]], shift) * D_T_all_infinity[[2]] * S_T_all_infinity)
+  ### the risk of the patients in data_predict_all, using the given
+  ### longitudinal log densities
+  risk_for <- function(data_predict_all, conditionalYT_fun, conditionalYDT_fun) {
+    patient_ids <- prediction_patient_ids(data_predict_all, long_fit_all)
 
-      denominator = rowSums(T.surv.predict.0 + T.surv.predict.1) + rowSums(T.surv.infinity.0 + T.surv.infinity.1)
-      risk.prob.0 = clamp_risk_prob(rowSums(T.surv.predict.0), denominator)
-      risk.prob.1 = clamp_risk_prob(rowSums(T.surv.predict.1), denominator)
-      if (is_interval_censored(survival_fit_all)) {
-        prob.undetected.0 = prob.undetected.1 = rep(0, length(risk.prob.0))
+    ### the denominator is the window (prediction_time, prediction_time +
+    ### horizon] -- the numerator itself -- plus the tail beyond it, so the tail
+    ### grid starts at the end of the window. The denominator used to be one
+    ### integral over (prediction_time, upper_bound] on its own grid, which
+    ### discretized the window differently from the numerator: near a large
+    ### jump of the step-function baseline hazard (e.g. a late event with few
+    ### subjects at risk) the two disagreed by several percent, and the risk
+    ### came out above 1 and was cut to exactly 1.
+    upper_bound = integration_upper_bound(data_predict_all, long_fit_all, survival_fit_all,
+                                          prediction_time + horizon)
+
+    #### time frame used to do the integral
+    ### bandcount1 intervals tiling exactly (prediction_time, prediction_time +
+    ### horizon], each evaluated at its midpoint. The previous grid's edges ran
+    ### from half an interval before prediction_time to half an interval after
+    ### the horizon, so the window it integrated over was horizon + 1 interval
+    ### long, inflating the risk by roughly 1 / bandcount1 (about 10% at
+    ### bandcount1 = 10) -- the main reason "auto" bandcount tuning kept
+    ### reporting non-convergence.
+    predict.time.horizon.1 = seq(prediction_time, prediction_time + horizon, length.out = bandcount1 + 1)
+    predict.time.horizon = (predict.time.horizon.1[-1] + predict.time.horizon.1[-(bandcount1 + 1)]) / 2
+
+    infinity_grid <- prepare_infinity_grid(data_predict_all, long_fit_all, survival_fit_all,
+                                            prediction_time + horizon, upper_bound, bandcount2)
+    predict.time.infinity = infinity_grid$predict.time.infinity
+    S_T_all_infinity = infinity_grid$S_T_all_infinity
+
+    risk.prob.0 = risk.prob.1 = NULL
+    ### marginal probability T
+    S_T_all_predict = marginalT(data_predict_all, long_fit_all, survival_fit_all, l_i = predict.time.horizon.1)
+
+    #conditional probability D|T, survival_fit_all$form_conditional_cr == form_conditional_cr
+    #with competing risk
+    if(length(survival_fit_all$form_conditional_cr) != 0){
+      #conditional probability D|T
+      D_T_all_predict = conditionalDT(data_predict_all, long_fit_all, survival_fit_all,
+                                      l_i = predict.time.horizon)
+      D_T_all_infinity = conditionalDT(data_predict_all, long_fit_all, survival_fit_all,
+                                       l_i = predict.time.infinity)
+      #conditional probability Y|D,T
+      f_y_D_all_predict = conditionalYDT_fun(data_predict_all, long_fit_all, survival_fit_all,
+                                         l_i = predict.time.horizon, survival_variable,
+                                         time_variable, survival_variable_all,
+                                         survival_trans_function)
+      f_y_D_all_infinity = conditionalYDT_fun(data_predict_all, long_fit_all, survival_fit_all,
+                                          l_i = predict.time.infinity, survival_variable,
+                                          time_variable, survival_variable_all,
+                                          survival_trans_function)
+      ### the conditional densities are log densities: shift each patient's
+      ### by that patient's largest value before exponentiating, so they
+      ### neither underflow to 0 nor overflow (the shift cancels in the ratio)
+      ### interval-censored fits: also (last visit, prediction_time], per event
+      ### type (see the no-competing-risk branch below; NULL for right-censored)
+      gap = interval_gap_grid(data_predict_all, long_fit_all, survival_fit_all,
+                              prediction_time, time_variable, bandcount1)
+      if (is.null(gap)) {
+        shift = patient_log_shift(f_y_D_all_predict[[1]], f_y_D_all_predict[[2]],
+                                  f_y_D_all_infinity[[1]], f_y_D_all_infinity[[2]])
+        T.surv.predict.0 = t(exp_shifted(f_y_D_all_predict[[1]], shift) * D_T_all_predict[[1]] * S_T_all_predict)
+        T.surv.infinity.0 = t(exp_shifted(f_y_D_all_infinity[[1]], shift) * D_T_all_infinity[[1]] * S_T_all_infinity)
+        T.surv.predict.1 = t(exp_shifted(f_y_D_all_predict[[2]], shift) * D_T_all_predict[[2]] * S_T_all_predict)
+        T.surv.infinity.1 = t(exp_shifted(f_y_D_all_infinity[[2]], shift) * D_T_all_infinity[[2]] * S_T_all_infinity)
+
+        denominator = rowSums(T.surv.predict.0 + T.surv.predict.1) + rowSums(T.surv.infinity.0 + T.surv.infinity.1)
+        risk.prob.0 = clamp_risk_prob(rowSums(T.surv.predict.0), denominator)
+        risk.prob.1 = clamp_risk_prob(rowSums(T.surv.predict.1), denominator)
+        if (is_interval_censored(survival_fit_all)) {
+          prob.undetected.0 = prob.undetected.1 = rep(0, length(risk.prob.0))
+        }
+      } else {
+        D_T_gap = gap$eval(function(d, l) conditionalDT(d, long_fit_all, survival_fit_all, l_i = l), fill = 0)
+        f_y_gap = gap$eval(function(d, l) conditionalYDT_fun(d, long_fit_all, survival_fit_all, l_i = l,
+                                                             survival_variable, time_variable,
+                                                             survival_variable_all, survival_trans_function))
+        shift = patient_log_shift(f_y_D_all_predict[[1]], f_y_D_all_predict[[2]],
+                                  f_y_D_all_infinity[[1]], f_y_D_all_infinity[[2]], f_y_gap[[1]], f_y_gap[[2]])
+        T.surv.predict.0 = t(exp_shifted(f_y_D_all_predict[[1]], shift) * D_T_all_predict[[1]] * S_T_all_predict)
+        T.surv.infinity.0 = t(exp_shifted(f_y_D_all_infinity[[1]], shift) * D_T_all_infinity[[1]] * S_T_all_infinity)
+        T.surv.predict.1 = t(exp_shifted(f_y_D_all_predict[[2]], shift) * D_T_all_predict[[2]] * S_T_all_predict)
+        T.surv.infinity.1 = t(exp_shifted(f_y_D_all_infinity[[2]], shift) * D_T_all_infinity[[2]] * S_T_all_infinity)
+        T.surv.gap.0 = t(exp_shifted(f_y_gap[[1]], shift) * D_T_gap[[1]] * gap$S)
+        T.surv.gap.1 = t(exp_shifted(f_y_gap[[2]], shift) * D_T_gap[[2]] * gap$S)
+        denominator = rowSums(T.surv.predict.0 + T.surv.predict.1) + rowSums(T.surv.infinity.0 + T.surv.infinity.1) +
+          rowSums(T.surv.gap.0 + T.surv.gap.1)
+
+        risk.prob.0 = clamp_risk_prob(rowSums(T.surv.predict.0), denominator)
+        risk.prob.1 = clamp_risk_prob(rowSums(T.surv.predict.1), denominator)
+        prob.undetected.0 = clamp_risk_prob(rowSums(T.surv.gap.0), denominator)
+        prob.undetected.1 = clamp_risk_prob(rowSums(T.surv.gap.1), denominator)
       }
-    } else {
-      D_T_gap = gap$eval(function(d, l) conditionalDT(d, long_fit_all, survival_fit_all, l_i = l), fill = 0)
-      f_y_gap = gap$eval(function(d, l) conditionalYDT_fun(d, long_fit_all, survival_fit_all, l_i = l,
-                                                           survival_variable, time_variable,
-                                                           survival_variable_all, survival_trans_function))
-      shift = patient_log_shift(f_y_D_all_predict[[1]], f_y_D_all_predict[[2]],
-                                f_y_D_all_infinity[[1]], f_y_D_all_infinity[[2]], f_y_gap[[1]], f_y_gap[[2]])
-      T.surv.predict.0 = t(exp_shifted(f_y_D_all_predict[[1]], shift) * D_T_all_predict[[1]] * S_T_all_predict)
-      T.surv.infinity.0 = t(exp_shifted(f_y_D_all_infinity[[1]], shift) * D_T_all_infinity[[1]] * S_T_all_infinity)
-      T.surv.predict.1 = t(exp_shifted(f_y_D_all_predict[[2]], shift) * D_T_all_predict[[2]] * S_T_all_predict)
-      T.surv.infinity.1 = t(exp_shifted(f_y_D_all_infinity[[2]], shift) * D_T_all_infinity[[2]] * S_T_all_infinity)
-      T.surv.gap.0 = t(exp_shifted(f_y_gap[[1]], shift) * D_T_gap[[1]] * gap$S)
-      T.surv.gap.1 = t(exp_shifted(f_y_gap[[2]], shift) * D_T_gap[[2]] * gap$S)
-      denominator = rowSums(T.surv.predict.0 + T.surv.predict.1) + rowSums(T.surv.infinity.0 + T.surv.infinity.1) +
-        rowSums(T.surv.gap.0 + T.surv.gap.1)
 
-      risk.prob.0 = clamp_risk_prob(rowSums(T.surv.predict.0), denominator)
-      risk.prob.1 = clamp_risk_prob(rowSums(T.surv.predict.1), denominator)
-      prob.undetected.0 = clamp_risk_prob(rowSums(T.surv.gap.0), denominator)
-      prob.undetected.1 = clamp_risk_prob(rowSums(T.surv.gap.1), denominator)
+    }else{
+      #without competing risk
+      #conditional probability Y|T
+      f_y_D_all_predict = conditionalYT_fun(data_predict_all, long_fit_all, l_i = predict.time.horizon,
+                                        survival_variable, time_variable, survival_variable_all, survival_trans_function)
+      f_y_D_all_infinity = conditionalYT_fun(data_predict_all, long_fit_all, l_i = predict.time.infinity,
+                                         survival_variable, time_variable, survival_variable_all, survival_trans_function)
+
+      ### see the competing-risk branch: shifted log densities. This also
+      ### replaces a "+ 1e-20" added to the denominator to avoid dividing by
+      ### 0, which, being absolute, swamped the denominator whenever the
+      ### densities were small (biomarkers on a large scale or many
+      ### observations) and drove the risk towards 0.
+      ### interval-censored fits: the patient is only known to be event-free
+      ### up to their last visit V <= prediction_time, so the denominator also
+      ### covers (V, prediction_time], and the mass there is the probability
+      ### that the event has already happened undetected (see
+      ### interval_gap_grid(); NULL, leaving the code below as it was, for a
+      ### right-censored fit)
+      gap = interval_gap_grid(data_predict_all, long_fit_all, survival_fit_all,
+                              prediction_time, time_variable, bandcount1)
+      if (is.null(gap)) {
+        shift = patient_log_shift(f_y_D_all_predict[[1]], f_y_D_all_infinity[[1]])
+        T.surv.predict.0 = t(exp_shifted(f_y_D_all_predict[[1]], shift) * S_T_all_predict)
+        T.surv.infinity.0 = t(exp_shifted(f_y_D_all_infinity[[1]], shift) * S_T_all_infinity)
+
+        risk.prob.0 = clamp_risk_prob(rowSums(T.surv.predict.0), rowSums(T.surv.predict.0) + rowSums(T.surv.infinity.0))
+        if (is_interval_censored(survival_fit_all)) prob.undetected.0 = rep(0, length(risk.prob.0))
+      } else {
+        f_y_gap = gap$eval(function(d, l) conditionalYT_fun(d, long_fit_all, l_i = l, survival_variable,
+                                                            time_variable, survival_variable_all,
+                                                            survival_trans_function)[[1]])
+        shift = patient_log_shift(f_y_D_all_predict[[1]], f_y_D_all_infinity[[1]], f_y_gap)
+        T.surv.predict.0 = t(exp_shifted(f_y_D_all_predict[[1]], shift) * S_T_all_predict)
+        T.surv.infinity.0 = t(exp_shifted(f_y_D_all_infinity[[1]], shift) * S_T_all_infinity)
+        T.surv.gap = t(exp_shifted(f_y_gap, shift) * gap$S)
+        denominator = rowSums(T.surv.predict.0) + rowSums(T.surv.infinity.0) + rowSums(T.surv.gap)
+
+        risk.prob.0 = clamp_risk_prob(rowSums(T.surv.predict.0), denominator)
+        prob.undetected.0 = clamp_risk_prob(rowSums(T.surv.gap), denominator)
+      }
     }
 
-  }else{
-    #without competing risk
-    #conditional probability Y|T
-    f_y_D_all_predict = conditionalYT_fun(data_predict_all, long_fit_all, l_i = predict.time.horizon,
-                                      survival_variable, time_variable, survival_variable_all, survival_trans_function)
-    f_y_D_all_infinity = conditionalYT_fun(data_predict_all, long_fit_all, l_i = predict.time.infinity,
-                                       survival_variable, time_variable, survival_variable_all, survival_trans_function)
-
-    ### see the competing-risk branch: shifted log densities. This also
-    ### replaces a "+ 1e-20" added to the denominator to avoid dividing by
-    ### 0, which, being absolute, swamped the denominator whenever the
-    ### densities were small (biomarkers on a large scale or many
-    ### observations) and drove the risk towards 0.
-    ### interval-censored fits: the patient is only known to be event-free
-    ### up to their last visit V <= prediction_time, so the denominator also
-    ### covers (V, prediction_time], and the mass there is the probability
-    ### that the event has already happened undetected (see
-    ### interval_gap_grid(); NULL, leaving the code below as it was, for a
-    ### right-censored fit)
-    gap = interval_gap_grid(data_predict_all, long_fit_all, survival_fit_all,
-                            prediction_time, time_variable, bandcount1)
-    if (is.null(gap)) {
-      shift = patient_log_shift(f_y_D_all_predict[[1]], f_y_D_all_infinity[[1]])
-      T.surv.predict.0 = t(exp_shifted(f_y_D_all_predict[[1]], shift) * S_T_all_predict)
-      T.surv.infinity.0 = t(exp_shifted(f_y_D_all_infinity[[1]], shift) * S_T_all_infinity)
-
-      risk.prob.0 = clamp_risk_prob(rowSums(T.surv.predict.0), rowSums(T.surv.predict.0) + rowSums(T.surv.infinity.0))
-      if (is_interval_censored(survival_fit_all)) prob.undetected.0 = rep(0, length(risk.prob.0))
-    } else {
-      f_y_gap = gap$eval(function(d, l) conditionalYT_fun(d, long_fit_all, l_i = l, survival_variable,
-                                                          time_variable, survival_variable_all,
-                                                          survival_trans_function)[[1]])
-      shift = patient_log_shift(f_y_D_all_predict[[1]], f_y_D_all_infinity[[1]], f_y_gap)
-      T.surv.predict.0 = t(exp_shifted(f_y_D_all_predict[[1]], shift) * S_T_all_predict)
-      T.surv.infinity.0 = t(exp_shifted(f_y_D_all_infinity[[1]], shift) * S_T_all_infinity)
-      T.surv.gap = t(exp_shifted(f_y_gap, shift) * gap$S)
-      denominator = rowSums(T.surv.predict.0) + rowSums(T.surv.infinity.0) + rowSums(T.surv.gap)
-
-      risk.prob.0 = clamp_risk_prob(rowSums(T.surv.predict.0), denominator)
-      prob.undetected.0 = clamp_risk_prob(rowSums(T.surv.gap), denominator)
+    names(risk.prob.0) <- patient_ids
+    if (!is.null(risk.prob.1)) names(risk.prob.1) <- patient_ids
+    out <- list(risk_prob_1 = risk.prob.0, risk_prob_2 = risk.prob.1)
+    if (is_interval_censored(survival_fit_all)) {
+      out$prob_undetected_1 <- stats::setNames(prob.undetected.0, patient_ids)
+      out$prob_undetected_2 <- if (has_cr) stats::setNames(prob.undetected.1, patient_ids)
     }
+    out
   }
-  
-  names(risk.prob.0) <- patient_ids
-  if (!is.null(risk.prob.1)) names(risk.prob.1) <- patient_ids
-  out <- list(risk_prob_1 = risk.prob.0, risk_prob_2 = risk.prob.1)
-  if (is_interval_censored(survival_fit_all)) {
-    out$prob_undetected_1 <- stats::setNames(prob.undetected.0, patient_ids)
-    out$prob_undetected_2 <- if (has_cr) stats::setNames(prob.undetected.1, patient_ids)
+
+  out <- if (length(patient_ids) > 0 || is.null(data_no_measurement)) risk_for(data_predict_all, conditionalYT_fun, conditionalYDT_fun)
+  if (!is.null(data_no_measurement)) {
+    out_none <- risk_for(data_no_measurement, conditionalYT_none, conditionalYDT_none)
+    out <- if (is.null(out)) out_none else
+      Map(function(a, b) if (!is.null(a) || !is.null(b)) c(a, b), out, out_none)
+    out <- lapply(out, function(x) if (!is.null(x)) x[intersect(patient_order, names(x))])
+    out <- out[!vapply(out, is.null, logical(1))]
+    if (is.null(out$risk_prob_2)) out <- c(out[1], list(risk_prob_2 = NULL), out[-1])
   }
   class(out) <- "predictRisk.BJM"
   return(out)

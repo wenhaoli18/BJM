@@ -198,6 +198,72 @@ test_that("no patient at risk at prediction_time is an error", {
                "No patient in data_predict_all is at risk")
 })
 
+test_that("a patient without any measurement is predicted from the survival sub-model alone", {
+  f <- setup_dp_fixture()
+  s <- 5
+  h <- 2
+  # patient 7: visits up to s, but no biomarker value
+  none <- pbc3[pbc3$id == 7 & pbc3$year <= s, ]
+  none$serBilir <- NA
+  none$albumin <- NA
+  none$years <- NA
+  d <- lapply(f$data_predict_all, function(x) rbind(x, none))
+  expect_warning(out <- predict_fixture_risk(f, d, s), "Patient\\(s\\) 7 have no biomarker measurement")
+  expect_named(out$risk_prob_1, c("2", "7"))
+  # f(Y | T) = 1: the survival sub-model's own risk, computed directly
+  grid <- seq(s, s + h, length.out = 4001)
+  mid <- (grid[-1] + grid[-4001]) / 2
+  sv <- summary(survival::survfit(f$survival_fit_all$coxph_fit, newdata = none[1, ]),
+                times = c(s, grid), extend = TRUE)$surv
+  p2 <- stats::predict(f$survival_fit_all$glm_fit, type = "response",
+                       newdata = data.frame(age = none$age[1], sex = none$sex[1], years = mid))
+  ref_1 <- sum(-diff(sv[-1]) * (1 - p2)) / sv[1]
+  ref_2 <- sum(-diff(sv[-1]) * p2) / sv[1]
+  out_40 <- suppressWarnings(predictRisk(d, f$long_fit_all, f$survival_fit_all, s, h, "year",
+                                         f$survival_variable_all, f$survival_trans_function, 40, 40))
+  expect_equal(unname(out_40$risk_prob_1["7"]), ref_1, tolerance = 1e-3)
+  expect_equal(unname(out_40$risk_prob_2["7"]), ref_2, tolerance = 1e-3)
+  # the other patients' predictions are exactly as without patient 7
+  alone <- predict_fixture_risk(f, f$data_predict_all, s)
+  expect_identical(out$risk_prob_1["2"], alone$risk_prob_1)
+  expect_identical(out$risk_prob_2["2"], alone$risk_prob_2)
+  # alone, and with "auto" bandcounts: one warning
+  expect_warning(only <- predictRisk(none, f$long_fit_all, f$survival_fit_all, s, h, "year",
+                                     f$survival_variable_all, f$survival_trans_function),
+                 "no biomarker measurement")
+  expect_named(only$risk_prob_1, "7")
+  expect_equal(only$risk_prob_1, out_40$risk_prob_1["7"], tolerance = 1e-2)
+  # horizon = 0
+  zero <- suppressWarnings(predictRisk(d, f$long_fit_all, f$survival_fit_all, s, 0, "year",
+                                       f$survival_variable_all, f$survival_trans_function, 10, 20))
+  expect_equal(zero$risk_prob_1, c("2" = 0, "7" = 0))
+})
+
+test_that("a prediction_time before the first visit uses the covariates alone", {
+  f <- setup_dp_fixture()
+  # first visit after year 0.4, predicted at 0.25
+  d <- lapply(f$data_predict_all, function(x) { x$years <- NA; x[x$year > 0.4, ] })
+  warnings_seen <- character(0)
+  out <- withCallingHandlers(predict_fixture_risk(f, d, prediction_time = 0.25),
+    warning = function(w) {
+      warnings_seen <<- c(warnings_seen, conditionMessage(w))
+      invokeRestart("muffleWarning")
+    })
+  expect_true(any(grepl("after prediction_time", warnings_seen)))
+  expect_true(any(grepl("Patient\\(s\\) 2 have no biomarker measurement", warnings_seen)))
+  expect_named(out$risk_prob_1, "2")
+  expect_true(out$risk_prob_1 > 0 && out$risk_prob_1 < 1)
+  # without any row there are no covariates either: still an error
+  empty <- lapply(f$data_predict_all, function(x) x[0, ])
+  expect_error(predict_fixture_risk(f, empty), "no measurement at or before prediction_time")
+  # predictLongitudinal() needs a history
+  expect_error(suppressWarnings(
+    predictLongitudinal(1, d, f$long_fit_all, f$survival_fit_all, prediction_time = 0.25,
+                        horizon = 1, time_variable = "year", f$survival_variable_all,
+                        f$survival_trans_function, bandcount2 = 20, bandcount3 = 50)),
+    "no measurement at or before prediction_time = 0.25")
+})
+
 test_that("the event type may enter long_sub_fixed and is unknown for a new patient", {
   f <- setup_dp_fixture()
   long_fit_all <- longitudinalSub(

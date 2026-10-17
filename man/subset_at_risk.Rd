@@ -4,7 +4,12 @@
 \alias{subset_at_risk}
 \title{Restrict prediction data to patients still at risk}
 \usage{
-subset_at_risk(data_predict_all, survival_variable, prediction_time)
+subset_at_risk(
+  data_predict_all,
+  survival_variable,
+  prediction_time,
+  allow_empty = FALSE
+)
 }
 \value{
 \code{data_predict_all}, filtered in place per element.
@@ -18,5 +23,8 @@ not yet known) are kept: they are treated as at risk. It is an error if
 that leaves no patient (it used to return an empty result from
 \code{predictRisk()} without comment, and fail with an unrelated error in
 \code{predictLongitudinal()}).
+
+With \code{allow_empty = TRUE} an empty result is returned instead (the
+caller checks that some other patient is left).
 }
 \keyword{internal}
