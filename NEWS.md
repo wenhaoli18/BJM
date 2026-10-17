@@ -65,7 +65,9 @@
   `predictRisk()` integrates); later episodes are drawn from the model given
   the covariates and an advanced episode counter (not beyond the largest
   value in the data the survival sub-model was fit on), with stay lengths
-  resampled from data you supply. Only the first step uses the biomarkers, so
+  resampled from data you supply. Like `predictRisk()`, it takes one data
+  frame for all biomarkers or a list with one per biomarker. Only the first
+  step uses the biomarkers, so
   a patient-level tendency to recur that is not in the covariates is not
   carried forward. In simulation studies kept outside the package, expected
   counts were within about 5% of the truth when the data were built the BJM
@@ -346,6 +348,11 @@
   probabilities. The results are identical to before.
 
 ## Bug fixes
+
+* `simulateTrajectory()` works when `data_predict_all` is a list of data
+  frames with different columns (one per biomarker). It used to build every
+  biomarker's simulated rows from the first data frame, and failed when a
+  biomarker's response column was only in its own.
 
 * `predictRisk()` predicts a patient without any biomarker measurement up
   to `prediction_time` (biomarker values all `NA`, or a `prediction_time`

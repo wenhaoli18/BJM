@@ -294,11 +294,17 @@ simulateTrajectory <- function(data_predict_all, long_fit_all, survival_fit_all,
     rows_p <- lapply(data_predict_all, function(d) d[as.character(d[[id]]) == patient_ids[p], , drop = FALSE])
     history <- lapply(seq_len(M), function(i) complete_history_rows(rows_p[[i]], i, long_fit_all, survival_variable,
                                                                      c(event_type_variable, unlist(survival_variable_all))))
-    template <- rows_p[[1]][nrow(rows_p[[1]]), , drop = FALSE]
-    future_p <- template[rep(1, n_times), , drop = FALSE]
-    future_p[[time_variable]] <- times
-    future_p <- apply_future_covariates(future_p, future_covariates, time_variable, id, patient_ids[p])
-    future <- rep(list(future_p), M)
+    ### each biomarker's future rows copy the patient's last row in that
+    ### biomarker's own data (its columns can differ from the others'), or
+    ### the first data frame's when it has none for this patient
+    fallback <- which(vapply(rows_p, nrow, integer(1)) > 0)[1]
+    future <- lapply(seq_len(M), function(i) {
+      src <- if (nrow(rows_p[[i]]) > 0) rows_p[[i]] else rows_p[[fallback]]
+      future_i <- src[rep(nrow(src), n_times), , drop = FALSE]
+      if (!response_names[i] %in% names(future_i)) future_i[[response_names[i]]] <- NA_real_
+      future_i[[time_variable]] <- times
+      apply_future_covariates(future_i, future_covariates, time_variable, id, patient_ids[p])
+    })
 
     ### the history, stacked across biomarkers: a continuous value, or for an
     ### ordinal one the thresholds bracketing its latent score
