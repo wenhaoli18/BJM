@@ -106,10 +106,12 @@ test_that("a longer window gives more recurrences, and later episodes add to the
 
 test_that("max_stages stops runaway paths with a warning and flags the result", {
   expect_warning(res <- predict_counts(horizon = 6, n_sim = 100, stay_lengths = fx$stays, seed = 6,
-                                       max_stages = 2), "max_stages")
+                                       max_stages = 2), "simulated paths \\(.*%\\) were still running")
   expect_true(res$capped)
+  expect_true(res$capped_fraction > 0 && res$capped_fraction <= 1)
   ok <- predict_counts(horizon = 1, n_sim = 100, stay_lengths = fx$stays, seed = 6, max_stages = 40)
   expect_false(ok$capped)
+  expect_equal(ok$capped_fraction, 0)
 })
 
 test_that("seed makes draws reproducible and leaves the caller's random stream alone", {

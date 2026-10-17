@@ -40,7 +40,10 @@
 #' risk respectively). Administratively-censored episodes get
 #' \code{event_any = 0} and \code{event_type = NA}, exactly like
 #' \code{status3 = 0}/\code{status4 = NA} for a censored subject in
-#' \code{\link{pbc3}}.
+#' \code{\link{pbc3}}. The episodes of one subject are then treated as
+#' independent: the coefficients are still consistent for the gap-time
+#' model, but the standard errors that \code{summary()} reports ignore the
+#' correlation between a subject's episodes and are too small.
 #'
 #' \strong{Feeding the result into \code{longitudinalSub()}/\code{predictRisk()}.}
 #' \code{gap} plays the same dual role \code{years} plays for \link{pbc3}: it
@@ -148,7 +151,7 @@
 #'   Column names to create in the output (defaults \code{"episode"},
 #'   \code{"gap"}, \code{"time_in_episode"}, \code{"event_any"},
 #'   \code{"event_type"}, \code{"episode_id"}). \code{episode_id} is
-#'   \code{"<id>:<episode>"}, one value per episode: the grouping variable
+#'   \code{"<id>:<episode>"} (a factor), one value per episode: the grouping variable
 #'   to use for the biomarker model's random effects (see Details). Change these if they collide with an existing
 #'   column of \code{data_events}/\code{data_long} -- collisions are an
 #'   error, not a silent overwrite.
@@ -157,8 +160,10 @@
 #'   the process restarts after it (for hospitalizations, the discharge ending
 #'   that stay; must not be earlier than the row's \code{time_variable}). The
 #'   next episode starts there instead of at the event time. \code{NULL}
-#'   (default) restarts at the event time itself. Ignored on rows that end the
-#'   process. Not carried into \code{episode_data}.
+#'   (default) restarts at the event time itself. A missing value on a
+#'   recurrence row that starts another episode is taken as no stay, with a
+#'   warning. Ignored on rows that end the process. Not carried into
+#'   \code{episode_data}.
 #' @param lookback A single non-negative number (\code{Inf} allowed): how far
 #'   before an episode's start its measurements are still kept, as negative
 #'   \code{time_in_episode}, but never from before the previous event. Default
@@ -189,13 +194,13 @@
 #'
 #' @examples
 #' ## A minimal example: reshaping alone (no model fitting).
+#' ## Subject 1: two recurrences, then a terminal event; subject 2: censored.
 #' data_events <- data.frame(
-#'   id     = c(1, 1, 1, 2, 2),
-#'   time   = c(1.2, 2.5, 4.0, 3.1, 3.1 + 1e-9), # subject 2's 2nd row just illustrates ordering
-#'   status = c(1,   1,   2,   0,   0),
-#'   age    = c(58,  58,  58,  61,  61)
+#'   id     = c(1, 1, 1, 2),
+#'   time   = c(1.2, 2.5, 4.0, 3.1),
+#'   status = c(1,   1,   2,   0),
+#'   age    = c(58,  58,  58,  61)
 #' )
-#' data_events <- data_events[-5, ] # keep one row per subject/episode boundary above
 #' episodes <- buildRecurrentEpisodes(data_events)
 #' episodes$episode_data
 #'
@@ -359,6 +364,7 @@ buildRecurrentEpisodes <- function(data_events,
   # recurrence (censoring or a terminal event).
   pieces <- vector("list", length(rows_by_id))
   n_ignored <- 0L
+  missing_restart <- character(0)
   for (g in seq_along(rows_by_id)) {
     idx <- rows_by_id[[g]]
     st <- status_all[idx]; tt <- time_all[idx]; rs <- restart_all[idx]
@@ -373,6 +379,12 @@ buildRecurrentEpisodes <- function(data_events,
       stop(sprintf("`%s` (%s) is earlier than the event time it belongs to (%s) for id = %s, row %d.",
                    restart_variable, format(rs[r]), format(t_end[r]), id_key[idx[1]], r), call. = FALSE)
     }
+    ### a recurrence that starts another episode but has no restart time:
+    ### the stay is taken to be empty (reported below)
+    if (!is.null(restart_variable) && n_ep > 1) {
+      gaps <- which(is_rec[-n_ep] & is.na(rs[keep][-n_ep]))
+      missing_restart <- c(missing_restart, rep(id_key[idx[1]], length(gaps)))
+    }
     next_start <- ifelse(is.na(rs[keep]), t_end, rs[keep])
     t_start <- c(0, next_start[-n_ep])
     bad <- which(!is.finite(t_end) | t_end <= t_start)
@@ -384,6 +396,14 @@ buildRecurrentEpisodes <- function(data_events,
     }
     pieces[[g]] <- list(idx = idx[keep], ep = keep, t_start = t_start, t_end = t_end,
                         t_prev = c(-Inf, t_end[-n_ep]))
+  }
+  if (length(missing_restart) > 0) {
+    warning(sprintf(paste0(
+      "`%s` is missing on %d recurrence row(s) followed by another episode (id %s). The next episode ",
+      "then starts at the event time itself, so the time until the missing restart counts as time at ",
+      "risk. Fill it in, or set it to the event time for a recurrence without a stay."),
+      restart_variable, length(missing_restart),
+      paste(first_n(unique(missing_restart), 5), collapse = ", ")), call. = FALSE)
   }
   if (n_ignored > 0) {
     message(sprintf(
@@ -399,7 +419,7 @@ buildRecurrentEpisodes <- function(data_events,
   rownames(episode_data) <- NULL
   episode_data[[id_variable]] <- data_events[[id_variable]][use_idx]
   episode_data[[episode_variable]] <- ep_no
-  episode_data[[episode_id_variable]] <- paste(id_label(episode_data[[id_variable]]), ep_no, sep = ":")
+  episode_data[[episode_id_variable]] <- factor(paste(id_label(episode_data[[id_variable]]), ep_no, sep = ":"))
   episode_data[[gap_variable]] <- t_end - t_start
   episode_data[[event_any_variable]] <- as.integer(st_used != 0)
   episode_data[[event_type_variable]] <- ifelse(st_used == 1, 0L, ifelse(st_used == 2, 1L, NA_integer_))

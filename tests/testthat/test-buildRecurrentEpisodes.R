@@ -15,7 +15,7 @@ test_that("buildRecurrentEpisodes computes gap times and stops after censoring/t
     age    = c(58,  58,  58,  61,  70,  70,  70)
   )
 
-  out <- buildRecurrentEpisodes(data_events)
+  expect_message(out <- buildRecurrentEpisodes(data_events), "ignored 1 row")
   ed <- out$episode_data
 
   expect_null(out$long_data)
@@ -58,7 +58,7 @@ test_that("buildRecurrentEpisodes sorts unsorted data_events by id then time fir
     time   = c(3.0, 2.0, 1.0, 1.0),
     status = c(0,   0,   1,   0)
   )
-  out <- buildRecurrentEpisodes(data_events)
+  expect_message(out <- buildRecurrentEpisodes(data_events), "ignored 1 row")
   id1 <- out$episode_data[out$episode_data$id == 1, ]
   id1 <- id1[order(id1$episode), ]
   expect_equal(nrow(id1), 2)
@@ -110,7 +110,9 @@ test_that("buildRecurrentEpisodes re-clocks data_long onto per-episode gap time"
     id = 1, year = c(0, 0.5, 1.0, 1.5, 2.9, 3.0, 3.5)
   )
 
-  out <- buildRecurrentEpisodes(data_events, data_long, time_variable_long = "year")
+  msgs <- capture_messages(out <- buildRecurrentEpisodes(data_events, data_long, time_variable_long = "year"))
+  expect_match(msgs, "dropped 1 row", all = FALSE)
+  expect_match(msgs, "boundary between two episodes", all = FALSE)
   ld <- out$long_data
 
   # the final row (year = 3.5) is after the process ended (2 episodes only).
@@ -215,7 +217,8 @@ test_that("the gap-time episode_data/long_data plug directly into survivalSub()/
     data.frame(id = id, year = tt, biomarker = stats::rnorm(length(tt)))
   }))
 
-  built <- buildRecurrentEpisodes(data_events, data_long, time_variable_long = "year")
+  expect_message(built <- buildRecurrentEpisodes(data_events, data_long, time_variable_long = "year"),
+                 "dropped 38 row")
   built$long_data$id <- factor(built$long_data$id)
 
   survival_fit_recur <- survivalSub(
@@ -290,12 +293,22 @@ test_that("lookback = 0 (default) drops stay labs and restart_variable alone cha
   events <- data.frame(id = 1, time = c(20, 60), status = c(1, 0), discharge = c(26, NA))
   labs <- data.frame(id = 1, day = c(5, 21, 26, 40))
 
-  out <- buildRecurrentEpisodes(events, labs, time_variable_long = "day",
-                                restart_variable = "discharge")   # lookback = 0
+  expect_message(out <- buildRecurrentEpisodes(events, labs, time_variable_long = "day",
+                                               restart_variable = "discharge"),   # lookback = 0
+                 "dropped 1 row")
   expect_equal(out$episode_data$gap, c(20, 34))
   # day 21 is in the stay (20, 26): not kept without lookback; day 26 = start of episode 2
   expect_equal(sort(out$long_data$day), c(5, 26, 40))
   expect_equal(out$long_data$time_in_episode[out$long_data$day == 26], 0)
+})
+
+test_that("a missing restart time on a recurrence is reported and taken as no stay", {
+  events <- data.frame(id = 1, time = c(20, 60, 90), status = c(1, 1, 0), discharge = c(26, NA, NA))
+  expect_warning(out <- buildRecurrentEpisodes(events, restart_variable = "discharge"),
+                 "missing on 1 recurrence row")
+  expect_equal(out$episode_data$gap, c(20, 34, 30))   # episode 3 starts at the day-60 readmission
+  # the last row ends the process, so its missing restart is not reported
+  expect_no_warning(buildRecurrentEpisodes(events[-3, ], restart_variable = "discharge"))
 })
 
 test_that("lookback never reaches back past the previous event", {
@@ -330,7 +343,8 @@ test_that("episode_id identifies each episode, in episode_data and long_data", {
   events <- data.frame(id = c(7, 7, 9), time = c(1.0, 2.5, 3.0), status = c(1, 0, 2))
   labs <- data.frame(id = c(7, 7, 7, 9), day = c(0.2, 1.4, 2.0, 1.0))
   out <- buildRecurrentEpisodes(events, labs, time_variable_long = "day")
-  expect_equal(out$episode_data$episode_id, c("7:1", "7:2", "9:1"))
+  expect_equal(as.character(out$episode_data$episode_id), c("7:1", "7:2", "9:1"))
+  expect_s3_class(out$episode_data$episode_id, "factor")
   expect_s3_class(out$long_data$episode_id, "factor")
   expect_equal(as.character(out$long_data$episode_id),
                paste(out$long_data$id, out$long_data$episode, sep = ":"))

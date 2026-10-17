@@ -48,8 +48,9 @@
 #' @param data_predict The rows of the patients' \emph{open} episode, as
 #'   \code{predictRisk()} takes them (for example the \code{long_data}
 #'   rows of \code{buildRecurrentEpisodes()} for each patient's last
-#'   episode, whose \code{gap} is \code{NA}): one \code{data.frame} (it is
-#'   used for every biomarker, as \code{predictRisk()} allows), one patient
+#'   episode, whose \code{gap} is \code{NA}): one \code{data.frame}, used
+#'   for every biomarker (a list of data frames, one per biomarker, as
+#'   \code{predictRisk()} also accepts, is not supported here), one patient
 #'   per \code{id}: more than one episode for the same patient is an error.
 #'   A patient whose \code{gap} is not \code{NA} and lies below
 #'   \code{prediction_time} counts as no longer at risk, and is an error too
@@ -101,8 +102,11 @@
 #'   \item{horizon, prediction_time, n_sim}{As supplied.}
 #'   \item{stages}{Most episodes drawn on any path.}
 #'   \item{capped}{\code{TRUE} if some path was still running when
-#'   \code{max_stages} stopped it (a warning is also given): its later
-#'   recurrences are not counted, so the counts are slightly low.}
+#'   \code{max_stages} stopped it (a warning, giving their share, is also
+#'   given): its later recurrences are not counted, so the counts are
+#'   slightly low.}
+#'   \item{capped_fraction}{The share of all simulated paths stopped by
+#'   \code{max_stages} (\code{0} if none).}
 #'   }
 #'
 #' @seealso \code{\link{buildRecurrentEpisodes}}, \code{\link{predictRisk}},
@@ -227,9 +231,13 @@ predictRecurrentCount <- function(data_predict, long_fit_all, survival_fit_all,
     ev_type <- s2$type
     active[is.na(ev_time)] <- FALSE
   }
+  capped_fraction <- if (capped) mean(active, na.rm = TRUE) else 0
   if (capped) {
-    warning(sprintf("Some paths were still running after `max_stages` = %d episodes; their remaining recurrences are not counted.",
-                    max_stages), call. = FALSE)
+    warning(sprintf(paste0(
+      "%d of %d simulated paths (%s%%) were still running after `max_stages` = %d episodes; their ",
+      "remaining recurrences are not counted. Raise `max_stages` if that share matters."),
+      sum(active, na.rm = TRUE), length(active), format(signif(100 * capped_fraction, 2)), max_stages),
+      call. = FALSE)
   }
 
   summ <- data.frame(
@@ -242,7 +250,8 @@ predictRecurrentCount <- function(data_predict, long_fit_all, survival_fit_all,
   names(summ)[1] <- id
   rownames(count) <- rownames(died) <- pids
   out <- list(summary = summ, counts = count, died = died, horizon = horizon,
-              prediction_time = prediction_time, n_sim = n_sim, stages = stage, capped = capped)
+              prediction_time = prediction_time, n_sim = n_sim, stages = stage, capped = capped,
+              capped_fraction = capped_fraction)
   class(out) <- "predictRecurrentCount.BJM"
   out
 }
