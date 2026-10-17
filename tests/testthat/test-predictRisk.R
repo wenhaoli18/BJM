@@ -466,3 +466,42 @@ test_that("the extrapolated baseline cumulative hazard is continuous and non-dec
   H_s <- cumulative_baseline_at(convex, 2)
   expect_equal(exp(-(cumulative_baseline_at(convex, t_hit) - H_s)), 0.01, tolerance = 1e-8)
 })
+
+test_that("survival_trans_function is checked against the columns the model was fit on", {
+  surv <- survivalSub(pbc3[!duplicated(pbc3$id), ], Surv(years, status3) ~ age + sex, NULL)
+  d1 <- pbc3[pbc3$status3 == 1, ]
+  d1$T1 <- abs(d1$years - 1)
+  d1$T3 <- abs(d1$years - 3)
+  fit <- longitudinalSub(d1, list(serBilir ~ year + age + years + T1 + T3), list(~ year | id))
+  pd <- pbc3[pbc3$id == 2 & pbc3$year <= 3, ]
+  pd$T1 <- pd$T3 <- NA
+  # swapped functions used to give a different risk (0.37 against 0.21) silently
+  expect_error(predictRisk(pd, fit, surv, 3, 3, "year", list("T1", "T3"),
+                           list(function(x) abs(x - 3), function(x) abs(x - 1)), 10, 20),
+               "`T1`.*not survival_trans_function\\[\\[1\\]\\].*matches survival_trans_function\\[\\[2\\]\\]")
+  expect_silent(predictRisk(pd, fit, surv, 3, 3, "year", list("T1", "T3"),
+                            list(function(x) abs(x - 1), function(x) abs(x - 3)), 10, 20))
+})
+
+test_that("the event time may enter the longitudinal model only through transformations", {
+  skip_on_cran()
+  surv <- survivalSub(pbc3[!duplicated(pbc3$id), ], Surv(years, status3) ~ age + sex, NULL)
+  d1 <- pbc3[pbc3$status3 == 1, ]
+  d1$Tlin <- d1$years
+  d1$T1 <- abs(d1$years - 1)
+  direct <- longitudinalSub(d1, list(serBilir ~ year + age + years + T1), list(~ year | id))
+  # Tlin is the event time itself, but only as a transformation: this used to
+  # be refused because `years` was not in the formula
+  via_trans <- longitudinalSub(d1, list(serBilir ~ year + age + Tlin + T1), list(~ year | id))
+  pd <- pbc3[pbc3$id %in% c(2, 6) & pbc3$year <= 3, ]
+  pd$Tlin <- pd$T1 <- NA
+  f1 <- list(function(x) abs(x - 1))
+  f2 <- list(function(x) x, function(x) abs(x - 1))
+  expect_equal(predictRisk(pd, via_trans, surv, 3, 3, "year", list("Tlin", "T1"), f2, 10, 20),
+               predictRisk(pd, direct, surv, 3, 3, "year", list("T1"), f1, 10, 20))
+  expect_equal(predictLongitudinal(1, pd, via_trans, surv, 3, 2, "year", list("Tlin", "T1"), f2, 20, 100)$Y_predict,
+               predictLongitudinal(1, pd, direct, surv, 3, 2, "year", list("T1"), f1, 20, 100)$Y_predict)
+  # a model with neither the event time nor a transformation of it is refused
+  plain <- longitudinalSub(d1, list(serBilir ~ year + age), list(~ year | id))
+  expect_error(predictRisk(pd, plain, surv, 3, 3, "year", list(), list(), 10, 20), "uses neither")
+})

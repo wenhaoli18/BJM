@@ -45,7 +45,11 @@ window after each landmark in which events are counted.}
 \code{\link{predictRisk}}.}
 
 \item{bandcount1, bandcount2}{As for \code{\link{predictRisk}}; passed to
-it at each landmark.}
+it at each landmark. \code{"auto"} (the default) re-tunes them in every
+call, which over a whole cohort is several times slower than fixed values
+(about 10 times for 160 patients in \code{pbc3}): for a large evaluation,
+choose them once on a few patients with
+\code{\link{checkBandcountConvergence}} and pass the numbers.}
 }
 \value{
 A list with one element per landmark that had subjects to

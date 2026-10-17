@@ -288,6 +288,26 @@
 
 ## Bug fixes
 
+* `predictRisk()`, `predictLongitudinal()` and `simulateTrajectory()` check
+  `survival_trans_function` against the transformed event-time columns the
+  longitudinal sub-model was fit on, and stop on a mismatch, naming the
+  column and the function it matches instead (e.g. two functions in the
+  wrong order). Such a mismatch used to give different predictions silently
+  (a risk of 0.37 instead of 0.21 in a `pbc3` example).
+
+* The longitudinal sub-model may now use the event time only through its
+  transformations (`survival_variable_all`), e.g. a spline basis, without
+  the event time itself; it used to be refused.
+
+* `fitIntervalBJM()` results print as a short summary (imputation settings,
+  hazard ratios, pooled fixed effects with their fraction of missing
+  information) instead of every component (about 340 lines), and keep their
+  iteration settings in `settings`.
+
+* `performancePlot()` and `calibrationPlot()` document that fixed
+  `bandcount1`/`bandcount2`, chosen once with `checkBandcountConvergence()`,
+  are much faster than `"auto"` for a whole cohort.
+
 * `cmtPlot()` now draws what it describes, on any time scale:
   - without competing risks, the new `status_variable` (the event
     indicator) restricts it to patients with an event. It used to select by

@@ -151,6 +151,12 @@ test_that("fitIntervalBJM imputes event times inside each interval and fits f(Y 
                         n_burnin = 2, n_imputations = 2, n_thin = 1, n_grid = 15, seed = 1))
 
   expect_s3_class(fit, "fitIntervalBJM")
+  # print() is a short summary (it used to dump every component, ~340 lines)
+  printed <- capture.output(print(fit))
+  expect_lt(length(printed), 40)
+  expect_true(any(grepl("2 imputation\\(s\\) after 2 burn-in iterations, keeping every iteration", printed)))
+  expect_true(any(grepl("pooled over the imputations", printed)))
+  expect_equal(fit$settings$n_thin, 1)
   observed <- surv[!is.na(surv$R), ]
   expect_equal(rownames(fit$imputed_T), as.character(observed$id))
   inside <- fit$imputed_T > observed$L & fit$imputed_T <= observed$R
