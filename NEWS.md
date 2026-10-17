@@ -169,6 +169,26 @@
   pointwise confidence bands and optional stratification by a subject-level
   group. It accepts long-format data and either a numeric censoring code or
   `censor_value = NA` (as in `pbc3$status4`).
+* New `predictRecurrentCount()` -- **experimental** -- predicts the *number*
+  of recurrences in a window (and the chance of dying in it) for patients
+  fit with `buildRecurrentEpisodes()`, by Monte Carlo: each patient is
+  simulated forward episode by episode with `simulateTrajectory()`. The
+  patient's current episode is drawn given their biomarkers (the same
+  distribution `predictRisk()` integrates); later episodes are drawn from the
+  model's prior given their covariates and an advanced episode counter, with
+  stay lengths resampled from data you supply. Only the first step uses the
+  biomarkers, so a patient-level tendency to recur that is not in the
+  covariates is not carried forward. `validation/recurrent-count-calibration.R`
+  (6 seeds, plain and frailty processes, 6-month window) finds expected counts
+  within about 5% of the truth (plain 1.17 vs 1.23; frailty 1.31 vs 1.29), the
+  probability of two or more recurrences within 0.02 of the observed rate, and
+  a better ranking of high- vs low-count patients than a Poisson regression on
+  the last lab value (Spearman 0.34 vs 0.30 plain; 0.31 vs 0.23 frailty);
+  withholding the biomarkers drops that to 0.12 / 0.08, so nearly all the
+  information comes from them. The absolute discrimination is modest (AUC of
+  "at least 2" about 0.64-0.66), and the simulated process is not calibrated
+  to any real disease.
+
 * New `imputeLongitudinal()` fills in missing longitudinal biomarker values
   before `longitudinalSub()` runs, instead of relying on complete-case
   analysis. `longitudinalSub()` drops rows missing a biomarker's own
