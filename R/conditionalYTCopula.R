@@ -49,50 +49,10 @@ conditionalYTCopula <- function(data_predict_all, long_fit_all, l_i, survival_va
     rep_num_i_list <- patient_data$rep_num_i_list
     data_num_i_list <- patient_data$data_num_i_list
 
-    for (it in seq_along(l_i)) {
-      data_it <- data_num_i_list
-      for (i in 1:n_longitudinal) {
-        data_it[[i]][survival_variable] <- l_i[it]
-        if (length(survival_variable_all) != 0) {
-          for (surv_i in seq_along(survival_variable_all)) {
-            data_it[[i]][survival_variable_all[[surv_i]]] <-
-              apply_survival_trans(survival_trans_function[[surv_i]], l_i[it], surv_i)
-          }
-        }
-
-        all_variables <- all.vars(formula(long_sub_fixed[[i]]))
-        if (!any(c(survival_variable, unlist(survival_variable_all)) %in% all_variables)) {
-          stop(sprintf("The longitudinal sub-model for biomarker %d uses neither the survival-time variable `%s` nor any of its transformations (survival_variable_all); the backward joint model needs the event time as a covariate, directly or transformed, in every long_sub_fixed formula.", i, survival_variable), call. = FALSE)
-        }
-
-        if (biomarker_type[i] == "continuous") {
-          ### NA in nlme outcome (longitudinal biomarkers), replace with 999
-          ### -- same convention as conditionalYT().
-          resp_i <- as.character(formula(long_sub_fixed[[i]])[[2]])
-          data_it[[i]][[resp_i]][is.na(data_it[[i]][[resp_i]])] <- 999
-        }
-      }
-
-      design <- build_conditional_design_copula(rep_num_i_list, data_it, lfit, Sigma,
-                                                  sigma.longitudinal, time_variable, n_longitudinal,
-                                                  biomarker_type, long_sub_fixed, thresholds,
-                                                  long_fit_all$long_sub_random)
-
-      LME_indi_matrix <- lapply(seq_len(n_longitudinal), function(i) {
-        build_LME_indi_matrix_copula(i, data_it[[i]], lfit, long_fit_all, long_sub_fixed)
-      })
-      LME_all_matrix <- build_block_diagonal_matrix(LME_indi_matrix)
-
-      mean_all_matrix <- t(LME_all_matrix) %*% design$parameter_matrix
-      mu_full <- rowSums(mean_all_matrix)
-
-      cc_idx <- which(design$row_marker_type == "continuous")
-      oo_idx <- which(design$row_marker_type == "ordinal")
-
-      f_Y_T_D_w1[it, iii] <- mixed_density_prob_copula(design$Sigma_all, mu_full, design$y_all_vec,
-                                                          design$alpha_lower_vec, design$alpha_upper_vec,
-                                                          cc_idx, oo_idx)
-    }
+    ### all grid points at once (see copula_logdens_grid())
+    f_Y_T_D_w1[, iii] <- copula_logdens_grid(data_num_i_list, rep_num_i_list, long_fit_all, l_i,
+                                             survival_variable, time_variable, survival_variable_all,
+                                             survival_trans_function, sigma.longitudinal)[[1]][, 1]
   }
   return(f_Y_T_D = list(f_Y_T_D_w1))
 }

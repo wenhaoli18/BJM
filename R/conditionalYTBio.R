@@ -94,80 +94,21 @@ conditionalYTBio = function(Y_all, time_new, bio_i, data_predict_all,
     longitudinal_all_matrix <- build_longitudinal_matrix_bio(data_num_i_list, lfit, bio_i, Y_select_all,
                                                               n_longitudinal, Y_all)
 
-    #### MVN mean function
-    Amean_list1 = list()
-    #Amean_list0 = list()
-    ### for loop and calculate the prediction probability for all time points in l_i
-    for(it in 1: length(l_i)){
-      
-      ### get prediction data matrix for each biomarker for patient 'num_i'
-      LME_indi_matrix_1 = list()
-      #LME_indi_matrix_0 = list()
-      for(i in 1:n_longitudinal){
-        model_formula = formula(lfit[[i]]) #lfit[[1]]
-        ### terms cached from the fit on the *full* training data, not
-        ### re-derived from this patient's own small slice -- see
-        ### conditionalYDT.R for why this matters for poly()/
-        ### splines::ns()/splines::bs()/factor() terms.
-        terms_model <- lfit[[i]]$terms
-        all_variables <- all.vars(model_formula)
-        
-        #survival variable replaced by l_i[it]
-        data_num_i_list[[i]][survival_variable] = l_i[it]
-        
-        #transformed survival variable/basis function of survival variable
-        #replaced by trans_function(l_i[it])
-        if(length(survival_variable_all) != 0){
-          for(surv_i in 1 : length(survival_variable_all)){
-            data_num_i_list[[i]][survival_variable_all[[surv_i]]] = apply_survival_trans(survival_trans_function[[surv_i]], l_i[it], surv_i)
-          }
-        }
-        
-        #event type indicator replaced by 1/0
-        data_num_i_list_1 = data_num_i_list_0 = data_num_i_list
-        #data_num_i_list_1[[i]][event_type_variable] = 1
-        #data_num_i_list_0[[i]][event_type_variable] = 0
-        
-        target_covariate = survival_variable 
-        ### if fuyrs exists or not
-        if(!any(c(target_covariate, unlist(survival_variable_all)) %in% all_variables))
-          stop(sprintf("The longitudinal sub-model for biomarker %d uses neither the survival-time variable `%s` nor any of its transformations (survival_variable_all); the backward joint model needs the event time as a covariate, directly or transformed, in every long_sub_fixed formula.", i, survival_variable), call. = FALSE)
-        else
-          ### NA in nlme outcome (longitudinal biomarkers), replace with 999
-          data_num_i_list_1[[i]][as.character(formula(long_fit_all$long_sub_fixed[[i]])[[2]])][is.na(data_num_i_list_1[[i]][as.character(formula(long_fit_all$long_sub_fixed[[i]])[[2]])])] <- 999
-        data_num_i_list_0[[i]][as.character(formula(long_fit_all$long_sub_fixed[[i]])[[2]])][is.na(data_num_i_list_0[[i]][as.character(formula(long_fit_all$long_sub_fixed[[i]])[[2]])])] <- 999
-        
-        ## extract data matrix to calcuate the probability
-        xlev_i = if (!is.null(long_fit_all$xlevels)) long_fit_all$xlevels[[i]] else NULL
-        mf_i_1 = model.frame(terms_model, data_num_i_list_1[[i]], xlev = xlev_i)
-        LME_indi_matrix_1[[i]] = t(model.matrix(terms_model, mf_i_1, contrasts.arg = lfit[[i]]$contrasts))
-
-        ### data missing when extract the data using model.matrix, 
-        ### model.matrix will automatic delete the missing data
-        if(dim( LME_indi_matrix_1[[i]] )[2] != dim(data_num_i_list_1[[i]])[1]){
-          LME_indi_matrix_1[[i]] = cbind(LME_indi_matrix_1[[i]], matrix(NA, 
-                                                                        dim(LME_indi_matrix_1[[i]] )[1], dim(data_num_i_list_1[[i]])[1] - 
-                                                                          dim( LME_indi_matrix_1[[i]] )[2]))
-        }
-        
-      }
-      
-      mean_list1 = c()
-      for (i in 1:n_longitudinal) {
-        mean_list1 = c(mean_list1, t(LME_indi_matrix_1[[i]]) %*% lfit[[i]]$coefficients$fixed)
-      }
-      Amean_list1[[it]] = mean_list1
-    
-    }
-    
+    ### every biomarker's mean at every grid point (see fixed_mean_grid()),
+    ### then the log density of every candidate value at every grid point;
     ### the covariance is the same at every grid point, so it is factored
     ### once per patient (by process_variance())
-    results_lapply1 <- cov_logdens_means(cov_fac_all[[iii]], longitudinal_all_matrix, Amean_list1)
-    
-    for(Y_i in 1 : length(Y_all)){
-      f_Y_T_D_w1[[Y_i]][,iii] = unlist(lapply(results_lapply1, function(x) x[Y_i]))
+    for (i in seq_len(n_longitudinal)) {
+      assert_uses_event_time(formula(lfit[[i]]), i, survival_variable, survival_variable_all)
     }
-    
+    mu <- patient_mean_grid(data_num_i_list, long_fit_all, l_i, survival_variable,
+                            survival_variable_all, survival_trans_function)
+    log_dens <- cov_logdens_grid(cov_fac_all[[iii]], longitudinal_all_matrix, mu)
+
+    for(Y_i in 1 : length(Y_all)){
+      f_Y_T_D_w1[[Y_i]][,iii] = log_dens[Y_i, ]
+    }
+
   }
   return(f_Y_T_D = list(f_Y_T_D_w1))
 }

@@ -21,7 +21,7 @@ element of \code{l_unique}.
 }
 \description{
 \eqn{X(l)\beta} for an ordinal biomarker's rows, with the
-design built the way \code{build_LME_indi_matrix_copula()} builds it
+design built the way \code{copula_mean_grid()} builds it
 (the columns of \code{lfit[[i]]$beta}, which has no intercept: the
 thresholds play that role).
 }

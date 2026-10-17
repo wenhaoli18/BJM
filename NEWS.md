@@ -285,6 +285,17 @@
   identity, so the full observations-by-observations matrix is never
   formed or inverted. The predictions are unchanged up to floating-point
   rounding (relative differences around 1e-14 on `pbc3`).
+* `predictRisk()`, `predictLongitudinal()`, `simulateTrajectory()` and
+  everything built on them (`performancePlot()`, `calibrationPlot()`,
+  `predictPlot()`, `riskPlot()`, `"auto"` bandcounts) are 10-40 times
+  faster for continuous biomarkers. The longitudinal means at all
+  integration grid points are now computed with one design matrix per
+  biomarker, instead of one per patient and grid point, whose fixed
+  overhead dominated the run time. For 245 `pbc3` patients, `predictRisk()`
+  with `"auto"` bandcounts takes 1.9 s instead of 29 s; the
+  `performancePlot()` example takes 2.8 s instead of 76 s. With an ordinal
+  biomarker the gain is about 3-fold, the rest being the Gaussian box
+  probabilities. The results are identical to before.
 
 ## Bug fixes
 

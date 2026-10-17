@@ -172,6 +172,36 @@ assert_index <- function(x, max_value, arg_name, context) {
   invisible(TRUE)
 }
 
+#' Formula terms whose values depend on the other rows of the data
+#'
+#' @description The calls in \code{expr} to \code{funs} -- by default
+#' \code{poly()} (unless \code{raw = TRUE}), \code{splines::ns()},
+#' \code{splines::bs()} and \code{factor()} -- as deparsed strings. See
+#' \code{warn_unsafe_formula_terms()}.
+#'
+#' @return A character vector, without duplicates.
+#' @keywords internal
+unsafe_formula_calls <- function(expr, funs = c("poly", "ns", "bs", "factor")) {
+  find <- function(expr) {
+    hits <- character(0)
+    if (is.call(expr)) {
+      fname <- as.character(expr[[1]])
+      fname <- fname[length(fname)]
+      if (fname %in% funs) {
+        raw_arg <- tryCatch(eval(expr[["raw"]]), error = function(e) FALSE)
+        if (!(fname == "poly" && isTRUE(raw_arg))) {
+          hits <- c(hits, deparse(expr))
+        }
+      }
+      for (a in as.list(expr)[-1]) {
+        hits <- c(hits, find(a))
+      }
+    }
+    hits
+  }
+  unique(find(expr))
+}
+
 #' Warn about formula terms whose basis is recomputed from whatever data
 #' they are given
 #'
@@ -191,26 +221,8 @@ assert_index <- function(x, max_value, arg_name, context) {
 #' data are never flagged.
 #' @keywords internal
 warn_unsafe_formula_terms <- function(formula_list, arg_name) {
-  find_unsafe_calls <- function(expr) {
-    hits <- character(0)
-    if (is.call(expr)) {
-      fname <- as.character(expr[[1]])
-      fname <- fname[length(fname)]
-      if (fname %in% c("poly", "ns", "bs", "factor")) {
-        raw_arg <- tryCatch(eval(expr[["raw"]]), error = function(e) FALSE)
-        if (!(fname == "poly" && isTRUE(raw_arg))) {
-          hits <- c(hits, deparse(expr))
-        }
-      }
-      for (a in as.list(expr)[-1]) {
-        hits <- c(hits, find_unsafe_calls(a))
-      }
-    }
-    hits
-  }
-
   for (i in seq_along(formula_list)) {
-    hits <- unique(find_unsafe_calls(formula_list[[i]]))
+    hits <- unsafe_formula_calls(formula_list[[i]])
     if (length(hits) > 0) {
       warning(sprintf(
         "`%s[[%d]]` uses %s. Its basis/contrasts depend on the data it is computed from, and for this formula BJM rebuilds the design matrix from the data at hand (a single patient's rows at prediction time) instead of reusing the training-time basis -- so this can silently produce incorrect predictions, or fail outright when there are too few distinct values. Prefer poly(..., raw = TRUE), I(x^2), log(), sqrt(), or other terms that do not depend on the surrounding data.",
