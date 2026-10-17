@@ -255,12 +255,12 @@ sims = simulateTrajectory(list(history, history), long_fit_all, survival_fit_all
                           trans$survival_trans_function, n_sim = 200, seed = 1)
 head(sims)
 #>   id sim year event_time event  serBilir  albumin
-#> 1  2   1  3.0   10.38897     1 0.4707228 3.352258
-#> 2  2   1  3.5   10.38897     1 1.6383372 3.308015
-#> 3  2   1  4.0   10.38897     1 1.3522315 3.253805
-#> 4  2   1  4.5   10.38897     1 1.5869380 3.428172
-#> 5  2   1  5.0   10.38897     1 1.5204490 3.151635
-#> 6  2   1  5.5   10.38897     1 2.2175576 2.982109
+#> 1  2   1  3.0   10.38897     1 0.4706703 3.352183
+#> 2  2   1  3.5   10.38897     1 1.6382763 3.307927
+#> 3  2   1  4.0   10.38897     1 1.3521624 3.253706
+#> 4  2   1  4.5   10.38897     1 1.5868607 3.428060
+#> 5  2   1  5.0   10.38897     1 1.5203634 3.151511
+#> 6  2   1  5.5   10.38897     1 2.2174637 2.981973
 
 # Covariates after the last row are carried forward unless
 # future_covariates sets them from a given time on. Age at entry does not

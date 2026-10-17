@@ -185,8 +185,8 @@ long_fit_all
 #>               (Intercept)_1  year_1 (Intercept)_2  year_2
 #> (Intercept)_1        0.6012 -0.0231       -0.0473 -0.0070
 #> year_1              -0.0231  0.0193        0.0121 -0.0050
-#> (Intercept)_2       -0.0473  0.0121        0.0722 -0.0045
-#> year_2              -0.0070 -0.0050       -0.0045  0.0050
+#> (Intercept)_2       -0.0473  0.0121        0.0721 -0.0044
+#> year_2              -0.0070 -0.0050       -0.0044  0.0050
 #> =================================================================
 ```
 
@@ -469,8 +469,8 @@ bio_pred <- predictLongitudinal(
 )
 
 bio_pred$Y_predict
-#>       2 
-#> 1.19341
+#>        2 
+#> 1.193408
 ```
 
 `Y_predict` is the MAP (most likely) predicted value;
@@ -533,10 +533,10 @@ risk_doubled <- predictRisk(
 
 abs(risk_default$risk_prob_1 - risk_doubled$risk_prob_1)
 #>            2 
-#> 0.0004505056
+#> 0.0004505047
 abs(risk_default$risk_prob_2 - risk_doubled$risk_prob_2)
-#>         2 
-#> 1.994e-05
+#>            2 
+#> 1.993996e-05
 ```
 
 If doubling the `bandcount*` values changes the result by more than you

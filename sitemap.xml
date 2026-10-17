@@ -63,6 +63,9 @@
 <url><loc>https://wenhaoli18.github.io/BJM/reference/conditionalYTCopula.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/conditional_survival_setup.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/continuous_value_grid.html</loc></url>
+<url><loc>https://wenhaoli18.github.io/BJM/reference/copula_D_aghq.html</loc></url>
+<url><loc>https://wenhaoli18.github.io/BJM/reference/copula_D_saem.html</loc></url>
+<url><loc>https://wenhaoli18.github.io/BJM/reference/copula_estep_setup.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/cov_factor.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/cov_logdens.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/cov_logdens_means.html</loc></url>
@@ -83,6 +86,7 @@
 <url><loc>https://wenhaoli18.github.io/BJM/reference/fitIntervalBJM.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/fit_event_type_interval.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/fit_marginal_ordinal.html</loc></url>
+<url><loc>https://wenhaoli18.github.io/BJM/reference/gauss_hermite_normal.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/gaussian_logdens_chol.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/icphFit.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/icph_baselines.html</loc></url>
@@ -91,7 +95,6 @@
 <url><loc>https://wenhaoli18.github.io/BJM/reference/imputation_covariates.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/imputeEventTime.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/imputeLongitudinal.html</loc></url>
-<url><loc>https://wenhaoli18.github.io/BJM/reference/impute_latent_ordinal.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/index.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/integration_upper_bound.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/interval_bounds.html</loc></url>
@@ -120,6 +123,7 @@
 <url><loc>https://wenhaoli18.github.io/BJM/reference/outcome_variables.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/patient_log_shift.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/pbc3.html</loc></url>
+<url><loc>https://wenhaoli18.github.io/BJM/reference/pd_inverse.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/performancePlot.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/performance_metrics.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/performance_metrics_interval_ipcw.html</loc></url>
@@ -145,6 +149,7 @@
 <url><loc>https://wenhaoli18.github.io/BJM/reference/print.predictLongitudinal.BJM.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/print.predictRisk.BJM.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/print.survivalSub.BJM.html</loc></url>
+<url><loc>https://wenhaoli18.github.io/BJM/reference/probit_box_derivs.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/process_variance.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/random_effects_design.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/resolve_biomarker_type.html</loc></url>
@@ -152,6 +157,7 @@
 <url><loc>https://wenhaoli18.github.io/BJM/reference/rp_basis.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/rtmvnorm_box.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/rtnorm_one.html</loc></url>
+<url><loc>https://wenhaoli18.github.io/BJM/reference/rtnorm_vec.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/rubin_pool_scalar.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/select_patient_longitudinal_data.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/select_patient_longitudinal_data_bio.html</loc></url>

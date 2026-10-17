@@ -362,11 +362,11 @@ detected yet.</li>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;  Subject Risk Prob Already, undetected</span></span>
 <span><span class="co">#&gt;        1    0.2761              0.6894</span></span>
-<span><span class="co">#&gt;        3    0.0015              0.0001</span></span>
+<span><span class="co">#&gt;        3    0.0013              0.0001</span></span>
 <span><span class="co">#&gt;        4    0.1512              0.8291</span></span>
-<span><span class="co">#&gt;        7    0.3930              0.3873</span></span>
-<span><span class="co">#&gt;        8    0.3954              0.4153</span></span>
-<span><span class="co">#&gt;       10    0.0241              0.0033</span></span>
+<span><span class="co">#&gt;        7    0.3930              0.3872</span></span>
+<span><span class="co">#&gt;        8    0.3954              0.4152</span></span>
+<span><span class="co">#&gt;       10    0.0237              0.0033</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;   Interval-censored: risks condition on being event-free at each subject's</span></span>
 <span><span class="co">#&gt;  last visit; 'Already, undetected' is the probability the event happened</span></span>
@@ -476,7 +476,18 @@ inspection).</li>
 visit
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>V</mi><annotation encoding="application/x-tex">V</annotation></semantics></math>
 used in prediction is the last biomarker measurement up to the
-prediction time.</li>
+prediction time. When fitting, <code><a href="../reference/fitIntervalBJM.html">fitIntervalBJM()</a></code> uses a
+subject’s measurements up to the last visit without the event
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>L</mi><annotation encoding="application/x-tex">L</annotation></semantics></math>)
+only: the one at the detecting visit
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>R</mi><annotation encoding="application/x-tex">R</annotation></semantics></math>
+is taken after the event, which the backward model does not describe,
+and is left out (with a message).</li>
+<li>
+<strong>Beyond the data.</strong> Past the last interval endpoint,
+the spline baseline continues as a Weibull with the shape of a Weibull
+fit to all the data, and the piecewise baseline with its last piece’s
+hazard.</li>
 <li>
 <strong>Before the first visit.</strong> The baseline hazard is
 extrapolated there, so the share of events before the first visit

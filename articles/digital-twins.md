@@ -212,12 +212,12 @@ older_from_7 <- draw_twin(data.frame(year = 7, age = history5$age[1] + 10))
 cbind(as_measured = tapply(as_measured$serBilir, as_measured$year, median, na.rm = TRUE),
       older_from_7 = tapply(older_from_7$serBilir, older_from_7$year, median, na.rm = TRUE))
 #>    as_measured older_from_7
-#> 5    0.9702453    0.9702453
-#> 6    1.1620662    1.1620662
-#> 7    1.3584893    1.2417347
-#> 8    1.4929772    1.3762226
-#> 9    1.7231421    1.6063875
-#> 10   1.6938166    1.5770620
+#> 5    0.9703154    0.9703154
+#> 6    1.1620656    1.1620656
+#> 7    1.3585430    1.2417884
+#> 8    1.4929270    1.3761724
+#> 9    1.7230068    1.6062522
+#> 10   1.6936943    1.5769397
 ```
 
 The forecasts agree up to year 6 and differ from year 7 on, by the
@@ -323,7 +323,7 @@ prognosis <- aggregate(cbind(twin_serBilir = serBilir) ~ id, data = trial_twins,
 trial <- merge(visit_2y, prognosis, by = "id")
 
 cor(trial$twin_serBilir, trial$serBilir_2y)
-#> [1] 0.8127169
+#> [1] 0.8127241
 ```
 
 The treatment effect on bilirubin at year 2, without and with the twin’s
@@ -337,13 +337,13 @@ rbind(unadjusted = coef(summary(unadjusted))["drugD-penicil", ],
       twin_adjusted = coef(summary(adjusted))["drugD-penicil", ])
 #>                  Estimate Std. Error    t value  Pr(>|t|)
 #> unadjusted    -0.03056175 0.15509068 -0.1970573 0.8439663
-#> twin_adjusted -0.07962104 0.09045106 -0.8802666 0.3796888
+#> twin_adjusted -0.07974984 0.09044913 -0.8817093 0.3789096
 
 # sample size the unadjusted analysis would need for the same precision,
 # relative to the trial's
 (coef(summary(unadjusted))["drugD-penicil", "Std. Error"] /
    coef(summary(adjusted))["drugD-penicil", "Std. Error"])^2
-#> [1] 2.939978
+#> [1] 2.940103
 ```
 
 Both analyses agree that D-penicillamine has no clear effect on

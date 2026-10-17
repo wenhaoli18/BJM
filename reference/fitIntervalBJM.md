@@ -33,6 +33,14 @@ so each draw costs about one
 [`predictRisk()`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md)
 call per subject.
 
+For a subject whose event was detected, only the longitudinal
+measurements up to the last visit without the event (\\L\\) are used:
+the one at the detecting visit \\R\\ (and any later one) is taken after
+the event, which \\f(Y \mid T)\\ does not describe, and they are left
+out with a message. As in the rest of the interval-censoring support,
+the biomarker visits are taken to be the inspection visits, so no
+measurement lies between \\L\\ and \\R\\.
+
 By default only subjects whose event was observed (finite \\R\\) enter
 the longitudinal fit, mirroring the complete-case fit used for
 right-censored data, which is valid when censoring is independent of

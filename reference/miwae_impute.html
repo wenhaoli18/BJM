@@ -4,14 +4,18 @@ implements the MIWAE multiple-imputation procedure (Mattei &amp;amp; Frellsen,
 2019, Section 3.2) – draw K decoder samples per row, importance-weight
 them by their (masked-to-observed-entries) likelihood, then resample one
 index per completion and use that draw's decoder mean plus Gaussian
-noise as the imputed value. Already-observed cells are left untouched by
-the caller; this only needs to return sensible values for missing cells."><meta property="og:description" content="Internal helper for imputeLongitudinal:
+noise as the imputed value. Each completion uses its own K samples, so
+completions are independent draws. Already-observed cells are left
+untouched by the caller; this only needs to return sensible values for
+missing cells."><meta property="og:description" content="Internal helper for imputeLongitudinal:
 implements the MIWAE multiple-imputation procedure (Mattei &amp;amp; Frellsen,
 2019, Section 3.2) – draw K decoder samples per row, importance-weight
 them by their (masked-to-observed-entries) likelihood, then resample one
 index per completion and use that draw's decoder mean plus Gaussian
-noise as the imputed value. Already-observed cells are left untouched by
-the caller; this only needs to return sensible values for missing cells."></head><body>
+noise as the imputed value. Each completion uses its own K samples, so
+completions are independent draws. Already-observed cells are left
+untouched by the caller; this only needs to return sensible values for
+missing cells."></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -59,8 +63,10 @@ implements the MIWAE multiple-imputation procedure (Mattei &amp; Frellsen,
 2019, Section 3.2) – draw K decoder samples per row, importance-weight
 them by their (masked-to-observed-entries) likelihood, then resample one
 index per completion and use that draw's decoder mean plus Gaussian
-noise as the imputed value. Already-observed cells are left untouched by
-the caller; this only needs to return sensible values for missing cells.</p>
+noise as the imputed value. Each completion uses its own K samples, so
+completions are independent draws. Already-observed cells are left
+untouched by the caller; this only needs to return sensible values for
+missing cells.</p>
     </div>
 
     <div class="section level2">

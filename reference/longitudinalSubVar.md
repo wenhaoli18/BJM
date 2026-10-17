@@ -1,9 +1,9 @@
 # Variance-covariance matrix Reference: package "lmm" and package "joineRML" function `mvlme`.
 
-The EM loop stops after `max.iter` iterations even if the relative
-change in `D` is still above `tol.em` (previously it had no limit, so a
-fit that never met the tolerance never returned), and warns when that
-happens.
+The EM is accelerated by SQUAREM (Varadhan and Roland, 2008), and stops
+once the relative change in `D` over an accelerated cycle (three EM
+updates) is at most `tol.em`, or after `max.iter` EM updates with a
+warning.
 
 ## Usage
 

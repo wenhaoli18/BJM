@@ -286,11 +286,11 @@ risk.prob.sparse = predictRisk(data_predict_sparse, long_fit_nonlinear,
                                      bandcount1 = 10, bandcount2 = 10)
 # both give a sane, non-degenerate risk_prob_1 (not 0, no error)
 risk.prob.normal$risk_prob_1
-#>          2 
-#> 0.08962798 
+#>        2 
+#> 0.089629 
 risk.prob.sparse$risk_prob_1
 #>         2 
-#> 0.1202161 
+#> 0.1202103 
 
 # }
 ```

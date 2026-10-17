@@ -395,6 +395,100 @@
 
 ### Bug fixes
 
+- `imputeLongitudinal(method = "diffusion")` is now a conditional
+  diffusion model trained as in CSDI (Tashiro et al., 2021): each
+  training row’s observed entries are split at random into targets and
+  conditions, the network denoises the targets given the conditions’
+  values, and missing cells are imputed conditional on all the row’s
+  observed values. The earlier sampler did not give the network the
+  other observed values, so it made little use of the row’s other
+  biomarkers: in a simulation its imputations had an RMSE of 0.55
+  against 0.35 now (MIWAE: 0.35; best possible: 0.31), a spread between
+  draws of 0.46 against 0.29 now (true residual SD 0.30), and the pooled
+  time slope after imputation was 0.374 against 0.396 now (0.401 with no
+  missing data). Training now uses mini-batches of 128 rows, so `epochs`
+  counts passes over the data.
+
+- `imputeLongitudinal(method = "miwae")` draws every completion from its
+  own importance-sampling pass, so multiple imputations are independent
+  draws as documented (they resampled one shared set of latent samples).
+
+- [`imputeLongitudinal()`](https://wenhaoli18.github.io/BJM/reference/imputeLongitudinal.md)
+  gives an error for repeated (id, time) rows in a biomarker’s data,
+  which it aligns rows across biomarkers by. Its documentation now says
+  that it returns a list of data frames that keep only the columns each
+  biomarker’s model uses, and that many more epochs than the default can
+  overfit and make the imputations vary too little.
+
+- The EM that estimates the joint random-effects covariance `Sigma_fit`
+  of continuous biomarkers is accelerated by SQUAREM and reuses the
+  parts that do not change between iterations;
+  [`longitudinalSub()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md)
+  is 3 to 7 times faster, and no longer runs into the 1000-iteration cap
+  (with a warning) on ordinary data. The estimates move only within the
+  convergence tolerance.
+
+- [`fitIntervalBJM()`](https://wenhaoli18.github.io/BJM/reference/fitIntervalBJM.md)
+  leaves out, with a message, the longitudinal measurements of a subject
+  with a detected event taken after the last visit without the event
+  (`L`), i.e. at the detecting visit `R` or later. They follow the
+  event, which the backward model `f(Y | T)` does not describe; kept in,
+  they biased the longitudinal sub-model whenever a biomarker changes
+  after the event (in a simulation with a shift of 1 at the event, the
+  time trend 0.45 against 0.30 and the event-time effect -0.26 against
+  -0.20; now 0.30 and -0.20).
+
+- An interval-censored survival sub-model’s baseline cumulative hazard
+  now continues beyond the last interval endpoint as the fitted model
+  does: as a Weibull with the shape of the Weibull (`df = 1`) fit for
+  the spline baseline, and with the last piece’s hazard for the
+  piecewise one. It was extended by a straight line fitted to the whole
+  baseline, which understated an increasing hazard there (in a Weibull
+  simulation, 0.68 of the true cumulative hazard at twice the last
+  endpoint, against 0.96 now). Predictions whose integration reaches
+  past the data change accordingly.
+
+- [`longitudinalSub()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md)
+  with an ordinal biomarker now estimates the joint random-effects
+  covariance `Sigma_fit` by maximum likelihood. Its EM used to plug in,
+  for every ordinal observation, the mean of the latent score given the
+  category, ignoring the score’s own variance, which underestimated the
+  ordinal biomarker’s random-effects variances (in simulations by about
+  40% for a random intercept and 75% for a random slope) and so the
+  individual variation that
+  [`predictRisk()`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md),
+  [`predictLongitudinal()`](https://wenhaoli18.github.io/BJM/reference/predictLongitudinal.md)
+  and
+  [`simulateTrajectory()`](https://wenhaoli18.github.io/BJM/reference/simulateTrajectory.md)
+  draw on. The EM now integrates over the ordinal biomarkers’ random
+  effects by adaptive Gauss-Hermite quadrature (the continuous
+  biomarkers’ random effects are integrated out exactly), accelerated by
+  SQUAREM; it is deterministic and about as fast as before. With more
+  than three ordinal random effects in all it uses a
+  stochastic-approximation EM (SAEM) instead, with a fixed internal seed
+  so that fits are reproducible (the caller’s random number state is
+  restored). Its convergence check no longer depends on the biomarkers’
+  units: the earlier one compared absolute changes in `Sigma_fit`, which
+  a biomarker with variances in the thousands never got below, so the EM
+  ran to its iteration limit. `Sigma_fit`, and the predictions from fits
+  with an ordinal biomarker, change accordingly; fits with continuous
+  biomarkers only are unchanged.
+
+- [`longitudinalSub()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md)
+  numbers an ordinal biomarker’s categories by the categories
+  [`ordinal::clmm()`](https://rdrr.io/pkg/ordinal/man/clmm.html)
+  actually fit. `clmm()` drops a level that no observation has, but the
+  joint covariance EM used the factor’s own codes, so an unused lowest
+  or middle level (common after subsetting the data) misaligned every
+  category above it with the thresholds and stopped the fit with
+  “missing value where TRUE/FALSE needed”.
+
+- [`imputeLongitudinal()`](https://wenhaoli18.github.io/BJM/reference/imputeLongitudinal.md)
+  gives an error for a non-numeric (e.g. ordinal) biomarker, which its
+  Gaussian imputation model cannot handle. Such a column used to be
+  coerced to numeric and came back entirely `NaN`, with only a coercion
+  warning.
+
 - [`imputeLongitudinal()`](https://wenhaoli18.github.io/BJM/reference/imputeLongitudinal.md)
   now uses the visit time (`time_variable`) as a covariate of the
   imputation model whenever `long_sub_fixed` uses it, as documented. It

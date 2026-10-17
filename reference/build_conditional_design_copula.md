@@ -13,7 +13,7 @@ the exact underlying latent Gaussian score is unobserved – only the pair
 of cumulative-link thresholds (`long_fit_all$thresholds[[m]]`)
 bracketing the observed category is known (the classical Albert & Chib
 probit data-augmentation representation, same convention as
-[`impute_latent_ordinal()`](https://wenhaoli18.github.io/BJM/reference/impute_latent_ordinal.md)
+[`longitudinalSubVarCopula()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSubVarCopula.md)
 in `R/copulaLongitudinal.R`: latent score `Z = eta + epsilon`,
 `epsilon ~ N(0, 1)`, category `k` iff
 `full_alpha[k] < Z <= full_alpha[k+1]` with

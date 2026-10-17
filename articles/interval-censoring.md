@@ -275,11 +275,11 @@ risk
 #> 
 #>  Subject Risk Prob Already, undetected
 #>        1    0.2761              0.6894
-#>        3    0.0015              0.0001
+#>        3    0.0013              0.0001
 #>        4    0.1512              0.8291
-#>        7    0.3930              0.3873
-#>        8    0.3954              0.4153
-#>       10    0.0241              0.0033
+#>        7    0.3930              0.3872
+#>        8    0.3954              0.4152
+#>       10    0.0237              0.0033
 #> 
 #>   Interval-censored: risks condition on being event-free at each subject's
 #>  last visit; 'Already, undetected' is the probability the event happened
@@ -406,7 +406,15 @@ performance. Use held-out data when you can.
   patient’s risk beyond the observed data (non-informative inspection).
 - **Biomarker visits are inspection visits.** The last visit $`V`$ used
   in prediction is the last biomarker measurement up to the prediction
-  time.
+  time. When fitting,
+  [`fitIntervalBJM()`](https://wenhaoli18.github.io/BJM/reference/fitIntervalBJM.md)
+  uses a subject’s measurements up to the last visit without the event
+  ($`L`$) only: the one at the detecting visit $`R`$ is taken after the
+  event, which the backward model does not describe, and is left out
+  (with a message).
+- **Beyond the data.** Past the last interval endpoint, the spline
+  baseline continues as a Weibull with the shape of a Weibull fit to all
+  the data, and the piecewise baseline with its last piece’s hazard.
 - **Before the first visit.** The baseline hazard is extrapolated there,
   so the share of events before the first visit (reported by
   [`print()`](https://rdrr.io/r/base/print.html)) indicates how much the

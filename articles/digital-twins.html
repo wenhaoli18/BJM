@@ -274,12 +274,12 @@ cannot change, but it shows how the path enters the forecast.</p>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">cbind</a></span><span class="op">(</span>as_measured <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/tapply.html" class="external-link">tapply</a></span><span class="op">(</span><span class="va">as_measured</span><span class="op">$</span><span class="va">serBilir</span>, <span class="va">as_measured</span><span class="op">$</span><span class="va">year</span>, <span class="va">median</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>,</span>
 <span>      older_from_7 <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/tapply.html" class="external-link">tapply</a></span><span class="op">(</span><span class="va">older_from_7</span><span class="op">$</span><span class="va">serBilir</span>, <span class="va">older_from_7</span><span class="op">$</span><span class="va">year</span>, <span class="va">median</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;    as_measured older_from_7</span></span>
-<span><span class="co">#&gt; 5    0.9702453    0.9702453</span></span>
-<span><span class="co">#&gt; 6    1.1620662    1.1620662</span></span>
-<span><span class="co">#&gt; 7    1.3584893    1.2417347</span></span>
-<span><span class="co">#&gt; 8    1.4929772    1.3762226</span></span>
-<span><span class="co">#&gt; 9    1.7231421    1.6063875</span></span>
-<span><span class="co">#&gt; 10   1.6938166    1.5770620</span></span></code></pre></div>
+<span><span class="co">#&gt; 5    0.9703154    0.9703154</span></span>
+<span><span class="co">#&gt; 6    1.1620656    1.1620656</span></span>
+<span><span class="co">#&gt; 7    1.3585430    1.2417884</span></span>
+<span><span class="co">#&gt; 8    1.4929270    1.3761724</span></span>
+<span><span class="co">#&gt; 9    1.7230068    1.6062522</span></span>
+<span><span class="co">#&gt; 10   1.6936943    1.5769397</span></span></code></pre></div>
 <p>The forecasts agree up to year 6 and differ from year 7 on, by the
 model’s age coefficient times 10. The history the twin conditions on is
 the same in both, so the drawn event times and random effects are the
@@ -370,7 +370,7 @@ than of it among the draws still event-free.</p>
 <span><span class="va">trial</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/merge.html" class="external-link">merge</a></span><span class="op">(</span><span class="va">visit_2y</span>, <span class="va">prognosis</span>, by <span class="op">=</span> <span class="st">"id"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/stats/cor.html" class="external-link">cor</a></span><span class="op">(</span><span class="va">trial</span><span class="op">$</span><span class="va">twin_serBilir</span>, <span class="va">trial</span><span class="op">$</span><span class="va">serBilir_2y</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 0.8127169</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] 0.8127241</span></span></code></pre></div>
 <p>The treatment effect on bilirubin at year 2, without and with the
 twin’s prediction as a covariate:</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
@@ -380,13 +380,13 @@ twin’s prediction as a covariate:</p>
 <span>      twin_adjusted <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">adjusted</span><span class="op">)</span><span class="op">)</span><span class="op">[</span><span class="st">"drugD-penicil"</span>, <span class="op">]</span><span class="op">)</span></span>
 <span><span class="co">#&gt;                  Estimate Std. Error    t value  Pr(&gt;|t|)</span></span>
 <span><span class="co">#&gt; unadjusted    -0.03056175 0.15509068 -0.1970573 0.8439663</span></span>
-<span><span class="co">#&gt; twin_adjusted -0.07962104 0.09045106 -0.8802666 0.3796888</span></span>
+<span><span class="co">#&gt; twin_adjusted -0.07974984 0.09044913 -0.8817093 0.3789096</span></span>
 <span></span>
 <span><span class="co"># sample size the unadjusted analysis would need for the same precision,</span></span>
 <span><span class="co"># relative to the trial's</span></span>
 <span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">unadjusted</span><span class="op">)</span><span class="op">)</span><span class="op">[</span><span class="st">"drugD-penicil"</span>, <span class="st">"Std. Error"</span><span class="op">]</span> <span class="op">/</span></span>
 <span>   <span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">adjusted</span><span class="op">)</span><span class="op">)</span><span class="op">[</span><span class="st">"drugD-penicil"</span>, <span class="st">"Std. Error"</span><span class="op">]</span><span class="op">)</span><span class="op">^</span><span class="fl">2</span></span>
-<span><span class="co">#&gt; [1] 2.939978</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] 2.940103</span></span></code></pre></div>
 <p>Both analyses agree that D-penicillamine has no clear effect on
 bilirubin, as the trial found; the adjusted one estimates it with a much
 smaller standard error, which in a new trial would translate into fewer

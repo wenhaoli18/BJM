@@ -252,8 +252,8 @@ complete-case subset.</p>
 <span><span class="co">#&gt;               (Intercept)_1  year_1 (Intercept)_2  year_2</span></span>
 <span><span class="co">#&gt; (Intercept)_1        0.6012 -0.0231       -0.0473 -0.0070</span></span>
 <span><span class="co">#&gt; year_1              -0.0231  0.0193        0.0121 -0.0050</span></span>
-<span><span class="co">#&gt; (Intercept)_2       -0.0473  0.0121        0.0722 -0.0045</span></span>
-<span><span class="co">#&gt; year_2              -0.0070 -0.0050       -0.0045  0.0050</span></span>
+<span><span class="co">#&gt; (Intercept)_2       -0.0473  0.0121        0.0721 -0.0044</span></span>
+<span><span class="co">#&gt; year_2              -0.0070 -0.0050       -0.0044  0.0050</span></span>
 <span><span class="co">#&gt; =================================================================</span></span></code></pre></div>
 </div>
 <div class="section level2">
@@ -502,8 +502,8 @@ pipeline only once and reusing it across every biomarker.</p>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">bio_pred</span><span class="op">$</span><span class="va">Y_predict</span></span>
-<span><span class="co">#&gt;       2 </span></span>
-<span><span class="co">#&gt; 1.19341</span></span></code></pre></div>
+<span><span class="co">#&gt;        2 </span></span>
+<span><span class="co">#&gt; 1.193408</span></span></code></pre></div>
 <p><code>Y_predict</code> is the MAP (most likely) predicted value;
 <code>Y_density</code>/<code>Y_all</code> give the full predicted
 density over a grid of candidate values, which is what
@@ -564,10 +564,10 @@ and confirm the results barely move.</p>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="va">risk_default</span><span class="op">$</span><span class="va">risk_prob_1</span> <span class="op">-</span> <span class="va">risk_doubled</span><span class="op">$</span><span class="va">risk_prob_1</span><span class="op">)</span></span>
 <span><span class="co">#&gt;            2 </span></span>
-<span><span class="co">#&gt; 0.0004505056</span></span>
+<span><span class="co">#&gt; 0.0004505047</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="va">risk_default</span><span class="op">$</span><span class="va">risk_prob_2</span> <span class="op">-</span> <span class="va">risk_doubled</span><span class="op">$</span><span class="va">risk_prob_2</span><span class="op">)</span></span>
-<span><span class="co">#&gt;         2 </span></span>
-<span><span class="co">#&gt; 1.994e-05</span></span></code></pre></div>
+<span><span class="co">#&gt;            2 </span></span>
+<span><span class="co">#&gt; 1.993996e-05</span></span></code></pre></div>
 <p>If doubling the <code>bandcount*</code> values changes the result by
 more than you can tolerate, keep doubling until it doesn’t; if it barely
 changes anything (as above), the smaller, cheaper value is fine to use.
