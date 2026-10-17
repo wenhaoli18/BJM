@@ -1,8 +1,8 @@
 ---
-title: "Getting Started with BJM"
+title: "Getting started with BJM"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Getting Started with BJM}
+  %\VignetteIndexEntry{Getting started with BJM}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---

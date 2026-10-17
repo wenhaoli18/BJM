@@ -288,6 +288,11 @@
 
 ## Bug fixes
 
+* `predictRisk()`, `predictLongitudinal()` and `simulateTrajectory()` stop
+  with a clear error when `data_predict_all` has no measurement at or before
+  `prediction_time` (e.g. a `prediction_time` before the first visit). They
+  used to fail later with "replacement has 1 row, data has 0".
+
 * `predictRisk()`, `predictLongitudinal()` and `simulateTrajectory()` check
   `survival_trans_function` against the transformed event-time columns the
   longitudinal sub-model was fit on, and stop on a mismatch, naming the

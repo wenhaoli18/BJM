@@ -198,6 +198,18 @@ test_that("no patient at risk at prediction_time is an error", {
                "No patient in data_predict_all is at risk")
 })
 
+test_that("no measurement up to prediction_time is an error", {
+  f <- setup_dp_fixture()
+  expect_error(suppressWarnings(predict_fixture_risk(f, f$data_predict_all, prediction_time = -1)),
+               "no measurement at or before prediction_time = -1")
+  empty <- lapply(f$data_predict_all, function(x) x[0, ])
+  expect_error(predict_fixture_risk(f, empty), "no measurement at or before prediction_time")
+  expect_error(predictLongitudinal(1, empty, f$long_fit_all, f$survival_fit_all, prediction_time = 5,
+                                   horizon = 1, time_variable = "year", f$survival_variable_all,
+                                   f$survival_trans_function, bandcount2 = 20, bandcount3 = 50),
+               "no measurement at or before prediction_time")
+})
+
 test_that("the event type may enter long_sub_fixed and is unknown for a new patient", {
   f <- setup_dp_fixture()
   long_fit_all <- longitudinalSub(

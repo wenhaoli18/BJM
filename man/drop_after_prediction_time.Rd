@@ -18,5 +18,6 @@ whose \code{time_variable} is later than that are removed, with a warning
 saying how many. (\code{predictPlot}/\code{riskPlot} already truncate per
 landmark time before calling these, so they never trigger the warning.)
 Rows with a missing \code{time_variable} are kept, as before.
+It is an error if no row is left: there is no history to condition on.
 }
 \keyword{internal}

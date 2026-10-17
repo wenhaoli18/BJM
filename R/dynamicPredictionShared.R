@@ -8,6 +8,7 @@
 #' saying how many. (\code{predictPlot}/\code{riskPlot} already truncate per
 #' landmark time before calling these, so they never trigger the warning.)
 #' Rows with a missing \code{time_variable} are kept, as before.
+#' It is an error if no row is left: there is no history to condition on.
 #'
 #' @return \code{data_predict_all}, filtered per element.
 #' @keywords internal
@@ -20,6 +21,12 @@ drop_after_prediction_time <- function(data_predict_all, time_variable, predicti
     after <- !is.na(t) & t > prediction_time + 1e-8
     n_dropped[i] <- sum(after)
     data_predict_all[[i]] <- data_predict_all[[i]][!after, , drop = FALSE]
+  }
+  if (all(vapply(data_predict_all, nrow, integer(1)) == 0)) {
+    stop(sprintf(paste0(
+      "data_predict_all has no measurement at or before prediction_time = %g (%s <= %g), ",
+      "so there is no history to condition the prediction on."),
+      prediction_time, time_variable, prediction_time), call. = FALSE)
   }
   if (any(n_dropped > 0)) {
     warning(sprintf(paste0(
