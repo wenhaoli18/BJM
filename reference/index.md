@@ -34,6 +34,18 @@ between two visits.
 - [`fitIntervalBJM()`](https://wenhaoli18.github.io/BJM/reference/fitIntervalBJM.md)
   : Fit the backward joint model to interval-censored event times
 
+## Recurrent events (experimental)
+
+Reshape recurrent-event data for the gap-time extension of the backward
+joint model, and predict the number of recurrences.
+
+- [`buildRecurrentEpisodes()`](https://wenhaoli18.github.io/BJM/reference/buildRecurrentEpisodes.md)
+  : Reshape recurrent-event data into gap-time episodes for the backward
+  joint model
+- [`predictRecurrentCount()`](https://wenhaoli18.github.io/BJM/reference/predictRecurrentCount.md)
+  : Predict the number of recurrent events in a window, by rolling
+  episodes forward
+
 ## Missing data imputation
 
 Impute missing longitudinal biomarker values and pool sub-model fits

@@ -26,6 +26,7 @@ for the competing-risks GLM."></head><body>
     <li><a class="dropdown-item" href="../articles/interval-censoring.html">Interval-censored events</a></li>
     <li><a class="dropdown-item" href="../articles/nonlinear-terms.html">Nonlinear terms in longitudinal formulas</a></li>
     <li><a class="dropdown-item" href="../articles/plotting.html">Plotting with BJM</a></li>
+    <li><a class="dropdown-item" href="../articles/recurrent-events.html">Recurrent events: the next event and the number of recurrences</a></li>
   </ul></li>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -103,7 +104,7 @@ for the competing-risks GLM.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  Marginal Survival Sub-model  [Cox PH]</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> -----------------------------------------------------------------</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  Formula: Surv(years, status3) ~ age + sex</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x55e9d2f95870&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x55984eb75250&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>          Coef exp(Coef)        SE      z p-value   </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> age  0.020411  1.020621  0.007584  2.691 0.00712 **</span>
@@ -124,7 +125,7 @@ for the competing-risks GLM.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  Conditional Competing-Risks Sub-model  [Logistic GLM]</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> -----------------------------------------------------------------</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  Formula: status4 ~ years + age + sex</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x55e9d2f95870&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x55984eb75250&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>                 Coef       SE      z  p-value    </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> (Intercept)  5.65622  1.70478  3.318 0.000907 ***</span>

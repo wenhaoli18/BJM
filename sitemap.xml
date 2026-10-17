@@ -7,6 +7,7 @@
 <url><loc>https://wenhaoli18.github.io/BJM/articles/interval-censoring.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/articles/nonlinear-terms.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/articles/plotting.html</loc></url>
+<url><loc>https://wenhaoli18.github.io/BJM/articles/recurrent-events.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/authors.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/index.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/news/index.html</loc></url>
@@ -33,6 +34,7 @@
 <url><loc>https://wenhaoli18.github.io/BJM/reference/auto_tune_marker_bandcount3.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/bandcount_auto_start.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/barnard_rubin_df.html</loc></url>
+<url><loc>https://wenhaoli18.github.io/BJM/reference/buildRecurrentEpisodes.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/build_conditional_design.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/build_conditional_design_copula.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/build_diffusion_module.html</loc></url>
@@ -73,6 +75,7 @@
 <url><loc>https://wenhaoli18.github.io/BJM/reference/cov_logdens.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/cov_logdens_grid.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/cumulative_baseline_at.html</loc></url>
+<url><loc>https://wenhaoli18.github.io/BJM/reference/default_next_covariates.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/density_mode.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/diffusion_beta_schedule.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/diffusion_impute.html</loc></url>
@@ -146,6 +149,7 @@
 <url><loc>https://wenhaoli18.github.io/BJM/reference/pooled_longitudinal_fit.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/predictLongitudinal.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/predictPlot.html</loc></url>
+<url><loc>https://wenhaoli18.github.io/BJM/reference/predictRecurrentCount.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/predictRisk.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/prediction_patient_ids.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/predictive_sd.html</loc></url>
@@ -191,6 +195,7 @@
 <url><loc>https://wenhaoli18.github.io/BJM/reference/tail_time.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/train_diffusion.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/train_miwae.html</loc></url>
+<url><loc>https://wenhaoli18.github.io/BJM/reference/training_episode_max.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/training_xlevels.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/unsafe_formula_calls.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/warn_unsafe_formula_terms.html</loc></url>

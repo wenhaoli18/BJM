@@ -40,6 +40,68 @@
 
 ### New features
 
+- New
+  [`buildRecurrentEpisodes()`](https://wenhaoli18.github.io/BJM/reference/buildRecurrentEpisodes.md)
+  – **experimental** – extends the backward joint model to *recurrent*
+  events by a gap-time (renewal) reformulation. It cuts each subject’s
+  history into episodes, with the clock restarting at 0
+  (`restart_variable` starts an episode at a discharge rather than at
+  the readmission, and `lookback` keeps labs from the stay before it as
+  negative `time_in_episode`), and re-clocks the longitudinal
+  measurements, so the result goes straight into
+  [`survivalSub()`](https://wenhaoli18.github.io/BJM/reference/survivalSub.md)/[`longitudinalSub()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md)/
+  [`predictRisk()`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md)
+  – none of which changed – to predict whether a subject’s *next* event
+  within a horizon is a recurrence or a terminal event. An episode that
+  has not ended has `gap = NA`, which
+  [`predictRisk()`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md)
+  reads as “still at risk”. Fit the biomarker model with its random
+  effects grouped by `episode_id`, not by patient (see
+  [`?buildRecurrentEpisodes`](https://wenhaoli18.github.io/BJM/reference/buildRecurrentEpisodes.md)).
+
+  This extension is unpublished and has been checked only in simulation
+  studies, kept outside the package, not on real data. When the data are
+  built the BJM way (the biomarker’s trajectory follows from the event
+  time), BJM was calibrated and discriminated better than a logistic
+  regression on the last lab value (AUC for a readmission / a death
+  within 30 days 0.81 / 0.79 against 0.77 / 0.77). When instead the
+  biomarker’s current level drives the risk, it matched that regression
+  but did not beat it (0.75 / 0.73 against 0.75 / 0.75), and only with
+  random effects grouped by episode (grouped by patient: 0.65 / 0.62). A
+  patient-level frailty that the survival sub-model does not have
+  weakens the predictions and biases its Cox coefficients (age and sex
+  attenuated by about 28%, the episode-number effect inflated by about
+  as much); without one, the sub-model estimates were unbiased in the
+  cases simulated. A joint frailty model from `frailtypack` that uses
+  event history but no biomarker discriminated much worse (AUC
+  0.55-0.61).
+
+- New
+  [`predictRecurrentCount()`](https://wenhaoli18.github.io/BJM/reference/predictRecurrentCount.md)
+  – **experimental** – predicts the *number* of recurrences in a window,
+  and the chance of dying in it, for patients fit with
+  [`buildRecurrentEpisodes()`](https://wenhaoli18.github.io/BJM/reference/buildRecurrentEpisodes.md),
+  by Monte Carlo: each patient is simulated forward episode by episode
+  with
+  [`simulateTrajectory()`](https://wenhaoli18.github.io/BJM/reference/simulateTrajectory.md).
+  The current episode is drawn given the patient’s biomarkers (the
+  distribution
+  [`predictRisk()`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md)
+  integrates); later episodes are drawn from the model given the
+  covariates and an advanced episode counter (not beyond the largest
+  value in the data the survival sub-model was fit on), with stay
+  lengths resampled from data you supply. Only the first step uses the
+  biomarkers, so a patient-level tendency to recur that is not in the
+  covariates is not carried forward. In simulation studies kept outside
+  the package, expected counts were within about 5% of the truth when
+  the data were built the BJM way and about 10% too high when the
+  biomarker’s current level drives the risk (1.82 against 1.65);
+  patients were ranked better than by a Poisson regression on the last
+  lab value in the first case (Spearman 0.34 against 0.30) and as well
+  in the second (0.39 against 0.40). The absolute discrimination is
+  modest (“at least 2 recurrences”: AUC about 0.64-0.70), and the
+  simulated processes are not calibrated to any real disease.
+
 - Interval-censored event times – **experimental**.
   [`survivalSub()`](https://wenhaoli18.github.io/BJM/reference/survivalSub.md)
   now accepts `Surv(L, R, type = "interval2")` outcomes (event known
