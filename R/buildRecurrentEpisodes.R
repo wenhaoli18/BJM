@@ -64,30 +64,38 @@
 #' \code{prediction_time} set to that subject's elapsed
 #' \code{time_in_episode} at the cutoff.
 #'
-#' \strong{Important: override the open episode's \code{gap} placeholder
-#' before calling \code{predictRisk()}.} The \code{gap} value
-#' \code{buildRecurrentEpisodes()} records for that still-open episode is
-#' just elapsed time so far (there is nothing else it could honestly be --
-#' the episode has not ended yet). But \code{predictRisk()} separately uses
-#' \code{2 * max(gap)} across the prediction data as \code{upper_bound}, the
-#' point out to which it integrates when normalizing the risk probability
-#' (effectively treating it as "infinity"). Left as elapsed-time-so-far,
-#' that upper bound has no relationship to how much further the episode
-#' could actually run, starves the normalizing integral, and silently
-#' inflates both \code{risk_prob_1} and \code{risk_prob_2} toward 1 --
-#' worse the earlier the landmark is in the episode. Overwrite \code{gap}
-#' on the at-risk episode's rows with something comfortably larger than the
-#' training cohort's observed gap range (e.g. \code{1.2 *
-#' max(built$episode_data$gap)}) right before calling \code{predictRisk()};
-#' this is safe because that column is only ever used for the
-#' \code{subset_at_risk()} eligibility check (\code{gap >= prediction_time})
-#' and for sizing \code{upper_bound} -- never as the value actually being
-#' predicted, which \code{predictRisk()} sweeps over its own candidate grid
-#' regardless of what is in this column. Do not push it further than
-#' necessary, though: an excessively large override forces
-#' \code{marginalT()}'s baseline-hazard extrapolation to run over a much
-#' wider range than the fit ever observed, trading one source of bias for
-#' another.
+#' \strong{The open episode's \code{gap} is \code{NA}.} For an episode that
+#' has not ended (\code{event_any == 0}) -- typically the one a subject is
+#' currently at risk in -- the \code{gap} column of \code{long_data} is
+#' \code{NA}: its final length is exactly what is being predicted.
+#' \code{predictRisk()} reads a missing survival-time variable as "event time
+#' not yet known, still at risk", so that episode's rows can be passed
+#' straight to it, with no placeholder to set or override (\code{episode_data}
+#' keeps the real elapsed time of such an episode, which is what the Cox fit
+#' needs as a censoring time). Training rows are unaffected, since
+#' \code{longitudinalSub()} is fit on \code{event_any == 1} rows only. Note that
+#' \code{predictRisk()} also expects the outcome columns it was fit with
+#' (the time and event-type variables) to exist in the prediction data;
+#' \code{long_data} already carries \code{event_type} (\code{NA} for an open
+#' episode).
+#'
+#' \strong{Episodes that start at discharge (\code{restart_variable},
+#' \code{lookback}).} By default an episode starts at the previous event
+#' (time \code{0} for the first). For hospitalization data that is not the
+#' at-risk clock: after a readmission the patient is in hospital, not at risk,
+#' until discharge. Give \code{data_events} a numeric column -- passed as
+#' \code{restart_variable} -- holding, for each recurrence row, the time the
+#' process restarts (the discharge ending that stay); the next episode then
+#' starts there and its gap is measured from it. Time \code{0} is the first
+#' episode's start (e.g. the index discharge). Biomarkers measured during the
+#' stay, or before the index discharge, precede the episode they predict:
+#' \code{lookback} (default \code{0}, none) keeps measurements up to that
+#' long before an episode's start -- never reaching back past the previous
+#' event, so a stay's own labs are not mixed into the earlier at-risk period --
+#' and gives them \emph{negative} \code{time_in_episode}. Use \code{Inf} to keep
+#' the whole stay (and, for the first episode, everything before time
+#' \code{0}). Negative times are fine for \code{longitudinalSub()} and
+#' \code{predictRisk()}.
 #'
 #' @param data_events One row per subject per event-or-censoring occurrence,
 #'   in calendar time (i.e. not yet re-clocked to gap time -- this function
@@ -104,8 +112,10 @@
 #'   \code{data.frame}, or a list of \code{data.frame}s (one per
 #'   longitudinal outcome). Must contain \code{id_variable} and
 #'   \code{time_variable_long}. Rows whose \code{time_variable_long} falls
-#'   before \code{0} or after the subject's process has already ended (per
-#'   \code{data_events}) are dropped, with a message reporting how many. A
+#'   outside every episode -- before \code{0} (beyond \code{lookback}), in a
+#'   hospital stay \code{lookback} does not reach, or after the subject's
+#'   process has already ended (per \code{data_events}) -- are dropped, with
+#'   a message reporting how many. A
 #'   row whose \code{time_variable_long} falls exactly on the shared
 #'   boundary between two episodes (e.g. a biomarker drawn at the same
 #'   visit an event is recorded) is genuinely ambiguous -- it is at once
@@ -126,6 +136,17 @@
 #'   \code{"event_type"}). Change these if they collide with an existing
 #'   column of \code{data_events}/\code{data_long} -- collisions are an
 #'   error, not a silent overwrite.
+#' @param restart_variable Optional name of a numeric column of
+#'   \code{data_events}: for each recurrence (\code{status == 1}) row, the time
+#'   the process restarts after it (for hospitalizations, the discharge ending
+#'   that stay; must not be earlier than the row's \code{time_variable}). The
+#'   next episode starts there instead of at the event time. \code{NULL}
+#'   (default) restarts at the event time itself. Ignored on rows that end the
+#'   process. Not carried into \code{episode_data}.
+#' @param lookback A single non-negative number (\code{Inf} allowed): how far
+#'   before an episode's start its measurements are still kept, as negative
+#'   \code{time_in_episode}, but never from before the previous event. Default
+#'   \code{0} keeps only measurements from the start on.
 #'
 #' @return A list with elements:
 #' \describe{
@@ -161,6 +182,18 @@
 #' data_events <- data_events[-5, ] # keep one row per subject/episode boundary above
 #' episodes <- buildRecurrentEpisodes(data_events)
 #' episodes$episode_data
+#'
+#' ## Hospitalizations: each episode starts at DISCHARGE, not at the readmission.
+#' ## `time` = readmission (or death/censoring) day; `discharge` = day the stay
+#' ## it started ends. Labs drawn in the stay (and before the index discharge at
+#' ## day 0) are kept with negative time_in_episode via lookback = Inf.
+#' events <- data.frame(id = 1, time = c(20, 60, 90), status = c(1, 1, 0),
+#'                      discharge = c(26, 66, NA))
+#' labs <- data.frame(id = 1, day = c(-3, 0, 5, 21, 26, 40, 61, 66, 80))
+#' hf <- buildRecurrentEpisodes(events, labs, time_variable_long = "day",
+#'                              restart_variable = "discharge", lookback = Inf)
+#' hf$episode_data   # gaps measured from each discharge: 20, 34, 24
+#' hf$long_data[, c("day", "episode", "time_in_episode", "gap")]
 #'
 #' \donttest{
 #' ## A full pipeline on simulated recurrent-event + longitudinal data:
@@ -217,11 +250,8 @@
 #' cur_episode <- max(data_predict$episode)
 #' landmark <- max(data_predict$time_in_episode[data_predict$episode == cur_episode])
 #' data_predict <- data_predict[data_predict$episode == cur_episode, ]
-#'
-#' ## Override the open episode's gap placeholder (see Details above) --
-#' ## otherwise predictRisk()'s upper_bound = 2 * max(gap) collapses to
-#' ## ~2 * landmark and both risk probabilities come out badly overconfident.
-#' data_predict$gap <- 1.2 * max(built$episode_data$gap)
+#' ## (the open episode's gap is NA, which predictRisk() reads as "still at
+#' ## risk" -- nothing to override)
 #'
 #' risk <- predictRisk(
 #'   data_predict,
@@ -245,7 +275,9 @@ buildRecurrentEpisodes <- function(data_events,
                                     gap_variable = "gap",
                                     time_in_episode_variable = "time_in_episode",
                                     event_any_variable = "event_any",
-                                    event_type_variable = "event_type") {
+                                    event_type_variable = "event_type",
+                                    restart_variable = NULL,
+                                    lookback = 0) {
 
   assert_data_frame(data_events, "data_events")
   for (nm in c("id_variable", "time_variable", "status_variable", "episode_variable",
@@ -265,6 +297,17 @@ buildRecurrentEpisodes <- function(data_events,
     ), call. = FALSE)
   }
 
+  if (!is.null(restart_variable)) {
+    assert_string(restart_variable, "restart_variable")
+    assert_vars_in_data(restart_variable, data_events, "restart_variable", "data_events")
+    if (!is.numeric(data_events[[restart_variable]])) {
+      stop(sprintf("`%s` must be a numeric column.", restart_variable), call. = FALSE)
+    }
+  }
+  if (!is.numeric(lookback) || length(lookback) != 1 || is.na(lookback) || lookback < 0) {
+    stop("`lookback` must be a single non-negative number (`Inf` allowed).", call. = FALSE)
+  }
+
   status_vals <- data_events[[status_variable]]
   if (anyNA(status_vals) || !all(status_vals %in% c(0, 1, 2))) {
     stop(sprintf(
@@ -282,23 +325,30 @@ buildRecurrentEpisodes <- function(data_events,
   ord <- order(data_events[[id_variable]], data_events[[time_variable]])
   data_events <- data_events[ord, , drop = FALSE]
 
-  baseline_cols <- setdiff(names(data_events), c(id_variable, time_variable, status_variable))
+  baseline_cols <- setdiff(names(data_events),
+                           c(id_variable, time_variable, status_variable, restart_variable))
   ids <- unique(data_events[[id_variable]])
 
   episode_rows <- vector("list", length(ids))
   names(episode_rows) <- as.character(ids)
+  bounds_rows <- episode_rows
 
   for (pid in ids) {
     di <- data_events[data_events[[id_variable]] == pid, , drop = FALSE]
-    t_prev <- 0
-    rows <- list()
+    # an episode runs from t_start (time 0 for the first; afterwards the
+    # previous event's `restart_variable` if given -- e.g. discharge from the
+    # stay a readmission started -- else the previous event time itself) to
+    # t_end (this row's time)
+    t_start <- 0
+    t_prev_event <- -Inf
+    rows <- list(); brows <- list()
     k <- 0L
     for (r in seq_len(nrow(di))) {
       st <- di[[status_variable]][r]
       tt <- di[[time_variable]][r]
-      if (!is.finite(tt) || tt <= t_prev) {
+      if (!is.finite(tt) || tt <= t_start) {
         stop(sprintf(
-          "`%s` must be strictly increasing within each `%s` (and > 0 for the first row); id = %s violates this at row %d.",
+          "`%s` must be strictly increasing within each `%s` -- and later than 0 for the first row, and later than the previous row's `restart_variable` if one is given; id = %s violates this at row %d.",
           time_variable, id_variable, pid, r
         ), call. = FALSE)
       }
@@ -306,14 +356,25 @@ buildRecurrentEpisodes <- function(data_events,
       row_out <- di[r, baseline_cols, drop = FALSE]
       row_out[[id_variable]] <- pid
       row_out[[episode_variable]] <- k
-      row_out[[gap_variable]] <- tt - t_prev
+      row_out[[gap_variable]] <- tt - t_start
       row_out[[event_any_variable]] <- as.integer(st != 0)
       row_out[[event_type_variable]] <- if (st == 1) 0L else if (st == 2) 1L else NA_integer_
       rows[[k]] <- row_out
-      t_prev <- tt
+      brows[[k]] <- data.frame(episode = k, t_start = t_start, t_end = tt, t_prev_event = t_prev_event)
       if (st != 1) break
+      t_prev_event <- tt
+      t_start <- tt
+      if (!is.null(restart_variable) && !is.na(di[[restart_variable]][r])) {
+        rs <- di[[restart_variable]][r]
+        if (rs < tt) {
+          stop(sprintf("`%s` (%s) is earlier than the event time it belongs to (%s) for id = %s, row %d.",
+                       restart_variable, format(rs), format(tt), pid, r), call. = FALSE)
+        }
+        t_start <- rs
+      }
     }
     episode_rows[[as.character(pid)]] <- do.call(rbind, rows)
+    bounds_rows[[as.character(pid)]] <- do.call(rbind, brows)
   }
   episode_data <- do.call(rbind, episode_rows)
   rownames(episode_data) <- NULL
@@ -329,12 +390,18 @@ buildRecurrentEpisodes <- function(data_events,
     tv_long <- if (is.null(time_variable_long)) time_variable else time_variable_long
     assert_string(tv_long, "time_variable_long")
 
-    ep_split <- split(episode_data[c(episode_variable, gap_variable)], episode_data[[id_variable]])
-    boundaries <- lapply(ep_split, function(b) {
-      b <- b[order(b[[episode_variable]]), , drop = FALSE]
-      cum <- cumsum(b[[gap_variable]])
-      t_start <- c(0, cum[-length(cum)])
-      data.frame(episode = b[[episode_variable]], t_start = t_start, t_end = cum, gap = b[[gap_variable]])
+    # per subject: each episode's start, end, and the earliest time whose
+    # measurements count toward it (t_lo). With `lookback = 0` (the default)
+    # t_lo is the episode's own start, i.e. only measurements from t_start on;
+    # a larger `lookback` also takes in measurements up to that long before
+    # t_start -- but never from before the previous event, which belong to the
+    # previous episode's own at-risk period -- giving them negative
+    # time_in_episode. Between a readmission and the discharge that restarts
+    # the process (the stay) that window is exactly the stay.
+    boundaries <- lapply(bounds_rows, function(b) {
+      data.frame(episode = b$episode, t_start = b$t_start, t_end = b$t_end,
+                 t_lo = pmax(b$t_start - lookback, b$t_prev_event),
+                 gap = b$t_end - b$t_start)
     })
     ep_lookup <- split(episode_data, episode_data[[id_variable]])
     # Baseline/event-time covariates already carried onto episode_data (e.g.
@@ -383,7 +450,7 @@ buildRecurrentEpisodes <- function(data_events,
         tm <- df[[tv_long]][r]
         b <- boundaries[[pid]]
         if (is.null(b) || is.na(tm)) next
-        hits <- which(tm >= b$t_start & tm <= b$t_end)
+        hits <- which(tm >= b$t_lo & tm <= b$t_end)
         if (length(hits) == 0) next
         row_idx <- c(row_idx, rep(r, length(hits)))
         hit_idx <- c(hit_idx, hits)
@@ -392,7 +459,7 @@ buildRecurrentEpisodes <- function(data_events,
       dropped <- n - length(unique(row_idx))
       if (dropped > 0) {
         message(sprintf(
-          "buildRecurrentEpisodes(): dropped %d row(s) of `data_long` whose %s fell outside every modeled episode (before time 0, or after the subject's recurrent-event process had already ended).",
+          "buildRecurrentEpisodes(): dropped %d row(s) of `data_long` whose %s fell outside every modeled episode (before time 0 or the `lookback` window, inside a hospital stay not covered by `lookback`, or after the subject's recurrent-event process had already ended).",
           dropped, tv_long
         ))
       }
@@ -416,12 +483,16 @@ buildRecurrentEpisodes <- function(data_events,
         b <- boundaries[[pid]]
         hit <- hit_idx[j]
         ep[j] <- b$episode[hit]
-        gp[j] <- b$gap[hit]
         tie[j] <- out[[tv_long]][j] - b$t_start[hit]
         erow <- ep_lookup[[pid]]
         erow <- erow[erow[[episode_variable]] == b$episode[hit], , drop = FALSE]
         ev_any[j] <- erow[[event_any_variable]][1]
         ev_type[j] <- erow[[event_type_variable]][1]
+        # An episode that has not ended (event_any == 0) has no observed
+        # length yet, so its gap is NA here -- exactly what predictRisk()
+        # reads as "event time not yet known, still at risk". (episode_data
+        # keeps the real elapsed time for the Cox fit.)
+        gp[j] <- if (ev_any[j] == 1) b$gap[hit] else NA_real_
         if (!is.null(carried)) carried[j, ] <- erow[1, carry_new]
       }
 

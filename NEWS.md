@@ -25,32 +25,34 @@
   backward-time trick behind `survivalSub()`/`longitudinalSub()`/
   `predictRisk()` from a single terminal event to *recurrent* events, via a
   gap-time (renewal) reformulation: it splits a subject's event history
-  into episodes (gap-time-clock reset to 0 at each event) and re-clocks any
-  accompanying longitudinal measurements onto the same per-episode
-  timeline, so the result plugs directly into the existing
+  into episodes (gap-time clock reset to 0 at the start of each) and
+  re-clocks any accompanying longitudinal measurements onto the same
+  per-episode timeline, so the result plugs directly into the existing
   `survivalSub()`/`longitudinalSub()`/`predictRisk()` pipeline -- none of
   those functions needed to change -- to predict, for a subject currently
   at risk within an ongoing episode, whether their *next* event (within a
-  horizon) is another recurrence or a terminal event. Unlike the
-  single-event and competing-risks cases (Shen and Li, 2021; Li et al.,
-  2026), this gap-time extension is unpublished. `validation/
-  recurrent-event-calibration.R` checks it under a correctly-specified
-  simulated DGP (not part of the installed package): predicted and
-  realized "next event" probabilities land close to the diagonal on a
-  binned calibration plot, with a logistic calibration slope around 0.6-0.7
-  for both the recurrence and the terminal-event probability (1 would be
-  perfect; the terminal-event probability is also still about 10 points too
-  low on average) -- usable ranking, but visibly imperfect, from a single
-  500-subject test set and a single seed. This only checks that the code
-  implements the intended Bayes combination under a correctly-specified
-  model, not robustness to real-world model misspecification. See
-  `?buildRecurrentEpisodes` for what it does and does not support (in
-  particular, it predicts only the *next* event, not the total number of
-  future recurrences), and for why the open (not-yet-resolved) episode's
-  `gap` placeholder needs to be overridden with a value well beyond the
-  training cohort's observed range before calling `predictRisk()` --
-  otherwise `predictRisk()`'s own `upper_bound` sizing silently produces
-  overconfident probabilities.
+  horizon) is another recurrence or a terminal event. An episode that has
+  not ended has `gap = NA` in `long_data`, which `predictRisk()` reads as
+  "event time not yet known, still at risk", so its rows go straight to
+  `predictRisk()`. For hospitalization data, `restart_variable` starts each
+  episode at discharge rather than at the readmission, and `lookback`
+  keeps labs drawn during the stay (or before the index discharge) as
+  negative `time_in_episode`. Unlike the single-event and competing-risks
+  cases (Shen and Li, 2021; Li et al., 2026), this gap-time extension is
+  unpublished. `validation/` has simulation checks, not part of the
+  installed package: `discharge-firstevent-calibration.R` (one index
+  discharge per patient, readmission vs death within 30 days; ordinary
+  BJM, no recurrent machinery) finds BJM calibrated (slope ~1.0 for
+  readmission, ~0.9 for death, over 10 seeds) and more discriminating
+  than a last-value logistic regression, under a correctly specified model;
+  `recurrent-event-calibration.R` checks mid-episode landmarks and has a
+  known test-design flaw (it scores only episodes that eventually
+  resolved, which inflates the observed event rate), so its numbers should
+  not be read as a bias estimate. Both only check that the code
+  implements the intended Bayes combination under a correctly specified
+  model, not robustness to misspecification. It predicts only the *next*
+  event, not the total number of future recurrences; see
+  `?buildRecurrentEpisodes`.
 
 * Interval-censored event times -- **experimental**. `survivalSub()` now
   accepts `Surv(L, R, type = "interval2")` outcomes (event known only to lie

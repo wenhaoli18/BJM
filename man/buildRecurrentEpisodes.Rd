@@ -15,7 +15,9 @@ buildRecurrentEpisodes(
   gap_variable = "gap",
   time_in_episode_variable = "time_in_episode",
   event_any_variable = "event_any",
-  event_type_variable = "event_type"
+  event_type_variable = "event_type",
+  restart_variable = NULL,
+  lookback = 0
 )
 }
 \arguments{
@@ -35,8 +37,10 @@ same per-episode timeline, in the same format \code{longitudinalSub()}/
 \code{data.frame}, or a list of \code{data.frame}s (one per
 longitudinal outcome). Must contain \code{id_variable} and
 \code{time_variable_long}. Rows whose \code{time_variable_long} falls
-before \code{0} or after the subject's process has already ended (per
-\code{data_events}) are dropped, with a message reporting how many. A
+outside every episode -- before \code{0} (beyond \code{lookback}), in a
+hospital stay \code{lookback} does not reach, or after the subject's
+process has already ended (per \code{data_events}) -- are dropped, with
+a message reporting how many. A
 row whose \code{time_variable_long} falls exactly on the shared
 boundary between two episodes (e.g. a biomarker drawn at the same
 visit an event is recorded) is genuinely ambiguous -- it is at once
@@ -59,6 +63,19 @@ as in \code{data_events}) when \code{NULL}.}
 \code{"event_type"}). Change these if they collide with an existing
 column of \code{data_events}/\code{data_long} -- collisions are an
 error, not a silent overwrite.}
+
+\item{restart_variable}{Optional name of a numeric column of
+\code{data_events}: for each recurrence (\code{status == 1}) row, the time
+the process restarts after it (for hospitalizations, the discharge ending
+that stay; must not be earlier than the row's \code{time_variable}). The
+next episode starts there instead of at the event time. \code{NULL}
+(default) restarts at the event time itself. Ignored on rows that end the
+process. Not carried into \code{episode_data}.}
+
+\item{lookback}{A single non-negative number (\code{Inf} allowed): how far
+before an episode's start its measurements are still kept, as negative
+\code{time_in_episode}, but never from before the previous event. Default
+\code{0} keeps only measurements from the start on.}
 }
 \value{
 A list with elements:
@@ -148,30 +165,38 @@ at the current data-cutoff time, and call \code{predictRisk()} with
 \code{prediction_time} set to that subject's elapsed
 \code{time_in_episode} at the cutoff.
 
-\strong{Important: override the open episode's \code{gap} placeholder
-before calling \code{predictRisk()}.} The \code{gap} value
-\code{buildRecurrentEpisodes()} records for that still-open episode is
-just elapsed time so far (there is nothing else it could honestly be --
-the episode has not ended yet). But \code{predictRisk()} separately uses
-\code{2 * max(gap)} across the prediction data as \code{upper_bound}, the
-point out to which it integrates when normalizing the risk probability
-(effectively treating it as "infinity"). Left as elapsed-time-so-far,
-that upper bound has no relationship to how much further the episode
-could actually run, starves the normalizing integral, and silently
-inflates both \code{risk_prob_1} and \code{risk_prob_2} toward 1 --
-worse the earlier the landmark is in the episode. Overwrite \code{gap}
-on the at-risk episode's rows with something comfortably larger than the
-training cohort's observed gap range (e.g. \code{1.2 *
-max(built$episode_data$gap)}) right before calling \code{predictRisk()};
-this is safe because that column is only ever used for the
-\code{subset_at_risk()} eligibility check (\code{gap >= prediction_time})
-and for sizing \code{upper_bound} -- never as the value actually being
-predicted, which \code{predictRisk()} sweeps over its own candidate grid
-regardless of what is in this column. Do not push it further than
-necessary, though: an excessively large override forces
-\code{marginalT()}'s baseline-hazard extrapolation to run over a much
-wider range than the fit ever observed, trading one source of bias for
-another.
+\strong{The open episode's \code{gap} is \code{NA}.} For an episode that
+has not ended (\code{event_any == 0}) -- typically the one a subject is
+currently at risk in -- the \code{gap} column of \code{long_data} is
+\code{NA}: its final length is exactly what is being predicted.
+\code{predictRisk()} reads a missing survival-time variable as "event time
+not yet known, still at risk", so that episode's rows can be passed
+straight to it, with no placeholder to set or override (\code{episode_data}
+keeps the real elapsed time of such an episode, which is what the Cox fit
+needs as a censoring time). Training rows are unaffected, since
+\code{longitudinalSub()} is fit on \code{event_any == 1} rows only. Note that
+\code{predictRisk()} also expects the outcome columns it was fit with
+(the time and event-type variables) to exist in the prediction data;
+\code{long_data} already carries \code{event_type} (\code{NA} for an open
+episode).
+
+\strong{Episodes that start at discharge (\code{restart_variable},
+\code{lookback}).} By default an episode starts at the previous event
+(time \code{0} for the first). For hospitalization data that is not the
+at-risk clock: after a readmission the patient is in hospital, not at risk,
+until discharge. Give \code{data_events} a numeric column -- passed as
+\code{restart_variable} -- holding, for each recurrence row, the time the
+process restarts (the discharge ending that stay); the next episode then
+starts there and its gap is measured from it. Time \code{0} is the first
+episode's start (e.g. the index discharge). Biomarkers measured during the
+stay, or before the index discharge, precede the episode they predict:
+\code{lookback} (default \code{0}, none) keeps measurements up to that
+long before an episode's start -- never reaching back past the previous
+event, so a stay's own labs are not mixed into the earlier at-risk period --
+and gives them \emph{negative} \code{time_in_episode}. Use \code{Inf} to keep
+the whole stay (and, for the first episode, everything before time
+\code{0}). Negative times are fine for \code{longitudinalSub()} and
+\code{predictRisk()}.
 }
 \examples{
 ## A minimal example: reshaping alone (no model fitting).
@@ -184,6 +209,18 @@ data_events <- data.frame(
 data_events <- data_events[-5, ] # keep one row per subject/episode boundary above
 episodes <- buildRecurrentEpisodes(data_events)
 episodes$episode_data
+
+## Hospitalizations: each episode starts at DISCHARGE, not at the readmission.
+## `time` = readmission (or death/censoring) day; `discharge` = day the stay
+## it started ends. Labs drawn in the stay (and before the index discharge at
+## day 0) are kept with negative time_in_episode via lookback = Inf.
+events <- data.frame(id = 1, time = c(20, 60, 90), status = c(1, 1, 0),
+                     discharge = c(26, 66, NA))
+labs <- data.frame(id = 1, day = c(-3, 0, 5, 21, 26, 40, 61, 66, 80))
+hf <- buildRecurrentEpisodes(events, labs, time_variable_long = "day",
+                             restart_variable = "discharge", lookback = Inf)
+hf$episode_data   # gaps measured from each discharge: 20, 34, 24
+hf$long_data[, c("day", "episode", "time_in_episode", "gap")]
 
 \donttest{
 ## A full pipeline on simulated recurrent-event + longitudinal data:
@@ -240,11 +277,8 @@ data_predict <- built$long_data[built$long_data$id == 9999, ]
 cur_episode <- max(data_predict$episode)
 landmark <- max(data_predict$time_in_episode[data_predict$episode == cur_episode])
 data_predict <- data_predict[data_predict$episode == cur_episode, ]
-
-## Override the open episode's gap placeholder (see Details above) --
-## otherwise predictRisk()'s upper_bound = 2 * max(gap) collapses to
-## ~2 * landmark and both risk probabilities come out badly overconfident.
-data_predict$gap <- 1.2 * max(built$episode_data$gap)
+## (the open episode's gap is NA, which predictRisk() reads as "still at
+## risk" -- nothing to override)
 
 risk <- predictRisk(
   data_predict,

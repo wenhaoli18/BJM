@@ -247,3 +247,81 @@ test_that("the gap-time episode_data/long_data plug directly into survivalSub()/
   expect_true(is.numeric(risk$risk_prob_1) && risk$risk_prob_1 >= 0 && risk$risk_prob_1 <= 1)
   expect_true(is.numeric(risk$risk_prob_2) && risk$risk_prob_2 >= 0 && risk$risk_prob_2 <= 1)
 })
+
+# ---- gap-time episodes that start at discharge (restart_variable/lookback) ----
+
+test_that("the open episode's gap is NA in long_data, but episode_data keeps the elapsed time", {
+  data_events <- data.frame(id = c(1, 1), time = c(1.0, 2.5), status = c(1, 0))
+  data_long <- data.frame(id = 1, year = c(0.5, 1.5, 2.0))
+
+  out <- buildRecurrentEpisodes(data_events, data_long, time_variable_long = "year")
+
+  expect_equal(out$episode_data$gap, c(1.0, 1.5))     # Cox fit needs the censoring time
+  ld <- out$long_data
+  expect_true(all(ld$gap[ld$episode == 1] == 1.0))    # resolved episode: real gap
+  expect_true(all(is.na(ld$gap[ld$episode == 2])))    # open episode: unknown
+  expect_true(all(ld$event_any[ld$episode == 2] == 0))
+})
+
+test_that("restart_variable starts the next episode at discharge and keeps stay labs as negative time", {
+  # readmitted day 20, discharged day 26; readmitted day 60, discharged day 66;
+  # censored day 90
+  events <- data.frame(id = 1, time = c(20, 60, 90), status = c(1, 1, 0),
+                       discharge = c(26, 66, NA))
+  labs <- data.frame(id = 1, day = c(-3, 0, 5, 21, 26, 40, 61, 66, 80))
+
+  out <- buildRecurrentEpisodes(events, labs, time_variable_long = "day",
+                                restart_variable = "discharge", lookback = Inf)
+  ed <- out$episode_data
+  expect_equal(ed$gap, c(20, 34, 24))                 # 20-0, 60-26, 90-66
+  expect_false("discharge" %in% names(ed))            # restart column not carried
+
+  ld <- out$long_data
+  ep1 <- ld[ld$episode == 1, ]
+  expect_equal(sort(ep1$time_in_episode), c(-3, 0, 5))   # index-stay lab at -3, discharge 0, day 5
+  # day 21 is inside the stay after the day-20 readmission: belongs to episode 2 as -5
+  ep2 <- ld[ld$episode == 2, ]
+  expect_equal(sort(ep2$time_in_episode), sort(c(21, 26, 40) - 26))
+  ep3 <- ld[ld$episode == 3, ]
+  expect_equal(sort(ep3$time_in_episode), sort(c(61, 66, 80) - 66))
+})
+
+test_that("lookback = 0 (default) drops stay labs and restart_variable alone changes only the clock", {
+  events <- data.frame(id = 1, time = c(20, 60), status = c(1, 0), discharge = c(26, NA))
+  labs <- data.frame(id = 1, day = c(5, 21, 26, 40))
+
+  out <- buildRecurrentEpisodes(events, labs, time_variable_long = "day",
+                                restart_variable = "discharge")   # lookback = 0
+  expect_equal(out$episode_data$gap, c(20, 34))
+  # day 21 is in the stay (20, 26): not kept without lookback; day 26 = start of episode 2
+  expect_equal(sort(out$long_data$day), c(5, 26, 40))
+  expect_equal(out$long_data$time_in_episode[out$long_data$day == 26], 0)
+})
+
+test_that("lookback never reaches back past the previous event", {
+  events <- data.frame(id = 1, time = c(20, 60), status = c(1, 0), discharge = c(26, NA))
+  labs <- data.frame(id = 1, day = c(10, 21))   # day 10 is episode 1's own at-risk time
+  out <- buildRecurrentEpisodes(events, labs, time_variable_long = "day",
+                                restart_variable = "discharge", lookback = 100)
+  ep2 <- out$long_data[out$long_data$episode == 2, ]
+  expect_equal(ep2$day, 21)       # day 10 (before the day-20 readmission) is NOT episode 2's
+  expect_true(10 %in% out$long_data$day[out$long_data$episode == 1])
+})
+
+test_that("restart earlier than its own event, bad lookback, or a non-numeric restart column are rejected", {
+  expect_error(
+    buildRecurrentEpisodes(data.frame(id = c(1, 1), time = c(20, 60), status = c(1, 0), r = c(10, NA)),
+                           restart_variable = "r"),
+    "earlier than the event time")
+  expect_error(
+    buildRecurrentEpisodes(data.frame(id = 1, time = 5, status = 0), lookback = -1),
+    "`lookback` must be")
+  expect_error(
+    buildRecurrentEpisodes(data.frame(id = 1, time = 5, status = 0, r = "a"), restart_variable = "r"),
+    "must be a numeric column")
+  # next event before the restart (readmitted before being discharged)
+  expect_error(
+    buildRecurrentEpisodes(data.frame(id = c(1, 1), time = c(20, 24), status = c(1, 0), r = c(26, NA)),
+                           restart_variable = "r"),
+    "must be strictly increasing")
+})
