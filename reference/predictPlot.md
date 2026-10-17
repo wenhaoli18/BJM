@@ -132,7 +132,10 @@ predictPlot(
 
 - density:
 
-  Indicator, plot future biomarker density or not, if NULL do not plot
+  Indicator, plot future biomarker density or not, if NULL do not plot.
+  For an ordinal biomarker the prediction is instead drawn as each
+  category's predicted probability (points sized by it), with the axis
+  labelled by category.
 
 - n_cores:
 

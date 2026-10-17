@@ -187,7 +187,11 @@ window after each landmark in which events are counted.</p></dd>
 
 <dt id="arg-bandcount-bandcount-">bandcount1, bandcount2<a class="anchor" aria-label="anchor" href="#arg-bandcount-bandcount-"></a></dt>
 <dd><p>As for <code><a href="predictRisk.html">predictRisk</a></code>; passed to
-it at each landmark.</p></dd>
+it at each landmark. <code>"auto"</code> (the default) re-tunes them in every
+call, which over a whole cohort is several times slower than fixed values
+(about 10 times for 160 patients in <code>pbc3</code>): for a large evaluation,
+choose them once on a few patients with
+<code><a href="checkBandcountConvergence.html">checkBandcountConvergence</a></code> and pass the numbers.</p></dd>
 
 
 <dt id="arg-interval-method">interval_method<a class="anchor" aria-label="anchor" href="#arg-interval-method"></a></dt>

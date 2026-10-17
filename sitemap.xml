@@ -44,6 +44,7 @@
 <url><loc>https://wenhaoli18.github.io/BJM/reference/calibration_groups_interval.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/checkBandcountConvergence.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/check_future_covariates.html</loc></url>
+<url><loc>https://wenhaoli18.github.io/BJM/reference/check_survival_trans_training.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/cifPlot.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/cif_event_labels.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/cif_step_ribbon.html</loc></url>
@@ -144,6 +145,7 @@
 <url><loc>https://wenhaoli18.github.io/BJM/reference/prediction_patient_ids.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/predictive_sd.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/prepare_infinity_grid.html</loc></url>
+<url><loc>https://wenhaoli18.github.io/BJM/reference/print.fitIntervalBJM.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/print.longitudinalSub.BJM.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/print.poolLongitudinalSub.BJM.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/print.predictLongitudinal.BJM.html</loc></url>
@@ -154,6 +156,7 @@
 <url><loc>https://wenhaoli18.github.io/BJM/reference/random_effects_design.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/resolve_biomarker_type.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/riskPlot.html</loc></url>
+<url><loc>https://wenhaoli18.github.io/BJM/reference/risk_axis_scale.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/rp_basis.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/rtmvnorm_box.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/rtnorm_one.html</loc></url>

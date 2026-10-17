@@ -20,6 +20,10 @@ affect the risk computation itself (unlike
 [`predictPlot`](https://wenhaoli18.github.io/BJM/reference/predictPlot.md)'s
 `bio_pred`, which drives a biomarker density prediction).
 
+When the data give the subject's survival time and status, a vertical
+line marks the end of follow-up: solid for an observed event (coloured
+by event type with competing risks), dashed grey for a censoring.
+
 ## Usage
 
 ``` r

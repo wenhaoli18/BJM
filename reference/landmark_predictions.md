@@ -75,7 +75,12 @@ landmark_predictions(
 
   As for
   [`predictRisk`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md);
-  passed to it at each landmark.
+  passed to it at each landmark. `"auto"` (the default) re-tunes them in
+  every call, which over a whole cohort is several times slower than
+  fixed values (about 10 times for 160 patients in `pbc3`): for a large
+  evaluation, choose them once on a few patients with
+  [`checkBandcountConvergence`](https://wenhaoli18.github.io/BJM/reference/checkBandcountConvergence.md)
+  and pass the numbers.
 
 ## Value
 

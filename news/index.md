@@ -395,6 +395,87 @@
 
 ### Bug fixes
 
+- [`predictRisk()`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md),
+  [`predictLongitudinal()`](https://wenhaoli18.github.io/BJM/reference/predictLongitudinal.md)
+  and
+  [`simulateTrajectory()`](https://wenhaoli18.github.io/BJM/reference/simulateTrajectory.md)
+  check `survival_trans_function` against the transformed event-time
+  columns the longitudinal sub-model was fit on, and stop on a mismatch,
+  naming the column and the function it matches instead (e.g. two
+  functions in the wrong order). Such a mismatch used to give different
+  predictions silently (a risk of 0.37 instead of 0.21 in a `pbc3`
+  example).
+
+- The longitudinal sub-model may now use the event time only through its
+  transformations (`survival_variable_all`), e.g. a spline basis,
+  without the event time itself; it used to be refused.
+
+- [`fitIntervalBJM()`](https://wenhaoli18.github.io/BJM/reference/fitIntervalBJM.md)
+  results print as a short summary (imputation settings, hazard ratios,
+  pooled fixed effects with their fraction of missing information)
+  instead of every component (about 340 lines), and keep their iteration
+  settings in `settings`.
+
+- [`performancePlot()`](https://wenhaoli18.github.io/BJM/reference/performancePlot.md)
+  and
+  [`calibrationPlot()`](https://wenhaoli18.github.io/BJM/reference/calibrationPlot.md)
+  document that fixed `bandcount1`/`bandcount2`, chosen once with
+  [`checkBandcountConvergence()`](https://wenhaoli18.github.io/BJM/reference/checkBandcountConvergence.md),
+  are much faster than `"auto"` for a whole cohort.
+
+- [`cmtPlot()`](https://wenhaoli18.github.io/BJM/reference/cmtPlot.md)
+  now draws what it describes, on any time scale:
+
+  - without competing risks, the new `status_variable` (the event
+    indicator) restricts it to patients with an event. It used to select
+    by survival time alone, so censored patients entered the trajectory
+    “of the patients whose event happened around `condi_time2event`” (6
+    of 23 in the `pbc3` example); without `status_variable` it now warns
+    about this;
+  - the time axis shows `time_variable` itself, in the data’s units and
+    labelled with its name; it showed the point number (1 to 61 for the
+    example’s 5 years in months) labelled “Follow-up time”;
+  - an interval without a measurement is left out. It was filled with
+    the previous interval’s mean (34 of the example’s 61 months), and
+    the fitted line and its confidence band treated those copies as
+    data;
+  - the window of event times is the new `event_window` (default 1, as
+    before, in the data’s units), and the intervals start at the first
+    measurement: both used to assume the data were in years.
+
+- [`riskPlot()`](https://wenhaoli18.github.io/BJM/reference/riskPlot.md)
+  marks the end of a subject’s follow-up by what it was: a solid line
+  for an observed event (coloured by event type with competing risks)
+  and a dashed grey line for a censoring, named in an “End of follow-up”
+  legend. It used to draw the same unlabelled red line at a censoring
+  time as at an event time, so a censored subject looked as if they had
+  had the event.
+
+- The baseline plot of an interval-censored fit
+  (`plot(<survivalSub>, which = "basehaz")`) labels its time axis with
+  the event-time variable instead of `L`, the lower end of the interval.
+
+- [`riskPlot()`](https://wenhaoli18.github.io/BJM/reference/riskPlot.md)
+  and
+  [`predictPlot()`](https://wenhaoli18.github.io/BJM/reference/predictPlot.md)
+  label the risk axis only within \[0, 1\]; where the biomarker went
+  below 0 it showed negative “probabilities”. For an ordinal biomarker
+  both label the biomarker axis with its categories, and
+  [`predictPlot()`](https://wenhaoli18.github.io/BJM/reference/predictPlot.md)
+  draws its prediction as each category’s probability (points sized by
+  it) instead of quantile bands, which a handful of categories turned
+  into overlapping blocks.
+
+- [`plot()`](https://rdrr.io/r/graphics/plot.default.html) of a
+  [`predictLongitudinal()`](https://wenhaoli18.github.io/BJM/reference/predictLongitudinal.md)
+  result leaves out the value grid’s empty tails, and the baseline plot
+  of `plot(<survivalSub>, which = "basehaz")` says that it is for all
+  covariates at 0.
+  [`cmtPlot()`](https://wenhaoli18.github.io/BJM/reference/cmtPlot.md)
+  no longer prints a
+  [`geom_smooth()`](https://ggplot2.tidyverse.org/reference/geom_smooth.html)
+  formula message.
+
 - `imputeLongitudinal(method = "diffusion")` is now a conditional
   diffusion model trained as in CSDI (Tashiro et al., 2021): each
   training row’s observed entries are split at random into targets and

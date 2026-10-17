@@ -82,12 +82,16 @@ predictRisk(
 
 - survival_variable_all:
 
-  The name of the transformed time-to-event outcomes variable.
+  The name of the transformed time-to-event outcomes variable. The
+  longitudinal sub-model must use the event time, directly or through
+  one of these transformations.
 
 - survival_trans_function:
 
   The transformation function used for time-to-event outcomes, in the
-  order of `survival_variable_all`.
+  order of `survival_variable_all`. They are checked against the columns
+  the longitudinal sub-model was fit on, and a mismatch (e.g. two
+  functions in the wrong order) is an error.
 
 - bandcount1:
 

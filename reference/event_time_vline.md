@@ -1,19 +1,21 @@
-# Vertical line at a patient's observed event time
+# Vertical line at the end of a patient's follow-up
 
 Helper for
 [`riskPlot()`](https://wenhaoli18.github.io/BJM/reference/riskPlot.md):
-a `geom_vline()` at the patient's survival time, coloured by event type
-(black for 0, red for 1) with competing risks and red otherwise – or
-`NULL` (nothing drawn) when that time is unknown, as for a new patient.
-A missing time used to be passed to `geom_vline()` as is, and printing
-the plot failed with "Discrete values supplied to continuous scale".
+a vertical line at the patient's survival time, labelled in a legend –
+solid, coloured by event type (as the risk curves: black for the first,
+red for the second), for an observed event, and dashed grey for a
+censored follow-up. Nothing is drawn when the time or the status is
+unknown, as for a new patient or an interval-censored fit. The line used
+to be drawn the same way (red, with no legend) for a censored patient as
+for an event.
 
 ## Usage
 
 ``` r
 event_time_vline(
   data_predict_all_pre,
-  survival_variable,
+  survival_fit_all,
   event_type_variable = NULL
 )
 ```
@@ -24,9 +26,11 @@ event_time_vline(
 
   The patient's prediction data (list of data frames).
 
-- survival_variable:
+- survival_fit_all:
 
-  Name of the survival-time variable.
+  The survival sub-model, whose
+  [`Surv()`](https://rdrr.io/pkg/survival/man/Surv.html) outcome gives
+  the time and the status.
 
 - event_type_variable:
 
@@ -34,4 +38,4 @@ event_time_vline(
 
 ## Value
 
-A ggplot2 layer or `NULL`.
+A list of ggplot2 components (possibly empty).

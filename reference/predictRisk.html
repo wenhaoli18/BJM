@@ -156,12 +156,16 @@ findings and variables derived from the analysis.</p></dd>
 
 
 <dt id="arg-survival-variable-all">survival_variable_all<a class="anchor" aria-label="anchor" href="#arg-survival-variable-all"></a></dt>
-<dd><p>The name of the transformed time-to-event outcomes variable.</p></dd>
+<dd><p>The name of the transformed time-to-event outcomes variable.
+The longitudinal sub-model must use the event time, directly or through one
+of these transformations.</p></dd>
 
 
 <dt id="arg-survival-trans-function">survival_trans_function<a class="anchor" aria-label="anchor" href="#arg-survival-trans-function"></a></dt>
 <dd><p>The transformation function used for time-to-event outcomes,
-in the order of <code>survival_variable_all</code>.</p></dd>
+in the order of <code>survival_variable_all</code>. They are checked against the
+columns the longitudinal sub-model was fit on, and a mismatch (e.g. two
+functions in the wrong order) is an error.</p></dd>
 
 
 <dt id="arg-bandcount-">bandcount1<a class="anchor" aria-label="anchor" href="#arg-bandcount-"></a></dt>

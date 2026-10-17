@@ -182,8 +182,9 @@ Description, for use with
 and friends); `pooled`
 ([`poolLongitudinalSub`](https://wenhaoli18.github.io/BJM/reference/poolLongitudinalSub.md)
 of the fits, when `n_imputations > 1`); `imputed_T` (a subjects x
-imputations matrix); and `trace` (each iteration's fixed effects, to
-check the chain has settled).
+imputations matrix); `trace` (each iteration's fixed effects, to check
+the chain has settled); and `settings` (the iteration settings).
+[`print()`](https://rdrr.io/r/base/print.html) shows a short summary.
 
 ## Examples
 
