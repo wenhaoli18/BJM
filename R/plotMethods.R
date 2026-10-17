@@ -168,8 +168,11 @@ plot.survivalSub.BJM <- function(x, which = c("forest", "basehaz"), ...) {
     } else {
       ggplot(bh, aes(x = time, y = hazard, color = strata)) + geom_step(linewidth = 1)
     }
-    return(p + xlab(all.vars(x$form_marginal_surv[[2]])[1]) +
-             ylab("Baseline cumulative hazard") + theme_bw())
+    # the time axis is named after the event time; for Surv(L, R, ...) of an
+    # interval-censored fit the first variable is the interval's lower end
+    time_label <- if (is_interval_censored(x)) survival_time_variable(x) else all.vars(x$form_marginal_surv[[2]])[1]
+    return(p + xlab(time_label) +
+             ylab("Baseline cumulative hazard (all covariates 0)") + theme_bw())
   }
 
   ci <- if (is_interval_censored(x)) {
@@ -287,6 +290,11 @@ plot.predictLongitudinal.BJM <- function(x, subject = NULL, ...) {
 
   point <- data.frame(subject = factor(ids[keep], levels = ids[keep]),
                       value = as.vector(x$Y_predict[keep]))
+  # only where some patient's density is not negligible: the value grid can
+  # reach far into both tails
+  shown <- dens$density > 1e-3 * max(dens$density, na.rm = TRUE)
+  shown_range <- range(dens$value[shown & !is.na(shown)])
+  dens <- dens[dens$value >= shown_range[1] & dens$value <= shown_range[2], , drop = FALSE]
   ggplot(dens, aes(x = value, y = density, color = subject)) +
     geom_line(linewidth = 1) +
     geom_vline(data = point, aes(xintercept = value, color = subject), linetype = "dashed") +

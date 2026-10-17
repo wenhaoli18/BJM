@@ -43,7 +43,7 @@ test_that("cmtPlot picks the midpoint of time_variable when condi_time2event is 
   cp <- cmtPlot(data_plot_all = pbc3, condi_time2event = NULL,
                 event_type_variable = NULL, event_type = NULL,
                 bio_variable = "serBilir", time_variable = "year",
-                survival_variable = "years", interval_time = 1 / 12)
+                survival_variable = "years", interval_time = 1 / 12, status_variable = "status3")
 
   expect_s3_class(cp, "ggplot")
 })
@@ -57,7 +57,7 @@ test_that("cmtPlot deduplicates by id_variable, not a literal 'id_variable' colu
                 event_type_variable = NULL, event_type = NULL,
                 bio_variable = "serBilir", time_variable = "year",
                 survival_variable = "years", interval_time = 1 / 12,
-                id_variable = "patient_id")
+                id_variable = "patient_id", status_variable = "status3")
 
   expect_s3_class(cp, "ggplot")
 })

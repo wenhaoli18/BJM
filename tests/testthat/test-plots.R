@@ -338,3 +338,120 @@ test_that("calibrationPlot() draws one panel per landmark and event type", {
                                time_variable = "year", f$survival_variable_all,
                                f$survival_trans_function, n_groups = 0), "n_groups")
 })
+
+test_that("the risk axis is labelled only within [0, 1]", {
+  # a biomarker below 0 used to show negative "probabilities" on the risk axis
+  d <- data.frame(time = 1:3, y = c(-0.5, 0.2, 1))
+  p <- ggplot2::ggplot(d, ggplot2::aes(time, y)) + ggplot2::geom_point() + risk_axis_scale(2)
+  labels <- as.numeric(ggplot2::ggplot_build(p)$layout$panel_params[[1]]$y.sec$get_labels())
+  expect_true(all(labels >= 0 & labels <= 1))
+  # 1 is kept although pretty() can return it as 1 + 2e-10
+  d$y <- c(0, 1, 2)
+  p <- ggplot2::ggplot(d, ggplot2::aes(time, y)) + ggplot2::geom_point() + risk_axis_scale(2)
+  expect_true(1 %in% as.numeric(ggplot2::ggplot_build(p)$layout$panel_params[[1]]$y.sec$get_labels()))
+  # an ordinal biomarker's axis shows its categories
+  p <- ggplot2::ggplot(d, ggplot2::aes(time, y)) + ggplot2::geom_point() + risk_axis_scale(2, c("low", "mid", "high"))
+  expect_equal(ggplot2::ggplot_build(p)$layout$panel_params[[1]]$y$get_labels(), c("low", "mid", "high"))
+})
+
+test_that("cmtPlot() draws without messages, and the baseline plot names its reference", {
+  data(pbc3, envir = environment())
+  grDevices::pdf(NULL)
+  on.exit(grDevices::dev.off(), add = TRUE)
+  expect_no_message(print(cmtPlot(pbc3, 5, NULL, NULL, "serBilir", "year", "years", 1 / 12,
+                                       status_variable = "status3")))
+  sf <- survivalSub(pbc3[!duplicated(pbc3$id), ], Surv(years, status3) ~ age + sex, NULL)
+  expect_match(plot(sf, which = "basehaz")$labels$y, "all covariates 0")
+})
+
+test_that("predictPlot() draws an ordinal biomarker's category probabilities", {
+  skip_on_cran()
+  skip_if_not_installed("ordinal")
+  data(pbc3, envir = environment())
+  q <- stats::quantile(pbc3$albumin[pbc3$status3 == 1], c(0, 1 / 3, 2 / 3, 1), na.rm = TRUE)
+  cut3 <- function(x) cut(x, q, include.lowest = TRUE, labels = c("low", "mid", "high"), ordered_result = TRUE)
+  d1 <- pbc3[pbc3$status3 == 1, ]
+  d1$alb <- cut3(d1$albumin)
+  fit <- longitudinalSub(d1, list(serBilir ~ year + age + sex + years, alb ~ year + age + sex + years),
+                         list(~ year | id, ~ year | id))
+  sf <- survivalSub(pbc3[!duplicated(pbc3$id), ], Surv(years, status3) ~ age + sex, NULL)
+  p2 <- pbc3[pbc3$id == 2, ]
+  p2$alb <- cut3(p2$albumin)
+  p <- predictPlot(p2, fit, sf, prediction_time = 5, bio_his = 2, bio_pred = 2, horizon = c(1, 2),
+                   time_variable = "year", list(), list(), bandcount1 = 10, bandcount2 = 20)
+  probs <- Filter(function(l) "prob" %in% names(l$data), p$layers)
+  expect_length(probs, 1)
+  sums <- tapply(probs[[1]]$data$prob, probs[[1]]$data$time, sum)
+  expect_equal(as.vector(sums), c(1, 1), tolerance = 1e-8)
+  # no quantile bands for a handful of categories
+  expect_false(any(vapply(p$layers, function(l) inherits(l$geom, "GeomRibbon"), logical(1))))
+  render_ok(p)
+})
+
+test_that("plot.predictLongitudinal.BJM() leaves out the empty tails of the value grid", {
+  skip_on_cran()
+  f <- setup_dp_fixture()
+  pl <- predictLongitudinal(1, f$data_predict_all, f$long_fit_all, f$survival_fit_all, 5, 1, "year",
+                            f$survival_variable_all, f$survival_trans_function, 20, 200)
+  shown <- range(plot(pl)$data$value)
+  expect_gt(shown[1], min(pl$Y_all))
+  expect_lt(shown[2], max(pl$Y_all))
+})
+
+test_that("riskPlot()'s end-of-follow-up line tells an event from a censoring", {
+  data(pbc3, envir = environment())
+  first <- pbc3[!duplicated(pbc3$id), ]
+  sf <- survivalSub(first, Surv(years, status3) ~ age + sex, NULL)
+  sfc <- survivalSub(first, Surv(years, status3) ~ age + sex, status4 ~ years + age + sex)
+  line_of <- function(id, fit, type = NULL) {
+    layers <- event_time_vline(list(pbc3[pbc3$id == id, ]), fit, type)
+    if (length(layers) == 0) return(NULL)
+    c(label = layers[[1]]$data$end, colour = layers[[1]]$aes_params$colour,
+      linetype = unname(layers[[2]]$palette(1)))
+  }
+  # patient 2 is censored: it used to get the same red line as an event
+  expect_equal(line_of(2, sf), c(label = "Censored", colour = "grey40", linetype = "dashed"))
+  expect_equal(line_of(4, sf), c(label = "Event", colour = "red", linetype = "solid"))
+  expect_equal(line_of(4, sfc, "status4")[["label"]], "Event type1")
+  expect_equal(line_of(5, sfc, "status4")[["label"]], "Event type2")
+  # without the status (a new patient) nothing is drawn
+  newp <- pbc3[pbc3$id == 4, ]
+  newp$status3 <- NULL
+  expect_length(event_time_vline(list(newp), sf), 0)
+})
+
+test_that("cmtPlot() uses patients with an event, on the data's own time scale", {
+  data(pbc3, envir = environment())
+  cp <- cmtPlot(pbc3, 5, NULL, NULL, "serBilir", "year", "years", 1 / 12, status_variable = "status3")
+  pts <- cp$layers[[1]]$data
+  # the means of the 17 patients with an event in (4, 5] (23 with censored
+  # ones), per month (t - 1/12, t], plotted at the month's end in years
+  ev <- pbc3[pbc3$years > 4 & pbc3$years <= 5 & pbc3$status3 == 1, ]
+  expect_equal(length(unique(ev$id)), 17)
+  ends <- seq(min(ev$year), 5, by = 1 / 12)
+  bin <- findInterval(ev$year, c(-Inf, ends), left.open = TRUE)
+  expected <- tapply(ev$serBilir, bin, mean)
+  expect_equal(pts$time, ends[as.integer(names(expected))])
+  expect_equal(pts$probEvent, as.vector(expected))
+  # months without a measurement are left out, not copied from the previous one
+  expect_lt(nrow(pts), length(ends))
+  expect_lte(max(pts$time), 5)
+  expect_equal(cp$labels$x, "year")
+  # censored patients enter only, with a warning, when no status is given
+  expect_warning(cmtPlot(pbc3, 5, NULL, NULL, "serBilir", "year", "years", 1 / 12), "status_variable")
+})
+
+test_that("cmtPlot() gives the same trajectory whatever the time unit", {
+  data(pbc3, envir = environment())
+  in_months <- pbc3
+  in_months$year <- in_months$year * 12
+  in_months$years <- in_months$years * 12
+  by_year <- cmtPlot(pbc3, 5, NULL, NULL, "serBilir", "year", "years", 1 / 12, status_variable = "status3")
+  by_month <- cmtPlot(in_months, 60, NULL, NULL, "serBilir", "year", "years", 1,
+                      status_variable = "status3", event_window = 12)
+  expect_equal(by_month$layers[[1]]$data$probEvent, by_year$layers[[1]]$data$probEvent)
+  expect_equal(by_month$layers[[1]]$data$time, 12 * by_year$layers[[1]]$data$time)
+  # competing risks: one trajectory per event type, from those types only
+  cr <- cmtPlot(pbc3, 5, "status4", c(0, 1), "albumin", "year", "years", 1 / 4)
+  expect_setequal(unique(unlist(lapply(cr$layers, function(l) l$data$line))), c("Event1", "Event2"))
+})

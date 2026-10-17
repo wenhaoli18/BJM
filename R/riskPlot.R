@@ -19,6 +19,10 @@
 #' \code{\link{predictPlot}}'s \code{bio_pred}, which drives a biomarker
 #' density prediction).
 #'
+#' When the data give the subject's survival time and status, a vertical
+#' line marks the end of follow-up: solid for an observed event (coloured by
+#' event type with competing risks), dashed grey for a censoring.
+#'
 #' @param data_predict_all_pre This involves a collection of \code{data.frame} objects for
 #' dynamic prediction, each corresponding to a distinct longitudinal outcome. These data
 #' frames should contain the variables specified in \code{long_sub_fixed} and
@@ -153,8 +157,11 @@ riskPlot = function(data_predict_all_pre, long_fit_all, survival_fit_all,
                              longitudinal = unlist(data_predict_all_pre[[bio_i]][bio_i_name]))
     
   }
-  ### an ordinal history is plotted as its category codes 1:K
+  ### an ordinal history is plotted as its category codes 1:K, and the axis
+  ### labelled with the categories
+  history_labels <- NULL
   if (is.factor(DP_data_bio$longitudinal)) {
+    history_labels <- long_fit_all$lfit[[if (is.null(bio_i)) 1 else bio_i]]$y.levels
     training_levels <- long_fit_all$lfit[[if (is.null(bio_i)) 1 else bio_i]]$y.levels
     DP_data_bio$longitudinal <- if (is.null(training_levels)) as.integer(DP_data_bio$longitudinal) else
       match(as.character(DP_data_bio$longitudinal), training_levels)
@@ -270,10 +277,10 @@ riskPlot = function(data_predict_all_pre, long_fit_all, survival_fit_all,
         
         scale_color_manual(name = "Lines",
                            values = c("Event type1" = "black", "Event type2" = "red"))   +
-        scale_y_continuous(sec.axis = sec_axis(~./scale_prob, name="Risk Probabilities")) + 
+        risk_axis_scale(scale_prob, history_labels) + 
         ylab("Predicted risk probability") + xlab("Follow-up time") +   
         #0 - 1 black, 1 - 2 red
-        event_time_vline(data_predict_all_pre, survival_variable, event_type_variable) + 
+        event_time_vline(data_predict_all_pre, survival_fit_all, event_type_variable) + 
         theme_bw(base_size = 25) +
         theme(panel.grid.major = element_blank(),
               panel.grid.minor = element_blank(),
@@ -297,9 +304,9 @@ riskPlot = function(data_predict_all_pre, long_fit_all, survival_fit_all,
         scale_color_manual(name = "Lines",
                            values = c("Longitudinal" = "green",
                                       "Event type1" = "black", "Event type2" = "red"))   +
-        scale_y_continuous(sec.axis = sec_axis(~./scale_prob, name="Risk Probabilities")) + 
+        risk_axis_scale(scale_prob, history_labels) + 
         ylab("Longitudinal biomarker") + xlab("Follow-up time") +   
-        event_time_vline(data_predict_all_pre, survival_variable, event_type_variable) + 
+        event_time_vline(data_predict_all_pre, survival_fit_all, event_type_variable) + 
         theme_bw(base_size = 25)+
         theme(panel.grid.major = element_blank(),
               panel.grid.minor = element_blank(),
@@ -341,9 +348,9 @@ riskPlot = function(data_predict_all_pre, long_fit_all, survival_fit_all,
         scale_color_manual(name = "Lines",
                            values = c("Longitudinal" = "green",
                                       "Risk probability" = "black"))   +
-        scale_y_continuous(sec.axis = sec_axis(~./scale_prob, name="Risk Probabilities")) + 
+        risk_axis_scale(scale_prob, history_labels) + 
         ylab("Longitudinal biomarker") + xlab("Follow-up time") +   
-        event_time_vline(data_predict_all_pre, survival_variable) + 
+        event_time_vline(data_predict_all_pre, survival_fit_all) + 
         theme_bw(base_size = 25)+
         theme(panel.grid.major = element_blank(),
               panel.grid.minor = element_blank(),
@@ -357,28 +364,78 @@ riskPlot = function(data_predict_all_pre, long_fit_all, survival_fit_all,
  return(dp_risk)
 }
 
-#' Vertical line at a patient's observed event time
+#' Biomarker axis with the risk probabilities on a secondary axis
 #'
-#' @description Helper for \code{riskPlot()}: a \code{geom_vline()} at the
-#' patient's survival time, coloured by event type (black for 0, red for 1)
-#' with competing risks and red otherwise -- or \code{NULL} (nothing drawn)
-#' when that time is unknown, as for a new patient. A missing time used to
-#' be passed to \code{geom_vline()} as is, and printing the plot failed with
-#' "Discrete values supplied to continuous scale".
+#' @description Helper for \code{riskPlot()} and \code{predictPlot()}, which
+#' draw risks on the biomarker's axis multiplied by \code{scale_prob}. The
+#' secondary (risk) axis is labelled only within \eqn{[0, 1]}: where the
+#' biomarker goes below 0 it used to show negative "probabilities". For an
+#' ordinal biomarker the primary axis is labelled with its categories.
+#' @param scale_prob Factor the risks were multiplied by.
+#' @param category_labels Category labels of an ordinal biomarker (plotted as
+#'   their codes \code{1:K}), or \code{NULL}.
+#' @return A ggplot2 scale.
+#' @keywords internal
+risk_axis_scale <- function(scale_prob, category_labels = NULL) {
+  prob_axis <- sec_axis(~ . / scale_prob, name = "Risk Probabilities",
+                        breaks = function(limits) {
+                          b <- round(pretty(limits), 10)   # 1 can come out as 1 + 2e-10
+                          b[b >= 0 & b <= 1]
+                        })
+  if (is.null(category_labels)) {
+    scale_y_continuous(sec.axis = prob_axis)
+  } else {
+    scale_y_continuous(breaks = seq_along(category_labels), labels = category_labels,
+                       sec.axis = prob_axis)
+  }
+}
+
+#' Vertical line at the end of a patient's follow-up
+#'
+#' @description Helper for \code{riskPlot()}: a vertical line at the
+#' patient's survival time, labelled in a legend -- solid, coloured by event
+#' type (as the risk curves: black for the first, red for the second), for an
+#' observed event, and dashed grey for a censored follow-up. Nothing is drawn
+#' when the time or the status is unknown, as for a new patient or an
+#' interval-censored fit. The line used to be drawn the same way (red, with no
+#' legend) for a censored patient as for an event.
 #'
 #' @param data_predict_all_pre The patient's prediction data (list of data frames).
-#' @param survival_variable Name of the survival-time variable.
+#' @param survival_fit_all The survival sub-model, whose \code{Surv()} outcome
+#'   gives the time and the status.
 #' @param event_type_variable Name of the event-type variable, or \code{NULL}.
-#' @return A ggplot2 layer or \code{NULL}.
+#' @return A list of ggplot2 components (possibly empty).
 #' @keywords internal
-event_time_vline <- function(data_predict_all_pre, survival_variable, event_type_variable = NULL) {
-  first <- getFirst(data_predict_all_pre)
-  event_time <- suppressWarnings(as.numeric(unlist(first[survival_variable])[1]))
-  if (length(event_time) == 0 || !is.finite(event_time)) return(NULL)
-  colour <- "red"
-  if (!is.null(event_type_variable)) {
+event_time_vline <- function(data_predict_all_pre, survival_fit_all, event_type_variable = NULL) {
+  if (is_interval_censored(survival_fit_all)) return(list())
+  first <- getFirst(data_predict_all_pre)[1, , drop = FALSE]
+  surv_lhs <- survival_fit_all$form_marginal_surv[[2]]
+  y <- tryCatch(eval(surv_lhs, first, environment(survival_fit_all$form_marginal_surv)),
+                error = function(e) NULL)
+  if (is.null(y) || !inherits(y, "Surv")) return(list())
+  event_time <- unname(y[1, "time"])
+  status <- unname(y[1, "status"])
+  if (!is.finite(event_time) || is.na(status)) return(list())
+  if (status == 0) {
+    label <- "Censored"
+    colour <- "grey40"
+  } else if (is.null(event_type_variable)) {
+    label <- "Event"
+    colour <- "red"
+  } else {
     event_type <- suppressWarnings(as.numeric(unlist(first[event_type_variable])[1]))
-    colour <- if (length(event_type) == 1 && is.finite(event_type)) event_type + 1 else "grey40"
+    if (length(event_type) != 1 || !is.finite(event_type)) {
+      label <- "Event"
+      colour <- "grey40"
+    } else {
+      label <- sprintf("Event type%d", event_type + 1)
+      colour <- if (event_type == 0) "black" else "red"
+    }
   }
-  geom_vline(xintercept = event_time, linetype = "solid", color = colour, linewidth = 2)
+  list(
+    geom_vline(data = data.frame(time = event_time, end = label),
+               aes(xintercept = time, linetype = end), color = colour, linewidth = 1.5),
+    ggplot2::scale_linetype_manual(name = "End of follow-up",
+                                   values = stats::setNames(if (label == "Censored") "dashed" else "solid", label))
+  )
 }
