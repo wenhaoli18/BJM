@@ -189,12 +189,3 @@ test_that("conditionalYDT/conditionalYDTBio re-evaluate transformed survival-tim
     }
   }
 })
-
-test_that("time_columns_bare distinguishes bare and transformed survival-time columns", {
-  bare <- terms(y ~ year + years + years:year + Tyears1)
-  expect_true(time_columns_bare(bare, c("years", "Tyears1")))
-  expect_false(time_columns_bare(terms(y ~ year + log(years)), "years"))
-  expect_false(time_columns_bare(terms(y ~ year + I(Tyears1^2)), c("years", "Tyears1")))
-  # the response is not a model-frame column that gets overwritten
-  expect_true(time_columns_bare(terms(log(years) ~ year), "years"))
-})

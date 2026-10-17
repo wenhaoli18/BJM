@@ -363,8 +363,9 @@ simulateTrajectory <- function(data_predict_all, long_fit_all, survival_fit_all,
         ### a box probability per distinct event time (those past
         ### max_event_time share one)
         first <- match(l_model, l_model)
+        dens <- mixed_density_copula_prep(V_y, cc, oo)
         ll <- vapply(unique(first), function(k)
-          mixed_density_prob_copula(V_y, mu_hist_cells[[j]][, k], y_hist, lower, upper, cc, oo), numeric(1))
+          dens(mu_hist_cells[[j]][, k], y_hist, lower, upper), numeric(1))
         ll[match(first, unique(first))]
       }
       log_w[cells$d == j] <- log_lik + log_prior[[j]][, p]
@@ -565,15 +566,9 @@ stacked_mean_on_grid <- function(rows, long_fit_all, l_grid, d, survival_variabl
     data_i[[response]][is.na(data_i[[response]])] <- 0
     data_i <- set_survival_columns(data_i, survival_variable, l_unique[1], survival_variable_all,
                                    survival_trans_function)
-    terms_i <- lfit[[i]]$terms
-    mf <- model.frame(terms_i, data_i, xlev = xlev_i, na.action = stats::na.pass)
-    in_place <- time_columns_bare(terms_i, c(survival_variable, unlist(survival_variable_all)))
-    beta <- nlme::fixef(lfit[[i]])
-    vapply(l_unique, function(l) {
-      mf <- survival_model_frame_at(mf, data_i, in_place, terms_i, xlev_i, survival_variable, l,
-                                    survival_variable_all, survival_trans_function)
-      c(model.matrix(terms_i, mf, contrasts.arg = lfit[[i]]$contrasts) %*% beta)
-    }, numeric(nrow(data_i)))
+    ### all grid points in one model.matrix() call (see fixed_mean_grid())
+    fixed_mean_grid(data_i, lfit[[i]], xlev_i, l_unique, survival_variable, survival_variable_all,
+                    survival_trans_function, beta = nlme::fixef(lfit[[i]]))
   })
   blocks <- lapply(blocks, function(b) matrix(b, ncol = length(l_unique)))
   do.call(rbind, blocks)[, match(l_grid, l_unique), drop = FALSE]
@@ -594,7 +589,7 @@ gaussian_logdens_chol <- function(R, E) {
 #' Latent-score means of an ordinal biomarker at every candidate event time
 #'
 #' @description \eqn{X(l)\beta} for an ordinal biomarker's rows, with the
-#' design built the way \code{build_LME_indi_matrix_copula()} builds it
+#' design built the way \code{copula_mean_grid()} builds it
 #' (the columns of \code{lfit[[i]]$beta}, which has no intercept: the
 #' thresholds play that role).
 #' @return A matrix with one row per row of \code{data_i} and one column per
@@ -611,13 +606,28 @@ ordinal_mean_on_grid <- function(data_i, i, long_fit_all, xlev_i, l_unique, surv
   observed <- as.character(data_i[[response]])
   data_i[[response]] <- factor(ifelse(is.na(observed), categories[1], observed),
                                levels = categories, ordered = TRUE)
-  out <- vapply(l_unique, function(l) {
-    data_l <- set_survival_columns(data_i, survival_variable, l, survival_variable_all,
-                                   survival_trans_function)
+  design_at <- function(data_l) {
     mf <- model.frame(fixed, data_l, xlev = xlev_i, na.action = stats::na.pass)
-    c(model.matrix(fixed, mf)[, names(beta), drop = FALSE] %*% beta)
-  }, numeric(nrow(data_i)))
-  matrix(out, ncol = length(l_unique))
+    model.matrix(fixed, mf)[, names(beta), drop = FALSE]
+  }
+  if (length(unsafe_formula_calls(fixed, c("poly", "ns", "bs", "factor", "scale", "cut"))) > 0) {
+    ### a term whose values depend on the other rows: one grid point at a
+    ### time, as the model's own rows were (see copula_mean_grid())
+    out <- vapply(l_unique, function(l) {
+      c(design_at(set_survival_columns(data_i, survival_variable, l, survival_variable_all,
+                                       survival_trans_function)) %*% beta)
+    }, numeric(nrow(data_i)))
+    return(matrix(out, ncol = length(l_unique)))
+  }
+  ### all grid points stacked into one model.matrix() call
+  n <- nrow(data_i)
+  stacked <- data_i[rep(seq_len(n), times = length(l_unique)), , drop = FALSE]
+  stacked[[survival_variable]] <- rep(l_unique, each = n)
+  for (surv_i in seq_along(survival_variable_all)) {
+    stacked[[survival_variable_all[[surv_i]]]] <- rep(vapply(l_unique, function(l)
+      apply_survival_trans(survival_trans_function[[surv_i]], l, surv_i), numeric(1)), each = n)
+  }
+  matrix(design_at(stacked) %*% beta, n, length(l_unique))
 }
 
 #' Draw from a truncated multivariate normal distribution

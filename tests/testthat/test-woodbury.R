@@ -57,12 +57,12 @@ test_that("a non-positive-definite covariance gives dmvnorm's -Inf/Inf", {
   expect_equal(cov_logdens(fac, cbind(c(1, 0), c(0, 0))), c(-Inf, Inf))
 })
 
-test_that("cov_logdens_means evaluates every row under every mean", {
+test_that("cov_logdens_grid evaluates every row under every mean", {
   parts <- random_cov_parts(N = 20, r = 4, seed = 6)
   x <- matrix(rnorm(3 * 20), 3, 20)
-  means <- list(rnorm(20), rnorm(20))
+  means <- cbind(rnorm(20), rnorm(20))
   fac <- cov_factor(parts$A, parts$D, parts$r_diag)
-  out <- cov_logdens_means(fac, x, means)
-  ref <- lapply(means, function(m) mvtnorm::dmvnorm(x, m, parts$Sigma, log = TRUE))
+  out <- cov_logdens_grid(fac, x, means)
+  ref <- sapply(1:2, function(k) mvtnorm::dmvnorm(x, means[, k], parts$Sigma, log = TRUE))
   expect_equal(out, ref, tolerance = 1e-10)
 })

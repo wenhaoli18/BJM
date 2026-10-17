@@ -9,8 +9,7 @@ set_survival_columns(
   survival_variable,
   l,
   survival_variable_all,
-  survival_trans_function,
-  only_existing = FALSE
+  survival_trans_function
 )
 }
 \value{
@@ -20,8 +19,6 @@ set_survival_columns(
 Sets the survival-time column and each
 \code{survival_variable_all} column (through its
 \code{survival_trans_function}) to their values at event time
-\code{l}. With \code{only_existing = TRUE} (for a model frame updated in
-place, see \code{time_columns_bare()}) columns not already present are
-left out.
+\code{l}.
 }
 \keyword{internal}

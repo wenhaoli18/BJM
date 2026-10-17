@@ -72,207 +72,51 @@ conditionalYDT = function(data_predict_all, long_fit_all, survival_fit_all,
   f_Y_T_D_w1 = matrix(NA, length(l_i), length(unlist(data.long[[1]][!duplicated(data.long[[1]][num]), ][num])))
   f_Y_T_D_w0 = matrix(NA, length(l_i), length(unlist(data.long[[1]][!duplicated(data.long[[1]][num]), ][num])))
 
-  ### Each biomarker's longitudinal model formula (and the variables/outcome
-  ### name derived from it) is fixed for the whole function call -- it does
-  ### not depend on num_i or l_i[it] at all -- so it is derived once here,
-  ### rather than being recomputed inside the patient/l_i loops below (where
-  ### it previously ran length(l_i) times per patient per biomarker).
-  model_formula_all = list()
-  all_variables_all = list()
-  outcome_var_all = list()
-  for(i in 1:n_longitudinal){
-    model_formula_all[[i]] = formula(lfit[[i]])
-    all_variables_all[[i]] = all.vars(model_formula_all[[i]])
-    outcome_var_all[[i]] = as.character(model_formula_all[[i]][[2]])
+  patient_ids <- unlist(data.long[[1]][!duplicated(data.long[[1]][num]), ][num])
+
+  ### each biomarker's mean X(t) beta for every row and grid point at once,
+  ### per event type (see fixed_mean_grid()); per patient, only the
+  ### quadratic form is left
+  if (length(patient_ids) > 0) {
+    for (i in seq_len(n_longitudinal)) {
+      assert_uses_event_time(formula(lfit[[i]]), i, survival_variable, survival_variable_all)
+    }
   }
+  data_index <- if (length(data.long) == 1) rep(1, n_longitudinal) else seq_len(n_longitudinal)
+  mean_grid <- function(event_type) {
+    lapply(seq_len(n_longitudinal), function(i) {
+      xlev_i <- if (!is.null(long_fit_all$xlevels)) long_fit_all$xlevels[[i]] else NULL
+      fixed_mean_grid(data.long[[data_index[i]]], lfit[[i]], xlev_i, l_i, survival_variable,
+                      survival_variable_all, survival_trans_function,
+                      fixed_values = stats::setNames(list(event_type), event_type_variable))
+    })
+  }
+  mean_grid_1 <- mean_grid(1)
+  mean_grid_0 <- mean_grid(0)
 
   iii = 0
-  for(num_i in unlist(data.long[[1]][!duplicated(data.long[[1]][num]), ][num])){
+  for(num_i in patient_ids){
     iii = iii + 1
-    #if(data.raw.sim.1[data.raw.sim.1[num] == num_i,]$status[1] == 1) next
-    ### each rows represent intercept, slope, covariates numbers, time to event/l_i
-    ### each columns represent different repeated measurements with different times.
-
     patient_data <- select_patient_longitudinal_data(data.long, num, num_i, n_longitudinal, time_variable)
     if(is.null(patient_data)) next
-    rep_num_i_list <- patient_data$rep_num_i_list
-    data_num_i_list <- patient_data$data_num_i_list
 
-    design <- build_conditional_design(rep_num_i_list, data_num_i_list, lfit, Sigma,
-                                        sigma.longitudinal, time_variable, n_longitudinal,
+    design <- build_conditional_design(patient_data$rep_num_i_list, patient_data$data_num_i_list,
+                                        lfit, Sigma, sigma.longitudinal, time_variable, n_longitudinal,
                                         long_fit_all$long_sub_random)
-    longitudinal_all_matrix <- design$longitudinal_all_matrix
-    parameter_matrix <- design$parameter_matrix
-    cov_fac <- design$cov_fac
 
-    ### Build a reusable model.frame "template" per biomarker/event-type,
-    ### once per patient, instead of inside the l_i loop below. Only the
-    ### survival_variable/survival_variable_all cells change across l_i --
-    ### everything else about this patient's data (rows, other covariates,
-    ### NA pattern) is fixed, so it is derived once here and then just has
-    ### those cells overwritten in place below. This is also what makes
-    ### model.matrix(terms_i, mf) below cheap: since mf already carries a
-    ### "terms" attribute, model.matrix() skips re-running model.frame()/
-    ### terms() from scratch -- which is what dominated profiling time here,
-    ### especially with large l_i grids (i.e. large bandcount1/bandcount2,
-    ### see checkBandcountConvergence()).
-    ###
-    ### terms_i is `lfit[[i]]$terms`, the terms object saved by
-    ### longitudinalSub() when the model was fit on the *full* training
-    ### data -- not re-derived from this patient's own (small) data. For
-    ### ordinary terms this makes no difference, but poly()/splines::ns()/
-    ### splines::bs() embed their basis parameters (knots, centering) in the
-    ### terms object's `predvars` attribute, and factor() needs the full set
-    ### of observed levels; re-deriving terms() from a small per-patient
-    ### slice would silently recompute a different (wrong) basis, or error
-    ### outright with too few distinct values/levels. Reusing the cached
-    ### terms/xlevels/contrasts from the fit, via model.frame(..., xlev=)
-    ### and model.matrix(..., contrasts.arg=), makes model.matrix() build
-    ### exactly the design matrix the model was fit with, matching
-    ### predict.lme()'s own approach.
-    terms_i_list = list()
-    mf_1_list = list()
-    mf_0_list = list()
-    data_1_list = list()
-    data_0_list = list()
-    xlev_list = list()
-    in_place = logical(n_longitudinal)
-    n_expected_1 = integer(n_longitudinal)
-    n_expected_0 = integer(n_longitudinal)
-    for(i in 1:n_longitudinal){
-      data_i_1 = data_num_i_list[[i]]
-      data_i_0 = data_num_i_list[[i]]
-
-      ### placeholder value for the l_i-dependent columns -- overwritten on
-      ### every l_i grid point in the loop below, so its value here is
-      ### irrelevant to the result; it only fixes the template's column type.
-      data_i_1[survival_variable] = l_i[1]
-      data_i_0[survival_variable] = l_i[1]
-      if(length(survival_variable_all) != 0){
-        for(surv_i in 1 : length(survival_variable_all)){
-          data_i_1[survival_variable_all[[surv_i]]] = apply_survival_trans(survival_trans_function[[surv_i]], l_i[1], surv_i)
-          data_i_0[survival_variable_all[[surv_i]]] = apply_survival_trans(survival_trans_function[[surv_i]], l_i[1], surv_i)
-        }
-      }
-      data_i_1[event_type_variable] = 1
-      data_i_0[event_type_variable] = 0
-
-      if(!any(c(survival_variable, unlist(survival_variable_all)) %in% all_variables_all[[i]]))
-        stop(sprintf("The longitudinal sub-model for biomarker %d uses neither the survival-time variable `%s` nor any of its transformations (survival_variable_all); the backward joint model needs the event time as a covariate, directly or transformed, in every long_sub_fixed formula.", i, survival_variable), call. = FALSE)
-
-      ### NA in nlme outcome (longitudinal biomarkers), replace with 999
-      data_i_1[[outcome_var_all[[i]]]][is.na(data_i_1[[outcome_var_all[[i]]]])] <- 999
-      data_i_0[[outcome_var_all[[i]]]][is.na(data_i_0[[outcome_var_all[[i]]]])] <- 999
-
-      ### terms/xlevels/contrasts cached from the fit (see comment above),
-      ### not re-derived from this patient's own small slice of data.
-      terms_i_list[[i]] = lfit[[i]]$terms
-      xlev_i = if (!is.null(long_fit_all$xlevels)) long_fit_all$xlevels[[i]] else NULL
-      mf_1_list[[i]] = model.frame(terms_i_list[[i]], data_i_1, xlev = xlev_i)
-      mf_0_list[[i]] = model.frame(terms_i_list[[i]], data_i_0, xlev = xlev_i)
-      ### see time_columns_bare(): a transformed survival-time term (e.g.
-      ### log(years)) needs the model frame rebuilt at every grid point
-      data_1_list[[i]] = data_i_1
-      data_0_list[[i]] = data_i_0
-      xlev_list[[i]] = xlev_i
-      in_place[i] = time_columns_bare(terms_i_list[[i]], c(survival_variable, unlist(survival_variable_all)))
-      n_expected_1[i] = nrow(data_i_1)
-      n_expected_0[i] = nrow(data_i_0)
+    ### (Y - mu(t)) for the full stacked observation vector (all biomarkers),
+    ### one column per grid point and event type; the log density uses the
+    ### quadratic form with the patient's whole covariance, cross-biomarker
+    ### terms included (see NEWS.md)
+    rows <- lapply(seq_len(n_longitudinal), function(i)
+      which(as.character(data.long[[data_index[i]]][[num]]) == as.character(num_i)))
+    stack_mean <- function(grid) {
+      do.call(rbind, lapply(seq_len(n_longitudinal), function(i) grid[[i]][rows[[i]], , drop = FALSE]))
     }
-
-    ### for loop and calculate the prediction probability for all time points in l_i
-    for(it in 1: length(l_i)){
-
-      ### get prediction data matrix for each biomarker for patient 'num_i'
-      LME_indi_matrix_1 = list()
-      LME_indi_matrix_0 = list()
-      for(i in 1:n_longitudinal){
-        terms_i = terms_i_list[[i]]
-
-        #survival variable (and its transformations) at l_i[it]
-        mf_1_list[[i]] = survival_model_frame_at(mf_1_list[[i]], data_1_list[[i]], in_place[i], terms_i,
-                                                 xlev_list[[i]], survival_variable, l_i[it],
-                                                 survival_variable_all, survival_trans_function)
-        mf_0_list[[i]] = survival_model_frame_at(mf_0_list[[i]], data_0_list[[i]], in_place[i], terms_i,
-                                                 xlev_list[[i]], survival_variable, l_i[it],
-                                                 survival_variable_all, survival_trans_function)
-
-        ## extract data matrix to calcuate the probability
-        LME_indi_matrix_1[[i]] = t(model.matrix(terms_i, mf_1_list[[i]], contrasts.arg = lfit[[i]]$contrasts))
-        LME_indi_matrix_0[[i]] = t(model.matrix(terms_i, mf_0_list[[i]], contrasts.arg = lfit[[i]]$contrasts))
-
-          ### data missing when extrat the data using model.matrix,
-          ### model.matrix will automatic delete the missing data
-         if(dim( LME_indi_matrix_1[[i]] )[2] != n_expected_1[i]){
-           LME_indi_matrix_1[[i]] = cbind(LME_indi_matrix_1[[i]], matrix(NA,
-                dim(LME_indi_matrix_1[[i]] )[1], n_expected_1[i] -
-                  dim( LME_indi_matrix_1[[i]] )[2]))
-         }
-         if(dim( LME_indi_matrix_0[[i]] )[2] != n_expected_0[i]){
-           LME_indi_matrix_0[[i]] = cbind(LME_indi_matrix_0[[i]], matrix(NA,
-                dim(LME_indi_matrix_0[[i]] )[1], n_expected_0[i] -
-                  dim( LME_indi_matrix_0[[i]] )[2]))
-         }
-
-      }
-
-      # Initialize empty lists for rows and columns
-      rows1 = list()
-      columns1 = list()
-      rows0 = list()
-      columns0 = list()
-      # Loop over the LME_indi_matrix_1
-      # get prediction data matrix for all biomarkers for patient 'num_i'
-      for (i in seq_len(length(LME_indi_matrix_1))) {
-        for (j in seq_len(length(LME_indi_matrix_1))) {
-          if (i == j) {
-            # Add the matrix itself when row and column index are the same
-            columns1[[j]] = LME_indi_matrix_1[[i]]
-            columns0[[j]] = LME_indi_matrix_0[[i]]
-          } else {
-            # Add a zero matrix otherwise
-            columns1[[j]] = matrix(0, nrow=nrow(LME_indi_matrix_1[[i]]), ncol=ncol(LME_indi_matrix_1[[j]]))
-            columns0[[j]] = matrix(0, nrow=nrow(LME_indi_matrix_0[[i]]), ncol=ncol(LME_indi_matrix_0[[j]]))
-          }
-        }
-        # Combine the columns for this row
-        rows1[[i]] = do.call(cbind, columns1)
-        rows0[[i]] = do.call(cbind, columns0)
-        
-      }
-      # Combine all the rows, combine all individual longitudinal matrix 
-      # for all patients using to do prediction 
-      LME_all_matrix_1 = do.call(rbind, rows1)
-      LME_all_matrix_0 = do.call(rbind, rows0)
-      
-      ### Quadratic form (Y - mu)' Sigma_all^{-1} (Y - mu) for the FULL
-      ### stacked (across all markers) observation vector, computed
-      ### directly instead of via the "trace trick" that used to reduce it
-      ### to sum(diag(...)) of an M x M matrix. That trace only summed the
-      ### diagonal (i == j) blocks of the reduced matrix and silently
-      ### dropped every cross-marker (i != j) contribution of
-      ### Sigma_all^{-1}, i.e. it implicitly assumed the biomarkers were
-      ### conditionally independent given the random effects -- see the
-      ### matching comment/fix in conditionalYT.R and NEWS.md.
-      ###
-      ### mean_all_matrix_1/_0 mirror longitudinal_all_matrix's layout:
-      ### column i holds mu_i = X_i %*% beta_i (evaluated at event type 1
-      ### or 0 respectively) at marker i's own block of rows and zero
-      ### elsewhere, so rowSums() collapses the M columns into the single
-      ### stacked mu vector to difference directly against the stacked Y.
-      mean_all_matrix_1 = t(LME_all_matrix_1) %*% parameter_matrix
-      mean_all_matrix_0 = t(LME_all_matrix_0) %*% parameter_matrix
-
-      resid_full_1 = rowSums(longitudinal_all_matrix) - rowSums(mean_all_matrix_1)
-      resid_full_0 = rowSums(longitudinal_all_matrix) - rowSums(mean_all_matrix_0)
-
-      ### log densities (see predictRisk() for how they are exponentiated
-      ### safely), both from the patient's factored covariance
-      log_dens = cov_logdens(cov_fac, cbind(resid_full_1, resid_full_0))
-      f_Y_T_D_w1[it, iii] = log_dens[1]
-      f_Y_T_D_w0[it, iii] = log_dens[2]
-    }
-    
+    y <- rowSums(design$longitudinal_all_matrix)
+    ### log densities (see predictRisk() for how they are exponentiated safely)
+    f_Y_T_D_w1[, iii] = cov_logdens(design$cov_fac, y - stack_mean(mean_grid_1))
+    f_Y_T_D_w0[, iii] = cov_logdens(design$cov_fac, y - stack_mean(mean_grid_0))
   }
   return(f_Y_T_D = list(f_Y_T_D_w0, f_Y_T_D_w1))
 }
