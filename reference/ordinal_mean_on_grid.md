@@ -2,7 +2,7 @@
 
 \\X(l)\beta\\ for an ordinal biomarker's rows, with the design built the
 way
-[`build_LME_indi_matrix_copula()`](https://wenhaoli18.github.io/BJM/reference/build_LME_indi_matrix_copula.md)
+[`copula_mean_grid()`](https://wenhaoli18.github.io/BJM/reference/copula_mean_grid.md)
 builds it (the columns of `lfit[[i]]$beta`, which has no intercept: the
 thresholds play that role).
 

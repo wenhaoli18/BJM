@@ -27,13 +27,12 @@
 <url><loc>https://wenhaoli18.github.io/BJM/reference/assert_scalar_numeric.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/assert_string.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/assert_survival_trans.html</loc></url>
+<url><loc>https://wenhaoli18.github.io/BJM/reference/assert_uses_event_time.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/assert_vars_in_data.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/auto_tune_bandcount.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/auto_tune_marker_bandcount3.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/bandcount_auto_start.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/barnard_rubin_df.html</loc></url>
-<url><loc>https://wenhaoli18.github.io/BJM/reference/build_LME_indi_matrix_copula.html</loc></url>
-<url><loc>https://wenhaoli18.github.io/BJM/reference/build_block_diagonal_matrix.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/build_conditional_design.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/build_conditional_design_copula.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/build_diffusion_module.html</loc></url>
@@ -68,9 +67,11 @@
 <url><loc>https://wenhaoli18.github.io/BJM/reference/copula_D_aghq.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/copula_D_saem.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/copula_estep_setup.html</loc></url>
+<url><loc>https://wenhaoli18.github.io/BJM/reference/copula_logdens_grid.html</loc></url>
+<url><loc>https://wenhaoli18.github.io/BJM/reference/copula_mean_grid.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/cov_factor.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/cov_logdens.html</loc></url>
-<url><loc>https://wenhaoli18.github.io/BJM/reference/cov_logdens_means.html</loc></url>
+<url><loc>https://wenhaoli18.github.io/BJM/reference/cov_logdens_grid.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/cumulative_baseline_at.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/density_mode.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/diffusion_beta_schedule.html</loc></url>
@@ -88,6 +89,7 @@
 <url><loc>https://wenhaoli18.github.io/BJM/reference/fitIntervalBJM.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/fit_event_type_interval.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/fit_marginal_ordinal.html</loc></url>
+<url><loc>https://wenhaoli18.github.io/BJM/reference/fixed_mean_grid.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/gauss_hermite_normal.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/gaussian_logdens_chol.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/icphFit.html</loc></url>
@@ -115,6 +117,7 @@
 <url><loc>https://wenhaoli18.github.io/BJM/reference/max_relative_diff.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/miwae_forward.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/miwae_impute.html</loc></url>
+<url><loc>https://wenhaoli18.github.io/BJM/reference/mixed_density_copula_prep.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/mixed_density_prob_copula.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/model_vars.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/n_subjects.html</loc></url>
@@ -124,6 +127,7 @@
 <url><loc>https://wenhaoli18.github.io/BJM/reference/outcome_cause_label.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/outcome_variables.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/patient_log_shift.html</loc></url>
+<url><loc>https://wenhaoli18.github.io/BJM/reference/patient_mean_grid.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/pbc3.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/pd_inverse.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/performancePlot.html</loc></url>
@@ -183,13 +187,12 @@
 <url><loc>https://wenhaoli18.github.io/BJM/reference/survivalSubInterval.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/survivalTrans.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/survival_accessors.html</loc></url>
-<url><loc>https://wenhaoli18.github.io/BJM/reference/survival_model_frame_at.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/symmetric_sqrt.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/tail_time.html</loc></url>
-<url><loc>https://wenhaoli18.github.io/BJM/reference/time_columns_bare.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/train_diffusion.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/train_miwae.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/training_xlevels.html</loc></url>
+<url><loc>https://wenhaoli18.github.io/BJM/reference/unsafe_formula_calls.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/warn_unsafe_formula_terms.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/window_status_probs.html</loc></url>
 </urlset>
