@@ -8,7 +8,9 @@ drop_missing_longitudinal(
   data_predict_all,
   long_fit_all,
   survival_variable,
-  survival_variable_all
+  survival_variable_all,
+  no_measurement_ok = FALSE,
+  n_other = 0
 )
 }
 \value{
@@ -33,5 +35,13 @@ to be checked, so with the event type in \code{long_sub_fixed} every
 at-risk patient was dropped. A patient left with no rows for some
 biomarker cannot be predicted; a warning names them, and it is an error
 if that leaves no patient at all.
+
+With \code{no_measurement_ok = TRUE} (\code{predictRisk()}), a patient
+left with no rows for \emph{any} biomarker is not reported: it is
+predicted from the survival sub-model alone (see
+\code{prepare_risk_data()}). It is then an error only if no patient has
+measurements of every biomarker, none is left without any measurement,
+and \code{n_other} (the patients without any row up to
+\code{prediction_time}, already removed) is 0.
 }
 \keyword{internal}

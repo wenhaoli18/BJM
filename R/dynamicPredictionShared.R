@@ -9,10 +9,15 @@
 #' landmark time before calling these, so they never trigger the warning.)
 #' Rows with a missing \code{time_variable} are kept, as before.
 #' It is an error if no row is left: there is no history to condition on.
+#' With \code{allow_empty = TRUE} (\code{predictRisk()}, which predicts a
+#' patient without measurements from the survival sub-model alone) it is an
+#' error only if \code{data_predict_all} had no row to begin with.
 #'
 #' @return \code{data_predict_all}, filtered per element.
 #' @keywords internal
-drop_after_prediction_time <- function(data_predict_all, time_variable, prediction_time) {
+drop_after_prediction_time <- function(data_predict_all, time_variable, prediction_time,
+                                       allow_empty = FALSE) {
+  had_rows <- any(vapply(data_predict_all, nrow, integer(1)) > 0)
   n_dropped <- integer(length(data_predict_all))
   for (i in seq_along(data_predict_all)) {
     assert_vars_in_data(time_variable, data_predict_all[[i]],
@@ -22,7 +27,7 @@ drop_after_prediction_time <- function(data_predict_all, time_variable, predicti
     n_dropped[i] <- sum(after)
     data_predict_all[[i]] <- data_predict_all[[i]][!after, , drop = FALSE]
   }
-  if (all(vapply(data_predict_all, nrow, integer(1)) == 0)) {
+  if (all(vapply(data_predict_all, nrow, integer(1)) == 0) && (!allow_empty || !had_rows)) {
     stop(sprintf(paste0(
       "data_predict_all has no measurement at or before prediction_time = %g (%s <= %g), ",
       "so there is no history to condition the prediction on."),
@@ -79,10 +84,19 @@ outcome_variables <- function(survival_fit_all) {
 #' biomarker cannot be predicted; a warning names them, and it is an error
 #' if that leaves no patient at all.
 #'
+#' With \code{no_measurement_ok = TRUE} (\code{predictRisk()}), a patient
+#' left with no rows for \emph{any} biomarker is not reported: it is
+#' predicted from the survival sub-model alone (see
+#' \code{prepare_risk_data()}). It is then an error only if no patient has
+#' measurements of every biomarker, none is left without any measurement,
+#' and \code{n_other} (the patients without any row up to
+#' \code{prediction_time}, already removed) is 0.
+#'
 #' @return \code{data_predict_all}, filtered per element.
 #' @keywords internal
 drop_missing_longitudinal <- function(data_predict_all, long_fit_all, survival_variable,
-                                       survival_variable_all) {
+                                       survival_variable_all, no_measurement_ok = FALSE,
+                                       n_other = 0) {
   id <- as.character(nlme::splitFormula(long_fit_all$long_sub_random[[1]], "|")[[2]])[2]
   all_ids <- unique(unlist(lapply(data_predict_all, function(d) as.character(d[[id]]))))
   unpredictable <- character(0)
@@ -97,7 +111,11 @@ drop_missing_longitudinal <- function(data_predict_all, long_fit_all, survival_v
                        setdiff(all_ids, as.character(data_predict_all[[i]][[id]])))
   }
   unpredictable <- unique(unpredictable)
-  if (length(all_ids) > 0 && all(all_ids %in% unpredictable)) {
+  if (no_measurement_ok) {
+    measured <- unique(unlist(lapply(data_predict_all, function(d) as.character(d[[id]]))))
+    unpredictable <- setdiff(unpredictable, setdiff(all_ids, measured))
+  }
+  if (length(all_ids) > 0 && all(all_ids %in% unpredictable) && n_other == 0) {
     stop(paste0(
       "No patient in data_predict_all has a non-missing measurement of every biomarker (and of ",
       "the covariates its long_sub_fixed/long_sub_random formulas use) up to prediction_time, ",
@@ -167,6 +185,152 @@ prediction_patient_ids <- function(data_predict_all, long_fit_all) {
   unique(as.character(data_predict_all[[1]][[num]]))
 }
 
+#' Prediction data for \code{predictRisk()}, keeping patients without measurements
+#'
+#' @description Without any biomarker measurement up to
+#' \code{prediction_time}, the longitudinal factor \eqn{f(Y \mid T)} of the
+#' backward joint model is 1, and the predicted risk is that of the survival
+#' sub-model alone given the patient's covariates. \code{predictRisk()}
+#' predicts such patients that way instead of refusing them. This runs the
+#' usual \code{drop_after_prediction_time()}, \code{align_ordinal_levels()}
+#' and \code{drop_missing_longitudinal()}, then puts back one row per
+#' patient left without any measurement: their earliest row, with the
+#' biomarker set to \code{NA} and \code{time_variable} set to their last
+#' visit up to \code{prediction_time} (\code{min(0, prediction_time)} if
+#' there is none), which an interval-censored fit takes as the last time
+#' they were known to be event-free. The covariates come from that row: the
+#' survival sub-model's covariates are baseline values, one row per patient.
+#' A warning names these patients. \code{split_no_measurement()} separates
+#' them again; running this on its own output returns the same data, as
+#' \code{"auto"} bandcount tuning does.
+#'
+#' A patient with measurements of some biomarkers but not of others is
+#' still reported as unpredictable, as before.
+#'
+#' @return \code{data_predict_all}, filtered, with the added rows in the
+#'   position of each patient's earliest row.
+#' @keywords internal
+prepare_risk_data <- function(data_predict_all, long_fit_all, survival_fit_all, prediction_time,
+                              time_variable, survival_variable_all) {
+  id <- as.character(nlme::splitFormula(long_fit_all$long_sub_random[[1]], "|")[[2]])[2]
+  row_key <- ".bjm_input_row"
+  input <- lapply(data_predict_all, function(d) {
+    d[[row_key]] <- seq_len(nrow(d))
+    d
+  })
+  ids_of <- function(data) unique(unlist(lapply(data, function(d) as.character(d[[id]]))))
+  input_ids <- ids_of(input)
+
+  data <- drop_after_prediction_time(input, time_variable, prediction_time, allow_empty = TRUE)
+  without_rows <- setdiff(input_ids, ids_of(data))
+  data <- align_ordinal_levels(data, long_fit_all)
+  data <- drop_missing_longitudinal(data, long_fit_all, outcome_variables(survival_fit_all),
+                                    survival_variable_all, no_measurement_ok = TRUE,
+                                    n_other = length(without_rows))
+  no_measurement <- setdiff(input_ids, ids_of(data))
+
+  if (length(no_measurement) > 0) {
+    warning(sprintf(paste0(
+      "Patient(s) %s have no biomarker measurement up to prediction_time; their risk is ",
+      "predicted from the survival sub-model alone, given their covariates."),
+      paste(no_measurement, collapse = ", ")), call. = FALSE)
+    last_visit <- vapply(no_measurement, function(p) {
+      t <- unlist(lapply(input, function(d) d[[time_variable]][as.character(d[[id]]) == p]))
+      t <- t[!is.na(t) & t <= prediction_time + 1e-8]
+      if (length(t) > 0) min(max(t), prediction_time) else min(0, prediction_time)
+    }, numeric(1))
+    for (i in seq_along(data)) {
+      resp_name <- all.vars(long_fit_all$long_sub_fixed[[i]])[1]
+      rows <- lapply(no_measurement, function(p) {
+        d <- input[[i]][as.character(input[[i]][[id]]) == p, , drop = FALSE]
+        if (nrow(d) == 0) return(NULL)
+        d <- d[order(d[[time_variable]], na.last = TRUE)[1], , drop = FALSE]
+        if (resp_name %in% names(d)) d[[resp_name]] <- data[[i]][[resp_name]][NA_integer_]
+        d[[time_variable]] <- last_visit[[p]]
+        d
+      })
+      added <- do.call(rbind, rows)
+      if (!is.null(added)) {
+        data[[i]] <- rbind(data[[i]], added)
+        data[[i]] <- data[[i]][order(data[[i]][[row_key]]), , drop = FALSE]
+      }
+    }
+  }
+  lapply(data, function(d) {
+    d[[row_key]] <- NULL
+    d
+  })
+}
+
+#' Separate the patients \code{prepare_risk_data()} found without measurements
+#'
+#' @description A patient none of whose rows, in any biomarker's data, has
+#' a complete measurement (\code{prepare_risk_data()} has already dropped
+#' the incomplete rows of every other patient) is predicted from the
+#' survival sub-model alone.
+#'
+#' @param survival_variable The outcome variables of the survival sub-model
+#'   (\code{outcome_variables()}), which are not checked, as in
+#'   \code{drop_missing_longitudinal()}.
+#' @return A list: \code{measured}, \code{data_predict_all} without these
+#'   patients, and \code{no_measurement}, a list with one row per such
+#'   patient in each element (as \code{marginalT()} and friends read
+#'   covariates from), or \code{NULL} if there is none.
+#' @keywords internal
+split_no_measurement <- function(data_predict_all, long_fit_all, survival_variable,
+                                 survival_variable_all) {
+  id <- as.character(nlme::splitFormula(long_fit_all$long_sub_random[[1]], "|")[[2]])[2]
+  complete <- lapply(seq_along(data_predict_all), function(i) {
+    d <- data_predict_all[[i]]
+    vars <- unique(c(all.vars(long_fit_all$long_sub_fixed[[i]]),
+                     all.vars(long_fit_all$long_sub_random[[i]]), id))
+    vars <- setdiff(vars, c(survival_variable, unlist(survival_variable_all)))
+    vars <- intersect(vars, names(d))
+    rowSums(is.na(d[vars])) == 0
+  })
+  all_ids <- unique(unlist(lapply(data_predict_all, function(d) as.character(d[[id]]))))
+  measured_ids <- unique(unlist(lapply(seq_along(data_predict_all), function(i)
+    as.character(data_predict_all[[i]][[id]][complete[[i]]]))))
+  no_measurement <- setdiff(all_ids, measured_ids)
+  if (length(no_measurement) == 0) {
+    return(list(measured = data_predict_all, no_measurement = NULL))
+  }
+  measured <- lapply(seq_along(data_predict_all), function(i)
+    data_predict_all[[i]][complete[[i]], , drop = FALSE])
+  rows <- lapply(no_measurement, function(p) {
+    for (d in data_predict_all) {
+      r <- d[as.character(d[[id]]) == p, , drop = FALSE]
+      if (nrow(r) > 0) return(r[1, , drop = FALSE])
+    }
+  })
+  common <- Reduce(intersect, lapply(rows, names))
+  covariate_rows <- do.call(rbind, lapply(rows, function(r) r[common]))
+  list(measured = measured,
+       no_measurement = rep(list(covariate_rows), length(data_predict_all)))
+}
+
+#' Log densities of an empty longitudinal history
+#'
+#' @description Stand-ins for \code{conditionalYT()}/\code{conditionalYDT()}
+#' for patients without any measurement: \eqn{f(Y \mid T) = 1}, i.e. a log
+#' density of 0 at every time (and event type), so \code{predictRisk()}
+#' gives the survival sub-model's risk.
+#'
+#' @return A list of one (\code{conditionalYT_none()}) or two
+#'   (\code{conditionalYDT_none()}) zero matrices, one row per time in
+#'   \code{l_i} and one column per patient.
+#' @keywords internal
+conditionalYT_none <- function(data_predict_all, long_fit_all, l_i, ...) {
+  n_patients <- length(prediction_patient_ids(data_predict_all, long_fit_all))
+  list(matrix(0, length(l_i), n_patients))
+}
+
+#' @rdname conditionalYT_none
+#' @keywords internal
+conditionalYDT_none <- function(data_predict_all, long_fit_all, survival_fit_all, l_i, ...) {
+  rep(conditionalYT_none(data_predict_all, long_fit_all, l_i), 2)
+}
+
 #' Restrict prediction data to patients still at risk
 #'
 #' @description Shared helper for \code{predictRisk} and
@@ -178,10 +342,14 @@ prediction_patient_ids <- function(data_predict_all, long_fit_all) {
 #' \code{predictRisk()} without comment, and fail with an unrelated error in
 #' \code{predictLongitudinal()}).
 #'
+#' With \code{allow_empty = TRUE} an empty result is returned instead (the
+#' caller checks that some other patient is left).
+#'
 #' @return \code{data_predict_all}, filtered in place per element.
 #' @keywords internal
-subset_at_risk <- function(data_predict_all, survival_variable, prediction_time) {
-  had_rows <- nrow(data_predict_all[[1]]) > 0
+subset_at_risk <- function(data_predict_all, survival_variable, prediction_time,
+                           allow_empty = FALSE) {
+  had_rows <- nrow(data_predict_all[[1]]) > 0 && !allow_empty
   for (i in seq_len(length(data_predict_all))) {
     s <- data_predict_all[[i]][[survival_variable]]
     data_predict_all[[i]] = data_predict_all[[i]][is.na(s) | s >= prediction_time, , drop = FALSE]
@@ -570,12 +738,13 @@ auto_tune_bandcount <- function(predict_fun, args, auto_names, tol = 0.01, max_r
   for (n in auto_names) {
     args[[n]] <- unname(bandcount_auto_start[n])
   }
-  ### the caller has already warned about patients it cannot predict before
-  ### getting here; the repeated predictions below would warn again, once per
-  ### call
+  ### the caller has already warned about patients it cannot predict (or
+  ### predicts without measurements) before getting here; the repeated
+  ### predictions below would warn again, once per call
   predict_fun_quiet <- function(...) {
     withCallingHandlers(predict_fun(...), warning = function(w) {
-      if (grepl("have no non-missing measurement", conditionMessage(w), fixed = TRUE)) {
+      if (grepl("have no non-missing measurement", conditionMessage(w), fixed = TRUE) ||
+          grepl("have no biomarker measurement up to", conditionMessage(w), fixed = TRUE)) {
         invokeRestart("muffleWarning")
       }
     })

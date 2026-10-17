@@ -4,7 +4,12 @@
 \alias{drop_after_prediction_time}
 \title{Drop longitudinal measurements taken after the prediction time}
 \usage{
-drop_after_prediction_time(data_predict_all, time_variable, prediction_time)
+drop_after_prediction_time(
+  data_predict_all,
+  time_variable,
+  prediction_time,
+  allow_empty = FALSE
+)
 }
 \value{
 \code{data_predict_all}, filtered per element.
@@ -19,5 +24,8 @@ saying how many. (\code{predictPlot}/\code{riskPlot} already truncate per
 landmark time before calling these, so they never trigger the warning.)
 Rows with a missing \code{time_variable} are kept, as before.
 It is an error if no row is left: there is no history to condition on.
+With \code{allow_empty = TRUE} (\code{predictRisk()}, which predicts a
+patient without measurements from the survival sub-model alone) it is an
+error only if \code{data_predict_all} had no row to begin with.
 }
 \keyword{internal}

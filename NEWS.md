@@ -288,10 +288,17 @@
 
 ## Bug fixes
 
-* `predictRisk()`, `predictLongitudinal()` and `simulateTrajectory()` stop
-  with a clear error when `data_predict_all` has no measurement at or before
-  `prediction_time` (e.g. a `prediction_time` before the first visit). They
-  used to fail later with "replacement has 1 row, data has 0".
+* `predictRisk()` predicts a patient without any biomarker measurement up
+  to `prediction_time` (biomarker values all `NA`, or a `prediction_time`
+  before the first visit) from the survival sub-model alone, given the
+  covariates in the patient's earliest row: with no longitudinal history the
+  backward joint model reduces to it. A warning names these patients, and
+  the other patients' predictions are unchanged. Such a patient used to be
+  left out with a warning, or, alone, give an error.
+* `predictLongitudinal()` and `simulateTrajectory()` stop with a clear
+  error when `data_predict_all` has no row at or before `prediction_time`,
+  and `predictRisk()` when it has no row at all. They used to fail later
+  with "replacement has 1 row, data has 0".
 
 * `predictRisk()`, `predictLongitudinal()` and `simulateTrajectory()` check
   `survival_trans_function` against the transformed event-time columns the

@@ -312,6 +312,17 @@ test_that("interval-censored predictions condition on being event-free at the la
                  tolerance = 5e-3)
   }
 
+  # a patient without biomarker values: the survival sub-model alone, from
+  # the last visit V (the same split into undetected + window)
+  none <- hist[hist$id == ids[1], ]
+  none$y <- NA
+  V <- last_visit[[1]]
+  out_none <- suppressWarnings(pr(none, 4, 2, 40))
+  # probabilities of (V, 4], (4, 6] and beyond
+  m <- marginalT(list(none[1, ]), fit$long_fit_all, fit$survival_fit_all, l_i = c(V, 4, 6, 1e4))[, 1]
+  expect_equal(unname(out_none$prob_undetected_1), m[1] / sum(m), tolerance = 1e-3)
+  expect_equal(unname(out_none$risk_prob_1), m[2] / sum(m), tolerance = 1e-3)
+
   # predicting at the last visit itself leaves nothing undetected
   one <- hist[hist$id == ids[1], ]
   expect_equal(unname(pr(one, last_visit[[1]], 2, 20)$prob_undetected_1), 0)
