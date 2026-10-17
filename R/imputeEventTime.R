@@ -451,6 +451,7 @@ fill_event_time <- function(data_fit_all, id, T_values, event_time,
 #' @param digits Number of significant digits.
 #' @param ... Not used.
 #' @return \code{x}, invisibly.
+#' @keywords internal
 #' @export
 print.fitIntervalBJM <- function(x, digits = 4, ...) {
   st <- x$settings
