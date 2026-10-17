@@ -16,7 +16,16 @@ controlled by bandcount2; see Details.
 The prediction is conditional on the longitudinal history observed up to
 prediction_time: rows of data_predict_all whose
 time_variable is later than prediction_time are dropped,
-with a warning, before predicting."><meta property="og:description" content="Combines a fitted longitudinal sub-model (longitudinalSub)
+with a warning, before predicting.
+A patient with no biomarker measurement up to prediction_time
+(rows whose biomarker values are all NA, or only rows after
+prediction_time, e.g. a prediction_time before the first
+visit) has no history to condition on. The longitudinal factor
+\(f(Y \mid T)\) of the model is then 1, and the patient's risk is that
+of the survival sub-model alone, given the covariates in their earliest
+row; a warning names these patients. The other patients' predictions do
+not change. A patient with measurements of some biomarkers but none of
+another is still not predicted (NA, with a warning)."><meta property="og:description" content="Combines a fitted longitudinal sub-model (longitudinalSub)
 and survival sub-model (survivalSub) into a backward joint
 model prediction: for each at-risk subject at prediction_time, the
 subject's observed longitudinal history up to that time is used to update
@@ -33,7 +42,16 @@ controlled by bandcount2; see Details.
 The prediction is conditional on the longitudinal history observed up to
 prediction_time: rows of data_predict_all whose
 time_variable is later than prediction_time are dropped,
-with a warning, before predicting."></head><body>
+with a warning, before predicting.
+A patient with no biomarker measurement up to prediction_time
+(rows whose biomarker values are all NA, or only rows after
+prediction_time, e.g. a prediction_time before the first
+visit) has no history to condition on. The longitudinal factor
+\(f(Y \mid T)\) of the model is then 1, and the patient's risk is that
+of the survival sub-model alone, given the covariates in their earliest
+row; a warning names these patients. The other patients' predictions do
+not change. A patient with measurements of some biomarkers but none of
+another is still not predicted (NA, with a warning)."></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -51,7 +69,7 @@ with a warning, before predicting."></head><body>
     <div id="navbar" class="collapse navbar-collapse ms-3">
       <ul class="navbar-nav me-auto"><li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/BJM-intro.html">Getting Started with BJM</a></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/BJM-intro.html">Getting started with BJM</a></li>
     <li><a class="dropdown-item" href="../articles/digital-twins.html">Digital twins</a></li>
     <li><a class="dropdown-item" href="../articles/interval-censoring.html">Interval-censored events</a></li>
     <li><a class="dropdown-item" href="../articles/nonlinear-terms.html">Nonlinear terms in longitudinal formulas</a></li>
@@ -94,6 +112,15 @@ controlled by <code>bandcount2</code>; see Details.</p>
 <code>prediction_time</code>: rows of <code>data_predict_all</code> whose
 <code>time_variable</code> is later than <code>prediction_time</code> are dropped,
 with a warning, before predicting.</p>
+<p>A patient with no biomarker measurement up to <code>prediction_time</code>
+(rows whose biomarker values are all <code>NA</code>, or only rows after
+<code>prediction_time</code>, e.g. a <code>prediction_time</code> before the first
+visit) has no history to condition on. The longitudinal factor
+\(f(Y \mid T)\) of the model is then 1, and the patient's risk is that
+of the survival sub-model alone, given the covariates in their earliest
+row; a warning names these patients. The other patients' predictions do
+not change. A patient with measurements of some biomarkers but none of
+another is still not predicted (<code>NA</code>, with a warning).</p>
     </div>
 
     <div class="section level2">

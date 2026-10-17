@@ -2,7 +2,7 @@
 
 ### All vignettes
 
-- [Getting Started with
+- [Getting started with
   BJM](https://wenhaoli18.github.io/BJM/articles/BJM-intro.md):
 - [Digital
   twins](https://wenhaoli18.github.io/BJM/articles/digital-twins.md):

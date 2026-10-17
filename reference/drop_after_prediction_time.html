@@ -6,14 +6,22 @@ observed up to prediction_time, so rows of data_predict_all
 whose time_variable is later than that are removed, with a warning
 saying how many. (predictPlot/riskPlot already truncate per
 landmark time before calling these, so they never trigger the warning.)
-Rows with a missing time_variable are kept, as before."><meta property="og:description" content="Shared helper for predictRisk,
+Rows with a missing time_variable are kept, as before.
+It is an error if no row is left: there is no history to condition on.
+With allow_empty = TRUE (predictRisk(), which predicts a
+patient without measurements from the survival sub-model alone) it is an
+error only if data_predict_all had no row to begin with."><meta property="og:description" content="Shared helper for predictRisk,
 dynamicPredictionBio, and dynamicPredictionBioAll: a dynamic
 prediction at prediction_time may only condition on the history
 observed up to prediction_time, so rows of data_predict_all
 whose time_variable is later than that are removed, with a warning
 saying how many. (predictPlot/riskPlot already truncate per
 landmark time before calling these, so they never trigger the warning.)
-Rows with a missing time_variable are kept, as before."></head><body>
+Rows with a missing time_variable are kept, as before.
+It is an error if no row is left: there is no history to condition on.
+With allow_empty = TRUE (predictRisk(), which predicts a
+patient without measurements from the survival sub-model alone) it is an
+error only if data_predict_all had no row to begin with."></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -31,7 +39,7 @@ Rows with a missing time_variable are kept, as before."></head><body>
     <div id="navbar" class="collapse navbar-collapse ms-3">
       <ul class="navbar-nav me-auto"><li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/BJM-intro.html">Getting Started with BJM</a></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/BJM-intro.html">Getting started with BJM</a></li>
     <li><a class="dropdown-item" href="../articles/digital-twins.html">Digital twins</a></li>
     <li><a class="dropdown-item" href="../articles/interval-censoring.html">Interval-censored events</a></li>
     <li><a class="dropdown-item" href="../articles/nonlinear-terms.html">Nonlinear terms in longitudinal formulas</a></li>
@@ -63,12 +71,21 @@ observed up to <code>prediction_time</code>, so rows of <code>data_predict_all</
 whose <code>time_variable</code> is later than that are removed, with a warning
 saying how many. (<code>predictPlot</code>/<code>riskPlot</code> already truncate per
 landmark time before calling these, so they never trigger the warning.)
-Rows with a missing <code>time_variable</code> are kept, as before.</p>
+Rows with a missing <code>time_variable</code> are kept, as before.
+It is an error if no row is left: there is no history to condition on.
+With <code>allow_empty = TRUE</code> (<code><a href="predictRisk.html">predictRisk()</a></code>, which predicts a
+patient without measurements from the survival sub-model alone) it is an
+error only if <code>data_predict_all</code> had no row to begin with.</p>
     </div>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">drop_after_prediction_time</span><span class="op">(</span><span class="va">data_predict_all</span>, <span class="va">time_variable</span>, <span class="va">prediction_time</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">drop_after_prediction_time</span><span class="op">(</span></span>
+<span>  <span class="va">data_predict_all</span>,</span>
+<span>  <span class="va">time_variable</span>,</span>
+<span>  <span class="va">prediction_time</span>,</span>
+<span>  allow_empty <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">

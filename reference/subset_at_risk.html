@@ -6,14 +6,18 @@ whose survival time is missing (e.g. a new patient whose event time is
 not yet known) are kept: they are treated as at risk. It is an error if
 that leaves no patient (it used to return an empty result from
 predictRisk() without comment, and fail with an unrelated error in
-predictLongitudinal())."><meta property="og:description" content="Shared helper for predictRisk and
+predictLongitudinal()).
+With allow_empty = TRUE an empty result is returned instead (the
+caller checks that some other patient is left)."><meta property="og:description" content="Shared helper for predictRisk and
 dynamicPredictionBio: drops rows whose survival-time variable is
 below prediction_time from every biomarker's data frame. Rows
 whose survival time is missing (e.g. a new patient whose event time is
 not yet known) are kept: they are treated as at risk. It is an error if
 that leaves no patient (it used to return an empty result from
 predictRisk() without comment, and fail with an unrelated error in
-predictLongitudinal())."></head><body>
+predictLongitudinal()).
+With allow_empty = TRUE an empty result is returned instead (the
+caller checks that some other patient is left)."></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -31,7 +35,7 @@ predictLongitudinal())."></head><body>
     <div id="navbar" class="collapse navbar-collapse ms-3">
       <ul class="navbar-nav me-auto"><li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/BJM-intro.html">Getting Started with BJM</a></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/BJM-intro.html">Getting started with BJM</a></li>
     <li><a class="dropdown-item" href="../articles/digital-twins.html">Digital twins</a></li>
     <li><a class="dropdown-item" href="../articles/interval-censoring.html">Interval-censored events</a></li>
     <li><a class="dropdown-item" href="../articles/nonlinear-terms.html">Nonlinear terms in longitudinal formulas</a></li>
@@ -64,11 +68,18 @@ not yet known) are kept: they are treated as at risk. It is an error if
 that leaves no patient (it used to return an empty result from
 <code><a href="predictRisk.html">predictRisk()</a></code> without comment, and fail with an unrelated error in
 <code><a href="predictLongitudinal.html">predictLongitudinal()</a></code>).</p>
+<p>With <code>allow_empty = TRUE</code> an empty result is returned instead (the
+caller checks that some other patient is left).</p>
     </div>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">subset_at_risk</span><span class="op">(</span><span class="va">data_predict_all</span>, <span class="va">survival_variable</span>, <span class="va">prediction_time</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">subset_at_risk</span><span class="op">(</span></span>
+<span>  <span class="va">data_predict_all</span>,</span>
+<span>  <span class="va">survival_variable</span>,</span>
+<span>  <span class="va">prediction_time</span>,</span>
+<span>  allow_empty <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">

@@ -10,10 +10,18 @@ empty result from
 without comment, and fail with an unrelated error in
 [`predictLongitudinal()`](https://wenhaoli18.github.io/BJM/reference/predictLongitudinal.md)).
 
+With `allow_empty = TRUE` an empty result is returned instead (the
+caller checks that some other patient is left).
+
 ## Usage
 
 ``` r
-subset_at_risk(data_predict_all, survival_variable, prediction_time)
+subset_at_risk(
+  data_predict_all,
+  survival_variable,
+  prediction_time,
+  allow_empty = FALSE
+)
 ```
 
 ## Value

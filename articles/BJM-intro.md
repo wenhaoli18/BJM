@@ -1,4 +1,4 @@
-# Getting Started with BJM
+# Getting started with BJM
 
 ## Overview
 

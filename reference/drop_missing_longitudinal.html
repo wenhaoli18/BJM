@@ -16,7 +16,14 @@ each integration grid point / event type before use, and are unknown
 to be checked, so with the event type in long_sub_fixed every
 at-risk patient was dropped. A patient left with no rows for some
 biomarker cannot be predicted; a warning names them, and it is an error
-if that leaves no patient at all."><meta property="og:description" content="Shared helper for predictRisk,
+if that leaves no patient at all.
+With no_measurement_ok = TRUE (predictRisk()), a patient
+left with no rows for any biomarker is not reported: it is
+predicted from the survival sub-model alone (see
+prepare_risk_data()). It is then an error only if no patient has
+measurements of every biomarker, none is left without any measurement,
+and n_other (the patients without any row up to
+prediction_time, already removed) is 0."><meta property="og:description" content="Shared helper for predictRisk,
 dynamicPredictionBio, and dynamicPredictionBioAll: a
 patient's conditional density only involves the measurements actually
 observed, so for each biomarker, rows of its data_predict_all
@@ -33,7 +40,14 @@ each integration grid point / event type before use, and are unknown
 to be checked, so with the event type in long_sub_fixed every
 at-risk patient was dropped. A patient left with no rows for some
 biomarker cannot be predicted; a warning names them, and it is an error
-if that leaves no patient at all."></head><body>
+if that leaves no patient at all.
+With no_measurement_ok = TRUE (predictRisk()), a patient
+left with no rows for any biomarker is not reported: it is
+predicted from the survival sub-model alone (see
+prepare_risk_data()). It is then an error only if no patient has
+measurements of every biomarker, none is left without any measurement,
+and n_other (the patients without any row up to
+prediction_time, already removed) is 0."></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -51,7 +65,7 @@ if that leaves no patient at all."></head><body>
     <div id="navbar" class="collapse navbar-collapse ms-3">
       <ul class="navbar-nav me-auto"><li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/BJM-intro.html">Getting Started with BJM</a></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/BJM-intro.html">Getting started with BJM</a></li>
     <li><a class="dropdown-item" href="../articles/digital-twins.html">Digital twins</a></li>
     <li><a class="dropdown-item" href="../articles/interval-censoring.html">Interval-censored events</a></li>
     <li><a class="dropdown-item" href="../articles/nonlinear-terms.html">Nonlinear terms in longitudinal formulas</a></li>
@@ -94,6 +108,13 @@ to be checked, so with the event type in <code>long_sub_fixed</code> every
 at-risk patient was dropped. A patient left with no rows for some
 biomarker cannot be predicted; a warning names them, and it is an error
 if that leaves no patient at all.</p>
+<p>With <code>no_measurement_ok = TRUE</code> (<code><a href="predictRisk.html">predictRisk()</a></code>), a patient
+left with no rows for <em>any</em> biomarker is not reported: it is
+predicted from the survival sub-model alone (see
+<code><a href="prepare_risk_data.html">prepare_risk_data()</a></code>). It is then an error only if no patient has
+measurements of every biomarker, none is left without any measurement,
+and <code>n_other</code> (the patients without any row up to
+<code>prediction_time</code>, already removed) is 0.</p>
     </div>
 
     <div class="section level2">
@@ -102,7 +123,9 @@ if that leaves no patient at all.</p>
 <span>  <span class="va">data_predict_all</span>,</span>
 <span>  <span class="va">long_fit_all</span>,</span>
 <span>  <span class="va">survival_variable</span>,</span>
-<span>  <span class="va">survival_variable_all</span></span>
+<span>  <span class="va">survival_variable_all</span>,</span>
+<span>  no_measurement_ok <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  n_other <span class="op">=</span> <span class="fl">0</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 

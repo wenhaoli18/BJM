@@ -22,6 +22,16 @@ The prediction is conditional on the longitudinal history observed up to
 later than `prediction_time` are dropped, with a warning, before
 predicting.
 
+A patient with no biomarker measurement up to `prediction_time` (rows
+whose biomarker values are all `NA`, or only rows after
+`prediction_time`, e.g. a `prediction_time` before the first visit) has
+no history to condition on. The longitudinal factor \\f(Y \mid T)\\ of
+the model is then 1, and the patient's risk is that of the survival
+sub-model alone, given the covariates in their earliest row; a warning
+names these patients. The other patients' predictions do not change. A
+patient with measurements of some biomarkers but none of another is
+still not predicted (`NA`, with a warning).
+
 ## Usage
 
 ``` r

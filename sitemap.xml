@@ -62,6 +62,7 @@
 <url><loc>https://wenhaoli18.github.io/BJM/reference/conditionalYTBio.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/conditionalYTBioCopula.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/conditionalYTCopula.html</loc></url>
+<url><loc>https://wenhaoli18.github.io/BJM/reference/conditionalYT_none.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/conditional_survival_setup.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/continuous_value_grid.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/copula_D_aghq.html</loc></url>
@@ -145,6 +146,7 @@
 <url><loc>https://wenhaoli18.github.io/BJM/reference/prediction_patient_ids.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/predictive_sd.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/prepare_infinity_grid.html</loc></url>
+<url><loc>https://wenhaoli18.github.io/BJM/reference/prepare_risk_data.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/print.fitIntervalBJM.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/print.longitudinalSub.BJM.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/print.poolLongitudinalSub.BJM.html</loc></url>
@@ -168,6 +170,7 @@
 <url><loc>https://wenhaoli18.github.io/BJM/reference/simulateTrajectory.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/sinusoidal_time_embedding.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/spaghettiPlot.html</loc></url>
+<url><loc>https://wenhaoli18.github.io/BJM/reference/split_no_measurement.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/stacked_mean_on_grid.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/stacked_random_design.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/subject_intervals.html</loc></url>
