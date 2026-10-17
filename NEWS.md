@@ -45,6 +45,14 @@
   BJM, no recurrent machinery) finds BJM calibrated (slope ~1.0 for
   readmission, ~0.9 for death, over 10 seeds) and more discriminating
   than a last-value logistic regression, under a correctly specified model;
+  `recurrent-discharge-calibration.R` (several hospitalizations per patient,
+  every discharge a landmark, episodes started at discharge via
+  `restart_variable`/`lookback`; 10 seeds) finds the same: calibration slope
+  ~0.97 (readmission) / ~0.95 (death) and AUC 0.81 / 0.79 vs 0.77 / 0.77 for
+  a last-value logistic regression. With a subject-level frailty that BJM's
+  survival sub-model does not have (a misspecified case), calibration slopes
+  fall to ~0.76 / ~0.90 and the AUC advantage over the baseline shrinks
+  (readmission 0.72 vs 0.68, death 0.75 vs 0.74);
   `recurrent-event-calibration.R` checks mid-episode landmarks and has a
   known test-design flaw (it scores only episodes that eventually
   resolved, which inflates the observed event rate), so its numbers should
