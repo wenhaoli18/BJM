@@ -288,6 +288,45 @@
 
 ## Bug fixes
 
+* `cmtPlot()` now draws what it describes, on any time scale:
+  - without competing risks, the new `status_variable` (the event
+    indicator) restricts it to patients with an event. It used to select by
+    survival time alone, so censored patients entered the trajectory "of the
+    patients whose event happened around `condi_time2event`" (6 of 23 in the
+    `pbc3` example); without `status_variable` it now warns about this;
+  - the time axis shows `time_variable` itself, in the data's units and
+    labelled with its name; it showed the point number (1 to 61 for the
+    example's 5 years in months) labelled "Follow-up time";
+  - an interval without a measurement is left out. It was filled with the
+    previous interval's mean (34 of the example's 61 months), and the fitted
+    line and its confidence band treated those copies as data;
+  - the window of event times is the new `event_window` (default 1, as
+    before, in the data's units), and the intervals start at the first
+    measurement: both used to assume the data were in years.
+
+* `riskPlot()` marks the end of a subject's follow-up by what it was: a
+  solid line for an observed event (coloured by event type with competing
+  risks) and a dashed grey line for a censoring, named in an "End of
+  follow-up" legend. It used to draw the same unlabelled red line at a
+  censoring time as at an event time, so a censored subject looked as if
+  they had had the event.
+
+* The baseline plot of an interval-censored fit (`plot(<survivalSub>, which
+  = "basehaz")`) labels its time axis with the event-time variable instead
+  of `L`, the lower end of the interval.
+
+* `riskPlot()` and `predictPlot()` label the risk axis only within [0, 1];
+  where the biomarker went below 0 it showed negative "probabilities". For
+  an ordinal biomarker both label the biomarker axis with its categories,
+  and `predictPlot()` draws its prediction as each category's probability
+  (points sized by it) instead of quantile bands, which a handful of
+  categories turned into overlapping blocks.
+
+* `plot()` of a `predictLongitudinal()` result leaves out the value grid's
+  empty tails, and the baseline plot of `plot(<survivalSub>, which =
+  "basehaz")` says that it is for all covariates at 0. `cmtPlot()` no
+  longer prints a `geom_smooth()` formula message.
+
 * `imputeLongitudinal(method = "diffusion")` is now a conditional diffusion
   model trained as in CSDI (Tashiro et al., 2021): each training row's
   observed entries are split at random into targets and conditions, the

@@ -1,65 +1,85 @@
 #' Plot conditional mean trajectories (CMT)
-#' 
-#' @description This function generates the Conditional Mean Trajectories (CMT) plot. 
-#' All patients in this plot experience events at the same time point, 
-#' specified by \code{condi_time2event}. Several evenly spaced time points between 
-#' the baseline and \code{condi_time2event} are selected for plotting. Each point is 
-#' calculated using the mean value of all patients' biomarker values at that time point. 
-#' The interval between two time points is defined by \code{interval_time}
-#' 
-#' @param data_plot_all A \code{data.frame} that includes the biomarker used for plotting. 
+#'
+#' @description This function generates the Conditional Mean Trajectories (CMT)
+#' plot: the mean biomarker trajectory of the patients whose event happened in
+#' the window \code{(condi_time2event - event_window, condi_time2event]}. The
+#' time from the first measurement up to \code{condi_time2event} is cut into
+#' consecutive intervals of length \code{interval_time}; each point is the mean
+#' of those patients' biomarker values measured within one interval, plotted at
+#' the interval's end, and a straight line is fitted through the points. With
+#' competing risks there is one trajectory per event type.
+#'
+#' All times -- \code{time_variable}, \code{survival_variable},
+#' \code{condi_time2event}, \code{event_window} and \code{interval_time} -- are
+#' in the units of the data (years, months, days, ...), and the time axis shows
+#' \code{time_variable} on that scale, labelled with its name.
+#'
+#' Only patients with an observed event enter: with competing risks, those
+#' whose \code{event_type_variable} equals one of \code{event_type}; without,
+#' those whose \code{status_variable} is not 0. Without competing risks and
+#' with \code{status_variable = NULL}, patients are selected by their survival
+#' time alone, so censored ones are included too, with a warning. An interval
+#' without any measurement is left out rather than filled in.
+#'
+#' @param data_plot_all A \code{data.frame} that includes the biomarker used for plotting.
 #' It is utilized to plot conditional mean trajectories (CMT).
-#' @param condi_time2event Conditional event time, indicating that all patients should
-#' have events at this time in the plot. If \code{NULL}, it defaults to the midpoint
-#' of the observed range of \code{time_variable} in \code{data_plot_all}.
-#' @param event_type_variable Competing risks variable indicator name. Set to NULL if 
+#' @param condi_time2event Event time the patients are selected around. If
+#' \code{NULL}, it defaults to the midpoint of the observed range of
+#' \code{time_variable} in \code{data_plot_all}.
+#' @param event_type_variable Competing risks variable indicator name. Set to NULL if
 #' there are no competing risks.
-#' @param event_type A vector containing the names of all event types.
+#' @param event_type A vector containing the values of \code{event_type_variable}
+#' for the event types to plot (at least two).
 #' @param bio_variable Name of the biomarker variable used for plotting.
 #' @param time_variable The name of time variable in linear mixed model.
 #' @param survival_variable Name of the time-to-event outcomes variable.
-#' @param interval_time The time interval between two time points. Time points are 
-#' plotted within the baseline to event time.
+#' @param interval_time Length of the intervals the follow-up is cut into, in the
+#' units of \code{time_variable}.
 #' @param id_variable Name of the patient ID column in \code{data_plot_all}. Default is \code{"id"}.
-#' 
+#' @param status_variable Without competing risks, the name of the event
+#' indicator (0 = censored), so that only patients with an event are used.
+#' Ignored with competing risks.
+#' @param event_window Width of the window of event times before
+#' \code{condi_time2event} that a patient's event must fall in, in the units of
+#' \code{survival_variable}. Default 1 (one year for data in years; use e.g. 12
+#' for months or 365 for days).
+#'
 #' @return Conditional mean trajectories plot.
-#' 
-#' @examples 
-#' 
+#'
+#' @examples
+#'
 #' # example without competing risks
-#' 
+#'
 #' data(pbc3)
-#' 
-#' pbc.cmt <- cmtPlot(data_plot_all = pbc3, condi_time2event = 5, 
+#'
+#' pbc.cmt <- cmtPlot(data_plot_all = pbc3, condi_time2event = 5,
 #'    event_type_variable = NULL, event_type = NULL,
-#'    bio_variable = "serBilir", time_variable = "year", 
-#'    survival_variable = "years", 
-#'    interval_time = 1/12
+#'    bio_variable = "serBilir", time_variable = "year",
+#'    survival_variable = "years",
+#'    interval_time = 1/12, status_variable = "status3"
 #' )
-#' 
+#'
 #' pbc.cmt
-#' 
-#' @examples 
-#' 
+#'
+#' @examples
+#'
 #' # example with competing risks
-#' 
+#'
 #' data(pbc3)
-#' 
-#' data_plot_all = pbc3[!is.na(pbc3$status4),]
-#' 
-#' pbc.cmt.cr <- cmtPlot(data_plot_all, condi_time2event = 5, 
+#'
+#' pbc.cmt.cr <- cmtPlot(pbc3, condi_time2event = 5,
 #'    event_type_variable = 'status4', event_type = c("0", "1"),
-#'    bio_variable = "albumin", time_variable = "year", 
-#'    survival_variable = "years", 
+#'    bio_variable = "albumin", time_variable = "year",
+#'    survival_variable = "years",
 #'    interval_time = 1/4
 #' )
-#' 
+#'
 #' pbc.cmt.cr
 #'
 #' @export
 cmtPlot = function(data_plot_all, condi_time2event, event_type_variable, event_type,
                    bio_variable, time_variable, survival_variable, interval_time = 1/12,
-                   id_variable = "id"){
+                   id_variable = "id", status_variable = NULL, event_window = 1){
 
   assert_data_frame(data_plot_all, "data_plot_all")
   assert_string(bio_variable, "bio_variable")
@@ -68,197 +88,87 @@ cmtPlot = function(data_plot_all, condi_time2event, event_type_variable, event_t
   assert_string(id_variable, "id_variable")
   assert_vars_in_data(c(bio_variable, time_variable, survival_variable, id_variable), data_plot_all,
                        "bio_variable/time_variable/survival_variable/id_variable", "data_plot_all")
-  if (!is.null(event_type_variable)) {
+  has_cr <- !is.null(event_type_variable)
+  if (has_cr) {
     assert_string(event_type_variable, "event_type_variable")
+    assert_vars_in_data(event_type_variable, data_plot_all, "event_type_variable", "data_plot_all")
     if (length(event_type) < 2) {
       stop("`event_type` must have at least 2 elements (one per competing event type) when `event_type_variable` is supplied.", call. = FALSE)
     }
+  } else if (!is.null(status_variable)) {
+    assert_string(status_variable, "status_variable")
+    assert_vars_in_data(status_variable, data_plot_all, "status_variable", "data_plot_all")
   }
   if (!is.null(condi_time2event)) {
     assert_scalar_numeric(condi_time2event, "condi_time2event")
   }
   assert_scalar_numeric(interval_time, "interval_time", positive = TRUE)
+  assert_scalar_numeric(event_window, "event_window", positive = TRUE)
 
-  ### A sequence of conditional time-to-event times
-  if(!is.null(condi_time2event)){
-    ### if condi_time2event is pre-defined
-    condi_time2event_seq = condi_time2event
-  }else{
-    ### Pick the middel point of the time duration
-    condi_time2event_seq = ceiling(1/2 * min(unlist(data_plot_all[time_variable])) +
-                                     1/2 * max(unlist(data_plot_all[time_variable])))
-    ### otherwise generate a sequence automatically
-    #condi_time2event_seq = seq(ceiling(min(unlist(plot_data[time_variable]))),
-    #                           ceiling(max(unlist(plot_data[time_variable]))),
-    #                           by = interval_time_1 )[-1]
+  times <- data_plot_all[[time_variable]]
+  if (is.null(condi_time2event)) {
+    ### the midpoint of the observed follow-up (it used to be rounded up to a
+    ### whole unit, which assumed the data were in years)
+    condi_time2event <- (min(times, na.rm = TRUE) + max(times, na.rm = TRUE)) / 2
   }
-  
-  if(!is.null(event_type_variable)){
-  ### with competing risks
-    
-  ### Event type 1
-  plot_data = data_plot_all[data_plot_all[event_type_variable] == event_type[1],]
-  cluster_event_value = list() 
-    
-  #### number of patients has events at certain period
-  event1_number = c()
-  event_year_i = 0
-  for(event_year in condi_time2event_seq){
-    event_year_i = event_year_i + 1
-    ### sample data who has events in the interval of [event_year - 1, event_year] 
-    plot_data_event_year = plot_data[plot_data[survival_variable] <= event_year & 
-                                     plot_data[survival_variable] >= event_year - 1,]
-    event1_number[event_year_i] = dim(plot_data_event_year[!duplicated(plot_data_event_year[[id_variable]]), ])[1]
-    if(dim(plot_data_event_year)[1] == 0) {
-      ### if no data in plot_data_event_year, use previous event year
-      cluster_event_value[[event_year_i]] = cluster_event_value[[event_year_i - 1]]
-    }else{
-      cluster_event_value[[event_year_i]] = vector()
-      ### calculate the mean of biomarker value at a sequence of points
-      for(year in seq(from = ceiling(min(plot_data_event_year[time_variable])), 
-                      to = event_year, by = interval_time) ){ 
-        plot_data_interval = plot_data_event_year[plot_data_event_year[time_variable] <= year & 
-                                        plot_data_event_year[time_variable] >= year - interval_time,]
-        if(dim(plot_data_interval)[1] == 0) {
-          mean_value  = cluster_event_value[[event_year_i]][length(cluster_event_value[[event_year_i]])]
-        }else{
-          mean_value  = mean(unlist(plot_data_interval[bio_variable]))
-          if(is.na(mean_value)){
-            mean_value  = cluster_event_value[[event_year_i]][length(cluster_event_value[[event_year_i]])]
-          }
-        }
-        
-        cluster_event_value[[event_year_i]] =  c(cluster_event_value[[event_year_i]], mean_value)
-      }
-    }
-    
+
+  ### the patients whose event is in (condi_time2event - event_window,
+  ### condi_time2event]; the window used to be a fixed 1 unit of time
+  surv <- data_plot_all[[survival_variable]]
+  in_window <- !is.na(surv) & surv > condi_time2event - event_window & surv <= condi_time2event
+  groups <- if (has_cr) {
+    lapply(event_type, function(k) in_window & as.character(data_plot_all[[event_type_variable]]) %in% as.character(k))
+  } else if (!is.null(status_variable)) {
+    status <- data_plot_all[[status_variable]]
+    list(in_window & !is.na(status) & status != 0)
+  } else {
+    warning(paste0(
+      "`status_variable` is not given, so patients are selected by their survival time alone and ",
+      "censored ones are included; pass the event indicator (e.g. status_variable = \"status\") ",
+      "to use only patients with an event."), call. = FALSE)
+    list(in_window)
   }
-  cluster_event_value_event1 = cluster_event_value
-  
-  #### Event type 2
-  plot_data = data_plot_all[data_plot_all[event_type_variable] == event_type[2],]
-  cluster_event_value = list() 
-  
-  #### number of patients has events at certain period
-  event2_number = c()
-  event_year_i = 0
-  for(event_year in condi_time2event_seq){
-    event_year_i = event_year_i + 1
-    ### sample data who has events in the interval of [event_year - 1, event_year] 
-    plot_data_event_year = plot_data[plot_data[survival_variable] <= event_year & 
-                                       plot_data[survival_variable] >= event_year - 1,]
-    event2_number[event_year_i] = dim(plot_data_event_year[!duplicated(plot_data_event_year[[id_variable]]), ])[1]
-    if(dim(plot_data_event_year)[1] == 0) {
-      ### if no data in plot_data_event_year, use previous event year
-      cluster_event_value[[event_year_i]] = cluster_event_value[[event_year_i - 1]]
-    }else{
-      cluster_event_value[[event_year_i]] = vector()
-      ### calculate the mean of biomarker value at a sequence of points
-      for(year in seq(from = ceiling(min(plot_data_event_year[time_variable])), 
-                      to = event_year, by = interval_time) ){ 
-        plot_data_interval = plot_data_event_year[plot_data_event_year[time_variable] <= year & 
-                                                    plot_data_event_year[time_variable] >= year - interval_time,]
-        if(dim(plot_data_interval)[1] == 0) {
-          mean_value  = cluster_event_value[[event_year_i]][length(cluster_event_value[[event_year_i]])]
-        }else{
-          mean_value  = mean(unlist(plot_data_interval[bio_variable]))
-          if(is.na(mean_value)){
-            mean_value  = cluster_event_value[[event_year_i]][length(cluster_event_value[[event_year_i]])]
-          }
-        }
-        
-        cluster_event_value[[event_year_i]] =  c(cluster_event_value[[event_year_i]], mean_value)
-      }
-    }
-    
+  labels <- if (has_cr) paste0("Event", seq_along(event_type)) else "Event1"
+
+  ### mean biomarker value in each interval (t - interval_time, t] up to
+  ### condi_time2event, plotted at the interval's end. An interval without a
+  ### measurement is left out: it used to be filled with the previous mean,
+  ### and those copies were fitted by the line as if they were data.
+  cmt_means <- function(rows) {
+    d <- data_plot_all[rows & !is.na(data_plot_all[[bio_variable]]) & !is.na(times), , drop = FALSE]
+    if (nrow(d) == 0) return(data.frame(time = numeric(0), probEvent = numeric(0)))
+    ends <- seq(min(d[[time_variable]]), condi_time2event, by = interval_time)
+    if (length(ends) == 0) ends <- condi_time2event
+    if (max(d[[time_variable]]) > max(ends)) ends <- c(ends, max(ends) + interval_time)
+    bin <- findInterval(d[[time_variable]], c(-Inf, ends), left.open = TRUE)
+    m <- tapply(d[[bio_variable]], factor(bin, levels = seq_along(ends)), mean)
+    out <- data.frame(time = ends, probEvent = as.vector(m))
+    out[!is.na(out$probEvent), , drop = FALSE]
   }
-  cluster_event_value_event2 = cluster_event_value
-  
-  for(event_year_i in seq_len(length(condi_time2event_seq))){
-    DP_event1 = data.frame(time = rep(1: length(cluster_event_value_event1[[event_year_i]])), 
-                         probEvent = cluster_event_value_event1[[event_year_i]])
-    DP_event2 = data.frame(time = rep(1: length(cluster_event_value_event2[[event_year_i]])), 
-                          probEvent = cluster_event_value_event2[[event_year_i]])
-    
-    nam <- paste("Plot_p", event_year_i, sep = "") 
-    assign(nam,  ggplot() +
-             geom_point(data = DP_event1, aes(x = time, y = probEvent, color = "Event1"), size = 3) +  
-             geom_smooth(data = DP_event1, aes(x = time, y = probEvent, color = "Event1"), method = "lm") +
-             geom_point(data = DP_event2, aes(x = time, y =  probEvent, color = "Event2"), size = 3) +
-             geom_smooth(data = DP_event2, aes(x = time, y = probEvent, color = "Event2"), method = "lm") +
-             
-             scale_color_manual(name = "Lines",
-                                values = c("Event1" = "red", "Event2" = "black"))   +
-             ylab("Biomarker value") + xlab("Follow-up time") +   
-             theme_bw(base_size = 22)+
-             theme(panel.grid.major = element_blank(),
-                   panel.grid.minor = element_blank(),
-                   panel.background = element_blank(),
-                   plot.background = element_blank()) )
+  cmt_data <- lapply(groups, cmt_means)
+  n_patients <- vapply(groups, function(g) length(unique(data_plot_all[[id_variable]][g])), integer(1))
+  if (all(n_patients == 0)) {
+    stop(sprintf("No patient has an event between %g and %g (condi_time2event - event_window and condi_time2event).",
+                 condi_time2event - event_window, condi_time2event), call. = FALSE)
   }
-  
-  }else{
-    # without competing risks
-    
-    plot_data = data_plot_all
-    cluster_event_value = list() 
-    #### number of patients has events at certain period
-    event1_number = c()
-    event_year_i = 0
-    for(event_year in condi_time2event_seq){
-      event_year_i = event_year_i + 1
-      ### sample data who has events in the interval of [event_year - 1, event_year] 
-      plot_data_event_year = plot_data[plot_data[survival_variable] <= event_year & 
-                                         plot_data[survival_variable] >= event_year - 1,]
-      event1_number[event_year_i] = dim(plot_data_event_year[!duplicated(plot_data_event_year[[id_variable]]), ])[1]
-      if(dim(plot_data_event_year)[1] == 0) {
-        ### if no data in plot_data_event_year, use previous event year
-        cluster_event_value[[event_year_i]] = cluster_event_value[[event_year_i - 1]]
-      }else{
-        cluster_event_value[[event_year_i]] = vector()
-        ### calculate the mean of biomarker value at a sequence of points
-        for(year in seq(from = ceiling(min(plot_data_event_year[time_variable])), 
-                        to = event_year, by = interval_time) ){ 
-          plot_data_interval = plot_data_event_year[plot_data_event_year[time_variable] <= year & 
-                                                      plot_data_event_year[time_variable] >= year - interval_time,]
-          if(dim(plot_data_interval)[1] == 0) {
-            mean_value  = cluster_event_value[[event_year_i]][length(cluster_event_value[[event_year_i]])]
-          }else{
-            mean_value  = mean(unlist(plot_data_interval[bio_variable]))
-            if(is.na(mean_value)){
-              mean_value  = cluster_event_value[[event_year_i]][length(cluster_event_value[[event_year_i]])]
-            }
-          }
-          
-          cluster_event_value[[event_year_i]] =  c(cluster_event_value[[event_year_i]], mean_value)
-        }
-      }
-      
-    }
-    cluster_event_value_event1 = cluster_event_value
-    
-    for(event_year_i in seq_len(length(condi_time2event_seq))){
-      DP_event1 = data.frame(time = rep(1: length(cluster_event_value_event1[[event_year_i]])), 
-                             probEvent = cluster_event_value_event1[[event_year_i]])
-      
-      nam <- paste("Plot_p", event_year_i, sep = "") 
-      assign(nam,  ggplot() +
-               geom_point(data = DP_event1, aes(x = time, y = probEvent, color = "Event1"), size = 3) +  
-               geom_smooth(data = DP_event1, aes(x = time, y = probEvent, color = "Event1"), method = "lm") +
-               
-               scale_color_manual(name = "Lines",
-                                  values = c("Event1" = "red"))   +
-               ylab("Biomarker value") + xlab("Follow-up time") +   
-               theme_bw(base_size = 22)+
-               theme(panel.grid.major = element_blank(),
-                     panel.grid.minor = element_blank(),
-                     panel.background = element_blank(),
-                     plot.background = element_blank(),
-                     legend.position = "none") )
-    }
-    
-    }
-  
-  return(Plot_p1)
+
+  colours <- c("Event1" = "red", "Event2" = "black")
+  Plot_p1 <- ggplot()
+  for (k in seq_along(cmt_data)) {
+    if (nrow(cmt_data[[k]]) == 0) next
+    dk <- cmt_data[[k]]
+    dk$line <- labels[k]
+    Plot_p1 <- Plot_p1 +
+      geom_point(data = dk, aes(x = time, y = probEvent, color = line), size = 3) +
+      geom_smooth(data = dk, aes(x = time, y = probEvent, color = line), method = "lm", formula = y ~ x)
+  }
+  Plot_p1 +
+    scale_color_manual(name = "Lines", values = colours[labels]) +
+    ylab("Biomarker value") + xlab(time_variable) +
+    theme_bw(base_size = 22) +
+    theme(panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          panel.background = element_blank(),
+          plot.background = element_blank(),
+          legend.position = if (has_cr) "right" else "none")
 }
-

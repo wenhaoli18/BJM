@@ -21,7 +21,7 @@ utils::globalVariables(c(
   "x", "y", "id", "group", "cif", "lower", "upper", "event", "curve", "hue",
   ### plot methods for longitudinalSub/survivalSub/predictLongitudinal results
   "fitted", "resid", "biomarker", "panel", "value", "row", "col", "hazard", "strata",
-  "estimate", "term", "model", "category", "density", "subject",
+  "estimate", "term", "model", "category", "density", "subject", "prob", "end", "line",
   ### plot.simulateTrajectory.BJM() aes() columns
   "path",
   ### performancePlot() aes() columns

@@ -524,3 +524,10 @@ test_that("fitIntervalBJM leaves out measurements at and after the detecting vis
   only_before <- fit_ic(pre)
   expect_equal(nlme::fixef(with_detection$long_fit_all$lfit[[1]]), nlme::fixef(only_before$long_fit_all$lfit[[1]]))
 })
+
+test_that("the baseline plot of an interval-censored fit names the event time", {
+  d <- simulate_interval_data(200, seed = 4)
+  fit <- survivalSub(d, Surv(L, R, type = "interval2") ~ x1 + x2, NULL, event_time = "Tev")
+  # it showed "L", the lower end of the interval
+  expect_equal(plot(fit, which = "basehaz")$labels$x, "Tev")
+})

@@ -2,30 +2,32 @@
 % Please edit documentation in R/riskPlot.R
 \name{event_time_vline}
 \alias{event_time_vline}
-\title{Vertical line at a patient's observed event time}
+\title{Vertical line at the end of a patient's follow-up}
 \usage{
 event_time_vline(
   data_predict_all_pre,
-  survival_variable,
+  survival_fit_all,
   event_type_variable = NULL
 )
 }
 \arguments{
 \item{data_predict_all_pre}{The patient's prediction data (list of data frames).}
 
-\item{survival_variable}{Name of the survival-time variable.}
+\item{survival_fit_all}{The survival sub-model, whose \code{Surv()} outcome
+gives the time and the status.}
 
 \item{event_type_variable}{Name of the event-type variable, or \code{NULL}.}
 }
 \value{
-A ggplot2 layer or \code{NULL}.
+A list of ggplot2 components (possibly empty).
 }
 \description{
-Helper for \code{riskPlot()}: a \code{geom_vline()} at the
-patient's survival time, coloured by event type (black for 0, red for 1)
-with competing risks and red otherwise -- or \code{NULL} (nothing drawn)
-when that time is unknown, as for a new patient. A missing time used to
-be passed to \code{geom_vline()} as is, and printing the plot failed with
-"Discrete values supplied to continuous scale".
+Helper for \code{riskPlot()}: a vertical line at the
+patient's survival time, labelled in a legend -- solid, coloured by event
+type (as the risk curves: black for the first, red for the second), for an
+observed event, and dashed grey for a censored follow-up. Nothing is drawn
+when the time or the status is unknown, as for a new patient or an
+interval-censored fit. The line used to be drawn the same way (red, with no
+legend) for a censored patient as for an event.
 }
 \keyword{internal}
