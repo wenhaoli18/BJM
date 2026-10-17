@@ -44,7 +44,7 @@ drop_after_prediction_time <- function(data_predict_all, time_variable, predicti
 #' @return A character vector of variable names.
 #' @keywords internal
 outcome_variables <- function(survival_fit_all) {
-  out <- as.character(formula(survival_fit_all$coxph_fit)[[2]])[2]
+  out <- survival_time_variable(survival_fit_all)
   if (length(survival_fit_all$form_conditional_cr) != 0) {
     out <- c(out, all.vars(survival_fit_all$form_conditional_cr[[2]]))
   }
@@ -270,21 +270,16 @@ integration_upper_bound <- function(data_predict_all, long_fit_all, survival_fit
 #' \code{last_time} (the last time in the data \code{survivalSub()} was fit on).
 #' @keywords internal
 conditional_survival_setup <- function(data_predict_all, long_fit_all, survival_fit_all) {
-  coxph_fit <- survival_fit_all$coxph_fit
   num <- as.character(nlme::splitFormula(long_fit_all$long_sub_random[[1]], "|")[[2]])[2]
   data.surv <- data_predict_all[[1]][!duplicated(data_predict_all[[1]][[num]]), , drop = FALSE]
-  cum_basehaz_all <- basehaz(coxph_fit, centered = FALSE)
+  cum_basehaz_all <- survival_cum_basehaz(survival_fit_all)
 
-  lp <- c(stats::predict(coxph_fit, newdata = data.surv, type = "lp",
-                         reference = "zero", na.action = stats::na.pass))
-  strata_vars <- survival::untangle.specials(stats::terms(coxph_fit), "strata")$vars
-  if (length(strata_vars) == 0) {
+  lp <- survival_lp(survival_fit_all, data.surv)
+  patient_strata <- survival_patient_strata(survival_fit_all, data.surv)
+  if (is.null(patient_strata)) {
     groups <- list(list(cum_basehaz = cum_basehaz_all[, c("hazard", "time")],
                         patients = seq_along(lp)))
   } else {
-    rhs_terms <- stats::delete.response(stats::terms(coxph_fit))
-    mf_surv <- model.frame(rhs_terms, data.surv, na.action = stats::na.pass, xlev = coxph_fit$xlevels)
-    patient_strata <- as.character(mf_surv[[strata_vars]])
     groups <- lapply(intersect(unique(patient_strata), as.character(cum_basehaz_all$strata)), function(s)
       list(cum_basehaz = cum_basehaz_all[cum_basehaz_all$strata == s, c("hazard", "time")],
            patients = which(patient_strata == s)))
@@ -658,4 +653,83 @@ auto_tune_marker_bandcount3 <- function(shared, bio_i, long_fit_all, survival_fi
     }
   }
   list(result = prev_result, bandcount3 = bandcount3)
+}
+
+#' Integration grid between the last negative visit and the prediction time
+#'
+#' @description Interval-censored fits only. With interval censoring an
+#' event is only detected at the next visit, so at \code{prediction_time}
+#' \eqn{s} a patient is known to be event-free only up to their last visit
+#' \eqn{V \le s} (taken to be the last time in their biomarker history up to
+#' \eqn{s}), not up to \eqn{s} itself. Conditioning on \eqn{T > V} instead of
+#' \eqn{T > s} adds the stretch \eqn{(V, s]} to the denominator of every
+#' prediction. This builds, for each patient, \code{n} equal intervals
+#' tiling their own \eqn{(V, s]} -- the stretch differs per patient, so the
+#' grid does too -- and the survival model's probability of each.
+#'
+#' Returns \code{NULL} for a right-censored fit (an event is observed when it
+#' happens, so \eqn{V = s}) and when every patient was seen at \eqn{s}, so
+#' callers keep their right-censored code path unchanged.
+#'
+#' @param data_predict_all At-risk prediction data (list of data frames).
+#' @param long_fit_all Output of \code{longitudinalSub()}.
+#' @param survival_fit_all Output of \code{survivalSub()}.
+#' @param prediction_time The prediction time \eqn{s}.
+#' @param time_variable Visit-time column.
+#' @param n Grid intervals per patient.
+#' @return \code{NULL}, or a list with \code{last_visit} (\eqn{V}, one per
+#'   patient), \code{mids} and \code{S} (\code{n} x patients matrices of
+#'   interval midpoints and probabilities; zero probability for a patient
+#'   with \eqn{V = s}), and \code{eval(fun)}, which calls \code{fun(data_j,
+#'   l_i)} once per patient with a gap (\code{data_j} the patient's rows,
+#'   \code{l_i} their midpoints) and binds the resulting one-column results
+#'   into an \code{n} x patients matrix (filled with \code{fill}, \code{-Inf}
+#'   by default for log densities, for patients without a gap). \code{fun}
+#'   may also return a (nested) list of such columns, in which case
+#'   \code{eval()} returns the matching list of matrices.
+#' @keywords internal
+interval_gap_grid <- function(data_predict_all, long_fit_all, survival_fit_all,
+                              prediction_time, time_variable, n) {
+  if (!is_interval_censored(survival_fit_all)) return(NULL)
+  id <- as.character(nlme::splitFormula(long_fit_all$long_sub_random[[1]], "|")[[2]])[2]
+  patient_ids <- prediction_patient_ids(data_predict_all, long_fit_all)
+  times <- do.call(rbind, lapply(data_predict_all, function(d)
+    data.frame(id = as.character(d[[id]]), time = d[[time_variable]], stringsAsFactors = FALSE)))
+  last_visit <- tapply(times$time, times$id, max)[patient_ids]
+  last_visit <- pmin(last_visit, prediction_time)
+  has_gap <- last_visit < prediction_time
+  if (!any(has_gap)) return(NULL)
+
+  patient_data <- function(j) {
+    lapply(data_predict_all, function(d) d[as.character(d[[id]]) == patient_ids[j], , drop = FALSE])
+  }
+  P <- length(patient_ids)
+  mids <- matrix(prediction_time, n, P)
+  S <- matrix(0, n, P)
+  for (j in which(has_gap)) {
+    edges <- seq(last_visit[j], prediction_time, length.out = n + 1)
+    mids[, j] <- (edges[-1] + edges[-(n + 1)]) / 2
+    S[, j] <- marginalT(patient_data(j), long_fit_all, survival_fit_all, l_i = edges,
+                        upper_bound = prediction_time)[, 1]
+  }
+  eval_gap <- function(fun, fill = -Inf) {
+    cols <- lapply(seq_len(P), function(j) {
+      if (has_gap[j]) fun(patient_data(j), mids[, j]) else NULL
+    })
+    template <- cols[[which(has_gap)[1]]]
+    # bind the per-patient one-column results leaf by leaf, keeping the
+    # (possibly nested) list structure fun returns
+    combine <- function(get) {
+      leaf <- get(template)
+      if (is.list(leaf)) {
+        return(lapply(seq_along(leaf), function(k) combine(function(x) get(x)[[k]])))
+      }
+      do.call(cbind, lapply(seq_len(P), function(j) {
+        if (has_gap[j]) c(get(cols[[j]])) else rep(fill, n)
+      }))
+    }
+    combine(identity)
+  }
+  list(last_visit = stats::setNames(last_visit, patient_ids), has_gap = has_gap,
+       mids = mids, S = S, eval = eval_gap)
 }

@@ -223,7 +223,7 @@ simulateTrajectory <- function(data_predict_all, long_fit_all, survival_fit_all,
   lfit <- long_fit_all$lfit
   Sigma <- long_fit_all$Sigma_fit
   id <- as.character(nlme::splitFormula(long_fit_all$long_sub_random[[1]], "|")[[2]])[2]
-  survival_variable <- as.character(formula(survival_fit_all$coxph_fit)[[2]])[2]
+  survival_variable <- survival_time_variable(survival_fit_all)
   has_cr <- length(survival_fit_all$form_conditional_cr) != 0
   event_type_variable <- if (has_cr) all.vars(survival_fit_all$form_conditional_cr[[2]]) else NULL
 
@@ -236,10 +236,19 @@ simulateTrajectory <- function(data_predict_all, long_fit_all, survival_fit_all,
   }
   data_predict_all <- subset_at_risk(data_predict_all, survival_variable, prediction_time)
   patient_ids <- prediction_patient_ids(data_predict_all, long_fit_all)
+  ### interval-censored fits: draws start from T > prediction_time, which is
+  ### only right when every patient was seen at prediction_time (see
+  ### interval_gap_grid()); predictRisk()/predictLongitudinal() handle the gap
+  if (!is.null(interval_gap_grid(data_predict_all, long_fit_all, survival_fit_all,
+                                 prediction_time, time_variable, 1))) {
+    stop(paste0("With an interval-censored survival sub-model, simulateTrajectory() needs every ",
+                "patient's last visit to be at prediction_time (the event could otherwise already ",
+                "have happened undetected). Set prediction_time to the patient's last visit time."),
+         call. = FALSE)
+  }
 
   if (is.null(max_event_time)) {
-    surv_y <- survival_fit_all$coxph_fit$y
-    max_event_time <- max(surv_y[, ncol(surv_y) - 1])
+    max_event_time <- survival_max_followup(survival_fit_all)
   }
   if (max_event_time <= prediction_time) {
     stop(sprintf("`max_event_time` (%g) must be later than prediction_time = %g.", max_event_time, prediction_time),

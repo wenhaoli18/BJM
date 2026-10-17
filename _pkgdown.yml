@@ -30,6 +30,11 @@ reference:
   contents:
   - buildRecurrentEpisodes
 
+- title: Interval-censored events
+  desc: Fit the backward joint model when the event time is only known to lie between two visits.
+  contents:
+  - fitIntervalBJM
+
 - title: Missing data imputation
   desc: Impute missing longitudinal biomarker values and pool sub-model fits across imputations.
   contents:

@@ -77,6 +77,23 @@ it that it underestimates it.
 Evaluating on the data the sub-models were fit on gives an optimistic
 (apparent) calibration; pass held-out validation data in
 \code{data_predict_all} when available.
+
+For an \strong{interval-censored} fit (experimental), the observed risk
+of a group is a nonparametric (Turnbull-type) estimate from the
+subjects' intervals, left-truncated at each subject's last visit up to
+the landmark -- with competing risks, the cumulative incidence estimate
+of Hudgens, Satten and Longini (2001) -- so it estimates the same
+quantity \code{predictRisk()} predicts, without using the model. Within
+an interval the timing of the event is not identified, so the estimate
+is less precise than with exact times, and no confidence interval is
+drawn. In simulations it was unbiased when the visits were at most about
+\code{horizon} apart, but with visits further apart than \code{horizon}
+the window mostly falls inside the subjects' intervals and the observed
+risk of the higher-risk groups was much too high (up to +0.27 with visits
+every 2--6 years and a 2-year window). An observed risk computed from the
+model's own posterior was more precise, but followed the predictions of
+a deliberately miscalibrated model instead of the truth, so it is not
+offered.
 }
 \examples{
 \donttest{

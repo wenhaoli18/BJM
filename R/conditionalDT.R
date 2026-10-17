@@ -26,14 +26,12 @@
 #' @keywords internal
 conditionalDT = function(data_predict_all, long_fit_all, survival_fit_all, l_i){
   
-  coxph_fit = survival_fit_all$coxph_fit
   ### extract data to calculate the conditional probability
   num <- as.character(nlme::splitFormula(long_fit_all$long_sub_random[[1]], "|")[[2]])[2]
   data.surv =  data_predict_all[[1]][!duplicated(data_predict_all[[1]][num]), ]
   ### censor variable name
-  #censor_variable = as.character(formula(coxph_fit)[[2]])[3]
   ### time-to-event variable name
-  survival_variable = as.character(formula(coxph_fit)[[2]])[2]
+  survival_variable = survival_time_variable(survival_fit_all)
   ### event type variable name
   event_type_variable = as.character(formula(survival_fit_all$form_conditional_cr)[[2]])
   
