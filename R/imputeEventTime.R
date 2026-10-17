@@ -97,8 +97,9 @@
 #'   Description, for use with \code{predictRisk()} and friends);
 #'   \code{pooled} (\code{\link{poolLongitudinalSub}} of the fits, when
 #'   \code{n_imputations > 1}); \code{imputed_T} (a subjects x imputations
-#'   matrix); and \code{trace} (each iteration's fixed effects, to check
-#'   the chain has settled).
+#'   matrix); \code{trace} (each iteration's fixed effects, to check
+#'   the chain has settled); and \code{settings} (the iteration settings).
+#'   \code{print()} shows a short summary.
 #' @examples
 #' \donttest{
 #' # simulated study: visits every 1-3 years, an event known only to lie
@@ -288,7 +289,9 @@ fitIntervalBJM <- function(data_survival, data_fit_all, form_marginal_surv, even
               survival_fit_all_list = survival_fit_all_list,
               long_fit_all = if (n_imputations > 1) pooled$long_fit_all else long_fit_all_list[[1]],
               pooled = pooled,
-              imputed_T = imputed_T, trace = do.call(rbind, trace))
+              imputed_T = imputed_T, trace = do.call(rbind, trace),
+              settings = list(n_burnin = n_burnin, n_imputations = n_imputations, n_thin = n_thin,
+                              include_right_censored = include_right_censored))
   class(out) <- "fitIntervalBJM"
   out
 }
@@ -436,3 +439,53 @@ fill_event_time <- function(data_fit_all, id, T_values, event_time,
     d
   })
 }
+
+#' Print a fitIntervalBJM fit
+#'
+#' @description A short summary of a \code{\link{fitIntervalBJM}} fit: the
+#' imputation settings, the survival sub-model's hazard ratios and the
+#' longitudinal sub-model's fixed effects (pooled over the imputations, with
+#' the fraction of missing information). The components themselves are in
+#' the returned list (e.g. \code{x$pooled}, \code{x$trace}).
+#' @param x A \code{"fitIntervalBJM"} object.
+#' @param digits Number of significant digits.
+#' @param ... Not used.
+#' @return \code{x}, invisibly.
+#' @export
+print.fitIntervalBJM <- function(x, digits = 4, ...) {
+  st <- x$settings
+  ic <- x$survival_fit_all$ic_fit
+  cat("\nInterval-censored backward joint model (fitIntervalBJM)\n\n")
+  cat(sprintf("  Subjects in the survival model: %d (%d with the event in an interval, %d right-censored)\n",
+              ic$n, ic$n_interval + ic$n_exact, ic$n_right))
+  cat(sprintf("  Event times imputed for %d subjects", nrow(x$imputed_T)))
+  if (!is.null(st)) {
+    cat(sprintf("; %d imputation(s) after %d burn-in iterations, keeping %s",
+                st$n_imputations, st$n_burnin,
+                if (st$n_thin == 1) "every iteration" else sprintf("one in every %d iterations", st$n_thin)))
+  }
+  cat("\n\nSurvival sub-model (", ic$baseline, " baseline), hazard ratios:\n", sep = "")
+  b <- ic$coefficients
+  se <- sqrt(diag(ic$var))
+  hr <- cbind(HR = exp(b), `lower .95` = exp(b - stats::qnorm(0.975) * se),
+              `upper .95` = exp(b + stats::qnorm(0.975) * se))
+  print(signif(hr, digits))
+  if (!is.null(x$survival_fit_all$glm_fit)) {
+    cat("\nEvent-type model (coefficients averaged over the imputations):\n")
+    print(signif(stats::coef(x$survival_fit_all$glm_fit), digits))
+  }
+  if (!is.null(x$pooled)) {
+    cat("\nLongitudinal sub-model, pooled over the imputations (Rubin's rules):\n")
+    for (k in seq_along(x$pooled$pooled)) {
+      tab <- x$pooled$pooled[[k]][, c("estimate", "std_error", "fmi")]
+      cat(sprintf("\n  [%d] %s\n", k, names(x$pooled$pooled)[k]))
+      print(signif(as.matrix(tab), digits))
+    }
+  } else {
+    cat("\nLongitudinal sub-model (one imputation), fixed effects:\n")
+    for (k in seq_along(x$long_fit_all$lfit)) print(signif(nlme::fixef(x$long_fit_all$lfit[[k]]), digits))
+  }
+  cat("\nUse x$long_fit_all and x$survival_fit_all for prediction; x$trace to check the chain has settled.\n")
+  invisible(x)
+}
+

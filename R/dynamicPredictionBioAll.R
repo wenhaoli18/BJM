@@ -91,6 +91,8 @@ dynamicPredictionBioAll <- function(bio_i = NULL, data_predict_all, long_fit_all
   assert_bandcount(bandcount2, "bandcount2")
   assert_bandcount(bandcount3, "bandcount3")
   assert_survival_trans(survival_variable_all, survival_trans_function, probe_value = prediction_time)
+  check_survival_trans_training(long_fit_all, survival_fit_all, survival_variable_all,
+                                survival_trans_function)
   data_predict_all <- drop_after_prediction_time(data_predict_all, time_variable, prediction_time)
   data_predict_all <- align_ordinal_levels(data_predict_all, long_fit_all)
   data_predict_all <- drop_missing_longitudinal(data_predict_all, long_fit_all,

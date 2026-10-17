@@ -78,7 +78,11 @@
 #' @param survival_variable_all,survival_trans_function As for
 #' \code{\link{predictRisk}}.
 #' @param bandcount1,bandcount2 As for \code{\link{predictRisk}}; passed to
-#' it at each landmark.
+#' it at each landmark. \code{"auto"} (the default) re-tunes them in every
+#' call, which over a whole cohort is several times slower than fixed values
+#' (about 10 times for 160 patients in \code{pbc3}): for a large evaluation,
+#' choose them once on a few patients with
+#' \code{\link{checkBandcountConvergence}} and pass the numbers.
 #' @param interval_method Only for an interval-censored
 #' \code{survival_fit_all}: \code{"model"} (default) or \code{"ipcw"}; see
 #' Description. For an interval-censored fit, \code{data_predict_all} must

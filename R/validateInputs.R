@@ -325,6 +325,58 @@ apply_survival_trans <- function(fun, x, surv_i) {
   value
 }
 
+#' Check the event-time transformations against the training data
+#'
+#' @description The longitudinal sub-models were fit on data whose
+#' \code{survival_variable_all} columns the user computed from the event time;
+#' at prediction time the same columns are recomputed with
+#' \code{survival_trans_function}. The two are passed as separate lists, so a
+#' function out of order (or a different one) used to give wrong predictions
+#' silently. This applies each function to the event times stored with every
+#' fit (\code{lme()}'s \code{data}, \code{clmm()}'s model frame) and stops if
+#' the result differs from the column the model was fit on.
+#' @param long_fit_all Output of \code{longitudinalSub()}.
+#' @param survival_fit_all Output of \code{survivalSub()}.
+#' @param survival_variable_all,survival_trans_function As in
+#'   \code{\link{predictRisk}}.
+#' @return \code{TRUE}, invisibly; an error on a mismatch.
+#' @keywords internal
+check_survival_trans_training <- function(long_fit_all, survival_fit_all, survival_variable_all,
+                                          survival_trans_function) {
+  if (length(survival_variable_all) == 0) return(invisible(TRUE))
+  survival_variable <- survival_time_variable(survival_fit_all)
+  for (i in seq_along(long_fit_all$lfit)) {
+    fit <- long_fit_all$lfit[[i]]
+    d <- if (inherits(fit, "lme")) fit$data else fit$model
+    if (!is.data.frame(d) || !survival_variable %in% names(d)) next
+    event_time <- d[[survival_variable]]
+    keep <- !is.na(event_time)
+    if (!any(keep)) next
+    times <- unique(event_time[keep])
+    values_at <- function(k) {
+      v <- vapply(times, function(x) apply_survival_trans(survival_trans_function[[k]], x, k), numeric(1))
+      v[match(event_time[keep], times)]
+    }
+    for (k in seq_along(survival_variable_all)) {
+      column <- survival_variable_all[[k]]
+      if (!column %in% names(d)) next
+      stored <- as.numeric(d[[column]][keep])
+      if (isTRUE(all.equal(stored, values_at(k), tolerance = 1e-6, check.attributes = FALSE))) next
+      other <- Filter(function(j) j != k && isTRUE(all.equal(stored, values_at(j), tolerance = 1e-6,
+                                                             check.attributes = FALSE)),
+                      seq_along(survival_trans_function))
+      stop(sprintf(paste0(
+        "Column `%s`, on which the longitudinal sub-model of biomarker %d was fit, is not ",
+        "survival_trans_function[[%d]] of `%s`%s. survival_variable_all and survival_trans_function ",
+        "must list the transformations used to build the fitting data, in the same order."),
+        column, i, k, survival_variable,
+        if (length(other) > 0) sprintf(" (it matches survival_trans_function[[%d]])", other[[1]]) else ""),
+        call. = FALSE)
+    }
+  }
+  invisible(TRUE)
+}
+
 #' Assert that biomarker_type is a valid per-biomarker type vector
 #'
 #' @description Shared input-validation helper for the \code{biomarker_type}
