@@ -26,14 +26,14 @@ predictRecurrentCount(
 \item{data_predict}{The rows of the patients' \emph{open} episode, as
 \code{predictRisk()} takes them (for example the \code{long_data}
 rows of \code{buildRecurrentEpisodes()} for each patient's last
-episode, whose \code{gap} is \code{NA}): one \code{data.frame}, used
-for every biomarker (a list of data frames, one per biomarker, as
-\code{predictRisk()} also accepts, is not supported here), one patient
+episode, whose \code{gap} is \code{NA}): one \code{data.frame} used
+for every biomarker, or a list of data frames, one per biomarker, as
+\code{buildRecurrentEpisodes()} returns for a list \code{data_long}; one patient
 per \code{id}: more than one episode for the same patient is an error.
 A patient whose \code{gap} is not \code{NA} and lies below
 \code{prediction_time} counts as no longer at risk, and is an error too
-rather than a silent zero. The patient's last row supplies the covariates of later
-episodes.}
+rather than a silent zero. The patient's last row (in the first data
+frame that has the patient) supplies the covariates of later episodes.}
 
 \item{long_fit_all, survival_fit_all}{Fits from \code{\link{longitudinalSub}}
 and \code{\link{survivalSub}}, on episode data.}

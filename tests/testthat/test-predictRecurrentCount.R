@@ -188,3 +188,22 @@ test_that("two biomarkers measured at the same times work (one data frame serves
   expect_equal(nrow(res$summary), 25)
   expect_true(all(is.finite(res$summary$mean_count)))
 })
+
+test_that("a list with one data frame per biomarker works, as in predictRisk()", {
+  count2 <- function(d) {
+    predictRecurrentCount(d, fx$long_fit2, fx$surv_fit, prediction_time = 0, horizon = 2,
+                          time_variable = "time_in_episode", stay_lengths = fx$stays, n_sim = 60, seed = 2,
+                          max_stages = 40)
+  }
+  bare <- count2(fx$open)
+  # the same data frame for both biomarkers: the same draws
+  expect_identical(count2(list(fx$open, fx$open)), bare)
+  # separate tables, with their own columns and measurement times
+  bio_tab <- fx$open[, setdiff(names(fx$open), "bio2")]
+  bio2_tab <- fx$open[fx$open$time_in_episode == 0, setdiff(names(fx$open), "bio")]
+  split <- count2(list(bio_tab, bio2_tab))
+  expect_equal(nrow(split$summary), 25)
+  expect_true(all(is.finite(split$summary$mean_count)))
+  expect_false(isTRUE(all.equal(split$summary$mean_count, bare$summary$mean_count)))
+  expect_error(count2(list(bio_tab)), "one per outcome")
+})

@@ -48,14 +48,14 @@
 #' @param data_predict The rows of the patients' \emph{open} episode, as
 #'   \code{predictRisk()} takes them (for example the \code{long_data}
 #'   rows of \code{buildRecurrentEpisodes()} for each patient's last
-#'   episode, whose \code{gap} is \code{NA}): one \code{data.frame}, used
-#'   for every biomarker (a list of data frames, one per biomarker, as
-#'   \code{predictRisk()} also accepts, is not supported here), one patient
+#'   episode, whose \code{gap} is \code{NA}): one \code{data.frame} used
+#'   for every biomarker, or a list of data frames, one per biomarker, as
+#'   \code{buildRecurrentEpisodes()} returns for a list \code{data_long}; one patient
 #'   per \code{id}: more than one episode for the same patient is an error.
 #'   A patient whose \code{gap} is not \code{NA} and lies below
 #'   \code{prediction_time} counts as no longer at risk, and is an error too
-#'   rather than a silent zero. The patient's last row supplies the covariates of later
-#'   episodes.
+#'   rather than a silent zero. The patient's last row (in the first data
+#'   frame that has the patient) supplies the covariates of later episodes.
 #' @param long_fit_all,survival_fit_all Fits from \code{\link{longitudinalSub}}
 #'   and \code{\link{survivalSub}}, on episode data.
 #' @param prediction_time The time (on the episode clock, as in
@@ -123,7 +123,7 @@ predictRecurrentCount <- function(data_predict, long_fit_all, survival_fit_all,
                                   bandcount2 = 100, seed = NULL) {
   assert_class(long_fit_all, "longitudinalSub.BJM", "long_fit_all", "longitudinalSub")
   assert_class(survival_fit_all, "survivalSub.BJM", "survival_fit_all", "survivalSub")
-  assert_data_frame(data_predict, "data_predict")
+  assert_data_list(data_predict, "data_predict", length(long_fit_all$lfit), allow_bare_df = TRUE)
   assert_scalar_numeric(prediction_time, "prediction_time")
   assert_scalar_numeric(horizon, "horizon", positive = TRUE)
   assert_string(time_variable, "time_variable")
@@ -140,13 +140,21 @@ predictRecurrentCount <- function(data_predict, long_fit_all, survival_fit_all,
   if (!is.null(seed)) local_r_seed(seed)
 
   id <- as.character(nlme::splitFormula(long_fit_all$long_sub_random[[1]], "|")[[2]])[2]
-  assert_vars_in_data(c(id, time_variable), data_predict, "the id / time variables", "data_predict")
-  id_chr <- as.character(data_predict[[id]])
+  ### one data frame per biomarker (a bare data frame is used for all)
+  data_list <- if (is.data.frame(data_predict)) list(data_predict) else data_predict
+  for (k in seq_along(data_list)) {
+    assert_vars_in_data(c(id, time_variable), data_list[[k]], "the id / time variables",
+                        if (is.data.frame(data_predict)) "data_predict" else sprintf("data_predict[[%d]]", k))
+  }
+  id_chr_list <- lapply(data_list, function(d) as.character(d[[id]]))
+  id_chr <- unlist(id_chr_list)
   if (anyNA(id_chr)) stop(sprintf("`%s` in `data_predict` must not contain missing values.", id), call. = FALSE)
   pids <- unique(id_chr)
   n_p <- length(pids)
-  if (episode_variable %in% names(data_predict)) {
-    n_episodes <- tapply(data_predict[[episode_variable]], id_chr, function(x) length(unique(x)))
+  has_episode <- vapply(data_list, function(d) episode_variable %in% names(d), logical(1))
+  if (any(has_episode)) {
+    n_episodes <- tapply(unlist(lapply(data_list[has_episode], function(d) as.character(d[[episode_variable]]))),
+                         unlist(id_chr_list[has_episode]), function(x) length(unique(x)))
     if (any(n_episodes > 1)) {
       stop(sprintf(paste0(
         "`data_predict` has more than one `%s` for %d patient(s) (e.g. %s). It must hold only each ",
@@ -196,7 +204,16 @@ predictRecurrentCount <- function(data_predict, long_fit_all, survival_fit_all,
   active <- !is.na(ev_time)
   count <- matrix(0L, n_p, n_sim)
   died <- matrix(FALSE, n_p, n_sim)
-  last_rows <- data_predict[tapply(seq_len(nrow(data_predict)), id_chr, max)[pids], , drop = FALSE]
+  ### each patient's last row, in the first data frame that has them; with
+  ### data frames that differ in their columns, only the shared ones are kept
+  last_rows <- lapply(pids, function(p) {
+    for (k in seq_along(data_list)) {
+      rows <- which(id_chr_list[[k]] == p)
+      if (length(rows) > 0) return(data_list[[k]][max(rows), , drop = FALSE])
+    }
+  })
+  shared <- Reduce(intersect, lapply(last_rows, names))
+  last_rows <- lapply(last_rows, function(r) r[, shared, drop = FALSE])
 
   stage <- 1L
   capped <- FALSE
@@ -217,7 +234,7 @@ predictRecurrentCount <- function(data_predict, long_fit_all, survival_fit_all,
     ## a later episode: no biomarker history, covariates advanced by one more episode
     who <- which(rowSums(active) > 0)
     new_rows <- do.call(rbind, lapply(who, function(i) {
-      row <- next_covariates(last_rows[i, , drop = FALSE], stage - 1L)
+      row <- next_covariates(last_rows[[i]], stage - 1L)
       for (v in c(response_names, survival_variable, type_variable)) row[[v]] <- NA_real_
       row[[time_variable]] <- 0
       row
