@@ -350,6 +350,19 @@
   `performancePlot()` example takes 2.8 s instead of 76 s. With an ordinal
   biomarker the gain is about 3-fold, the rest being the Gaussian box
   probabilities. The results are identical to before.
+* With an ordinal biomarker, the probability of a patient's observed
+  categories is computed by adaptive Gauss-Hermite quadrature over the
+  ordinal random effect when there is one (e.g. one ordinal biomarker with a
+  random intercept), instead of by `mvtnorm::pmvnorm()`'s Monte Carlo
+  algorithm. Given that random effect the ordinal latent scores are
+  independent, so the probability is a one-dimensional integral. Predictions
+  are 5-15 times faster (`predictLongitudinal()` for all biomarkers of a
+  `pbc3` model with edema: 7 s instead of 109 s), exact (relative error
+  below 1e-5, against about 1e-4 before) and the same on every run, without
+  `set.seed()`; they differ from before only by the old Monte Carlo error.
+  With two or more ordinal random effects `pmvnorm()` is still used, and
+  those results are unchanged: a quadrature grid accurate enough there was
+  no faster.
 
 ## Bug fixes
 

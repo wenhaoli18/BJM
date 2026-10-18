@@ -181,7 +181,7 @@ simulated that way: its latent score is drawn like a continuous biomarker
 (with unit residual variance) and cut into categories. In the history it
 is known only to have fallen between the thresholds bracketing its
 observed category: its contribution to the likelihood of \eqn{(T, D)} is
-a multivariate normal box probability, computed by Monte Carlo as in
+a multivariate normal box probability, computed as in
 \code{\link{predictRisk}}, and the random effects are drawn by first
 drawing the history's latent scores from their truncated multivariate
 normal distribution given the continuous measurements (by rejection, or
