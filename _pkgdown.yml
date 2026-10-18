@@ -78,18 +78,23 @@ articles:
   - articles/recurrent-events
   - articles/digital-twins
 
-- title: Interactive demo
-  desc: Try dynamic prediction in the browser, without installing R.
+- title: Interactive demos
+  desc: Try dynamic prediction and digital twins in the browser, without installing R.
   contents:
   - articles/demo-app
+  - articles/twin-app
 
 navbar:
   structure:
     left: [intro, articles, extensions, demo, reference, news]
   components:
     demo:
-      text: Demo app
-      href: articles/demo-app.html
+      text: Demo apps
+      menu:
+      - text: Dynamic prediction
+        href: articles/demo-app.html
+      - text: Digital twin
+        href: articles/twin-app.html
     articles:
       text: Articles
       menu:
