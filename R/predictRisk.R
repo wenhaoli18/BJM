@@ -105,12 +105,20 @@
 #' For a fit with an ordinal biomarker, a patient's ordinal measurements
 #' contribute the probability of their observed categories. With a single
 #' ordinal random effect (e.g. one ordinal biomarker with a random
-#' intercept) it is computed by Gauss-Hermite quadrature, and the results
-#' are exact and reproducible; with more, by Monte Carlo
-#' (\code{mvtnorm::pmvnorm()}), so repeated calls differ slightly (around
-#' the fourth significant digit) and \code{set.seed()} makes them
-#' reproducible.
+#' intercept) it is computed by Gauss-Hermite quadrature, and is exact; with
+#' more, by Monte Carlo (\code{mvtnorm::pmvnorm()}), with an error around the
+#' fourth significant digit. Each patient's Monte Carlo draws use a fixed
+#' seed derived from the patient's id, so the results are the same on every
+#' run and for any \code{n_cores}, without \code{set.seed()}, and the
+#' caller's random-number state is left unchanged.
 #' 
+#' @param n_cores Number of CPU cores. With an ordinal biomarker the
+#' prediction's cost is per patient, and the patients are spread over
+#' \code{n_cores} cores with \code{parallel::mclapply()}; this is only
+#' parallel on Unix-like systems (Linux, macOS), and runs serially on
+#' Windows. The result is exactly the same for any \code{n_cores}. With
+#' continuous biomarkers only, predictions are fast and \code{n_cores} has
+#' no effect. Defaults to \code{1}.
 #' @return An object of class \code{"predictRisk.BJM"}, a named list with elements:
 #' \describe{
 #'   \item{risk_prob_1}{A vector of dynamically predicted probabilities, one per at-risk
@@ -246,9 +254,10 @@
 predictRisk = function(data_predict_all, long_fit_all, survival_fit_all,
                              prediction_time, horizon, time_variable,
                              survival_variable_all, survival_trans_function,
-                             bandcount1 = "auto", bandcount2 = "auto"){
+                             bandcount1 = "auto", bandcount2 = "auto", n_cores = 1){
 
   assert_class(long_fit_all, "longitudinalSub.BJM", "long_fit_all", "longitudinalSub")
+  assert_positive_integer(n_cores, "n_cores")
   assert_class(survival_fit_all, "survivalSub.BJM", "survival_fit_all", "survivalSub")
   assert_data_list(data_predict_all, "data_predict_all", length(long_fit_all$lfit), allow_bare_df = TRUE)
   if (!is.list(data_predict_all) || is.data.frame(data_predict_all)) {
@@ -285,6 +294,9 @@ predictRisk = function(data_predict_all, long_fit_all, survival_fit_all,
   if (length(auto_names) > 0) {
     return(auto_tune_bandcount(predictRisk, call_args, auto_names)$result)
   }
+  ### read by patient_lapply() in the copula density functions
+  old_options <- options(BJM.n_cores = n_cores)
+  on.exit(options(old_options), add = TRUE)
 
   survival_variable = survival_time_variable(survival_fit_all) #survival_variable = "fuyrs"
   for (i in seq_along(data_predict_all)) {

@@ -35,22 +35,21 @@ conditionalYDTCopula <- function(data_predict_all, long_fit_all, survival_fit_al
   f_Y_T_D_w1 <- matrix(NA, length(l_i), length(unlist(data.long[[1]][!duplicated(data.long[[1]][num]), ][num])))
   f_Y_T_D_w0 <- matrix(NA, length(l_i), length(unlist(data.long[[1]][!duplicated(data.long[[1]][num]), ][num])))
 
-  iii <- 0
-  for (num_i in unlist(data.long[[1]][!duplicated(data.long[[1]][num]), ][num])) {
-    iii <- iii + 1
-
+  ### one patient at a time, possibly on several cores (see patient_lapply())
+  patient_ids <- unlist(data.long[[1]][!duplicated(data.long[[1]][num]), ][num])
+  results <- patient_lapply(patient_ids, function(num_i) {
     patient_data <- select_patient_longitudinal_data(data.long, num, num_i, n_longitudinal, time_variable)
-    if (is.null(patient_data)) next
-    rep_num_i_list <- patient_data$rep_num_i_list
-    data_num_i_list <- patient_data$data_num_i_list
-
+    if (is.null(patient_data)) return(NULL)
     ### all grid points and both event types at once (see copula_logdens_grid())
-    log_dens <- copula_logdens_grid(data_num_i_list, rep_num_i_list, long_fit_all, l_i,
-                                    survival_variable, time_variable, survival_variable_all,
-                                    survival_trans_function, sigma.longitudinal,
-                                    event_type_variable = event_type_variable)
-    f_Y_T_D_w1[, iii] <- log_dens[[1]][, 1]
-    f_Y_T_D_w0[, iii] <- log_dens[[2]][, 1]
+    copula_logdens_grid(patient_data$data_num_i_list, patient_data$rep_num_i_list, long_fit_all, l_i,
+                        survival_variable, time_variable, survival_variable_all,
+                        survival_trans_function, sigma.longitudinal,
+                        event_type_variable = event_type_variable)
+  })
+  for (iii in seq_along(results)) {
+    if (is.null(results[[iii]])) next
+    f_Y_T_D_w1[, iii] <- results[[iii]][[1]][, 1]
+    f_Y_T_D_w0[, iii] <- results[[iii]][[2]][, 1]
   }
   return(f_Y_T_D = list(f_Y_T_D_w0, f_Y_T_D_w1))
 }

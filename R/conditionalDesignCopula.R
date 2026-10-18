@@ -429,3 +429,53 @@ copula_logdens_grid <- function(data_num_i_list, rep_num_i_list, long_fit_all, l
     out
   })
 }
+
+#' Apply a function to every patient, on one core or several
+#'
+#' @description Used by the copula density functions, whose cost is per
+#' patient. With \code{getOption("BJM.n_cores")} above 1 (set by the
+#' \code{n_cores} argument of \code{predictRisk()} and
+#' \code{predictLongitudinal()}) the patients are spread over that many
+#' cores with \code{parallel::mclapply()} (serially on Windows). Each
+#' patient is computed with its own fixed random-number seed, derived from
+#' its id (\code{patient_seed()}), and the caller's random-number state is
+#' restored afterwards, so the Monte Carlo box probabilities still used with
+#' two or more ordinal random effects give the same result serially, in
+#' parallel, and on every run, without \code{set.seed()}.
+#'
+#' @param ids Patient ids.
+#' @param FUN Function of one id.
+#' @return A list, one element per id.
+#' @keywords internal
+patient_lapply <- function(ids, FUN) {
+  run <- function(k) {
+    local_r_seed(patient_seed(ids[[k]]))
+    FUN(ids[[k]])
+  }
+  n_cores <- getOption("BJM.n_cores", 1L)
+  if (n_cores > 1 && length(ids) > 1) {
+    out <- parallel::mclapply(seq_along(ids), run, mc.cores = n_cores)
+    ### mclapply() returns a worker's error as a "try-error" instead of
+    ### stopping; re-raise it, so that a failure is the same on any n_cores
+    failed <- vapply(out, function(r) inherits(r, "try-error"), logical(1))
+    if (any(failed)) {
+      stop(conditionMessage(attr(out[[which(failed)[1]]], "condition")), call. = FALSE)
+    }
+    out
+  } else {
+    lapply(seq_along(ids), run)
+  }
+}
+
+#' A fixed random-number seed for a patient
+#'
+#' @description Derived from the printed id, so that a patient gets the
+#' same seed whichever other patients are predicted alongside it.
+#' @return An integer.
+#' @keywords internal
+patient_seed <- function(id) {
+  codes <- utf8ToInt(as.character(id))
+  h <- 20261018
+  for (code in codes) h <- (h * 31 + code) %% 2147483629
+  as.integer(h)
+}

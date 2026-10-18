@@ -239,3 +239,32 @@ test_that("predictRisk matches ordinal categories to the fitted ones by label", 
   unknown$albumin_cat[1] <- "very low"
   expect_error(risk_of(unknown), "not categories of the fitted model")
 })
+
+test_that("n_cores gives the same predictions, which do not depend on the caller's seed", {
+  skip_if_ordinal()
+  skip_on_cran()
+  skip_on_os("windows")
+  fx <- setup_copula_predict_fixture()
+  survival_fit_all <- survivalSub(fx$pbc3[!duplicated(fx$pbc3$id), ], Surv(years, status3) ~ age + sex, NULL)
+  raw <- fx$pbc3[fx$pbc3$id %in% c(2, 4, 5) & fx$pbc3$year <= 3, ]
+  data_predict_all <- list(fx$to_cat(raw), fx$to_cat(raw))
+  pr <- function(n_cores) {
+    predictRisk(data_predict_all, fx$long_fit_all, survival_fit_all, prediction_time = 3, horizon = 3,
+                time_variable = "year", list(), list(), bandcount1 = 10, bandcount2 = 10,
+                n_cores = n_cores)
+  }
+  set.seed(1)
+  before <- .Random.seed
+  serial <- pr(1)
+  # the caller's random-number state is left as it was
+  expect_identical(.Random.seed, before)
+  set.seed(2)
+  expect_identical(pr(2), serial)
+  bio <- function(n_cores) {
+    predictLongitudinal(1, data_predict_all, fx$long_fit_all, survival_fit_all, prediction_time = 3,
+                        horizon = 1, time_variable = "year", list(), list(), bandcount2 = 10,
+                        bandcount3 = 20, n_cores = n_cores)
+  }
+  expect_identical(bio(2), bio(1))
+  expect_error(pr(0), "n_cores")
+})
