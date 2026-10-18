@@ -8,12 +8,23 @@ runs in the browser with no R needed. Pick a patient from the `pbc3`
 data, or upload one patient’s follow-up visits as a CSV file. The
 interface is available in English and Chinese.
 
-- [](_w_d2a23e943c874c4b955769f8e2e54a26/#tab-4584-1)
-- [](_w_d2a23e943c874c4b955769f8e2e54a26/#tab-4584-2)
+- [](_w_85b414101ea3458b935110efb7c3cc2f/#tab-4183-1)
+- [](_w_85b414101ea3458b935110efb7c3cc2f/#tab-4183-2)
+- [](_w_85b414101ea3458b935110efb7c3cc2f/#tab-4183-3)
 
 log(serum bilirubin) Albumin log(prothrombin time)
 
 above below
+
+Biomarker at year X
+
+Death or transplant within X years
+
+log(serum bilirubin) Albumin log(prothrombin time)
+
+0.05 0.025 0.01
+
+80% 90%
 
 If the frame does not load, [open the demo in a new
 tab](https://wenhaoli18.shinyapps.io/bjm-twin/). On the free hosting
@@ -50,6 +61,27 @@ its futures:
 - the median year of the event, and the probability of being event-free
   through the end of the forecast.
 
+**Trial design.** This tab looks at all of `pbc3` rather than one
+patient, and follows [Twins in a randomized
+trial](https://wenhaoli18.github.io/BJM/articles/digital-twins.html#twins-in-a-randomized-trial):
+each participant’s twin is built from their baseline measurements alone,
+and its prediction of the trial’s endpoint is used as a covariate in the
+analysis (the idea behind PROCOVA). Because the prediction uses only
+data from before randomization, the adjustment leaves the treatment
+effect unbiased and shrinks its variance by a factor of 1 - ρ², where ρ
+is the correlation between the prediction and the outcome. Choose the
+endpoint (a biomarker at year 1 to 5, or death or transplantation within
+that many years), the treatment effect (a difference in means in
+standard deviations of the outcome, or a relative risk reduction), the
+significance level and the power. The app shows ρ as estimated on
+`pbc3`, the total sample size of a 1:1 trial with and without the twin
+as a covariate, and how many fewer participants the adjusted trial
+needs. Adjusting for the baseline value alone is shown for comparison,
+together with a plot of the twins’ predictions against the observed
+outcomes and of the sample size across treatment effects. The twins are
+fit on the same `pbc3` data, outcomes included, so ρ is optimistic: the
+tab illustrates the idea and is not a tool for designing a real trial.
+
 The twin is a statistical, predictive model of outcomes as observed in
 the data it was fit on, not a mechanistic or causal model of the
 disease.
@@ -77,9 +109,20 @@ shiny::runApp("shiny/bjm-twin")
 The demo is for illustrating the method only. Its models are fit on the
 PBC data set and must not be used for clinical decisions.
 
-- [](_w_d2a23e943c874c4b955769f8e2e54a26/#tab-4584-1)
-- [](_w_d2a23e943c874c4b955769f8e2e54a26/#tab-4584-2)
+- [](_w_85b414101ea3458b935110efb7c3cc2f/#tab-4183-1)
+- [](_w_85b414101ea3458b935110efb7c3cc2f/#tab-4183-2)
+- [](_w_85b414101ea3458b935110efb7c3cc2f/#tab-4183-3)
 
 log(serum bilirubin) Albumin log(prothrombin time)
 
 above below
+
+Biomarker at year X
+
+Death or transplant within X years
+
+log(serum bilirubin) Albumin log(prothrombin time)
+
+0.05 0.025 0.01
+
+80% 90%

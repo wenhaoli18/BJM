@@ -241,7 +241,7 @@ converges, as it does here: the largest gradient at the optimum is below
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;               Value       SE      z  p-value    </span></span>
 <span><span class="co">#&gt; year        0.68832  0.09263  7.431 1.08e-13 ***</span></span>
-<span><span class="co">#&gt; age         0.03636  0.01152  3.156  0.00160 ** </span></span>
+<span><span class="co">#&gt; age         0.03636  0.01152  3.155  0.00160 ** </span></span>
 <span><span class="co">#&gt; years      -0.31621  0.04716 -6.705 2.01e-11 ***</span></span>
 <span><span class="co">#&gt; year:years -0.03090  0.01030 -2.999  0.00271 ** </span></span>
 <span><span class="co">#&gt; ---</span></span>
@@ -438,13 +438,13 @@ cut it at the thresholds, so the draws are categories:</p>
 <span>                           survival_variable_all <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>, survival_trans_function <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>                           n_sim <span class="op">=</span> <span class="fl">300</span>, seed <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/as.data.frame.html" class="external-link">as.data.frame</a></span><span class="op">(</span><span class="va">sims</span><span class="op">)</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"sim"</span>, <span class="st">"year"</span>, <span class="st">"serBilir"</span>, <span class="st">"edema"</span><span class="op">)</span><span class="op">]</span><span class="op">)</span></span>
-<span><span class="co">#&gt;   sim year serBilir      edema</span></span>
-<span><span class="co">#&gt; 1   1  5.0 1.335290 controlled</span></span>
-<span><span class="co">#&gt; 2   1  5.5 1.189156 controlled</span></span>
-<span><span class="co">#&gt; 3   1  6.0 1.940063 persistent</span></span>
-<span><span class="co">#&gt; 4   1  6.5 2.625956 persistent</span></span>
-<span><span class="co">#&gt; 5   1  7.0 2.094178 persistent</span></span>
-<span><span class="co">#&gt; 6   1  7.5       NA       &lt;NA&gt;</span></span></code></pre></div>
+<span><span class="co">#&gt;   sim year  serBilir      edema</span></span>
+<span><span class="co">#&gt; 1   1  5.0 1.8500962 persistent</span></span>
+<span><span class="co">#&gt; 2   1  5.5 1.0121664 persistent</span></span>
+<span><span class="co">#&gt; 3   1  6.0 0.8941778 persistent</span></span>
+<span><span class="co">#&gt; 4   1  6.5 2.0523262       none</span></span>
+<span><span class="co">#&gt; 5   1  7.0 1.5222769 persistent</span></span>
+<span><span class="co">#&gt; 6   1  7.5        NA       &lt;NA&gt;</span></span></code></pre></div>
 <p><code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code> shows, at each time, the share of the draws still
 event-free in each category:</p>
 <div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">

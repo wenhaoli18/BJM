@@ -94,7 +94,7 @@ main.col-md-9 { flex: 0 0 100%; width: 100%; max-width: 100%; }
 with no R needed. Pick a patient from the <code>pbc3</code> data, or
 upload one patient’s follow-up visits as a CSV file. The interface is
 available in English and Chinese.</p>
-<iframe src="https://wenhaoli18.shinyapps.io/bjm-twin/" style="width: 100%; height: 1350px; border: 1px solid #dee2e6; border-radius: 6px;" title="BJM digital twin demo" loading="lazy">
+<iframe src="https://wenhaoli18.shinyapps.io/bjm-twin/" style="width: 100%; height: 1550px; border: 1px solid #dee2e6; border-radius: 6px;" title="BJM digital twin demo" loading="lazy">
 </iframe>
 <p>If the frame does not load, <a href="https://wenhaoli18.shinyapps.io/bjm-twin/" class="external-link">open the demo in a new
 tab</a>. On the free hosting plan the app goes to sleep when nobody is
@@ -129,6 +129,26 @@ past the threshold at a chosen time;</li>
 <li>the median year of the event, and the probability of being
 event-free through the end of the forecast.</li>
 </ul>
+<p><strong>Trial design.</strong> This tab looks at all of
+<code>pbc3</code> rather than one patient, and follows <a href="digital-twins.html#twins-in-a-randomized-trial">Twins in a
+randomized trial</a>: each participant’s twin is built from their
+baseline measurements alone, and its prediction of the trial’s endpoint
+is used as a covariate in the analysis (the idea behind PROCOVA).
+Because the prediction uses only data from before randomization, the
+adjustment leaves the treatment effect unbiased and shrinks its variance
+by a factor of 1 - ρ², where ρ is the correlation between the prediction
+and the outcome. Choose the endpoint (a biomarker at year 1 to 5, or
+death or transplantation within that many years), the treatment effect
+(a difference in means in standard deviations of the outcome, or a
+relative risk reduction), the significance level and the power. The app
+shows ρ as estimated on <code>pbc3</code>, the total sample size of a
+1:1 trial with and without the twin as a covariate, and how many fewer
+participants the adjusted trial needs. Adjusting for the baseline value
+alone is shown for comparison, together with a plot of the twins’
+predictions against the observed outcomes and of the sample size across
+treatment effects. The twins are fit on the same <code>pbc3</code> data,
+outcomes included, so ρ is optimistic: the tab illustrates the idea and
+is not a tool for designing a real trial.</p>
 <p>The twin is a statistical, predictive model of outcomes as observed
 in the data it was fit on, not a mechanistic or causal model of the
 disease.</p>
