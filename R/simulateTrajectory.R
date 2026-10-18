@@ -81,7 +81,7 @@
 #' (with unit residual variance) and cut into categories. In the history it
 #' is known only to have fallen between the thresholds bracketing its
 #' observed category: its contribution to the likelihood of \eqn{(T, D)} is
-#' a multivariate normal box probability, computed by Monte Carlo as in
+#' a multivariate normal box probability, computed as in
 #' \code{\link{predictRisk}}, and the random effects are drawn by first
 #' drawing the history's latent scores from their truncated multivariate
 #' normal distribution given the continuous measurements (by rejection, or
@@ -370,8 +370,7 @@ simulateTrajectory <- function(data_predict_all, long_fit_all, survival_fit_all,
         ### max_event_time share one)
         first <- match(l_model, l_model)
         dens <- mixed_density_copula_prep(V_y, cc, oo)
-        ll <- vapply(unique(first), function(k)
-          dens(mu_hist_cells[[j]][, k], y_hist, lower, upper), numeric(1))
+        ll <- dens(mu_hist_cells[[j]][, unique(first), drop = FALSE], y_hist, lower, upper)
         ll[match(first, unique(first))]
       }
       log_w[cells$d == j] <- log_lik + log_prior[[j]][, p]

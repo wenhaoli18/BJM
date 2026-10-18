@@ -150,12 +150,12 @@ patient[, c("year", "serBilir", "edema")]
 ```
 
 `predictRisk()` is called as usual. With an ordinal biomarker, each
-patient's likelihood includes the probability of their observed categories,
-a multivariate normal probability that is computed by Monte Carlo, so
-`set.seed()` makes the result exactly reproducible.
+patient's likelihood includes the probability of their observed categories.
+With one ordinal random effect, as here, BJM computes it by numerical
+integration over that random effect, so the results are exact and the same
+on every run.
 
 ```{r predict-risk}
-set.seed(1)
 risk <- predictRisk(list(patient, patient), long_fit, survival_fit,
                     prediction_time = 5, horizon = 3, time_variable = "year",
                     survival_variable_all = list(), survival_trans_function = list())
@@ -168,7 +168,6 @@ of death within three years would be about half as large:
 ```{r what-if}
 no_edema <- patient
 no_edema$edema[nrow(no_edema)] <- "none"
-set.seed(1)
 risk_no_edema <- predictRisk(list(no_edema, no_edema), long_fit, survival_fit,
                              prediction_time = 5, horizon = 3, time_variable = "year",
                              survival_variable_all = list(), survival_trans_function = list())
@@ -190,7 +189,6 @@ event-free then. Here for three patients, one year after year 3:
 three <- pbc3[pbc3$id %in% c(2, 4, 5) & pbc3$year <= 3, ]
 three$years <- NA
 three$status4 <- NA
-set.seed(1)
 edema_pred <- predictLongitudinal(bio_i = 2, list(three, three), long_fit, survival_fit,
                                   prediction_time = 3, horizon = 1, time_variable = "year",
                                   survival_variable_all = list(), survival_trans_function = list())
@@ -207,19 +205,12 @@ plot(edema_pred)
 ```
 
 With `bio_i = NULL` every biomarker is predicted in one call, continuous and
-ordinal alike. Predicting a *continuous* biomarker's value in a model with an
-ordinal one is the slowest prediction in BJM: the probability of the observed
-categories has to be computed by Monte Carlo for every candidate value of the
-continuous biomarker at every point of the time grid. The automatic grids
-take almost two minutes here; fixed, smaller grids give the same predictions
-to three decimals in a few seconds:
+ordinal alike:
 
 ```{r predict-both}
-set.seed(1)
 both <- predictLongitudinal(bio_i = NULL, list(three, three), long_fit, survival_fit,
                             prediction_time = 3, horizon = 1, time_variable = "year",
-                            survival_variable_all = list(), survival_trans_function = list(),
-                            bandcount2 = 40, bandcount3 = 50)
+                            survival_variable_all = list(), survival_trans_function = list())
 names(both)
 both$edema$Y_density
 ```
@@ -232,7 +223,6 @@ and the predicted category probabilities as the horizon grows, as circles
 whose size is the probability:
 
 ```{r predict-plot, message = FALSE, warning = FALSE, fig.width = 10, fig.height = 5.5, fig.alt = "Prediction plot for patient 2 at year 5 with edema on the vertical axis: no edema at the first four visits and controlled edema just before year 5; after year 5, circles show the predicted probabilities of each category up to year 8, with controlled and none most likely and persistent growing; the risk of death rises to about 0.43 by year 8 and that of transplantation stays near 0."}
-set.seed(1)
 predictPlot(list(patient, patient), long_fit, survival_fit,
             prediction_time = 5, horizon = seq(0, 3, 0.5), time_variable = "year",
             survival_variable_all = list(), survival_trans_function = list(),
@@ -243,7 +233,6 @@ predictPlot(list(patient, patient), long_fit, survival_fit,
 edema appears:
 
 ```{r risk-plot, message = FALSE, warning = FALSE, fig.width = 10, fig.height = 5.5, fig.alt = "Patient 2's edema history, none until year 2 and controlled just before year 5, with the predicted one-year risks of death and transplantation at landmarks 1 to 5; the risk of death stays below 0.05 until year 4 and rises to about 0.1 at year 5, and transplantation stays near 0."}
-set.seed(1)
 riskPlot(list(patient, patient), long_fit, survival_fit,
          prediction_time = c(1, 2, 3, 4, 5), bio_i = 2, horizon = 1, time_variable = "year",
          survival_variable_all = list(), survival_trans_function = list())
@@ -280,16 +269,17 @@ plot(sims)
   give wrong predictions; `longitudinalSub()` warns about them. Use
   `poly(..., raw = TRUE)`, `I(x^2)` or `log()` instead (see the
   [Nonlinear terms](nonlinear-terms.html) article).
-* **Monte Carlo.** The probability of a patient's observed categories is
-  computed by Monte Carlo (`mvtnorm::pmvnorm()`), so predictions vary in
-  about the fifth significant digit; call `set.seed()` first to reproduce
-  them exactly.
+* **Two or more ordinal random effects.** The probability of a patient's
+  observed categories is then computed by Monte Carlo
+  (`mvtnorm::pmvnorm()`) instead of numerical integration: predictions vary
+  in about the fourth significant digit between runs (call `set.seed()`
+  first to reproduce them exactly), and are several times slower.
 * **Speed.** That probability is needed at every point of the integration
-  grid, so a prediction with an ordinal biomarker can take ten times longer
-  or more than with continuous ones only: under a second per patient for the
-  risk here, but seconds per patient for a continuous biomarker's future
-  value, where fixed `bandcount2`/`bandcount3` values (checked with
-  `checkBandcountConvergence()`) are much faster than the automatic ones.
+  grid, so a prediction with an ordinal biomarker takes longer than with
+  continuous ones only. Predicting a continuous biomarker's future value in
+  a model with an ordinal one is the slowest case; fixed
+  `bandcount2`/`bandcount3` values (checked with
+  `checkBandcountConvergence()`) are faster than the automatic ones.
 * **Random effects.** Up to four ordinal random effects in all (e.g. two
   ordinal biomarkers with a random intercept and slope each) are integrated
   by quadrature; beyond that, the stochastic approximation EM is less

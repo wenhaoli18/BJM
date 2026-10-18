@@ -161,11 +161,14 @@ beyond the last follow-up time (e.g. a prediction late in follow-up),
 the prediction depends on this extrapolation; in \code{pbc3} it moved
 the risks checked by less than one percentage point.
 
-For a fit with an ordinal biomarker, each ordinal measurement contributes
-a multivariate normal probability computed by Monte Carlo
+For a fit with an ordinal biomarker, a patient's ordinal measurements
+contribute the probability of their observed categories. With a single
+ordinal random effect (e.g. one ordinal biomarker with a random
+intercept) it is computed by Gauss-Hermite quadrature, and the results
+are exact and reproducible; with more, by Monte Carlo
 (\code{mvtnorm::pmvnorm()}), so repeated calls differ slightly (around
-the fifth significant digit); call \code{set.seed()} first for exactly
-reproducible results.
+the fourth significant digit) and \code{set.seed()} makes them
+reproducible.
 }
 \examples{
 

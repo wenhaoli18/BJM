@@ -4,7 +4,12 @@
 \alias{mixed_density_copula_prep}
 \title{\code{mixed_density_prob_copula()} for many means under one covariance}
 \usage{
-mixed_density_copula_prep(Sigma_all, cc_idx, oo_idx)
+mixed_density_copula_prep(
+  Sigma_all,
+  cc_idx,
+  oo_idx,
+  box = c("quadrature", "pmvnorm")
+)
 }
 \arguments{
 \item{Sigma_all}{Full stacked covariance matrix for this patient (as
@@ -12,17 +17,38 @@ returned by \code{build_conditional_design_copula()}).}
 
 \item{cc_idx, oo_idx}{Integer index vectors (into the stacked row order)
 of the continuous- and ordinal-marker rows respectively.}
+
+\item{box}{\code{"quadrature"} (default) or \code{"pmvnorm"}.}
 }
 \value{
 A function \code{(mu_full, y_all_vec, alpha_lower_vec,
-  alpha_upper_vec)} returning the log density.
+  alpha_upper_vec)} returning the log densities. \code{mu_full} is a
+vector or a matrix with one column per evaluation; the other three may
+be vectors (the same for every column) or matrices of the same shape.
 }
 \description{
 Factors the parts of \code{mixed_density_prob_copula()}
 that depend only on the covariance -- the inverse and log-determinant of
 the continuous block, and the conditional covariance of the ordinal
-block -- once, and returns a function of the mean, observed values and
-threshold bounds that does the rest with the same arithmetic. Used to
-evaluate a patient's density at every integration grid point.
+block -- once, and returns a function that evaluates the log density for
+many means, observed values and threshold bounds at once (one per
+column), e.g. a patient's density at every integration grid point.
+
+The ordinal box probability is computed by adaptive Gauss-Hermite
+quadrature (\code{box_prob_quadrature()}) when the patient's ordinal rows
+involve a single ordinal random effect (e.g. one ordinal biomarker with a
+random intercept). Given the continuous values, the ordinal latent scores
+then have covariance \eqn{l l^T + I}, \eqn{l l^T} from the random effect
+and \eqn{I} from the latent residuals, so they are independent given the
+random effect, and the probability is a one-dimensional integral of a
+product of univariate normal probabilities. It used to be computed by
+\code{mvtnorm::pmvnorm()}'s Monte Carlo algorithm, which dominated the run
+time of every prediction with an ordinal biomarker, differed between runs
+(relative error around \eqn{10^{-4}}), and needed \code{set.seed()} to be
+reproducible. With two or more ordinal random effects \code{pmvnorm()} is
+still used: a product quadrature grid then needs so many nodes to match
+its accuracy (a random intercept with a large variance makes the
+integrand lopsided) that it is no faster. It is also used when the
+covariance does not have this structure, and when \code{box = "pmvnorm"}.
 }
 \keyword{internal}
