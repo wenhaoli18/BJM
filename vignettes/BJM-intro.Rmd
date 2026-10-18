@@ -346,12 +346,13 @@ The `bandcount*` arguments control how fine those grids are:
   points spanning the prediction window itself, from `prediction_time` to
   `prediction_time + horizon`. This is the numerator of the risk
   probability.
-- **`bandcount2`** is the number of grid points spanning
-  `[prediction_time, upper_bound]`, where `upper_bound` is set internally
-  to twice the longest observed survival/censoring time among at-risk
-  patients. This approximates "integrating out to infinity" for the
-  denominator that normalizes the risk probability. A wider follow-up
-  range needs a larger `bandcount2` to keep the grid spacing comparable.
+- **`bandcount2`** is the number of grid points spanning the time after
+  the prediction window, up to an `upper_bound` set internally to where
+  every at-risk patient's model-based probability of still being
+  event-free has become negligible. This approximates "integrating out to
+  infinity" for the denominator that normalizes the risk probability. A
+  wider follow-up range needs a larger `bandcount2` to keep the grid
+  spacing comparable.
 - **`bandcount3`** (`predictLongitudinal()` only) is the number of points
   in the candidate-biomarker-value grid (`Y_all`) used to build the
   predicted density and locate its mode (`Y_predict`). It controls the
@@ -413,6 +414,10 @@ longitudinalSub(pbc3, serBilir ~ year + not_a_column, ~ year | id)
 
 ## Where to go next
 
+- The articles on the [package website](https://wenhaoli18.github.io/BJM/)
+  cover competing risks, plotting, categorical (ordinal or binary)
+  biomarkers, interval-censored and recurrent events, and simulated
+  futures in more depth.
 - `?predictPlot` and `?riskPlot` visualize the outputs of
   `predictLongitudinal()`/`predictRisk()` for a single patient.
 - `?cmtPlot` plots observed longitudinal trajectories stratified by
