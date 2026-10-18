@@ -22,7 +22,8 @@ of the continuous- and ordinal-marker rows respectively.}
 }
 \value{
 A function \code{(mu_full, y_all_vec, alpha_lower_vec,
-  alpha_upper_vec)} returning the log densities. \code{mu_full} is a
+  alpha_upper_vec)} returning the log densities, with attribute
+\code{"monte_carlo"}: whether \code{pmvnorm()} is used. \code{mu_full} is a
 vector or a matrix with one column per evaluation; the other three may
 be vectors (the same for every column) or matrices of the same shape.
 }
