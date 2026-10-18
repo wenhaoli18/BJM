@@ -5,7 +5,9 @@
 # A patient's twin is a set of futures drawn by simulateTrajectory(),
 # conditional on the measurements up to the year the twin is built at.
 # "Replay" rebuilds the twin as that year moves through follow-up;
-# "Ask the twin" answers questions from the drawn futures.
+# "Ask the twin" answers questions from the drawn futures; "Trial design"
+# uses every pbc3 patient's baseline twin as a prognostic covariate in a
+# randomized trial (PROCOVA) and shows the sample size it saves.
 # Research demo only -- not for clinical use.
 
 library(shiny)
@@ -87,7 +89,55 @@ i18n <- list(
   none         = c(en = "none of the futures", zh = "没有任何未来"),
   progress     = c(en = "Simulating futures...", zh = "正在模拟未来…"),
   err_missing  = c(en = "Missing columns: ", zh = "缺少列: "),
-  err_nodata   = c(en = "No visits up to this year", zh = "截至该年没有随访记录")
+  err_nodata   = c(en = "No visits up to this year", zh = "截至该年没有随访记录"),
+  tab_trial    = c(en = "Trial design", zh = "试验设计"),
+  sidebar_trial = c(en = "The patient settings apply to the other two tabs.",
+                    zh = "患者相关设置仅用于另外两个标签页。"),
+  trial_help   = c(en = "In a randomized trial, each participant's twin can be built from their baseline data alone and its prediction of the endpoint used as a covariate in the analysis (the PROCOVA idea). Because the prediction uses only data from before randomization, the adjustment does not bias the treatment effect, but it shrinks its variance by a factor of 1 - ρ², where ρ is the correlation between the prediction and the outcome. Here ρ is estimated from the 312 pbc3 participants' baseline twins (200 futures each).",
+                   zh = "在随机对照试验中，可以只用每位受试者的基线数据构建其孪生体，并把孪生体对终点的预测作为分析中的协变量（即 PROCOVA 的思路）。由于预测只用到随机化之前的数据，这种调整不会使治疗效应产生偏倚，但能把其方差缩小为原来的 1 - ρ² 倍，其中 ρ 是预测值与结局之间的相关系数。这里的 ρ 由 pbc3 中 312 名受试者的基线孪生体（每人 200 个模拟未来）估计。"),
+  trial_warn   = c(en = "An illustration on the pbc3 data, not a trial-design tool for real use. The twins were fit on the same pbc3 data, outcomes included, so ρ is optimistic; in a real trial the model is fit on historical data and frozen before the trial starts, and the sample size comes from a prespecified, validated calculation.",
+                   zh = "这只是基于 pbc3 数据的演示，不是可用于实际试验设计的工具。孪生体是在同一份 pbc3 数据（包括结局）上拟合的，因此 ρ 偏乐观；在真实试验中，模型应基于历史数据拟合并在试验开始前固定，样本量也应由预先设定并经过验证的计算得出。"),
+  h_design     = c(en = "Trial settings", zh = "试验设置"),
+  endpoint     = c(en = "Endpoint", zh = "终点"),
+  ep_bio       = c(en = "Biomarker at year X", zh = "第 X 年的生物标志物"),
+  ep_event     = c(en = "Death or transplant within X years", zh = "X 年内死亡或移植"),
+  ep_year      = c(en = "Year X", zh = "第 X 年"),
+  effect_d     = c(en = "Treatment effect (difference in means, in SDs of the outcome)",
+                   zh = "治疗效应（均值差，以结局的标准差为单位）"),
+  effect_rrr   = c(en = "Treatment effect (relative risk reduction, %)",
+                   zh = "治疗效应（相对风险降低，%）"),
+  alpha        = c(en = "Significance level (two-sided)", zh = "显著性水平（双侧）"),
+  power        = c(en = "Power", zh = "检验效能"),
+  vb_rho       = c(en = "Correlation ρ of twin and outcome", zh = "孪生体与结局的相关系数 ρ"),
+  vb_n0        = c(en = "Sample size without the twin", zh = "不使用孪生体的样本量"),
+  vb_n1        = c(en = "Sample size with the twin", zh = "使用孪生体的样本量"),
+  vb_saved     = c(en = "Fewer participants", zh = "受试者减少"),
+  h_trial_tab  = c(en = "Analysis compared", zh = "分析方法比较"),
+  col_analysis = c(en = "Covariate", zh = "协变量"),
+  col_rho      = c(en = "ρ", zh = "ρ"),
+  col_n        = c(en = "Total sample size", zh = "总样本量"),
+  an_none      = c(en = "None (unadjusted)", zh = "无（未调整）"),
+  an_base      = c(en = "Baseline value of the biomarker", zh = "该生物标志物的基线值"),
+  an_base_bili = c(en = "Baseline bilirubin", zh = "基线胆红素"),
+  an_twin      = c(en = "Twin prediction", zh = "孪生体预测"),
+  trial_base_note = c(en = "Adjusting for the baseline value alone is shown for comparison: a twin is worth it when it combines several biomarkers and covariates into a better prediction than any one of them.",
+                      zh = "仅调整基线值的结果作为对照列出：只有当孪生体把多个生物标志物和协变量综合成比其中任何一个都更好的预测时，它才真正有价值。"),
+  trial_n_note = c(en = "%1$s pbc3 participants with an outcome; control-arm risk %2$s. 1:1 randomization; normal-approximation sample size, multiplied by 1 - ρ² for an adjusted analysis.",
+                   zh = "pbc3 中有结局数据的受试者 %1$s 名；对照组风险 %2$s。1:1 随机化；样本量采用正态近似，调整分析时乘以 1 - ρ²。"),
+  trial_n_note_bio = c(en = "%s pbc3 participants with a visit near year X. 1:1 randomization; normal-approximation sample size, multiplied by 1 - ρ² for an adjusted analysis.",
+                       zh = "pbc3 中在第 X 年附近有随访的受试者 %s 名。1:1 随机化；样本量采用正态近似，调整分析时乘以 1 - ρ²。"),
+  h_scatter    = c(en = "Twin prediction and outcome in pbc3", zh = "pbc3 中孪生体预测与结局"),
+  cap_scatter  = c(en = "One point per participant: the twin's prediction from baseline data against the outcome observed.",
+                   zh = "每个点代表一名受试者：基于基线数据的孪生体预测值与实际观察到的结局。"),
+  h_ncurve     = c(en = "Sample size by treatment effect", zh = "不同治疗效应下的样本量"),
+  cap_ncurve   = c(en = "Total sample size for the chosen significance level and power; the dashed line marks the chosen effect.",
+                   zh = "在所选显著性水平和检验效能下的总样本量；虚线标出所选治疗效应。"),
+  x_twin_pred  = c(en = "Twin prediction", zh = "孪生体预测"),
+  x_twin_risk  = c(en = "Twin's predicted risk", zh = "孪生体预测的风险"),
+  y_observed   = c(en = "Observed at year %s", zh = "第 %s 年观察值"),
+  y_n          = c(en = "Total sample size", zh = "总样本量"),
+  obs_event    = c(en = "Event within %s years", zh = "%s 年内发生事件"),
+  obs_free     = c(en = "Event-free at year %s", zh = "第 %s 年未发生事件")
 )
 tr <- function(key, lang) unname(i18n[[key]][lang])
 
@@ -115,6 +165,60 @@ trans    <- survivalTrans(c(1, 3, 5, 7))
 # simulateTrajectory() reports events after the last follow-up as
 # event-free through it, so forecasts stop there
 max_follow_up <- max(pbc3$years)
+
+## ---------------------------------------------------------------
+## Trial design (once, at start-up), as in "Twins in a randomized trial"
+## in the Digital twins article: each participant's twin is built from
+## their baseline measurements alone, and its prediction of the endpoint
+## is the mean over 200 futures. With truncate = FALSE the biomarker draws
+## are not cut off at the drawn event time.
+## ---------------------------------------------------------------
+trial_years <- 1:5
+baseline <- pbc3[pbc3$year == 0, ]
+baseline_twins <- baseline
+baseline_twins$years <- NA
+baseline_twins$status3 <- NA
+baseline_twins$status4 <- NA
+trial_sims <- as.data.frame(simulateTrajectory(
+  baseline_twins, long_fit, surv_fit, prediction_time = 0, times = trial_years,
+  time_variable = "year", trans$survival_variable_all,
+  trans$survival_trans_function, n_sim = 200, truncate = FALSE, seed = 1))
+trial_sims$event_by <- trial_sims$event == 1 & trial_sims$event_time <= trial_sims$year
+# one row per participant and year: the twin's mean biomarkers and risk
+twin_pred <- aggregate(cbind(serBilir, albumin, prothrombin, event_by) ~ id + year,
+                       data = trial_sims, FUN = mean)
+rm(trial_sims, baseline_twins)
+
+# participants' twin prediction, observed outcome and baseline covariate
+# for an endpoint; censored participants without an outcome are left out
+trial_data <- function(endpoint, x, b = "serBilir") {
+  pred <- twin_pred[twin_pred$year == x, ]
+  if (endpoint == "bio") {
+    visit <- pbc3[abs(pbc3$year - x) < 0.5 & !is.na(pbc3[[b]]), ]
+    visit <- visit[!duplicated(visit$id), ]
+    d <- data.frame(id = visit$id, outcome = visit[[b]])
+    d$twin <- pred[[b]][match(d$id, pred$id)]
+    d$base <- baseline[[b]][match(d$id, baseline$id)]
+  } else {
+    known <- baseline[baseline$years >= x | baseline$status3 == 1, ]
+    d <- data.frame(id = known$id,
+                    outcome = as.numeric(known$status3 == 1 & known$years <= x),
+                    base = known$serBilir)
+    d$twin <- pred$event_by[match(d$id, pred$id)]
+  }
+  d[complete.cases(d), ]
+}
+
+# total sample size of a 1:1 trial, two-sided test, normal approximation;
+# an analysis adjusted for a covariate with correlation rho needs 1 - rho^2
+# times as many (PROCOVA)
+n_continuous <- function(d, alpha, power, rho = 0)
+  2 * ceiling(2 * (qnorm(1 - alpha / 2) + qnorm(power))^2 / d^2 * (1 - rho^2))
+n_binary <- function(p0, rrr, alpha, power, rho = 0) {
+  p1 <- p0 * (1 - rrr)
+  2 * ceiling((qnorm(1 - alpha / 2) + qnorm(power))^2 *
+                (p0 * (1 - p0) + p1 * (1 - p1)) / (p0 - p1)^2 * (1 - rho^2))
+}
 
 required_cols <- c("year", "age", "sex", bio_vars)
 template <- pbc3[pbc3$id == 2, required_cols]
@@ -174,9 +278,11 @@ source_choices <- function(lang)
 bio_choices <- function(lang) setNames(bio_vars, bio_labels[[lang]])
 dir_choices <- function(lang)
   setNames(c("above", "below"), c(tr("dir_above", lang), tr("dir_below", lang)))
+endpoint_choices <- function(lang)
+  setNames(c("bio", "event"), c(tr("ep_bio", lang), tr("ep_event", lang)))
 
 replay_panel <- nav_panel(
-  txt("tab_replay"),
+  txt("tab_replay"), value = "replay",
   tags$p(class = "text-muted", txt("replay_help")),
   layout_columns(
     fill = FALSE,
@@ -195,7 +301,7 @@ replay_panel <- nav_panel(
 )
 
 ask_panel <- nav_panel(
-  txt("tab_ask"),
+  txt("tab_ask"), value = "ask",
   card(card_header(txt("h_spag")), plotOutput("spaghetti", height = 330),
        card_footer(tags$small(class = "text-muted", txt("cap_spag")))),
   layout_columns(
@@ -214,6 +320,46 @@ ask_panel <- nav_panel(
   )
 )
 
+trial_panel <- nav_panel(
+  txt("tab_trial"), value = "trial",
+  tags$p(class = "text-muted", txt("trial_help")),
+  tags$div(class = "alert alert-warning py-2", txt("trial_warn")),
+  layout_columns(
+    fill = FALSE,
+    value_box(txt("vb_rho"), uiOutput("vb_rho"), theme = "secondary"),
+    value_box(txt("vb_n0"), uiOutput("vb_n0"), theme = "secondary"),
+    value_box(txt("vb_n1"), uiOutput("vb_n1"), theme = "primary"),
+    value_box(txt("vb_saved"), uiOutput("vb_saved"), theme = "success")),
+  layout_columns(
+    col_widths = breakpoints(sm = 12, xl = c(4, 8)),  # stacked unless wide
+    card(card_header(txt("h_design")),
+         radioButtons("ep", txt("endpoint"), endpoint_choices("en")),
+         conditionalPanel("input.ep == 'bio'",
+                          selectInput("ep_bio", txt("q_bio"), bio_choices("en"))),
+         sliderInput("ep_x", txt("ep_year"), min = min(trial_years),
+                     max = max(trial_years), value = 2, step = 1),
+         conditionalPanel("input.ep == 'bio'",
+                          sliderInput("eff_d", txt("effect_d"), min = 0.1, max = 1,
+                                      value = 0.3, step = 0.05)),
+         conditionalPanel("input.ep == 'event'",
+                          sliderInput("eff_rrr", txt("effect_rrr"), min = 10, max = 60,
+                                      value = 30, step = 5)),
+         layout_columns(
+           selectInput("alpha", txt("alpha"), c(0.05, 0.025, 0.01)),
+           selectInput("power", txt("power"), c("80%" = 0.8, "90%" = 0.9)))),
+    card(card_header(txt("h_trial_tab")),
+         tags$div(class = "table-responsive", uiOutput("trial_table")),
+         card_footer(tags$small(class = "text-muted", uiOutput("trial_note"))))
+  ),
+  layout_columns(
+    col_widths = breakpoints(sm = 12, xl = c(6, 6)),  # stacked unless wide
+    card(card_header(txt("h_scatter")), plotOutput("trial_scatter", height = 330),
+         card_footer(tags$small(class = "text-muted", txt("cap_scatter")))),
+    card(card_header(txt("h_ncurve")), plotOutput("trial_ncurve", height = 330),
+         card_footer(tags$small(class = "text-muted", txt("cap_ncurve"))))
+  )
+)
+
 ui <- page_sidebar(
   title = txt("title"),
   window_title = "BJM Digital Twin",
@@ -227,22 +373,28 @@ ui <- page_sidebar(
     radioButtons("lang", "Language / 语言",
                  setNames(c("en", "zh"), c("English", "中文")),
                  selected = "en", inline = TRUE),
-    radioButtons("source", txt("source"), source_choices("en")),
+    # the trial design tab uses all of pbc3, not one patient
     conditionalPanel(
-      "input.source == 'demo'",
-      selectInput("pid", txt("pid"), levels(pbc3$id), selected = "2")),
+      "input.tabs != 'trial'",
+      radioButtons("source", txt("source"), source_choices("en")),
+      conditionalPanel(
+        "input.source == 'demo'",
+        selectInput("pid", txt("pid"), levels(pbc3$id), selected = "2")),
+      conditionalPanel(
+        "input.source == 'upload'",
+        fileInput("file", txt("file"), accept = ".csv", buttonLabel = txt("browse")),
+        downloadLink("template", txt("template"))),
+      sliderInput("landmark", txt("landmark"), min = 0, max = 10, value = 3, step = 0.25,
+                  animate = animationOptions(interval = 1500)),
+      sliderInput("H", txt("H"), min = 1, max = 8, value = 5, step = 1),
+      selectInput("n_sim", txt("n_sim"), c(200, 500, 1000), selected = 500),
+      selectInput("bio", txt("bio"), bio_choices("en"))),
     conditionalPanel(
-      "input.source == 'upload'",
-      fileInput("file", txt("file"), accept = ".csv", buttonLabel = txt("browse")),
-      downloadLink("template", txt("template"))),
-    sliderInput("landmark", txt("landmark"), min = 0, max = 10, value = 3, step = 0.25,
-                animate = animationOptions(interval = 1500)),
-    sliderInput("H", txt("H"), min = 1, max = 8, value = 5, step = 1),
-    selectInput("n_sim", txt("n_sim"), c(200, 500, 1000), selected = 500),
-    selectInput("bio", txt("bio"), bio_choices("en")),
+      "input.tabs == 'trial'",
+      tags$p(class = "text-muted", txt("sidebar_trial"))),
     tags$small(class = "text-muted", txt("disclaimer"))
   ),
-  navset_card_underline(replay_panel, ask_panel)
+  navset_card_underline(id = "tabs", replay_panel, ask_panel, trial_panel)
 )
 
 ## ---------------------------------------------------------------
@@ -265,6 +417,8 @@ server <- function(input, output, session) {
     updateSelectInput(session, "q_bio", choices = bio_choices(lang()), selected = input$q_bio)
     updateRadioButtons(session, "q_dir", choices = dir_choices(lang()),
                        selected = input$q_dir, inline = TRUE)
+    updateRadioButtons(session, "ep", choices = endpoint_choices(lang()), selected = input$ep)
+    updateSelectInput(session, "ep_bio", choices = bio_choices(lang()), selected = input$ep_bio)
   })
 
   patient <- reactive({
@@ -447,6 +601,103 @@ server <- function(input, output, session) {
                  if (length(ev)) sprintf(tr("yr_fmt", lg), median(ev)) else tr("none", lg)),
       answer_row(sprintf(tr("a_free", lg), fmt_year(tw$end)),
                  pct(1 - event_prob(f, tw$end)[["any"]]))))
+  })
+
+  ## --- Trial design ----------------------------------------------
+
+  trial <- reactive({
+    d <- trial_data(input$ep, input$ep_x, input$ep_bio)
+    alpha <- as.numeric(input$alpha); power <- as.numeric(input$power)
+    p0 <- mean(d$outcome)
+    if (input$ep == "bio") {
+      n_for <- function(rho, eff) n_continuous(eff, alpha, power, rho)
+      eff <- input$eff_d
+    } else {
+      n_for <- function(rho, eff) n_binary(p0, eff / 100, alpha, power, rho)
+      eff <- input$eff_rrr
+    }
+    rho <- c(none = 0, base = cor(d$base, d$outcome), twin = cor(d$twin, d$outcome))
+    list(d = d, p0 = p0, rho = rho, n = vapply(rho, n_for, numeric(1), eff = eff),
+         n_for = n_for)
+  })
+
+  output$vb_rho <- renderUI(sprintf("%.2f", trial()$rho[["twin"]]))
+  output$vb_n0 <- renderUI(format(trial()$n[["none"]], big.mark = ","))
+  output$vb_n1 <- renderUI(format(trial()$n[["twin"]], big.mark = ","))
+  output$vb_saved <- renderUI(pct(1 - trial()$n[["twin"]] / trial()$n[["none"]]))
+
+  output$trial_table <- renderUI({
+    tl <- trial(); lg <- lang()
+    base_label <- if (input$ep == "bio") tr("an_base", lg) else tr("an_base_bili", lg)
+    row <- function(label, k, class = NULL)
+      tags$tr(class = class, tags$td(label),
+              tags$td(class = "text-end", if (k == "none") "-" else sprintf("%.2f", tl$rho[[k]])),
+              tags$td(class = "text-end", format(tl$n[[k]], big.mark = ",")),
+              tags$td(class = "text-end",
+                      if (k == "none") "" else sprintf("-%s", pct(1 - tl$n[[k]] / tl$n[["none"]]))))
+    tagList(
+      tags$table(class = "table table-sm mb-2",
+        tags$thead(tags$tr(tags$th(tr("col_analysis", lg)),
+                           tags$th(class = "text-end", tr("col_rho", lg)),
+                           tags$th(class = "text-end", tr("col_n", lg)),
+                           tags$th())),
+        tags$tbody(row(tr("an_none", lg), "none"), row(base_label, "base"),
+                   row(tr("an_twin", lg), "twin", class = "table-primary"))),
+      tags$small(class = "text-muted", tr("trial_base_note", lg)))
+  })
+
+  output$trial_note <- renderUI({
+    tl <- trial(); lg <- lang()
+    if (input$ep == "bio") sprintf(tr("trial_n_note_bio", lg), nrow(tl$d))
+    else sprintf(tr("trial_n_note", lg), nrow(tl$d), pct(tl$p0))
+  })
+
+  output$trial_scatter <- renderPlot({
+    tl <- trial(); lg <- lang(); x <- input$ep_x
+    if (input$ep == "bio") {
+      lab <- bio_labels[[lg]][match(input$ep_bio, bio_vars)]
+      ggplot(tl$d, aes(twin, outcome)) +
+        geom_abline(linetype = 2, colour = "grey50") +
+        geom_point(colour = "#2980b9", alpha = 0.6, size = 2) +
+        labs(x = paste0(tr("x_twin_pred", lg), ": ", lab),
+             y = paste0(sprintf(tr("y_observed", lg), x), ": ", lab)) +
+        theme_bw(base_size = 14)
+    } else {
+      levs <- c(sprintf(tr("obs_free", lg), x), sprintf(tr("obs_event", lg), x))
+      tl$d$observed <- factor(levs[tl$d$outcome + 1], levels = levs)
+      ggplot(tl$d, aes(twin, observed)) +
+        geom_boxplot(outlier.shape = NA, width = 0.5) +
+        geom_jitter(aes(colour = observed), height = 0.15, width = 0, alpha = 0.6,
+                    size = 2, show.legend = FALSE) +
+        scale_colour_manual(values = c("#7f8c8d", "#c0392b")) +
+        scale_x_continuous(tr("x_twin_risk", lg), labels = scales::percent) +
+        labs(y = NULL) +
+        theme_bw(base_size = 14)
+    }
+  })
+
+  output$trial_ncurve <- renderPlot({
+    tl <- trial(); lg <- lang()
+    if (input$ep == "bio") {
+      grid <- seq(0.1, 1, by = 0.05); chosen <- input$eff_d; xlab <- tr("effect_d", lg)
+    } else {
+      grid <- seq(10, 60, by = 1); chosen <- input$eff_rrr; xlab <- tr("effect_rrr", lg)
+    }
+    base_label <- if (input$ep == "bio") tr("an_base", lg) else tr("an_base_bili", lg)
+    labels <- c(tr("an_none", lg), base_label, tr("an_twin", lg))
+    curves <- data.frame(
+      effect = rep(grid, 3),
+      n = unlist(lapply(tl$rho, function(r) vapply(grid, function(e) tl$n_for(r, e), numeric(1)))),
+      analysis = factor(rep(labels, each = length(grid)), levels = labels))
+    ggplot(curves, aes(effect, n, colour = analysis)) +
+      geom_line(linewidth = 1) +
+      geom_vline(xintercept = chosen, linetype = 2, colour = "grey40") +
+      scale_colour_manual(values = setNames(c("#7f8c8d", "#e67e22", "#2980b9"), labels),
+                          name = NULL) +
+      scale_y_log10(tr("y_n", lg), labels = scales::comma) +
+      labs(x = xlab) +
+      guides(colour = guide_legend(nrow = 2)) +
+      theme_bw(base_size = 14) + theme(legend.position = "bottom")
   })
 
   output$template <- downloadHandler(
