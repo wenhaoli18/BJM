@@ -80,8 +80,11 @@ articles:
 
 navbar:
   structure:
-    left: [intro, articles, extensions, reference, news]
+    left: [intro, articles, extensions, demo, reference, news]
   components:
+    demo:
+      text: Demo app
+      href: articles/demo-app.html
     articles:
       text: Articles
       menu:
