@@ -141,7 +141,8 @@ another is still not predicted (<code>NA</code>, with a warning).</p>
 <span>  <span class="va">survival_variable_all</span>,</span>
 <span>  <span class="va">survival_trans_function</span>,</span>
 <span>  bandcount1 <span class="op">=</span> <span class="st">"auto"</span>,</span>
-<span>  bandcount2 <span class="op">=</span> <span class="st">"auto"</span></span>
+<span>  bandcount2 <span class="op">=</span> <span class="st">"auto"</span>,</span>
+<span>  n_cores <span class="op">=</span> <span class="fl">1</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -219,6 +220,16 @@ beyond the prediction window. A wider follow-up range
 needs a larger <code>bandcount2</code> to keep the grid spacing comparable.
 Defaults to <code>"auto"</code> (see Details).</p></dd>
 
+
+<dt id="arg-n-cores">n_cores<a class="anchor" aria-label="anchor" href="#arg-n-cores"></a></dt>
+<dd><p>Number of CPU cores. With an ordinal biomarker the
+prediction's cost is per patient, and the patients are spread over
+<code>n_cores</code> cores with <code><a href="https://rdrr.io/r/parallel/mclapply.html" class="external-link">parallel::mclapply()</a></code>; this is only
+parallel on Unix-like systems (Linux, macOS), and runs serially on
+Windows. The result is exactly the same for any <code>n_cores</code>. With
+continuous biomarkers only, predictions are fast and <code>n_cores</code> has
+no effect. Defaults to <code>1</code>.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
@@ -288,11 +299,12 @@ the risks checked by less than one percentage point.</p>
 <p>For a fit with an ordinal biomarker, a patient's ordinal measurements
 contribute the probability of their observed categories. With a single
 ordinal random effect (e.g. one ordinal biomarker with a random
-intercept) it is computed by Gauss-Hermite quadrature, and the results
-are exact and reproducible; with more, by Monte Carlo
-(<code><a href="https://rdrr.io/pkg/mvtnorm/man/pmvnorm.html" class="external-link">mvtnorm::pmvnorm()</a></code>), so repeated calls differ slightly (around
-the fourth significant digit) and <code><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed()</a></code> makes them
-reproducible.</p>
+intercept) it is computed by Gauss-Hermite quadrature, and is exact; with
+more, by Monte Carlo (<code><a href="https://rdrr.io/pkg/mvtnorm/man/pmvnorm.html" class="external-link">mvtnorm::pmvnorm()</a></code>), with an error around the
+fourth significant digit. Each patient's Monte Carlo draws use a fixed
+seed derived from the patient's id, so the results are the same on every
+run and for any <code>n_cores</code>, without <code><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed()</a></code>, and the
+caller's random-number state is left unchanged.</p>
     </div>
 
     <div class="section level2">

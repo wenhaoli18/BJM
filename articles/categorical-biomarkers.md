@@ -434,10 +434,14 @@ about a quarter and persistent edema rising from about 0.1 to about
 - **Two or more ordinal random effects.** The probability of a patient’s
   observed categories is then computed by Monte Carlo
   ([`mvtnorm::pmvnorm()`](https://rdrr.io/pkg/mvtnorm/man/pmvnorm.html))
-  instead of numerical integration: predictions vary in about the fourth
-  significant digit between runs (call
-  [`set.seed()`](https://rdrr.io/r/base/Random.html) first to reproduce
-  them exactly), and are several times slower.
+  instead of numerical integration, with an error in about the fourth
+  significant digit (each patient’s draws use a fixed seed, so the
+  results are still the same on every run), and predictions are several
+  times slower. `n_cores` in
+  [`predictRisk()`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md)
+  and
+  [`predictLongitudinal()`](https://wenhaoli18.github.io/BJM/reference/predictLongitudinal.md)
+  spreads the patients over several cores (on Linux and macOS).
 - **Speed.** That probability is needed at every point of the
   integration grid, so a prediction with an ordinal biomarker takes
   longer than with continuous ones only. Predicting a continuous

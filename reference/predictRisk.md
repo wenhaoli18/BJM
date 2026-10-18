@@ -45,7 +45,8 @@ predictRisk(
   survival_variable_all,
   survival_trans_function,
   bandcount1 = "auto",
-  bandcount2 = "auto"
+  bandcount2 = "auto",
+  n_cores = 1
 )
 ```
 
@@ -121,6 +122,16 @@ predictRisk(
   denominator beyond the prediction window. A wider follow-up range
   needs a larger `bandcount2` to keep the grid spacing comparable.
   Defaults to `"auto"` (see Details).
+
+- n_cores:
+
+  Number of CPU cores. With an ordinal biomarker the prediction's cost
+  is per patient, and the patients are spread over `n_cores` cores with
+  [`parallel::mclapply()`](https://rdrr.io/r/parallel/mclapply.html);
+  this is only parallel on Unix-like systems (Linux, macOS), and runs
+  serially on Windows. The result is exactly the same for any `n_cores`.
+  With continuous biomarkers only, predictions are fast and `n_cores`
+  has no effect. Defaults to `1`.
 
 ## Value
 
@@ -199,12 +210,14 @@ percentage point.
 For a fit with an ordinal biomarker, a patient's ordinal measurements
 contribute the probability of their observed categories. With a single
 ordinal random effect (e.g. one ordinal biomarker with a random
-intercept) it is computed by Gauss-Hermite quadrature, and the results
-are exact and reproducible; with more, by Monte Carlo
+intercept) it is computed by Gauss-Hermite quadrature, and is exact;
+with more, by Monte Carlo
 ([`mvtnorm::pmvnorm()`](https://rdrr.io/pkg/mvtnorm/man/pmvnorm.html)),
-so repeated calls differ slightly (around the fourth significant digit)
-and [`set.seed()`](https://rdrr.io/r/base/Random.html) makes them
-reproducible.
+with an error around the fourth significant digit. Each patient's Monte
+Carlo draws use a fixed seed derived from the patient's id, so the
+results are the same on every run and for any `n_cores`, without
+[`set.seed()`](https://rdrr.io/r/base/Random.html), and the caller's
+random-number state is left unchanged.
 
 ## Examples
 

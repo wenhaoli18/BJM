@@ -464,10 +464,12 @@ Use <code>poly(..., raw = TRUE)</code>, <code>I(x^2)</code> or
 <li>
 <strong>Two or more ordinal random effects.</strong> The probability
 of a patient’s observed categories is then computed by Monte Carlo
-(<code><a href="https://rdrr.io/pkg/mvtnorm/man/pmvnorm.html" class="external-link">mvtnorm::pmvnorm()</a></code>) instead of numerical integration:
-predictions vary in about the fourth significant digit between runs
-(call <code><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed()</a></code> first to reproduce them exactly), and are
-several times slower.</li>
+(<code><a href="https://rdrr.io/pkg/mvtnorm/man/pmvnorm.html" class="external-link">mvtnorm::pmvnorm()</a></code>) instead of numerical integration, with
+an error in about the fourth significant digit (each patient’s draws use
+a fixed seed, so the results are still the same on every run), and
+predictions are several times slower. <code>n_cores</code> in
+<code><a href="../reference/predictRisk.html">predictRisk()</a></code> and <code><a href="../reference/predictLongitudinal.html">predictLongitudinal()</a></code>
+spreads the patients over several cores (on Linux and macOS).</li>
 <li>
 <strong>Speed.</strong> That probability is needed at every point of
 the integration grid, so a prediction with an ordinal biomarker takes
