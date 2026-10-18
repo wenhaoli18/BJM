@@ -191,10 +191,25 @@ test_that("Sigma_fit recovers an ordinal biomarker's random-effects variances (q
   expect_equal(diag(fit$Sigma_fit)[1:2], c(1, 0.2), tolerance = 0.15, ignore_attr = TRUE)
 })
 
+test_that("four ordinal random effects are still handled by quadrature", {
+  skip_on_cran()
+  skip_if_ordinal()
+  d <- simulate_copula_markers(1, second_ordinal = TRUE)
+  # SAEM's default run left these variances off by about 5% in simulations
+  testthat::local_mocked_bindings(copula_D_saem = function(...) stop("SAEM used"), .package = "BJM")
+  fit <- longitudinalSub(d, list(y ~ year + x, o ~ year + x), list(~ year | id, ~ year | id))
+  expect_equal(diag(fit$Sigma_fit), c(1, 0.2, 1, 0.2), tolerance = 0.3, ignore_attr = TRUE)
+})
+
 test_that("many ordinal random effects fall back to a reproducible SAEM", {
   skip_on_cran()
   skip_if_ordinal()
   d <- simulate_copula_markers(1, second_ordinal = TRUE)
+  # four ordinal random effects here; lower the quadrature limit to reach SAEM
+  estep <- get("longitudinalSubVarCopula", asNamespace("BJM"))
+  testthat::local_mocked_bindings(
+    longitudinalSubVarCopula = function(...) estep(..., max_quadrature_dim = 3),
+    .package = "BJM")
   set.seed(42)
   before <- .Random.seed
   fit <- longitudinalSub(d, list(y ~ year + x, o ~ year + x), list(~ year | id, ~ year | id))

@@ -116,7 +116,12 @@ fit_marginal_ordinal <- function(fixed_formula, random_formula, data) {
 #'   (SAEM) that draws the latent scores, whose cost does not grow with that
 #'   dimension.
 #' }
-#' Both target the same maximum-likelihood estimate. The earlier version
+#' Both target the same maximum-likelihood estimate, but with the default
+#' number of iterations SAEM stopped short of it: for two ordinal biomarkers
+#' with a random intercept and slope each (four ordinal random effects), the
+#' random-effects variances were off by about 5\% in simulations, which
+#' quadrature (\eqn{5^4 = 625} nodes per subject) removes; hence the default
+#' \code{max_quadrature_dim = 4}. The earlier version
 #' plugged in the mean of each latent score given its category, which ignored
 #' the score's own variance and underestimated the ordinal biomarkers'
 #' random-effects variances (by about 40\% for a random intercept and 75\%
@@ -136,7 +141,7 @@ fit_marginal_ordinal <- function(fixed_formula, random_formula, data) {
 #' @return A list with the estimate \code{D}.
 #' @keywords internal
 longitudinalSubVarCopula <- function(thetaLong, l, biomarker_type, thresholds,
-                                     tol.em = 1e-04, max.iter = 500, max_quadrature_dim = 3,
+                                     tol.em = 1e-04, max.iter = 500, max_quadrature_dim = 4,
                                      verbose = FALSE) {
   setup <- copula_estep_setup(thetaLong, l, biomarker_type, thresholds)
   ### an EM started from a singular D stays on that boundary; the separate
