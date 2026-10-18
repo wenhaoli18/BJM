@@ -373,6 +373,17 @@
   `n_cores`, on every run and without `set.seed()`, and the caller's
   random-number state is left unchanged; they differ from before only by
   the Monte Carlo error.
+* `predictLongitudinal()` for a continuous biomarker, in a model with two
+  or more ordinal random effects, is 5-6 times faster: the Monte Carlo box
+  probability of the ordinal categories, needed for every candidate value
+  of the biomarker at every grid point, is computed at 15 candidate values
+  and spline-interpolated in between (the candidate value only shifts the
+  ordinal scores' conditional mean, so it is smooth); the continuous
+  biomarkers' density is still computed at every value. With three ordinal
+  random effects, six `pbc3` patients took 42 s instead of 261 s on 6 cores,
+  and the predictions differed from before by no more than the Monte Carlo
+  error itself (about 1e-4). Risk predictions, ordinal predictions and
+  models with one ordinal random effect are unchanged.
 
 ## Bug fixes
 

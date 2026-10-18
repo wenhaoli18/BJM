@@ -75,3 +75,39 @@ test_that("predictions with one ordinal random effect no longer depend on the ra
   }
   expect_identical(pr(1), pr(2))
 })
+
+test_that("interpolate_log_box follows a smooth curve and is -Inf where the probability is 0", {
+  x <- seq(-3, 3, length.out = 15)
+  f <- function(x) stats::pnorm(x, log.p = TRUE) + stats::pnorm(-0.5 * x, log.p = TRUE)
+  x_out <- seq(-3, 3, length.out = 200)
+  expect_lt(max(abs(interpolate_log_box(x, f(x), x_out) - f(x_out))), 1e-3)
+  y <- f(x)
+  y[1:3] <- -Inf
+  out <- interpolate_log_box(x, y, x_out)
+  expect_true(all(out[x_out < x[4]] == -Inf))
+  expect_true(all(is.finite(out[x_out >= x[4]])))
+  expect_equal(interpolate_log_box(x, rep(-Inf, 15), x_out), rep(-Inf, 200))
+})
+
+test_that("a continuous biomarker's prediction with interpolated box probabilities matches computing every value", {
+  skip_if_not_installed("ordinal")
+  skip_on_cran()
+  # the ordinal biomarker has a random intercept and slope: Monte Carlo box
+  # probabilities, interpolated over the candidate values of serBilir
+  fx <- setup_copula_predict_fixture()
+  survival_fit_all <- survivalSub(fx$pbc3[!duplicated(fx$pbc3$id), ], Surv(years, status3) ~ age + sex, NULL)
+  raw <- fx$pbc3[fx$pbc3$id %in% c(2, 5) & fx$pbc3$year <= 3, ]
+  data_predict_all <- list(fx$to_cat(raw), fx$to_cat(raw))
+  pred <- function() {
+    predictLongitudinal(1, data_predict_all, fx$long_fit_all, survival_fit_all, prediction_time = 3,
+                        horizon = 1, time_variable = "year", list(), list(), bandcount2 = 10,
+                        bandcount3 = 60)
+  }
+  interpolated <- pred()
+  every_value <- copula_logdens_grid
+  local_mocked_bindings(copula_logdens_grid = function(...) every_value(..., n_exact = Inf))
+  full <- pred()
+  normalize <- function(d) sweep(d, 2, colSums(d), "/")
+  expect_equal(normalize(interpolated$Y_density), normalize(full$Y_density), tolerance = 2e-3)
+  expect_equal(interpolated$Y_predict, full$Y_predict, tolerance = 2e-3)
+})
