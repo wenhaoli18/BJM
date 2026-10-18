@@ -234,7 +234,7 @@ converges, as it does here: the largest gradient at the optimum is below
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt;               Value       SE      z  p-value    </span></span>
 <span><span class="co">#&gt; year        0.68832  0.09263  7.431 1.08e-13 ***</span></span>
-<span><span class="co">#&gt; age         0.03636  0.01152  3.155  0.00160 ** </span></span>
+<span><span class="co">#&gt; age         0.03636  0.01152  3.156  0.00160 ** </span></span>
 <span><span class="co">#&gt; years      -0.31621  0.04716 -6.705 2.01e-11 ***</span></span>
 <span><span class="co">#&gt; year:years -0.03090  0.01030 -2.999  0.00271 ** </span></span>
 <span><span class="co">#&gt; ---</span></span>
@@ -307,12 +307,11 @@ at the visit just before year 5:</p>
 <span><span class="co">#&gt; 7 4.9008871  0.95551145 controlled</span></span></code></pre></div>
 <p><code><a href="../reference/predictRisk.html">predictRisk()</a></code> is called as usual. With an ordinal
 biomarker, each patient’s likelihood includes the probability of their
-observed categories, a multivariate normal probability that is computed
-by Monte Carlo, so <code><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed()</a></code> makes the result exactly
-reproducible.</p>
+observed categories. With one ordinal random effect, as here, BJM
+computes it by numerical integration over that random effect, so the
+results are exact and the same on every run.</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span></span>
-<span><span class="va">risk</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/predictRisk.html">predictRisk</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">patient</span>, <span class="va">patient</span><span class="op">)</span>, <span class="va">long_fit</span>, <span class="va">survival_fit</span>,</span>
+<code class="sourceCode R"><span><span class="va">risk</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/predictRisk.html">predictRisk</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">patient</span>, <span class="va">patient</span><span class="op">)</span>, <span class="va">long_fit</span>, <span class="va">survival_fit</span>,</span>
 <span>                    prediction_time <span class="op">=</span> <span class="fl">5</span>, horizon <span class="op">=</span> <span class="fl">3</span>, time_variable <span class="op">=</span> <span class="st">"year"</span>,</span>
 <span>                    survival_variable_all <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>, survival_trans_function <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">risk</span></span>
@@ -334,13 +333,12 @@ large:</p>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">no_edema</span> <span class="op">&lt;-</span> <span class="va">patient</span></span>
 <span><span class="va">no_edema</span><span class="op">$</span><span class="va">edema</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">no_edema</span><span class="op">)</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="st">"none"</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span></span>
 <span><span class="va">risk_no_edema</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/predictRisk.html">predictRisk</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">no_edema</span>, <span class="va">no_edema</span><span class="op">)</span>, <span class="va">long_fit</span>, <span class="va">survival_fit</span>,</span>
 <span>                             prediction_time <span class="op">=</span> <span class="fl">5</span>, horizon <span class="op">=</span> <span class="fl">3</span>, time_variable <span class="op">=</span> <span class="st">"year"</span>,</span>
 <span>                             survival_variable_all <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>, survival_trans_function <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>observed <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/unname.html" class="external-link">unname</a></span><span class="op">(</span><span class="va">risk</span><span class="op">$</span><span class="va">risk_prob_1</span><span class="op">)</span>, if_no_edema <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/unname.html" class="external-link">unname</a></span><span class="op">(</span><span class="va">risk_no_edema</span><span class="op">$</span><span class="va">risk_prob_1</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;    observed if_no_edema </span></span>
-<span><span class="co">#&gt;   0.4258256   0.2350565</span></span></code></pre></div>
+<span><span class="co">#&gt;   0.4258237   0.2350548</span></span></code></pre></div>
 <p>The categories in the prediction data are matched to those of the fit
 by their labels, so a character column or a factor with its levels in a
 different order works too; a category the model was not fit with is an
@@ -358,7 +356,6 @@ then. Here for three patients, one year after year 3:</p>
 <code class="sourceCode R"><span><span class="va">three</span> <span class="op">&lt;-</span> <span class="va">pbc3</span><span class="op">[</span><span class="va">pbc3</span><span class="op">$</span><span class="va">id</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2</span>, <span class="fl">4</span>, <span class="fl">5</span><span class="op">)</span> <span class="op">&amp;</span> <span class="va">pbc3</span><span class="op">$</span><span class="va">year</span> <span class="op">&lt;=</span> <span class="fl">3</span>, <span class="op">]</span></span>
 <span><span class="va">three</span><span class="op">$</span><span class="va">years</span> <span class="op">&lt;-</span> <span class="cn">NA</span></span>
 <span><span class="va">three</span><span class="op">$</span><span class="va">status4</span> <span class="op">&lt;-</span> <span class="cn">NA</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span></span>
 <span><span class="va">edema_pred</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/predictLongitudinal.html">predictLongitudinal</a></span><span class="op">(</span>bio_i <span class="op">=</span> <span class="fl">2</span>, <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">three</span>, <span class="va">three</span><span class="op">)</span>, <span class="va">long_fit</span>, <span class="va">survival_fit</span>,</span>
 <span>                                  prediction_time <span class="op">=</span> <span class="fl">3</span>, horizon <span class="op">=</span> <span class="fl">1</span>, time_variable <span class="op">=</span> <span class="st">"year"</span>,</span>
 <span>                                  survival_variable_all <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>, survival_trans_function <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
@@ -389,26 +386,18 @@ probabilities:</p>
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">edema_pred</span><span class="op">)</span></span></code></pre></div>
 <p><img src="categorical-biomarkers_files/figure-html/plot-longitudinal-1.png" class="r-plt" alt="Bar charts of the predicted probabilities of no, controlled and persistent edema one year after year 3, one panel per patient: patient 2 most likely has none (about 0.79), patient 4 persistent (about 0.78), and patient 5 is split between controlled (0.41) and persistent (0.50)." width="100%"></p>
 <p>With <code>bio_i = NULL</code> every biomarker is predicted in one
-call, continuous and ordinal alike. Predicting a <em>continuous</em>
-biomarker’s value in a model with an ordinal one is the slowest
-prediction in BJM: the probability of the observed categories has to be
-computed by Monte Carlo for every candidate value of the continuous
-biomarker at every point of the time grid. The automatic grids take
-almost two minutes here; fixed, smaller grids give the same predictions
-to three decimals in a few seconds:</p>
+call, continuous and ordinal alike:</p>
 <div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span></span>
-<span><span class="va">both</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/predictLongitudinal.html">predictLongitudinal</a></span><span class="op">(</span>bio_i <span class="op">=</span> <span class="cn">NULL</span>, <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">three</span>, <span class="va">three</span><span class="op">)</span>, <span class="va">long_fit</span>, <span class="va">survival_fit</span>,</span>
+<code class="sourceCode R"><span><span class="va">both</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/predictLongitudinal.html">predictLongitudinal</a></span><span class="op">(</span>bio_i <span class="op">=</span> <span class="cn">NULL</span>, <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">three</span>, <span class="va">three</span><span class="op">)</span>, <span class="va">long_fit</span>, <span class="va">survival_fit</span>,</span>
 <span>                            prediction_time <span class="op">=</span> <span class="fl">3</span>, horizon <span class="op">=</span> <span class="fl">1</span>, time_variable <span class="op">=</span> <span class="st">"year"</span>,</span>
-<span>                            survival_variable_all <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>, survival_trans_function <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
-<span>                            bandcount2 <span class="op">=</span> <span class="fl">40</span>, bandcount3 <span class="op">=</span> <span class="fl">50</span><span class="op">)</span></span>
+<span>                            survival_variable_all <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>, survival_trans_function <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">both</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "serBilir" "edema"</span></span>
 <span><span class="va">both</span><span class="op">$</span><span class="va">edema</span><span class="op">$</span><span class="va">Y_density</span></span>
 <span><span class="co">#&gt;               2          4          5</span></span>
-<span><span class="co">#&gt; [1,] 0.78442846 0.01728317 0.09469301</span></span>
-<span><span class="co">#&gt; [2,] 0.18419894 0.19921875 0.40542312</span></span>
-<span><span class="co">#&gt; [3,] 0.03135221 0.78352510 0.49991673</span></span></code></pre></div>
+<span><span class="co">#&gt; [1,] 0.78507044 0.01728125 0.09469616</span></span>
+<span><span class="co">#&gt; [2,] 0.18366320 0.19922645 0.40543314</span></span>
+<span><span class="co">#&gt; [3,] 0.03126594 0.78349229 0.49987070</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="plotting-a-patients-predictions">Plotting a patient’s predictions<a class="anchor" aria-label="anchor" href="#plotting-a-patients-predictions"></a>
@@ -418,8 +407,7 @@ with <code>bio_his</code>, with its categories on the vertical axis, the
 risks of the two event types, and the predicted category probabilities
 as the horizon grows, as circles whose size is the probability:</p>
 <div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span></span>
-<span><span class="fu"><a href="../reference/predictPlot.html">predictPlot</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">patient</span>, <span class="va">patient</span><span class="op">)</span>, <span class="va">long_fit</span>, <span class="va">survival_fit</span>,</span>
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/predictPlot.html">predictPlot</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">patient</span>, <span class="va">patient</span><span class="op">)</span>, <span class="va">long_fit</span>, <span class="va">survival_fit</span>,</span>
 <span>            prediction_time <span class="op">=</span> <span class="fl">5</span>, horizon <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">3</span>, <span class="fl">0.5</span><span class="op">)</span>, time_variable <span class="op">=</span> <span class="st">"year"</span>,</span>
 <span>            survival_variable_all <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>, survival_trans_function <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>            bio_his <span class="op">=</span> <span class="fl">2</span>, bio_pred <span class="op">=</span> <span class="fl">2</span><span class="op">)</span></span></code></pre></div>
@@ -427,8 +415,7 @@ as the horizon grows, as circles whose size is the probability:</p>
 <p><code><a href="../reference/riskPlot.html">riskPlot()</a></code> moves the landmark instead; the risk of death
 rises when the edema appears:</p>
 <div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span></span>
-<span><span class="fu"><a href="../reference/riskPlot.html">riskPlot</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">patient</span>, <span class="va">patient</span><span class="op">)</span>, <span class="va">long_fit</span>, <span class="va">survival_fit</span>,</span>
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/riskPlot.html">riskPlot</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">patient</span>, <span class="va">patient</span><span class="op">)</span>, <span class="va">long_fit</span>, <span class="va">survival_fit</span>,</span>
 <span>         prediction_time <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">2</span>, <span class="fl">3</span>, <span class="fl">4</span>, <span class="fl">5</span><span class="op">)</span>, bio_i <span class="op">=</span> <span class="fl">2</span>, horizon <span class="op">=</span> <span class="fl">1</span>, time_variable <span class="op">=</span> <span class="st">"year"</span>,</span>
 <span>         survival_variable_all <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>, survival_trans_function <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <p><img src="categorical-biomarkers_files/figure-html/risk-plot-1.png" class="r-plt" alt="Patient 2's edema history, none until year 2 and controlled just before year 5, with the predicted one-year risks of death and transplantation at landmarks 1 to 5; the risk of death stays below 0.05 until year 4 and rises to about 0.1 at year 5, and transplantation stays near 0." width="100%"></p>
@@ -445,11 +432,11 @@ cut it at the thresholds, so the draws are categories:</p>
 <span>                           n_sim <span class="op">=</span> <span class="fl">300</span>, seed <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/as.data.frame.html" class="external-link">as.data.frame</a></span><span class="op">(</span><span class="va">sims</span><span class="op">)</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"sim"</span>, <span class="st">"year"</span>, <span class="st">"serBilir"</span>, <span class="st">"edema"</span><span class="op">)</span><span class="op">]</span><span class="op">)</span></span>
 <span><span class="co">#&gt;   sim year serBilir      edema</span></span>
-<span><span class="co">#&gt; 1   1  5.0 1.303337 controlled</span></span>
-<span><span class="co">#&gt; 2   1  5.5 2.289748 controlled</span></span>
-<span><span class="co">#&gt; 3   1  6.0       NA       &lt;NA&gt;</span></span>
-<span><span class="co">#&gt; 4   1  6.5       NA       &lt;NA&gt;</span></span>
-<span><span class="co">#&gt; 5   1  7.0       NA       &lt;NA&gt;</span></span>
+<span><span class="co">#&gt; 1   1  5.0 1.335290 controlled</span></span>
+<span><span class="co">#&gt; 2   1  5.5 1.189156 controlled</span></span>
+<span><span class="co">#&gt; 3   1  6.0 1.940063 persistent</span></span>
+<span><span class="co">#&gt; 4   1  6.5 2.625956 persistent</span></span>
+<span><span class="co">#&gt; 5   1  7.0 2.094178 persistent</span></span>
 <span><span class="co">#&gt; 6   1  7.5       NA       &lt;NA&gt;</span></span></code></pre></div>
 <p><code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code> shows, at each time, the share of the draws still
 event-free in each category:</p>
@@ -475,20 +462,20 @@ give wrong predictions; <code><a href="../reference/longitudinalSub.html">longit
 Use <code>poly(..., raw = TRUE)</code>, <code>I(x^2)</code> or
 <code><a href="https://rdrr.io/r/base/Log.html" class="external-link">log()</a></code> instead (see the <a href="nonlinear-terms.html">Nonlinear terms</a> article).</li>
 <li>
-<strong>Monte Carlo.</strong> The probability of a patient’s
-observed categories is computed by Monte Carlo
-(<code><a href="https://rdrr.io/pkg/mvtnorm/man/pmvnorm.html" class="external-link">mvtnorm::pmvnorm()</a></code>), so predictions vary in about the
-fifth significant digit; call <code><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed()</a></code> first to reproduce
-them exactly.</li>
+<strong>Two or more ordinal random effects.</strong> The probability
+of a patient’s observed categories is then computed by Monte Carlo
+(<code><a href="https://rdrr.io/pkg/mvtnorm/man/pmvnorm.html" class="external-link">mvtnorm::pmvnorm()</a></code>) instead of numerical integration:
+predictions vary in about the fourth significant digit between runs
+(call <code><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed()</a></code> first to reproduce them exactly), and are
+several times slower.</li>
 <li>
 <strong>Speed.</strong> That probability is needed at every point of
-the integration grid, so a prediction with an ordinal biomarker can take
-ten times longer or more than with continuous ones only: under a second
-per patient for the risk here, but seconds per patient for a continuous
-biomarker’s future value, where fixed
-<code>bandcount2</code>/<code>bandcount3</code> values (checked with
-<code><a href="../reference/checkBandcountConvergence.html">checkBandcountConvergence()</a></code>) are much faster than the
-automatic ones.</li>
+the integration grid, so a prediction with an ordinal biomarker takes
+longer than with continuous ones only. Predicting a continuous
+biomarker’s future value in a model with an ordinal one is the slowest
+case; fixed <code>bandcount2</code>/<code>bandcount3</code> values
+(checked with <code><a href="../reference/checkBandcountConvergence.html">checkBandcountConvergence()</a></code>) are faster than
+the automatic ones.</li>
 <li>
 <strong>Random effects.</strong> Up to four ordinal random effects
 in all (e.g. two ordinal biomarkers with a random intercept and slope

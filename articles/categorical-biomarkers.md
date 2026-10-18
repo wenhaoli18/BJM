@@ -144,7 +144,7 @@ long_fit
 #> 
 #>               Value       SE      z  p-value    
 #> year        0.68832  0.09263  7.431 1.08e-13 ***
-#> age         0.03636  0.01152  3.155  0.00160 ** 
+#> age         0.03636  0.01152  3.156  0.00160 ** 
 #> years      -0.31621  0.04716 -6.705 2.01e-11 ***
 #> year:years -0.03090  0.01030 -2.999  0.00271 ** 
 #> ---
@@ -223,14 +223,12 @@ patient[, c("year", "serBilir", "edema")]
 
 [`predictRisk()`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md)
 is called as usual. With an ordinal biomarker, each patient’s likelihood
-includes the probability of their observed categories, a multivariate
-normal probability that is computed by Monte Carlo, so
-[`set.seed()`](https://rdrr.io/r/base/Random.html) makes the result
-exactly reproducible.
+includes the probability of their observed categories. With one ordinal
+random effect, as here, BJM computes it by numerical integration over
+that random effect, so the results are exact and the same on every run.
 
 ``` r
 
-set.seed(1)
 risk <- predictRisk(list(patient, patient), long_fit, survival_fit,
                     prediction_time = 5, horizon = 3, time_variable = "year",
                     survival_variable_all = list(), survival_trans_function = list())
@@ -256,13 +254,12 @@ risk of death within three years would be about half as large:
 
 no_edema <- patient
 no_edema$edema[nrow(no_edema)] <- "none"
-set.seed(1)
 risk_no_edema <- predictRisk(list(no_edema, no_edema), long_fit, survival_fit,
                              prediction_time = 5, horizon = 3, time_variable = "year",
                              survival_variable_all = list(), survival_trans_function = list())
 c(observed = unname(risk$risk_prob_1), if_no_edema = unname(risk_no_edema$risk_prob_1))
 #>    observed if_no_edema 
-#>   0.4258256   0.2350565
+#>   0.4258237   0.2350548
 ```
 
 The categories in the prediction data are matched to those of the fit by
@@ -283,7 +280,6 @@ for three patients, one year after year 3:
 three <- pbc3[pbc3$id %in% c(2, 4, 5) & pbc3$year <= 3, ]
 three$years <- NA
 three$status4 <- NA
-set.seed(1)
 edema_pred <- predictLongitudinal(bio_i = 2, list(three, three), long_fit, survival_fit,
                                   prediction_time = 3, horizon = 1, time_variable = "year",
                                   survival_variable_all = list(), survival_trans_function = list())
@@ -325,28 +321,20 @@ and patient 5 is split between controlled (0.41) and persistent
 (0.50).](categorical-biomarkers_files/figure-html/plot-longitudinal-1.png)
 
 With `bio_i = NULL` every biomarker is predicted in one call, continuous
-and ordinal alike. Predicting a *continuous* biomarker’s value in a
-model with an ordinal one is the slowest prediction in BJM: the
-probability of the observed categories has to be computed by Monte Carlo
-for every candidate value of the continuous biomarker at every point of
-the time grid. The automatic grids take almost two minutes here; fixed,
-smaller grids give the same predictions to three decimals in a few
-seconds:
+and ordinal alike:
 
 ``` r
 
-set.seed(1)
 both <- predictLongitudinal(bio_i = NULL, list(three, three), long_fit, survival_fit,
                             prediction_time = 3, horizon = 1, time_variable = "year",
-                            survival_variable_all = list(), survival_trans_function = list(),
-                            bandcount2 = 40, bandcount3 = 50)
+                            survival_variable_all = list(), survival_trans_function = list())
 names(both)
 #> [1] "serBilir" "edema"
 both$edema$Y_density
 #>               2          4          5
-#> [1,] 0.78442846 0.01728317 0.09469301
-#> [2,] 0.18419894 0.19921875 0.40542312
-#> [3,] 0.03135221 0.78352510 0.49991673
+#> [1,] 0.78507044 0.01728125 0.09469616
+#> [2,] 0.18366320 0.19922645 0.40543314
+#> [3,] 0.03126594 0.78349229 0.49987070
 ```
 
 ## Plotting a patient’s predictions
@@ -359,7 +347,6 @@ whose size is the probability:
 
 ``` r
 
-set.seed(1)
 predictPlot(list(patient, patient), long_fit, survival_fit,
             prediction_time = 5, horizon = seq(0, 3, 0.5), time_variable = "year",
             survival_variable_all = list(), survival_trans_function = list(),
@@ -380,7 +367,6 @@ appears:
 
 ``` r
 
-set.seed(1)
 riskPlot(list(patient, patient), long_fit, survival_fit,
          prediction_time = c(1, 2, 3, 4, 5), bio_i = 2, horizon = 1, time_variable = "year",
          survival_variable_all = list(), survival_trans_function = list())
@@ -405,11 +391,11 @@ sims <- simulateTrajectory(list(patient, patient), long_fit, survival_fit,
                            n_sim = 300, seed = 1)
 head(as.data.frame(sims)[, c("sim", "year", "serBilir", "edema")])
 #>   sim year serBilir      edema
-#> 1   1  5.0 1.303337 controlled
-#> 2   1  5.5 2.289748 controlled
-#> 3   1  6.0       NA       <NA>
-#> 4   1  6.5       NA       <NA>
-#> 5   1  7.0       NA       <NA>
+#> 1   1  5.0 1.335290 controlled
+#> 2   1  5.5 1.189156 controlled
+#> 3   1  6.0 1.940063 persistent
+#> 4   1  6.5 2.625956 persistent
+#> 5   1  7.0 2.094178 persistent
 #> 6   1  7.5       NA       <NA>
 ```
 
@@ -445,20 +431,20 @@ about a quarter and persistent edema rising from about 0.1 to about
   [`log()`](https://rdrr.io/r/base/Log.html) instead (see the [Nonlinear
   terms](https://wenhaoli18.github.io/BJM/articles/nonlinear-terms.md)
   article).
-- **Monte Carlo.** The probability of a patient’s observed categories is
-  computed by Monte Carlo
-  ([`mvtnorm::pmvnorm()`](https://rdrr.io/pkg/mvtnorm/man/pmvnorm.html)),
-  so predictions vary in about the fifth significant digit; call
+- **Two or more ordinal random effects.** The probability of a patient’s
+  observed categories is then computed by Monte Carlo
+  ([`mvtnorm::pmvnorm()`](https://rdrr.io/pkg/mvtnorm/man/pmvnorm.html))
+  instead of numerical integration: predictions vary in about the fourth
+  significant digit between runs (call
   [`set.seed()`](https://rdrr.io/r/base/Random.html) first to reproduce
-  them exactly.
+  them exactly), and are several times slower.
 - **Speed.** That probability is needed at every point of the
-  integration grid, so a prediction with an ordinal biomarker can take
-  ten times longer or more than with continuous ones only: under a
-  second per patient for the risk here, but seconds per patient for a
-  continuous biomarker’s future value, where fixed
-  `bandcount2`/`bandcount3` values (checked with
+  integration grid, so a prediction with an ordinal biomarker takes
+  longer than with continuous ones only. Predicting a continuous
+  biomarker’s future value in a model with an ordinal one is the slowest
+  case; fixed `bandcount2`/`bandcount3` values (checked with
   [`checkBandcountConvergence()`](https://wenhaoli18.github.io/BJM/reference/checkBandcountConvergence.md))
-  are much faster than the automatic ones.
+  are faster than the automatic ones.
 - **Random effects.** Up to four ordinal random effects in all (e.g. two
   ordinal biomarkers with a random intercept and slope each) are
   integrated by quadrature; beyond that, the stochastic approximation EM

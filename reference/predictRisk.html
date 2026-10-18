@@ -285,11 +285,14 @@ fit on. When much of an at-risk patient's survival probability lies
 beyond the last follow-up time (e.g. a prediction late in follow-up),
 the prediction depends on this extrapolation; in <code>pbc3</code> it moved
 the risks checked by less than one percentage point.</p>
-<p>For a fit with an ordinal biomarker, each ordinal measurement contributes
-a multivariate normal probability computed by Monte Carlo
+<p>For a fit with an ordinal biomarker, a patient's ordinal measurements
+contribute the probability of their observed categories. With a single
+ordinal random effect (e.g. one ordinal biomarker with a random
+intercept) it is computed by Gauss-Hermite quadrature, and the results
+are exact and reproducible; with more, by Monte Carlo
 (<code><a href="https://rdrr.io/pkg/mvtnorm/man/pmvnorm.html" class="external-link">mvtnorm::pmvnorm()</a></code>), so repeated calls differ slightly (around
-the fifth significant digit); call <code><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed()</a></code> first for exactly
-reproducible results.</p>
+the fourth significant digit) and <code><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed()</a></code> makes them
+reproducible.</p>
     </div>
 
     <div class="section level2">
