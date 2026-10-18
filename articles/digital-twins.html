@@ -47,7 +47,13 @@
     <li><a class="dropdown-item" href="../articles/digital-twins.html">Digital twins</a></li>
   </ul>
 </li>
-<li class="nav-item"><a class="nav-link" href="../articles/demo-app.html">Demo app</a></li>
+<li class="nav-item dropdown">
+  <button class="nav-link dropdown-toggle" type="button" id="dropdown-demo-apps" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Demo apps</button>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-demo-apps">
+<li><a class="dropdown-item" href="../articles/demo-app.html">Dynamic prediction</a></li>
+    <li><a class="dropdown-item" href="../articles/twin-app.html">Digital twin</a></li>
+  </ul>
+</li>
 <li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul>
@@ -85,7 +91,8 @@ things together: how the patient’s biomarkers will evolve, and when an
 event (and which event) will happen. The backward joint model does both,
 and <code><a href="../reference/simulateTrajectory.html">simulateTrajectory()</a></code> turns a fitted model into a twin:
 it draws complete futures for a patient, conditional on everything
-measured so far.</p>
+measured so far. To build and question a twin interactively, without R,
+try the <a href="twin-app.html">digital twin demo</a>.</p>
 <table class="table">
 <colgroup>
 <col width="50%">

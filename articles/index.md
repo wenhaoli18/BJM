@@ -28,9 +28,12 @@ and simulated digital twins.
 - [Digital
   twins](https://wenhaoli18.github.io/BJM/articles/digital-twins.md):
 
-### Interactive demo
+### Interactive demos
 
-Try dynamic prediction in the browser, without installing R.
+Try dynamic prediction and digital twins in the browser, without
+installing R.
 
 - [Interactive
   demo](https://wenhaoli18.github.io/BJM/articles/demo-app.md):
+- [Digital twin
+  demo](https://wenhaoli18.github.io/BJM/articles/twin-app.md):

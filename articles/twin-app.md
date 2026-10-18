@@ -1,0 +1,85 @@
+# Digital twin demo
+
+This interactive demo builds a patient’s digital twin with
+[`simulateTrajectory()`](https://wenhaoli18.github.io/BJM/reference/simulateTrajectory.md),
+as in [Digital
+twins](https://wenhaoli18.github.io/BJM/articles/digital-twins.md), and
+runs in the browser with no R needed. Pick a patient from the `pbc3`
+data, or upload one patient’s follow-up visits as a CSV file. The
+interface is available in English and Chinese.
+
+- [](_w_86bfd91dbc0544739987d0afbde5336f/#tab-3298-1)
+- [](_w_86bfd91dbc0544739987d0afbde5336f/#tab-3298-2)
+
+log(serum bilirubin) Albumin log(prothrombin time)
+
+above below
+
+If the frame does not load, [open the demo in a new
+tab](https://wenhaoli18.shinyapps.io/bjm-twin/). On the free hosting
+plan the app goes to sleep when nobody is using it, so the first visit
+can take up to a minute to start.
+
+## What the demo shows
+
+The app fits the sub-models once, when it starts, on `pbc3`: a Cox model
+for death or transplantation (`status3`), a logistic model for which of
+the two occurred (`status4`), and linear mixed models for three
+biomarkers (log serum bilirubin, albumin and log prothrombin time). The
+twin is a set of futures drawn from the model, conditional on the
+patient’s measurements up to the year it is built at.
+
+**Replay the twin.** Move the “Twin built at year” slider, or press its
+play button, and the twin is rebuilt from the measurements up to that
+year. The forecast biomarker is shown as a median and 90% band. The
+measurements the twin used are filled points, and the ones taken later
+are open points, so you can see how the forecast compares with what
+happened. Next to it are the forecast probabilities of death and of
+transplantation. For the example patients, the patient’s actual outcome
+is marked as well.
+
+**Ask the twin.** A sample of the simulated futures is drawn as one line
+each, ending at its event. The twin then answers questions from all of
+its futures:
+
+- the probability of death, of transplantation, or of either, within a
+  chosen number of years;
+- the probability that a biomarker goes above or below a threshold
+  before any event, and the probability that the patient is event-free
+  and past the threshold at a chosen time;
+- the median year of the event, and the probability of being event-free
+  through the end of the forecast.
+
+The twin is a statistical, predictive model of outcomes as observed in
+the data it was fit on, not a mechanistic or causal model of the
+disease.
+
+## Uploading a patient
+
+The CSV needs one row per visit and the columns `year`, `age`, `sex`,
+`serBilir`, `albumin` and `prothrombin`, on the same scales as `pbc3`.
+The app has a template you can download. Visits after the year the twin
+is built at are not used by the twin, but are shown as open points.
+
+## Running the app locally
+
+The app’s source is in the
+[`shiny/bjm-twin`](https://github.com/wenhaoli18/BJM/tree/master/shiny/bjm-twin)
+folder of the repository. To run it on your own computer, clone the
+repository and run:
+
+``` r
+
+install.packages(c("shiny", "bslib"))
+shiny::runApp("shiny/bjm-twin")
+```
+
+The demo is for illustrating the method only. Its models are fit on the
+PBC data set and must not be used for clinical decisions.
+
+- [](_w_86bfd91dbc0544739987d0afbde5336f/#tab-3298-1)
+- [](_w_86bfd91dbc0544739987d0afbde5336f/#tab-3298-2)
+
+log(serum bilirubin) Albumin log(prothrombin time)
+
+above below

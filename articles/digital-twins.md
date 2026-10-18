@@ -7,7 +7,9 @@ together: how the patient’s biomarkers will evolve, and when an event
 (and which event) will happen. The backward joint model does both, and
 [`simulateTrajectory()`](https://wenhaoli18.github.io/BJM/reference/simulateTrajectory.md)
 turns a fitted model into a twin: it draws complete futures for a
-patient, conditional on everything measured so far.
+patient, conditional on everything measured so far. To build and
+question a twin interactively, without R, try the [digital twin
+demo](https://wenhaoli18.github.io/BJM/articles/twin-app.md).
 
 | A digital twin needs | In BJM |
 |----|----|
