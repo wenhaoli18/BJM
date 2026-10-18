@@ -1,11 +1,12 @@
-# Recurrent events: the next event and the number of recurrences
+# Recurrent events
 
 The backward joint model assumes each patient has *one* terminal event.
 Many clinical processes do not: a heart-failure patient is discharged,
 readmitted, discharged again, and so on, until death or the end of
 follow-up. This page shows how to use BJM when events recur, using
 hospital readmissions and death as the running example, and answers two
-questions at a discharge:
+questions at a discharge: what the next event will be, and how many
+recurrences there will be.
 
 | Question | Function |
 |----|----|
