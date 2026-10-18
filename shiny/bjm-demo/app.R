@@ -137,8 +137,11 @@ ui <- page_sidebar(
   window_title = "BJM Dynamic Prediction",
   fillable = FALSE,  # let the page scroll instead of squashing the plots
   theme = bs_theme(version = 5, bootswatch = "flatly"),
+  # bslib keeps the main area at least 576px wide while the sidebar is open,
+  # which overflows a narrow window or the iframe on the pkgdown site
+  tags$head(tags$style(".bslib-sidebar-layout { --bslib-page-main-min-width: 0px; }")),
   sidebar = sidebar(
-    width = 320,
+    width = 280,
     radioButtons("lang", "Language / 语言",
                  setNames(c("en", "zh"), c("English", "中文")),
                  selected = "en", inline = TRUE),
@@ -161,13 +164,14 @@ ui <- page_sidebar(
     value_box(txt("n_visits"), textOutput("n_visits"), theme = "primary")
   ),
   layout_columns(
-    col_widths = c(5, 7),
+    col_widths = breakpoints(sm = 12, xl = c(5, 7)),  # stacked unless wide
     card(card_header(txt("h_risk")), plotOutput("risk_plot", height = 300)),
     card(card_header(txt("h_pred")), uiOutput("pred_table"))
   ),
   card(card_header(txt("h_bio")), plotOutput("bio_plot", height = 320),
        card_footer(tags$small(class = "text-muted", txt("caption")))),
-  card(card_header(txt("h_data")), tableOutput("data_table"))
+  card(card_header(txt("h_data")),
+       tags$div(class = "table-responsive", tableOutput("data_table")))
 )
 
 ## ---------------------------------------------------------------
@@ -264,9 +268,11 @@ server <- function(input, output, session) {
               tags$td(tags$strong(sprintf("%.2f", e$mean))),
               tags$td(sprintf("(%.2f, %.2f)", e$lo, e$hi)))
     })
-    tags$table(class = "table table-sm mb-0",
-               tags$thead(tags$tr(lapply(head, tags$th))),
-               tags$tbody(rows))
+    # scroll sideways rather than overflow a narrow card
+    tags$div(class = "table-responsive",
+             tags$table(class = "table table-sm mb-0",
+                        tags$thead(tags$tr(lapply(head, tags$th))),
+                        tags$tbody(rows)))
   })
 
   output$bio_plot <- renderPlot({

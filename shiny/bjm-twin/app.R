@@ -186,6 +186,7 @@ replay_panel <- nav_panel(
     value_box(txt("vb_actual"), uiOutput("vb_actual"), theme = "primary")
   ),
   layout_columns(
+    col_widths = breakpoints(sm = 12, xl = c(6, 6)),  # stacked unless wide
     card(card_header(txt("h_bio_fc")), plotOutput("replay_bio", height = 330),
          card_footer(tags$small(class = "text-muted", txt("cap_bio_fc")))),
     card(card_header(txt("h_cif")), plotOutput("replay_cif", height = 330),
@@ -198,6 +199,7 @@ ask_panel <- nav_panel(
   card(card_header(txt("h_spag")), plotOutput("spaghetti", height = 330),
        card_footer(tags$small(class = "text-muted", txt("cap_spag")))),
   layout_columns(
+    col_widths = breakpoints(sm = 12, lg = c(6, 6, 12), xl = c(4, 4, 4)),
     card(card_header(txt("h_q1")),
          sliderInput("q1_x", txt("q_within"), min = 0.5, max = 5, value = 3, step = 0.5),
          uiOutput("a_q1")),
@@ -217,8 +219,11 @@ ui <- page_sidebar(
   window_title = "BJM Digital Twin",
   fillable = FALSE,  # let the page scroll instead of squashing the plots
   theme = bs_theme(version = 5, bootswatch = "flatly"),
+  # bslib keeps the main area at least 576px wide while the sidebar is open,
+  # which overflows a narrow window or the iframe on the pkgdown site
+  tags$head(tags$style(".bslib-sidebar-layout { --bslib-page-main-min-width: 0px; }")),
   sidebar = sidebar(
-    width = 320,
+    width = 280,
     radioButtons("lang", "Language / 语言",
                  setNames(c("en", "zh"), c("English", "中文")),
                  selected = "en", inline = TRUE),
