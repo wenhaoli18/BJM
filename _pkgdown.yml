@@ -61,6 +61,40 @@ reference:
   contents:
   - pbc3
 
+articles:
+- title: Basics
+  desc: Fit the two sub-models, predict, plot, and write the longitudinal formulas.
+  contents:
+  - BJM-intro
+  - articles/plotting
+  - nonlinear-terms
+
+- title: Extensions
+  desc: Uses of the backward joint model beyond a single, exactly observed event.
+  contents:
+  - articles/interval-censoring
+  - articles/recurrent-events
+  - articles/digital-twins
+
 navbar:
   structure:
-    left: [intro, articles, reference, news]
+    left: [intro, articles, extensions, reference, news]
+  components:
+    articles:
+      text: Articles
+      menu:
+      - text: Getting started with BJM
+        href: articles/BJM-intro.html
+      - text: Plotting with BJM
+        href: articles/plotting.html
+      - text: Nonlinear terms in longitudinal formulas
+        href: articles/nonlinear-terms.html
+    extensions:
+      text: Extensions
+      menu:
+      - text: Interval-censored events
+        href: articles/interval-censoring.html
+      - text: Recurrent events
+        href: articles/recurrent-events.html
+      - text: Digital twins
+        href: articles/digital-twins.html
