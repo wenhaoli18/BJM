@@ -320,10 +320,23 @@ ggplot(dist, aes(n, p)) +
 * **`max_stages`.** Paths are stopped after this many episodes; the function
   warns, and sets `count$capped`, when that happens. Raise it for long
   windows or high-risk patients.
-* **Covariates that change by episode.** The episode number is advanced for
-  you. If your survival model uses other episode-specific covariates, such
-  as the length of the previous gap, pass `next_covariates = function(row, k)`
-  to update them.
+* **Covariates that change over time.** Record each one, on each row of
+  `events`, as its value at the *start* of that row's episode (age at the
+  discharge, the number of earlier admissions), not at the readmission or
+  death: a value measured at the event depends on how long the episode
+  lasted and biases the survival sub-model. Biomarkers that change within an
+  episode belong in `labs`.
+* **Covariates that change by episode in the count prediction.** The episode
+  number is advanced for you. If your survival model uses other
+  episode-specific covariates, such as the length of the previous gap, pass
+  `next_covariates = function(row, k)` to update them.
+* **Death, or the end of follow-up, during a stay.** Such a patient was not
+  back at risk, so `buildRecurrentEpisodes()` ends their episodes at that
+  readmission (with a message): record the stay's `discharge` as the time of
+  death or of the end of follow-up when they were never discharged. A death
+  in hospital is therefore not an out-of-hospital death, and
+  `predictRecurrentCount()`'s probability of death is that of dying after
+  discharge.
 * **The outcome columns must exist** in the prediction data. When it comes
   from `buildRecurrentEpisodes()` they do (as `NA`); if you build it by hand,
   add them.

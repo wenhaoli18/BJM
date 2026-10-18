@@ -311,6 +311,35 @@ test_that("a missing restart time on a recurrence is reported and taken as no st
   expect_no_warning(buildRecurrentEpisodes(events[-3, ], restart_variable = "discharge"))
 })
 
+test_that("a death or the end of follow-up during a stay ends the process at the readmission", {
+  labs <- data.frame(id = 1, day = c(5, 22))   # day 22 is inside the final stay
+  # readmitted day 20, died in hospital day 25 (discharge recorded as the death time)
+  died <- data.frame(id = 1, time = c(20, 25), status = c(1, 2), discharge = c(25, NA))
+  msgs <- capture_messages(out <- buildRecurrentEpisodes(died, labs, time_variable_long = "day",
+                                                         restart_variable = "discharge", lookback = Inf))
+  expect_match(msgs, "1 subject\\(s\\) died and 0 had their follow-up end during a hospital stay", all = FALSE)
+  expect_equal(out$episode_data$gap, 20)
+  expect_equal(out$episode_data$event_type, 0L)          # ends in the readmission, not in a death
+  expect_equal(out$long_data$day, 5)                      # the in-hospital lab has no episode
+  # still in hospital at the end of follow-up (or at a data cutoff): no open episode
+  ended <- data.frame(id = 1, time = c(20, 23), status = c(1, 0), discharge = c(26, NA))
+  expect_message(out <- buildRecurrentEpisodes(ended, restart_variable = "discharge"),
+                 "0 subject\\(s\\) died and 1 had their follow-up end")
+  expect_equal(nrow(out$episode_data), 1)
+  # a death after the discharge is an ordinary terminal event
+  after <- data.frame(id = 1, time = c(20, 40), status = c(1, 2), discharge = c(30, NA))
+  expect_no_message(out <- buildRecurrentEpisodes(after, restart_variable = "discharge"))
+  expect_equal(out$episode_data$gap, c(20, 10))
+  expect_equal(out$episode_data$event_type, c(0L, 1L))
+})
+
+test_that("a restart column with no value at all is accepted", {
+  events <- data.frame(id = 1, time = c(5, 9), status = c(1, 0), discharge = NA)
+  expect_true(is.logical(events$discharge))
+  expect_warning(out <- buildRecurrentEpisodes(events, restart_variable = "discharge"), "missing on 1")
+  expect_equal(out$episode_data$gap, c(5, 4))
+})
+
 test_that("lookback never reaches back past the previous event", {
   events <- data.frame(id = 1, time = c(20, 60), status = c(1, 0), discharge = c(26, NA))
   labs <- data.frame(id = 1, day = c(10, 21))   # day 10 is episode 1's own at-risk time
@@ -332,9 +361,11 @@ test_that("restart earlier than its own event, bad lookback, or a non-numeric re
   expect_error(
     buildRecurrentEpisodes(data.frame(id = 1, time = 5, status = 0, r = "a"), restart_variable = "r"),
     "must be a numeric column")
-  # next event before the restart (readmitted before being discharged)
+  # another readmission before the restart (readmitted before being discharged);
+  # a death or censoring there is a stay ending in hospital, tested separately
   expect_error(
-    buildRecurrentEpisodes(data.frame(id = c(1, 1), time = c(20, 24), status = c(1, 0), r = c(26, NA)),
+    buildRecurrentEpisodes(data.frame(id = c(1, 1, 1), time = c(20, 24, 30), status = c(1, 1, 0),
+                                      r = c(26, 31, NA)),
                            restart_variable = "r"),
     "must be strictly increasing")
 })
