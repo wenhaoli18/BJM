@@ -52,12 +52,14 @@ buildRecurrentEpisodes(
   censored/end of follow-up, `1` = recurrent event, `2` = terminal event
   – the same 0/1/2 convention
   [pbc3](https://wenhaoli18.github.io/BJM/reference/pbc3.md)'s `status5`
-  already uses). Any other columns (baseline or event-time-varying
-  covariates) are carried through to `episode_data`, taken from the same
-  row as the event they end. Subjects are matched across `data_events`
-  and `data_long` by the printed value of their id, so an id that is a
-  number in one table and a factor or character in the other still
-  matches; `id` keeps the type it has in `data_events`.
+  already uses). Any other columns are covariates, carried through to
+  `episode_data` from the row that ends each episode: so a covariate
+  that changes over time must hold, on each row, its value at the
+  *start* of the episode that row ends (see Details), not its value at
+  the event. Subjects are matched across `data_events` and `data_long`
+  by the printed value of their id, so an id that is a number in one
+  table and a factor or character in the other still matches; `id` keeps
+  the type it has in `data_events`.
 
 - data_long:
 
@@ -111,8 +113,10 @@ buildRecurrentEpisodes(
   earlier than the row's `time_variable`). The next episode starts there
   instead of at the event time. `NULL` (default) restarts at the event
   time itself. A missing value on a recurrence row that starts another
-  episode is taken as no stay, with a warning. Ignored on rows that end
-  the process. Not carried into `episode_data`.
+  episode is taken as no stay, with a warning; a column with no value at
+  all is allowed. A death or the end of follow-up at or before the
+  restart time happened during the stay: see Details. Ignored on rows
+  that end the process. Not carried into `episode_data`.
 
 - lookback:
 
@@ -254,6 +258,37 @@ episode, everything before time `0`). Negative times are fine for
 [`longitudinalSub()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md)
 and
 [`predictRisk()`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md).
+
+**Death, or the end of follow-up, during a hospital stay.** With
+`restart_variable`, a terminal event or censoring row whose time is at
+or before the restart time of the readmission before it happened while
+the patient was in hospital, not at risk. That readmission then ends the
+subject's process: no further episode is opened, the row is dropped with
+a message, and so a death in hospital is not counted as an
+out-of-hospital terminal event
+([`predictRecurrentCount()`](https://wenhaoli18.github.io/BJM/reference/predictRecurrentCount.md)'s
+`p_death` is the probability of dying after discharge). Record such a
+stay's restart time as the time of death or of the end of follow-up, or
+later, when the discharge never happened. A data cutoff during a stay
+gives no open episode to predict for.
+
+**Covariates that change over time.** Each episode's covariates come
+from the row of `data_events` that ends it, as in counting-process data,
+where each interval carries the covariate values in force during it. A
+covariate that changes over time must therefore be recorded on each row
+as its value at the start of that row's episode (age at the discharge
+that started it, the number of earlier admissions, the length of the
+previous stay), and the open episode's row in the same way. A value
+measured at the event itself – age at readmission, say – depends on how
+long the episode lasted, which is what the survival sub-model explains,
+and so biases it; a value measured at the time of the prediction is not
+what the model was fit with. Biomarkers that change within an episode
+belong in `data_long`. Covariates built from earlier episodes can also
+be added to `episode_data` afterwards, e.g. the length of the previous
+gap:
+
+    ed <- episodes$episode_data
+    ed$previous_gap <- ave(ed$gap, ed$id, FUN = function(g) c(0, g[-length(g)]))
 
 ## Examples
 

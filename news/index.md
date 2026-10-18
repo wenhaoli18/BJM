@@ -58,6 +58,11 @@
   reads as “still at risk”. Fit the biomarker model with its random
   effects grouped by `episode_id`, not by patient (see
   [`?buildRecurrentEpisodes`](https://wenhaoli18.github.io/BJM/reference/buildRecurrentEpisodes.md)).
+  A death, or the end of follow-up, during a hospital stay ends the
+  subject’s episodes at the readmission (a death in hospital is not an
+  out-of-hospital terminal event). Covariates that change over time are
+  recorded on each row at the start of that row’s episode, not at the
+  event.
 
   This extension is unpublished and has been checked only in simulation
   studies, kept outside the package, not on real data. When the data are

@@ -132,7 +132,9 @@ An object of class `"predictRecurrentCount.BJM"`, a list with
 
   One row per patient: `mean_count` (expected number of recurrences in
   the window), `p_count_0`, `p_count_1`, `p_count_2`, `p_count_3plus`,
-  `p_ge1`, `p_ge2`, and `p_death` (probability of dying in the window).
+  `p_ge1`, `p_ge2`, and `p_death` (probability of dying in the window,
+  outside hospital: a death during a stay is not part of the model, see
+  [`buildRecurrentEpisodes`](https://wenhaoli18.github.io/BJM/reference/buildRecurrentEpisodes.md)).
 
 - counts:
 

@@ -184,7 +184,9 @@ left unchanged.</p></dd>
 <dd><p>One row per patient: <code>mean_count</code> (expected number
 of recurrences in the window), <code>p_count_0</code>, <code>p_count_1</code>,
 <code>p_count_2</code>, <code>p_count_3plus</code>, <code>p_ge1</code>, <code>p_ge2</code>, and
-<code>p_death</code> (probability of dying in the window).</p></dd>
+<code>p_death</code> (probability of dying in the window, outside hospital:
+a death during a stay is not part of the model, see
+<code><a href="buildRecurrentEpisodes.html">buildRecurrentEpisodes</a></code>).</p></dd>
 
 <dt>counts</dt>
 <dd><p>The raw draws: a patients x <code>n_sim</code> matrix of

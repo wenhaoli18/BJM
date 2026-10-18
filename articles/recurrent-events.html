@@ -398,11 +398,28 @@ this many episodes; the function warns, and sets
 <code>count$capped</code>, when that happens. Raise it for long windows
 or high-risk patients.</li>
 <li>
-<strong>Covariates that change by episode.</strong> The episode
-number is advanced for you. If your survival model uses other
-episode-specific covariates, such as the length of the previous gap,
-pass <code>next_covariates = function(row, k)</code> to update
-them.</li>
+<strong>Covariates that change over time.</strong> Record each one,
+on each row of <code>events</code>, as its value at the <em>start</em>
+of that row’s episode (age at the discharge, the number of earlier
+admissions), not at the readmission or death: a value measured at the
+event depends on how long the episode lasted and biases the survival
+sub-model. Biomarkers that change within an episode belong in
+<code>labs</code>.</li>
+<li>
+<strong>Covariates that change by episode in the count
+prediction.</strong> The episode number is advanced for you. If your
+survival model uses other episode-specific covariates, such as the
+length of the previous gap, pass
+<code>next_covariates = function(row, k)</code> to update them.</li>
+<li>
+<strong>Death, or the end of follow-up, during a stay.</strong> Such
+a patient was not back at risk, so <code><a href="../reference/buildRecurrentEpisodes.html">buildRecurrentEpisodes()</a></code>
+ends their episodes at that readmission (with a message): record the
+stay’s <code>discharge</code> as the time of death or of the end of
+follow-up when they were never discharged. A death in hospital is
+therefore not an out-of-hospital death, and
+<code><a href="../reference/predictRecurrentCount.html">predictRecurrentCount()</a></code>’s probability of death is that of
+dying after discharge.</li>
 <li>
 <strong>The outcome columns must exist</strong> in the prediction
 data. When it comes from <code><a href="../reference/buildRecurrentEpisodes.html">buildRecurrentEpisodes()</a></code> they do
