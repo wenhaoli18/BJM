@@ -331,7 +331,7 @@ trial_panel <- nav_panel(
     value_box(txt("vb_n1"), uiOutput("vb_n1"), theme = "primary"),
     value_box(txt("vb_saved"), uiOutput("vb_saved"), theme = "success")),
   layout_columns(
-    col_widths = c(4, 8),
+    col_widths = breakpoints(sm = 12, xl = c(4, 8)),  # stacked unless wide
     card(card_header(txt("h_design")),
          radioButtons("ep", txt("endpoint"), endpoint_choices("en")),
          conditionalPanel("input.ep == 'bio'",
@@ -347,10 +347,12 @@ trial_panel <- nav_panel(
          layout_columns(
            selectInput("alpha", txt("alpha"), c(0.05, 0.025, 0.01)),
            selectInput("power", txt("power"), c("80%" = 0.8, "90%" = 0.9)))),
-    card(card_header(txt("h_trial_tab")), uiOutput("trial_table"),
+    card(card_header(txt("h_trial_tab")),
+         tags$div(class = "table-responsive", uiOutput("trial_table")),
          card_footer(tags$small(class = "text-muted", uiOutput("trial_note"))))
   ),
   layout_columns(
+    col_widths = breakpoints(sm = 12, xl = c(6, 6)),  # stacked unless wide
     card(card_header(txt("h_scatter")), plotOutput("trial_scatter", height = 330),
          card_footer(tags$small(class = "text-muted", txt("cap_scatter")))),
     card(card_header(txt("h_ncurve")), plotOutput("trial_ncurve", height = 330),
