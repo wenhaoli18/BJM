@@ -108,15 +108,46 @@
 #' \code{0}). Negative times are fine for \code{longitudinalSub()} and
 #' \code{predictRisk()}.
 #'
+#' \strong{Death, or the end of follow-up, during a hospital stay.} With
+#' \code{restart_variable}, a terminal event or censoring row whose time is at
+#' or before the restart time of the readmission before it happened while the
+#' patient was in hospital, not at risk. That readmission then ends the
+#' subject's process: no further episode is opened, the row is dropped with a
+#' message, and so a death in hospital is not counted as an out-of-hospital
+#' terminal event (\code{predictRecurrentCount()}'s \code{p_death} is the
+#' probability of dying after discharge). Record such a stay's restart time
+#' as the time of death or of the end of follow-up, or later, when the
+#' discharge never happened. A data cutoff during a stay gives no open
+#' episode to predict for.
+#'
+#' \strong{Covariates that change over time.} Each episode's covariates come
+#' from the row of \code{data_events} that ends it, as in counting-process
+#' data, where each interval carries the covariate values in force during it.
+#' A covariate that changes over time must therefore be recorded on each row
+#' as its value at the start of that row's episode (age at the discharge
+#' that started it, the number of earlier admissions, the length of the
+#' previous stay), and the open episode's row in the same way. A value
+#' measured at the event itself -- age at readmission, say -- depends on how
+#' long the episode lasted, which is what the survival sub-model explains,
+#' and so biases it; a value measured at the time of the prediction is not
+#' what the model was fit with. Biomarkers that change within an episode
+#' belong in \code{data_long}. Covariates built from earlier episodes can
+#' also be added to \code{episode_data} afterwards, e.g. the length of the
+#' previous gap:
+#' \preformatted{ed <- episodes$episode_data
+#' ed$previous_gap <- ave(ed$gap, ed$id, FUN = function(g) c(0, g[-length(g)]))}
+#'
 #' @param data_events One row per subject per event-or-censoring occurrence,
 #'   in calendar time (i.e. not yet re-clocked to gap time -- this function
 #'   does that). Must contain \code{id_variable}, \code{time_variable}
 #'   (numeric, strictly increasing within each subject), and
 #'   \code{status_variable} (\code{0} = censored/end of follow-up, \code{1} =
 #'   recurrent event, \code{2} = terminal event -- the same 0/1/2 convention
-#'   \link{pbc3}'s \code{status5} already uses). Any other columns
-#'   (baseline or event-time-varying covariates) are carried through to
-#'   \code{episode_data}, taken from the same row as the event they end.
+#'   \link{pbc3}'s \code{status5} already uses). Any other columns are
+#'   covariates, carried through to \code{episode_data} from the row that
+#'   ends each episode: so a covariate that changes over time must hold, on
+#'   each row, its value at the \emph{start} of the episode that row ends
+#'   (see Details), not its value at the event.
 #' Subjects are matched across \code{data_events} and \code{data_long} by the
 #' printed value of their id, so an id that is a number in one table and a
 #' factor or character in the other still matches; \code{id} keeps the type
@@ -162,7 +193,9 @@
 #'   next episode starts there instead of at the event time. \code{NULL}
 #'   (default) restarts at the event time itself. A missing value on a
 #'   recurrence row that starts another episode is taken as no stay, with a
-#'   warning. Ignored on rows that end the process. Not carried into
+#'   warning; a column with no value at all is allowed. A death or the end of
+#'   follow-up at or before the restart time happened during the stay: see
+#'   Details. Ignored on rows that end the process. Not carried into
 #'   \code{episode_data}.
 #' @param lookback A single non-negative number (\code{Inf} allowed): how far
 #'   before an episode's start its measurements are still kept, as negative
@@ -323,6 +356,10 @@ buildRecurrentEpisodes <- function(data_events,
   if (!is.null(restart_variable)) {
     assert_string(restart_variable, "restart_variable")
     assert_vars_in_data(restart_variable, data_events, "restart_variable", "data_events")
+    ### a column with no restart time at all is logical NA in R
+    if (is.logical(data_events[[restart_variable]]) && all(is.na(data_events[[restart_variable]]))) {
+      data_events[[restart_variable]] <- as.numeric(data_events[[restart_variable]])
+    }
     if (!is.numeric(data_events[[restart_variable]])) {
       stop(sprintf("`%s` must be a numeric column.", restart_variable), call. = FALSE)
     }
@@ -365,11 +402,21 @@ buildRecurrentEpisodes <- function(data_events,
   pieces <- vector("list", length(rows_by_id))
   n_ignored <- 0L
   missing_restart <- character(0)
+  died_in_stay <- ended_in_stay <- character(0)
   for (g in seq_along(rows_by_id)) {
     idx <- rows_by_id[[g]]
     st <- status_all[idx]; tt <- time_all[idx]; rs <- restart_all[idx]
     n_ep <- if (any(st != 1)) which(st != 1)[1] else length(idx)
     n_ignored <- n_ignored + (length(idx) - n_ep)
+    ### a death, or the end of follow-up, during the stay a readmission
+    ### began (at or before its restart time): the patient was never back at
+    ### risk, so the process ends at that readmission (reported below)
+    if (!is.null(restart_variable) && n_ep > 1 && st[n_ep] != 1 &&
+        !is.na(rs[n_ep - 1]) && tt[n_ep] <= rs[n_ep - 1]) {
+      if (st[n_ep] == 2) died_in_stay <- c(died_in_stay, id_key[idx[1]]) else
+        ended_in_stay <- c(ended_in_stay, id_key[idx[1]])
+      n_ep <- n_ep - 1
+    }
     keep <- seq_len(n_ep)
     t_end <- tt[keep]
     is_rec <- st[keep] == 1
@@ -401,9 +448,18 @@ buildRecurrentEpisodes <- function(data_events,
     warning(sprintf(paste0(
       "`%s` is missing on %d recurrence row(s) followed by another episode (id %s). The next episode ",
       "then starts at the event time itself, so the time until the missing restart counts as time at ",
-      "risk. Fill it in, or set it to the event time for a recurrence without a stay."),
+      "risk. Fill it in, or set it to the event time for a recurrence without a stay; for a death, or ",
+      "the end of follow-up, during the stay, set it to that time or later."),
       restart_variable, length(missing_restart),
       paste(first_n(unique(missing_restart), 5), collapse = ", ")), call. = FALSE)
+  }
+  if (length(died_in_stay) + length(ended_in_stay) > 0) {
+    message(sprintf(paste0(
+      "buildRecurrentEpisodes(): %d subject(s) died and %d had their follow-up end during a hospital ",
+      "stay (at or before the `%s` of their last readmission). They were not back at risk, so their ",
+      "episodes end at that readmission: there is no open episode for them, and a death in hospital ",
+      "is not an out-of-hospital terminal event."),
+      length(died_in_stay), length(ended_in_stay), restart_variable))
   }
   if (n_ignored > 0) {
     message(sprintf(

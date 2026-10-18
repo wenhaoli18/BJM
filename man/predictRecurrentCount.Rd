@@ -86,7 +86,9 @@ An object of class \code{"predictRecurrentCount.BJM"}, a list with
 \item{summary}{One row per patient: \code{mean_count} (expected number
 of recurrences in the window), \code{p_count_0}, \code{p_count_1},
 \code{p_count_2}, \code{p_count_3plus}, \code{p_ge1}, \code{p_ge2}, and
-\code{p_death} (probability of dying in the window).}
+\code{p_death} (probability of dying in the window, outside hospital:
+a death during a stay is not part of the model, see
+\code{\link{buildRecurrentEpisodes}}).}
 \item{counts}{The raw draws: a patients x \code{n_sim} matrix of
 recurrence counts.}
 \item{died}{A patients x \code{n_sim} logical matrix: died in the window.}
