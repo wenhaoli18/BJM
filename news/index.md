@@ -484,6 +484,26 @@
 
 ### Bug fixes
 
+- [`print()`](https://rdrr.io/r/base/print.html) of a
+  [`survivalSub()`](https://wenhaoli18.github.io/BJM/reference/survivalSub.md)
+  fit with competing risks counted the event type coded 1 as “cause 1”,
+  the opposite of
+  [`predictRisk()`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md),
+  whose `risk_prob_1` (“Cause 1 Risk”) is the type coded 0. Cause 1 is
+  now the type coded 0 (the first level of a factor) everywhere, and the
+  printed counts name the variable and value (e.g. `status4 = 0`).
+
+- [`print()`](https://rdrr.io/r/base/print.html) of a
+  [`predictLongitudinal()`](https://wenhaoli18.github.io/BJM/reference/predictLongitudinal.md)
+  result for an ordinal biomarker shows the predicted probability of
+  each category and the most likely one. It used to show a mean, SD and
+  interval of the category codes, which mean nothing for categories.
+
+- [`print()`](https://rdrr.io/r/base/print.html) of a
+  [`predictLongitudinal()`](https://wenhaoli18.github.io/BJM/reference/predictLongitudinal.md)
+  result for several biomarkers prints each one under its name. It used
+  to print the raw list, with its internal attributes.
+
 - [`simulateTrajectory()`](https://wenhaoli18.github.io/BJM/reference/simulateTrajectory.md)
   works when `data_predict_all` is a list of data frames with different
   columns (one per biomarker). It used to build every biomarker’s

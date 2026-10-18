@@ -33,6 +33,7 @@
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><a class="dropdown-item" href="../articles/BJM-intro.html">Getting started with BJM</a></li>
+    <li><a class="dropdown-item" href="../articles/competing-risks.html">Competing risks</a></li>
     <li><a class="dropdown-item" href="../articles/plotting.html">Plotting with BJM</a></li>
     <li><a class="dropdown-item" href="../articles/nonlinear-terms.html">Nonlinear terms in longitudinal formulas</a></li>
   </ul>
@@ -40,7 +41,8 @@
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-extensions" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Extensions</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-extensions">
-<li><a class="dropdown-item" href="../articles/interval-censoring.html">Interval-censored events</a></li>
+<li><a class="dropdown-item" href="../articles/categorical-biomarkers.html">Categorical biomarkers</a></li>
+    <li><a class="dropdown-item" href="../articles/interval-censoring.html">Interval-censored events</a></li>
     <li><a class="dropdown-item" href="../articles/recurrent-events.html">Recurrent events</a></li>
     <li><a class="dropdown-item" href="../articles/digital-twins.html">Digital twins</a></li>
   </ul>
@@ -144,8 +146,8 @@ causes among patients who had <em>some</em> event).</p>
 <span><span class="co">#&gt; Data Descriptives:</span></span>
 <span><span class="co">#&gt;   Number of subjects        : 312</span></span>
 <span><span class="co">#&gt;   Number of events          : 169</span></span>
-<span><span class="co">#&gt;   Cause-1 events (CR model) : 29</span></span>
-<span><span class="co">#&gt;   Cause-2 events (CR model) : 140</span></span>
+<span><span class="co">#&gt;   Cause-1 events (status4 = 0) : 140</span></span>
+<span><span class="co">#&gt;   Cause-2 events (status4 = 1) : 29</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; =================================================================</span></span>
 <span><span class="co">#&gt;  Marginal Survival Sub-model  [Cox PH]</span></span>
@@ -533,11 +535,11 @@ itself, from <code>prediction_time</code> to
 risk probability.</li>
 <li>
 <strong><code>bandcount2</code></strong> is the number of grid
-points spanning <code>[prediction_time, upper_bound]</code>, where
-<code>upper_bound</code> is set internally to twice the longest observed
-survival/censoring time among at-risk patients. This approximates
-“integrating out to infinity” for the denominator that normalizes the
-risk probability. A wider follow-up range needs a larger
+points spanning the time after the prediction window, up to an
+<code>upper_bound</code> set internally to where every at-risk patient’s
+model-based probability of still being event-free has become negligible.
+This approximates “integrating out to infinity” for the denominator that
+normalizes the risk probability. A wider follow-up range needs a larger
 <code>bandcount2</code> to keep the grid spacing comparable.</li>
 <li>
 <strong><code>bandcount3</code></strong>
@@ -618,6 +620,10 @@ example, passing a single <code>data.frame</code> instead of a list to
 <h2 id="where-to-go-next">Where to go next<a class="anchor" aria-label="anchor" href="#where-to-go-next"></a>
 </h2>
 <ul>
+<li>The articles on the <a href="https://wenhaoli18.github.io/BJM/">package website</a> cover
+competing risks, plotting, categorical (ordinal or binary) biomarkers,
+interval-censored and recurrent events, and simulated futures in more
+depth.</li>
 <li>
 <code><a href="../reference/predictPlot.html">?predictPlot</a></code> and <code><a href="../reference/riskPlot.html">?riskPlot</a></code> visualize the
 outputs of <code><a href="../reference/predictLongitudinal.html">predictLongitudinal()</a></code>/<code><a href="../reference/predictRisk.html">predictRisk()</a></code>

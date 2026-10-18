@@ -18,12 +18,14 @@
       <ul class="navbar-nav me-auto"><li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/BJM-intro.html">Getting started with BJM</a></li>
+    <li><a class="dropdown-item" href="../articles/competing-risks.html">Competing risks</a></li>
     <li><a class="dropdown-item" href="../articles/plotting.html">Plotting with BJM</a></li>
     <li><a class="dropdown-item" href="../articles/nonlinear-terms.html">Nonlinear terms in longitudinal formulas</a></li>
   </ul></li>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-extensions" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Extensions</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-extensions"><li><a class="dropdown-item" href="../articles/interval-censoring.html">Interval-censored events</a></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-extensions"><li><a class="dropdown-item" href="../articles/categorical-biomarkers.html">Categorical biomarkers</a></li>
+    <li><a class="dropdown-item" href="../articles/interval-censoring.html">Interval-censored events</a></li>
     <li><a class="dropdown-item" href="../articles/recurrent-events.html">Recurrent events</a></li>
     <li><a class="dropdown-item" href="../articles/digital-twins.html">Digital twins</a></li>
   </ul></li>
@@ -89,7 +91,10 @@
 </ul></div>
 <div class="section level3">
 <h3 id="bug-fixes-0-3-0">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-0-3-0"></a></h3>
-<ul><li><p><code><a href="../reference/simulateTrajectory.html">simulateTrajectory()</a></code> works when <code>data_predict_all</code> is a list of data frames with different columns (one per biomarker). It used to build every biomarker’s simulated rows from the first data frame, and failed when a biomarker’s response column was only in its own.</p></li>
+<ul><li><p><code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code> of a <code><a href="../reference/survivalSub.html">survivalSub()</a></code> fit with competing risks counted the event type coded 1 as “cause 1”, the opposite of <code><a href="../reference/predictRisk.html">predictRisk()</a></code>, whose <code>risk_prob_1</code> (“Cause 1 Risk”) is the type coded 0. Cause 1 is now the type coded 0 (the first level of a factor) everywhere, and the printed counts name the variable and value (e.g. <code>status4 = 0</code>).</p></li>
+<li><p><code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code> of a <code><a href="../reference/predictLongitudinal.html">predictLongitudinal()</a></code> result for an ordinal biomarker shows the predicted probability of each category and the most likely one. It used to show a mean, SD and interval of the category codes, which mean nothing for categories.</p></li>
+<li><p><code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code> of a <code><a href="../reference/predictLongitudinal.html">predictLongitudinal()</a></code> result for several biomarkers prints each one under its name. It used to print the raw list, with its internal attributes.</p></li>
+<li><p><code><a href="../reference/simulateTrajectory.html">simulateTrajectory()</a></code> works when <code>data_predict_all</code> is a list of data frames with different columns (one per biomarker). It used to build every biomarker’s simulated rows from the first data frame, and failed when a biomarker’s response column was only in its own.</p></li>
 <li><p><code><a href="../reference/predictRisk.html">predictRisk()</a></code> predicts a patient without any biomarker measurement up to <code>prediction_time</code> (biomarker values all <code>NA</code>, or a <code>prediction_time</code> before the first visit) from the survival sub-model alone, given the covariates in the patient’s earliest row: with no longitudinal history the backward joint model reduces to it. A warning names these patients, and the other patients’ predictions are unchanged. Such a patient used to be left out with a warning, or, alone, give an error.</p></li>
 <li><p><code><a href="../reference/predictLongitudinal.html">predictLongitudinal()</a></code> and <code><a href="../reference/simulateTrajectory.html">simulateTrajectory()</a></code> stop with a clear error when <code>data_predict_all</code> has no row at or before <code>prediction_time</code>, and <code><a href="../reference/predictRisk.html">predictRisk()</a></code> when it has no row at all. They used to fail later with “replacement has 1 row, data has 0”.</p></li>
 <li><p><code><a href="../reference/predictRisk.html">predictRisk()</a></code>, <code><a href="../reference/predictLongitudinal.html">predictLongitudinal()</a></code> and <code><a href="../reference/simulateTrajectory.html">simulateTrajectory()</a></code> check <code>survival_trans_function</code> against the transformed event-time columns the longitudinal sub-model was fit on, and stop on a mismatch, naming the column and the function it matches instead (e.g. two functions in the wrong order). Such a mismatch used to give different predictions silently (a risk of 0.37 instead of 0.21 in a <code>pbc3</code> example).</p></li>

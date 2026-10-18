@@ -48,14 +48,14 @@ survival_fit_all   # triggers print.survivalSub.BJM automatically
 #> Data Descriptives:
 #>   Number of subjects        : 312
 #>   Number of events          : 169
-#>   Cause-1 events (CR model) : 29
-#>   Cause-2 events (CR model) : 140
+#>   Cause-1 events (status4 = 0) : 140
+#>   Cause-2 events (status4 = 1) : 29
 #> 
 #> =================================================================
 #>  Marginal Survival Sub-model  [Cox PH]
 #> -----------------------------------------------------------------
 #>  Formula: Surv(years, status3) ~ age + sex
-#> <environment: 0x562e3146d390>
+#> <environment: 0x558867bf66b0>
 #> 
 #>          Coef exp(Coef)        SE      z p-value   
 #> age  0.020411  1.020621  0.007584  2.691 0.00712 **
@@ -73,7 +73,7 @@ survival_fit_all   # triggers print.survivalSub.BJM automatically
 #>  Conditional Competing-Risks Sub-model  [Logistic GLM]
 #> -----------------------------------------------------------------
 #>  Formula: status4 ~ years + age + sex
-#> <environment: 0x562e3146d390>
+#> <environment: 0x558867bf66b0>
 #> 
 #>                 Coef       SE      z  p-value    
 #> (Intercept)  5.65622  1.70478  3.318 0.000907 ***

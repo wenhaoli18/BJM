@@ -71,8 +71,8 @@ survival_fit_all
 #> Data Descriptives:
 #>   Number of subjects        : 312
 #>   Number of events          : 169
-#>   Cause-1 events (CR model) : 29
-#>   Cause-2 events (CR model) : 140
+#>   Cause-1 events (status4 = 0) : 140
+#>   Cause-2 events (status4 = 1) : 29
 #> 
 #> =================================================================
 #>  Marginal Survival Sub-model  [Cox PH]
@@ -494,13 +494,13 @@ those grids are:
   only) is the number of grid points spanning the prediction window
   itself, from `prediction_time` to `prediction_time + horizon`. This is
   the numerator of the risk probability.
-- **`bandcount2`** is the number of grid points spanning
-  `[prediction_time, upper_bound]`, where `upper_bound` is set
-  internally to twice the longest observed survival/censoring time among
-  at-risk patients. This approximates “integrating out to infinity” for
-  the denominator that normalizes the risk probability. A wider
-  follow-up range needs a larger `bandcount2` to keep the grid spacing
-  comparable.
+- **`bandcount2`** is the number of grid points spanning the time after
+  the prediction window, up to an `upper_bound` set internally to where
+  every at-risk patient’s model-based probability of still being
+  event-free has become negligible. This approximates “integrating out
+  to infinity” for the denominator that normalizes the risk probability.
+  A wider follow-up range needs a larger `bandcount2` to keep the grid
+  spacing comparable.
 - **`bandcount3`**
   ([`predictLongitudinal()`](https://wenhaoli18.github.io/BJM/reference/predictLongitudinal.md)
   only) is the number of points in the candidate-biomarker-value grid
@@ -589,6 +589,11 @@ longitudinalSub(pbc3, serBilir ~ year + not_a_column, ~ year | id)
 
 ## Where to go next
 
+- The articles on the [package
+  website](https://wenhaoli18.github.io/BJM/) cover competing risks,
+  plotting, categorical (ordinal or binary) biomarkers,
+  interval-censored and recurrent events, and simulated futures in more
+  depth.
 - [`?predictPlot`](https://wenhaoli18.github.io/BJM/reference/predictPlot.md)
   and
   [`?riskPlot`](https://wenhaoli18.github.io/BJM/reference/riskPlot.md)
