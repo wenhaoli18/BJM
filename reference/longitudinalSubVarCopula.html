@@ -16,7 +16,12 @@ convergence check;
 otherwise copula_D_saem(), a stochastic-approximation EM
 (SAEM) that draws the latent scores, whose cost does not grow with that
 dimension.
-Both target the same maximum-likelihood estimate. The earlier version
+Both target the same maximum-likelihood estimate, but with the default
+number of iterations SAEM stopped short of it: for two ordinal biomarkers
+with a random intercept and slope each (four ordinal random effects), the
+random-effects variances were off by about 5\
+quadrature (\(5^4 = 625\) nodes per subject) removes; hence the default
+max_quadrature_dim = 4. The earlier version
 plugged in the mean of each latent score given its category, which ignored
 the score's own variance and underestimated the ordinal biomarkers'
 random-effects variances (by about 40\
@@ -37,7 +42,12 @@ convergence check;
 otherwise copula_D_saem(), a stochastic-approximation EM
 (SAEM) that draws the latent scores, whose cost does not grow with that
 dimension.
-Both target the same maximum-likelihood estimate. The earlier version
+Both target the same maximum-likelihood estimate, but with the default
+number of iterations SAEM stopped short of it: for two ordinal biomarkers
+with a random intercept and slope each (four ordinal random effects), the
+random-effects variances were off by about 5\
+quadrature (\(5^4 = 625\) nodes per subject) removes; hence the default
+max_quadrature_dim = 4. The earlier version
 plugged in the mean of each latent score given its category, which ignored
 the score's own variance and underestimated the ordinal biomarkers'
 random-effects variances (by about 40\
@@ -101,7 +111,12 @@ convergence check;</p></li>
 <li><p>otherwise <code><a href="copula_D_saem.html">copula_D_saem()</a></code>, a stochastic-approximation EM
 (SAEM) that draws the latent scores, whose cost does not grow with that
 dimension.</p></li>
-</ul><p>Both target the same maximum-likelihood estimate. The earlier version
+</ul><p>Both target the same maximum-likelihood estimate, but with the default
+number of iterations SAEM stopped short of it: for two ordinal biomarkers
+with a random intercept and slope each (four ordinal random effects), the
+random-effects variances were off by about 5\<!-- % in simulations, which -->
+quadrature (\(5^4 = 625\) nodes per subject) removes; hence the default
+<code>max_quadrature_dim = 4</code>. The earlier version
 plugged in the mean of each latent score given its category, which ignored
 the score's own variance and underestimated the ordinal biomarkers'
 random-effects variances (by about 40\<!-- % for a random intercept and 75\\% -->
@@ -117,7 +132,7 @@ for a random slope in simulations).</p>
 <span>  <span class="va">thresholds</span>,</span>
 <span>  tol.em <span class="op">=</span> <span class="fl">1e-04</span>,</span>
 <span>  max.iter <span class="op">=</span> <span class="fl">500</span>,</span>
-<span>  max_quadrature_dim <span class="op">=</span> <span class="fl">3</span>,</span>
+<span>  max_quadrature_dim <span class="op">=</span> <span class="fl">4</span>,</span>
 <span>  verbose <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>

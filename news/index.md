@@ -657,16 +657,20 @@
   draw on. The EM now integrates over the ordinal biomarkers’ random
   effects by adaptive Gauss-Hermite quadrature (the continuous
   biomarkers’ random effects are integrated out exactly), accelerated by
-  SQUAREM; it is deterministic and about as fast as before. With more
-  than three ordinal random effects in all it uses a
-  stochastic-approximation EM (SAEM) instead, with a fixed internal seed
-  so that fits are reproducible (the caller’s random number state is
-  restored). Its convergence check no longer depends on the biomarkers’
-  units: the earlier one compared absolute changes in `Sigma_fit`, which
-  a biomarker with variances in the thousands never got below, so the EM
-  ran to its iteration limit. `Sigma_fit`, and the predictions from fits
-  with an ordinal biomarker, change accordingly; fits with continuous
-  biomarkers only are unchanged.
+  SQUAREM; it is deterministic and about as fast as before. Up to four
+  ordinal random effects in all (e.g. two ordinal biomarkers with a
+  random intercept and slope each) use quadrature; beyond that a
+  stochastic-approximation EM (SAEM) is used instead, with a fixed
+  internal seed so that fits are reproducible (the caller’s random
+  number state is restored). With the default number of iterations SAEM
+  left the random-effects variances off by about 5% in simulations of
+  four ordinal random effects, which quadrature removes. Its convergence
+  check no longer depends on the biomarkers’ units: the earlier one
+  compared absolute changes in `Sigma_fit`, which a biomarker with
+  variances in the thousands never got below, so the EM ran to its
+  iteration limit. `Sigma_fit`, and the predictions from fits with an
+  ordinal biomarker, change accordingly; fits with continuous biomarkers
+  only are unchanged.
 
 - [`longitudinalSub()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md)
   numbers an ordinal biomarker’s categories by the categories
