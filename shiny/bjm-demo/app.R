@@ -164,7 +164,7 @@ ui <- page_sidebar(
     value_box(txt("n_visits"), textOutput("n_visits"), theme = "primary")
   ),
   layout_columns(
-    col_widths = breakpoints(sm = 12, lg = c(5, 7)),  # stacked when narrow
+    col_widths = breakpoints(sm = 12, xl = c(5, 7)),  # stacked unless wide
     card(card_header(txt("h_risk")), plotOutput("risk_plot", height = 300)),
     card(card_header(txt("h_pred")), uiOutput("pred_table"))
   ),

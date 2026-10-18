@@ -17,7 +17,7 @@ prediction time and a window and press **Predict**. The interface is
 available in English and Chinese.
 
 <iframe src="https://wenhaoli18.shinyapps.io/bjm-demo/"
-        style="width: 100%; height: 1150px; border: 1px solid #dee2e6; border-radius: 6px;"
+        style="width: 100%; height: 1650px; border: 1px solid #dee2e6; border-radius: 6px;"
         title="BJM interactive demo" loading="lazy"></iframe>
 
 If the frame does not load, [open the demo in a new tab](https://wenhaoli18.shinyapps.io/bjm-demo/).
