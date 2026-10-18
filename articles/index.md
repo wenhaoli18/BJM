@@ -27,3 +27,10 @@ and simulated digital twins.
   events](https://wenhaoli18.github.io/BJM/articles/recurrent-events.md):
 - [Digital
   twins](https://wenhaoli18.github.io/BJM/articles/digital-twins.md):
+
+### Interactive demo
+
+Try dynamic prediction in the browser, without installing R.
+
+- [Interactive
+  demo](https://wenhaoli18.github.io/BJM/articles/demo-app.md):
