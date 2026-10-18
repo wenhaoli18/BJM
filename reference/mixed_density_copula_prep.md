@@ -59,6 +59,7 @@ mixed_density_copula_prep(
 ## Value
 
 A function `(mu_full, y_all_vec, alpha_lower_vec, alpha_upper_vec)`
-returning the log densities. `mu_full` is a vector or a matrix with one
-column per evaluation; the other three may be vectors (the same for
-every column) or matrices of the same shape.
+returning the log densities, with attribute `"monte_carlo"`: whether
+`pmvnorm()` is used. `mu_full` is a vector or a matrix with one column
+per evaluation; the other three may be vectors (the same for every
+column) or matrices of the same shape.

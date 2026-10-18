@@ -150,7 +150,8 @@ of the continuous- and ordinal-marker rows respectively.</p></dd>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A function <code>(mu_full, y_all_vec, alpha_lower_vec,
-  alpha_upper_vec)</code> returning the log densities. <code>mu_full</code> is a
+  alpha_upper_vec)</code> returning the log densities, with attribute
+<code>"monte_carlo"</code>: whether <code>pmvnorm()</code> is used. <code>mu_full</code> is a
 vector or a matrix with one column per evaluation; the other three may
 be vectors (the same for every column) or matrices of the same shape.</p>
     </div>
