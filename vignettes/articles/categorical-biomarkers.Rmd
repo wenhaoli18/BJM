@@ -271,9 +271,12 @@ plot(sims)
   [Nonlinear terms](nonlinear-terms.html) article).
 * **Two or more ordinal random effects.** The probability of a patient's
   observed categories is then computed by Monte Carlo
-  (`mvtnorm::pmvnorm()`) instead of numerical integration: predictions vary
-  in about the fourth significant digit between runs (call `set.seed()`
-  first to reproduce them exactly), and are several times slower.
+  (`mvtnorm::pmvnorm()`) instead of numerical integration, with an error in
+  about the fourth significant digit (each patient's draws use a fixed seed,
+  so the results are still the same on every run), and predictions are
+  several times slower. `n_cores` in `predictRisk()` and
+  `predictLongitudinal()` spreads the patients over several cores (on Linux
+  and macOS).
 * **Speed.** That probability is needed at every point of the integration
   grid, so a prediction with an ordinal biomarker takes longer than with
   continuous ones only. Predicting a continuous biomarker's future value in

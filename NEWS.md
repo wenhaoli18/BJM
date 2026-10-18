@@ -363,6 +363,16 @@
   With two or more ordinal random effects `pmvnorm()` is still used, and
   those results are unchanged: a quadrature grid accurate enough there was
   no faster.
+* `predictRisk()` and `predictLongitudinal()` gain `n_cores`: with an
+  ordinal biomarker, whose cost is per patient, the patients are spread over
+  that many cores (`parallel::mclapply()`, so on Linux and macOS). With
+  three ordinal random effects, a risk prediction for 245 `pbc3` patients
+  took 21 s on 6 cores instead of 100 s. Each patient's Monte Carlo draws
+  (used with two or more ordinal random effects) now use a fixed seed
+  derived from the patient's id, so the results are the same for any
+  `n_cores`, on every run and without `set.seed()`, and the caller's
+  random-number state is left unchanged; they differ from before only by
+  the Monte Carlo error.
 
 ## Bug fixes
 
