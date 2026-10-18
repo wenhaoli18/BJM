@@ -84,12 +84,17 @@
 
     
     
+<style>
+/* the embedded app needs the full width: hide "On this page" */
+aside.col-md-3 { display: none; }
+main.col-md-9 { flex: 0 0 100%; width: 100%; max-width: 100%; }
+</style>
 <p>This interactive demo builds a patient’s digital twin with
 <code><a href="../reference/simulateTrajectory.html">simulateTrajectory()</a></code>, as in <a href="digital-twins.html">Digital twins</a>, and runs in the browser
 with no R needed. Pick a patient from the <code>pbc3</code> data, or
 upload one patient’s follow-up visits as a CSV file. The interface is
 available in English and Chinese.</p>
-<iframe src="https://wenhaoli18.shinyapps.io/bjm-twin/" style="width: 100%; height: 1250px; border: 1px solid #dee2e6; border-radius: 6px;" title="BJM digital twin demo" loading="lazy">
+<iframe src="https://wenhaoli18.shinyapps.io/bjm-twin/" style="width: 100%; height: 1350px; border: 1px solid #dee2e6; border-radius: 6px;" title="BJM digital twin demo" loading="lazy">
 </iframe>
 <p>If the frame does not load, <a href="https://wenhaoli18.shinyapps.io/bjm-twin/" class="external-link">open the demo in a new
 tab</a>. On the free hosting plan the app goes to sleep when nobody is

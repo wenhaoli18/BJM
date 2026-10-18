@@ -8,8 +8,8 @@ runs in the browser with no R needed. Pick a patient from the `pbc3`
 data, or upload one patient’s follow-up visits as a CSV file. The
 interface is available in English and Chinese.
 
-- [](_w_86bfd91dbc0544739987d0afbde5336f/#tab-3298-1)
-- [](_w_86bfd91dbc0544739987d0afbde5336f/#tab-3298-2)
+- [](_w_d2a23e943c874c4b955769f8e2e54a26/#tab-4584-1)
+- [](_w_d2a23e943c874c4b955769f8e2e54a26/#tab-4584-2)
 
 log(serum bilirubin) Albumin log(prothrombin time)
 
@@ -77,8 +77,8 @@ shiny::runApp("shiny/bjm-twin")
 The demo is for illustrating the method only. Its models are fit on the
 PBC data set and must not be used for clinical decisions.
 
-- [](_w_86bfd91dbc0544739987d0afbde5336f/#tab-3298-1)
-- [](_w_86bfd91dbc0544739987d0afbde5336f/#tab-3298-2)
+- [](_w_d2a23e943c874c4b955769f8e2e54a26/#tab-4584-1)
+- [](_w_d2a23e943c874c4b955769f8e2e54a26/#tab-4584-2)
 
 log(serum bilirubin) Albumin log(prothrombin time)
 
