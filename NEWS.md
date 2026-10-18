@@ -353,6 +353,19 @@
 
 ## Bug fixes
 
+* `print()` of a `survivalSub()` fit with competing risks counted the event
+  type coded 1 as "cause 1", the opposite of `predictRisk()`, whose
+  `risk_prob_1` ("Cause 1 Risk") is the type coded 0. Cause 1 is now the
+  type coded 0 (the first level of a factor) everywhere, and the printed
+  counts name the variable and value (e.g. `status4 = 0`).
+* `print()` of a `predictLongitudinal()` result for an ordinal biomarker
+  shows the predicted probability of each category and the most likely
+  one. It used to show a mean, SD and interval of the category codes,
+  which mean nothing for categories.
+* `print()` of a `predictLongitudinal()` result for several biomarkers
+  prints each one under its name. It used to print the raw list, with its
+  internal attributes.
+
 * `simulateTrajectory()` works when `data_predict_all` is a list of data
   frames with different columns (one per biomarker). It used to build every
   biomarker's simulated rows from the first data frame, and failed when a

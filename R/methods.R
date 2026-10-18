@@ -28,12 +28,16 @@
   cat(sprintf("  Number of subjects        : %d\n", coxph_fit$n))
   cat(sprintf("  Number of events          : %d\n", coxph_fit$nevent))
   if (has_cr) {
-    n_ev   <- nrow(glm_fit$data)
-    n_cr   <- sum(glm_fit$y)
-    cat(sprintf("  Cause-1 events (CR model) : %d\n",
-                as.integer(n_cr)))
-    cat(sprintf("  Cause-2 events (CR model) : %d\n",
-                as.integer(n_ev - n_cr)))
+    ### cause 1 is the event type coded 0 (the first level of a factor),
+    ### cause 2 the one coded 1, as in predictRisk()'s risk_prob_1/risk_prob_2
+    ### (they used to be printed the other way round)
+    resp <- glm_fit$model[[1]]
+    type_labels <- if (is.factor(resp)) levels(resp)[1:2] else c("0", "1")
+    type_name <- deparse(glm_form[[2]])
+    cat(sprintf("  Cause-1 events (%s = %s) : %d\n", type_name, type_labels[1],
+                as.integer(sum(glm_fit$y == 0))))
+    cat(sprintf("  Cause-2 events (%s = %s) : %d\n", type_name, type_labels[2],
+                as.integer(sum(glm_fit$y == 1))))
   }
 
   # -- Marginal Survival Sub-model ---------------------------------------
@@ -605,6 +609,30 @@ summary.predictRisk.BJM <- function(object, prediction_time = NULL,
     cat(sprintf("  Prediction horizon: %g\n", horizon))
   if (!is.null(prediction_time) && !is.null(horizon))
     cat(sprintf("  Predicted at      : t = %g\n", prediction_time + horizon))
+  ### an ordinal biomarker: its "grid" is the categories, and the density
+  ### their probabilities, so a mean or SD of the category codes means
+  ### nothing -- the probability of each category is shown instead
+  category_labels <- attr(Y_all, "category_labels")
+  if (!is.null(category_labels)) {
+    cat(sprintf("  Categories        : %d\n", length(category_labels)))
+    cat(sprintf("  Subjects          : %d\n", n_subj))
+    cat(dash_line, "\n\n", sep = "")
+    probs <- sweep(Y_density, 2, pmax(colSums(Y_density), 1e-300), "/")
+    tab <- data.frame(Subject = ids, t(round(probs, digits)),
+                      Most.likely = category_labels[Y_predict],
+                      check.names = FALSE, stringsAsFactors = FALSE)
+    names(tab)[1 + seq_along(category_labels)] <- paste0("P(", category_labels, ")")
+    print(tab, row.names = FALSE, right = TRUE)
+    cat("\n  P(.) = predicted probability of each category; Most.likely = its mode.\n")
+    if (extended) {
+      cat("\n", dash_line, "\n", sep = "")
+      cat(" Mean predicted probabilities (across subjects)\n")
+      cat(dash_line, "\n", sep = "")
+      print(stats::setNames(round(rowMeans(probs), digits), category_labels))
+    }
+    cat("\n", sep_line, "\n\n", sep = "")
+    return(invisible(NULL))
+  }
   cat(sprintf("  Y grid range      : [%.4g, %.4g]  (%d points)\n",
               min(Y_all), max(Y_all), length(Y_all)))
   cat(sprintf("  Subjects          : %d\n", n_subj))
@@ -724,6 +752,26 @@ summary.predictLongitudinal.BJM <- function(object, bio_i = NULL,
                               subject_ids = subject_ids,
                               extended = TRUE)
   invisible(object)
+}
+
+
+#' Print method for \code{predictLongitudinalAll.BJM} objects
+#'
+#' Called when you print the result of \code{\link{predictLongitudinal}()}
+#' with several biomarkers (\code{bio_i} naming more than one, or
+#' \code{NULL}): prints each biomarker's prediction in turn, under its name.
+#'
+#' @param x A \code{predictLongitudinalAll.BJM} object.
+#' @param ... Passed to \code{print.predictLongitudinal.BJM()}.
+#' @return Invisibly returns \code{x}.
+#' @keywords internal
+#' @export
+print.predictLongitudinalAll.BJM <- function(x, ...) {
+  for (k in seq_along(x)) {
+    cat(sprintf("\n[%s]", names(x)[k]))
+    print(x[[k]], ...)
+  }
+  invisible(x)
 }
 
 # SD across subjects for the summary() methods: "-" when it is undefined

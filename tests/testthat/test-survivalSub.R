@@ -75,3 +75,18 @@ test_that("the event rows come from the Surv() status, whatever its form", {
   coded <- survivalSub(d, Surv(years, status12) ~ age + sex, status4 ~ years + age + sex)
   expect_equal(coef(coded$glm_fit), coef(ref$glm_fit))
 })
+
+test_that("print() counts cause 1 as the event type predictRisk() calls risk_prob_1", {
+  data(pbc3, envir = environment())
+  first <- pbc3[!duplicated(pbc3$id), ]
+  fit <- survivalSub(first, Surv(years, status3) ~ age + sex, status4 ~ years + age + sex)
+  printed <- capture.output(print(fit))
+  # status4 = 0 is death (140 patients), the type risk_prob_1 refers to
+  expect_true(any(grepl("Cause-1 events \\(status4 = 0\\) : 140", printed)))
+  expect_true(any(grepl("Cause-2 events \\(status4 = 1\\) : 29", printed)))
+  first$cause <- factor(ifelse(first$status4 == 1, "transplant", "death"))
+  fit_factor <- survivalSub(first, Surv(years, status3) ~ age + sex, cause ~ years + age + sex)
+  printed <- capture.output(print(fit_factor))
+  expect_true(any(grepl("Cause-1 events \\(cause = death\\) : 140", printed)))
+  expect_true(any(grepl("Cause-2 events \\(cause = transplant\\) : 29", printed)))
+})

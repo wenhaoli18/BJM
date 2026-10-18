@@ -216,6 +216,22 @@ test_that("dynamicPredictionBio on an ordinal bio_i predicts its future category
   # Y_density's rows are per-category probabilities, so they sum to ~1 for
   # this single patient.
   expect_equal(sum(ypred$Y_density[, 1]), 1, tolerance = 0.1)
+  # printed as the probability of each category, not a mean/SD of the codes
+  printed <- capture.output(print(ypred))
+  expect_true(any(grepl("P\\(low\\) +P\\(mid\\) +P\\(high\\) +Most.likely", printed)))
+  expect_false(any(grepl("Post.Mean|grid range", printed)))
+  probs <- as.numeric(strsplit(trimws(printed[grep("Most.likely", printed) + 1]), " +")[[1]][2:4])
+  expect_equal(sum(probs), 1, tolerance = 1e-3)
+  expect_output(summary(ypred), "Mean predicted probabilities")
+
+  # several biomarkers: each printed under its name, without the list's attributes
+  both <- predictLongitudinal(bio_i = c(1, 2), data_predict_all, fx$long_fit_all, survival_fit_all,
+                              prediction_time = 3, horizon = 3, time_variable = "year",
+                              survival_variable_all = list(), survival_trans_function = list(),
+                              bandcount2 = 10, bandcount3 = 20)
+  printed <- capture.output(print(both))
+  expect_equal(sum(grepl("^\\[", printed)), 2)
+  expect_false(any(grepl("attr\\(", printed)))
 })
 
 test_that("an all-continuous fit's dynamicPredictionBio is unaffected by the copula dispatch (hard requirement)", {
