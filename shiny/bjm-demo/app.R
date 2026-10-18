@@ -137,8 +137,11 @@ ui <- page_sidebar(
   window_title = "BJM Dynamic Prediction",
   fillable = FALSE,  # let the page scroll instead of squashing the plots
   theme = bs_theme(version = 5, bootswatch = "flatly"),
+  # bslib keeps the main area at least 576px wide while the sidebar is open,
+  # which overflows a narrow window or the iframe on the pkgdown site
+  tags$head(tags$style(".bslib-sidebar-layout { --bslib-page-main-min-width: 0px; }")),
   sidebar = sidebar(
-    width = 320,
+    width = 280,
     radioButtons("lang", "Language / 语言",
                  setNames(c("en", "zh"), c("English", "中文")),
                  selected = "en", inline = TRUE),

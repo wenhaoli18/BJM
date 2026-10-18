@@ -2,6 +2,14 @@
 title: "Digital twin demo"
 ---
 
+```{=html}
+<style>
+/* the embedded app needs the full width: hide "On this page" */
+aside.col-md-3 { display: none; }
+main.col-md-9 { flex: 0 0 100%; width: 100%; max-width: 100%; }
+</style>
+```
+
 This interactive demo builds a patient's digital twin with
 `simulateTrajectory()`, as in [Digital twins](digital-twins.html), and
 runs in the browser with no R needed. Pick a patient from the `pbc3`

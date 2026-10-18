@@ -2,6 +2,14 @@
 title: "Interactive demo"
 ---
 
+```{=html}
+<style>
+/* the embedded app needs the full width: hide "On this page" */
+aside.col-md-3 { display: none; }
+main.col-md-9 { flex: 0 0 100%; width: 100%; max-width: 100%; }
+</style>
+```
+
 This interactive demo runs BJM's dynamic prediction for a single patient
 in the browser, with no R needed. Pick a patient from the `pbc3` data, or
 upload one patient's follow-up visits as a CSV file. Then choose a
