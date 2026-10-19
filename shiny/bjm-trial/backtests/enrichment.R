@@ -26,9 +26,15 @@ data(pbc3)
 bio_vars <- c("serBilir", "albumin", "prothrombin")
 pbc3$id <- as.character(pbc3$id)
 base <- pbc3[!duplicated(pbc3$id), c("id", "years", "status3", "age", "sex")]
-trans <- survivalTrans(c(1, 3, 5, 7))
+# The longitudinal sub-models' event-time term is capped at T_cap years. A
+# term linear in T is extrapolated past the last event time (13.9 years in
+# pbc3), which overstates the risk of low- and mid-risk patients
+# (backtests/calibration.R); the cap keeps BJM calibrated, and its ranking.
+T_cap <- 8
+trans <- list(survival_variable_all = list("Tc"),
+              survival_trans_function = list(function(x) pmin(x, T_cap)))
 long_fixed <- setNames(lapply(bio_vars, function(b)
-  as.formula(paste(b, "~ year + age + sex + years + years * year"))), bio_vars)
+  as.formula(paste(b, "~ year + age + sex + Tc + Tc * year"))), bio_vars)
 long_random <- setNames(rep(list(~ year | id), length(bio_vars)), bio_vars)
 
 S <- if (length(args) >= 3) as.numeric(args[3]) else 1; H <- 3
@@ -88,6 +94,7 @@ for (r in seq_len(n_reps)) {
   cl <- merge(cand, last_vals(cand$id))
   # BJM
   hv <- pbc3[pbc3$id %in% hist_ids & pbc3$status3 == 1, ]
+  hv$Tc <- pmin(hv$years, T_cap)
   fit_ss <- survivalSub(hist, Surv(years, status3) ~ age + sex, NULL)
   fit_ls <- suppressWarnings(longitudinalSub(hv, long_fixed, long_random))
 
@@ -97,6 +104,7 @@ for (r in seq_len(n_reps)) {
   risk$bjm <- vapply(risk$id, function(i) {
     h <- pbc3[pbc3$id == i & pbc3$year <= S, c("id", "year", "age", "sex", bio_vars)]
     h$years <- NA
+    h$Tc <- NA
     unname(predictRisk(h, fit_ls, fit_ss, prediction_time = S, horizon = H,
                        time_variable = "year", trans$survival_variable_all,
                        trans$survival_trans_function, bandcount1 = 10,

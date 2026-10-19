@@ -63,8 +63,8 @@ i18n <- list(
   x_cal        = c(en = "Trial calendar time (years)", zh = "试验日历时间 (年)"),
   y_events     = c(en = "Cumulative events", zh = "累计事件数"),
   h_fc_bt      = c(en = "Backtest over 50 example trials", zh = "50 个示例试验的回测"),
-  fc_bt_note   = c(en = "In this backtest BJM forecasts the D-th event too early, by about 8 to 13 months, with intervals that are too narrow. The cause is calibration, not ranking: BJM ranks patients' risks well (C-index 0.83 at 6 years), but overestimates the absolute risk of patients in the middle of the risk range, so it predicts too many events too soon. A forecast of event dates needs well-calibrated absolute risks; ranking alone is enough for enrichment (next tab).",
-                   zh = "在这次回测中，BJM 预测的第 D 个事件日期偏早约 8 到 13 个月，区间也偏窄。原因在于校准而不是排序：BJM 对患者风险的排序很好（6 年 C-index 0.83），但高估了中等风险患者的绝对风险，因此预测出过多、过早的事件。事件日期预测需要校准良好的绝对风险；而富集设计只依赖排序（见下一个标签页）。"),
+  fc_bt_note   = c(en = "BJM's forecasts are close to unbiased (about 4 months late) and, early in the trial, more accurate than the usual blinded Weibull forecast. They are less accurate than a Weibull model fit on the same historical data, and their 90% intervals cover the actual date only about two thirds of the time, since the forecast leaves out the uncertainty of the fitted models. The longitudinal sub-models cap the event time at 8 years: without the cap, a term linear in the event time is extrapolated past the last event time, and BJM forecast 8 to 13 months too early. The cap was chosen on pbc3 itself.",
+                   zh = "BJM 的预测接近无偏（约晚 4 个月），在试验早期比常用的盲态 Weibull 预测更准确；但不如用同一份历史数据拟合的 Weibull 模型准确，而且其 90% 区间只有约三分之二的时候覆盖实际日期，因为预测没有考虑模型参数的不确定性。纵向子模型把事件时间封顶在 8 年：不封顶时，与事件时间呈线性的项会外推到最晚事件时间之后，BJM 的预测会偏早 8 到 13 个月。这个封顶值是在 pbc3 上选出来的。"),
   bt_at        = c(en = "Data cut at", zh = "数据截止于"),
   bt_mae       = c(en = "Mean abs. error (months)", zh = "平均绝对误差（月）"),
   bt_bias      = c(en = "Bias (months)", zh = "偏差（月）"),
@@ -110,9 +110,15 @@ tr <- function(key, lang) unname(i18n[[key]][lang])
 bio_vars <- c("serBilir", "albumin", "prothrombin")
 base <- pbc3[!duplicated(pbc3$id), c("id", "years", "status3", "age", "sex")]
 visits <- pbc3[, c("id", "year", "age", "sex", bio_vars)]
-trans <- survivalTrans(c(1, 3, 5, 7))
+# The longitudinal sub-models' event-time term is capped at T_cap years. A
+# term linear in T is extrapolated past the last event time (13.9 years in
+# pbc3), which overstates the risk of low- and mid-risk patients
+# (backtests/calibration.R); the cap keeps BJM calibrated, and its ranking.
+T_cap <- 8
+trans <- list(survival_variable_all = list("Tc"),
+              survival_trans_function = list(function(x) pmin(x, T_cap)))
 long_fixed <- setNames(lapply(bio_vars, function(b)
-  as.formula(paste(b, "~ year + age + sex + years + years * year"))), bio_vars)
+  as.formula(paste(b, "~ year + age + sex + Tc + Tc * year"))), bio_vars)
 long_random <- setNames(rep(list(~ year | id), length(bio_vars)), bio_vars)
 accrual <- 3
 H_en <- 3      # enrichment: trial follow-up after screening (years)
@@ -127,6 +133,7 @@ make_trial <- function(seed) {
   trial <- base[!base$id %in% hist_ids, ]
   trial$entry <- runif(nrow(trial), 0, accrual)
   hv <- pbc3[pbc3$id %in% hist_ids & pbc3$status3 == 1, ]
+  hv$Tc <- pmin(hv$years, T_cap)
   list(hist = hist, trial = trial,
        surv = survivalSub(hist, Surv(years, status3) ~ age + sex, NULL),
        long = suppressWarnings(longitudinalSub(hv, long_fixed, long_random)),
@@ -167,12 +174,13 @@ forecast <- function(tm, D, cut) {
     p <- at_risk[i, ]
     h <- visits[visits$id == p$id & visits$year <= p$t_cut, ]
     h$years <- NA
+    h$Tc <- NA
     draw_bjm(h, p$t_cut)
   }, numeric(fc_sims))
   bjm_future <- vapply(seq_len(n_future), function(j) {
     donor <- enrolled[sample.int(nrow(enrolled), 1), ]   # covariates not known yet
     h <- data.frame(id = paste0("new", j), year = 0, age = donor$age, sex = donor$sex,
-                    serBilir = NA, albumin = NA, prothrombin = NA, years = NA)
+                    serBilir = NA, albumin = NA, prothrombin = NA, years = NA, Tc = NA)
     draw_bjm(h, 0)
   }, numeric(fc_sims))
   rw_hist <- weibull_sampler(tm$weibull)
@@ -231,6 +239,7 @@ enrichment_risks <- function(tm, S) {
   risk$bjm <- vapply(risk$id, function(i) {
     h <- visits[visits$id == i & visits$year <= S, ]
     h$years <- NA
+    h$Tc <- NA
     unname(predictRisk(h, tm$long, tm$surv, prediction_time = S, horizon = H_en,
                        time_variable = "year", trans$survival_variable_all,
                        trans$survival_trans_function, bandcount1 = 10,
@@ -265,16 +274,16 @@ c_index <- function(risk, m, S) {
 fc_backtest <- data.frame(
   at = rep(c(30, 50, 70), each = 3),
   method = rep(c("bjm", "wb_hist", "wb_blind"), 3),
-  mae = c(13.4, 8.4, 13.1, 11.8, 7.4, 10.2, 8.7, 5.0, 6.5),
-  bias = c(-13.0, -1.5, -7.3, -11.2, -2.8, -8.5, -8.2, -2.1, -4.4),
-  cover = c(0.32, 0.80, 0.58, 0.34, 0.78, 0.58, 0.46, 0.86, 0.72),
-  width = c(14.5, 27.2, 24.2, 13.8, 24.0, 20.5, 12.8, 20.5, 19.0))
+  mae = c(9.4, 8.4, 13.1, 9.0, 7.4, 10.2, 7.5, 5.0, 6.5),
+  bias = c(4.0, -1.5, -7.3, 4.4, -2.8, -8.5, 4.6, -2.1, -4.4),
+  cover = c(0.66, 0.80, 0.58, 0.64, 0.78, 0.58, 0.68, 0.86, 0.72),
+  width = c(23.1, 27.2, 24.2, 21.8, 24.0, 20.5, 21.1, 20.5, 19.0))
 en_backtest <- data.frame(
   S = rep(c(1, 2), each = 6), share = rep(rep(c(50, 25), each = 3), 2),
   method = rep(c("baseline", "landmark", "bjm"), 4),
-  c = c(0.821, 0.848, 0.847, 0.821, 0.848, 0.847, 0.834, 0.853, 0.869, 0.834, 0.853, 0.869),
-  p = c(0.406, 0.415, 0.416, 0.598, 0.643, 0.648, 0.459, 0.447, 0.471, 0.638, 0.684, 0.716),
-  n = c(703, 686, 684, 467, 431, 427, 620, 638, 605, 438, 404, 383))
+  c = c(0.821, 0.848, 0.848, 0.821, 0.848, 0.848, 0.834, 0.853, 0.869, 0.834, 0.853, 0.869),
+  p = c(0.406, 0.415, 0.413, 0.598, 0.643, 0.654, 0.459, 0.447, 0.467, 0.638, 0.684, 0.724),
+  n = c(703, 686, 689, 467, 431, 422, 620, 638, 610, 438, 404, 379))
 
 fc_methods <- c("bjm", "wb_hist", "wb_blind")
 en_methods <- c("baseline", "landmark", "bjm")

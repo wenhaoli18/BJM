@@ -34,9 +34,15 @@ visits$id <- as.character(visits$id)
 
 accrual <- 3                        # years
 frac_at_cut <- c(0.3, 0.5, 0.7)     # share of D observed at the cut
-trans <- survivalTrans(c(1, 3, 5, 7))
+# The longitudinal sub-models' event-time term is capped at T_cap years. A
+# term linear in T is extrapolated past the last event time (13.9 years in
+# pbc3), which overstates the risk of low- and mid-risk patients
+# (backtests/calibration.R); the cap keeps BJM calibrated, and its ranking.
+T_cap <- 8
+trans <- list(survival_variable_all = list("Tc"),
+              survival_trans_function = list(function(x) pmin(x, T_cap)))
 long_fixed <- setNames(lapply(bio_vars, function(b)
-  as.formula(paste(b, "~ year + age + sex + years + years * year"))), bio_vars)
+  as.formula(paste(b, "~ year + age + sex + Tc + Tc * year"))), bio_vars)
 long_random <- setNames(rep(list(~ year | id), length(bio_vars)), bio_vars)
 methods <- c("bjm", "wb_hist", "wb_blind")
 
@@ -78,12 +84,13 @@ one_cut <- function(trial, cut, actual, D, fits) {
     p <- at_risk[i, ]
     h <- visits[visits$id == p$id & visits$year <= p$t_cut, c("id", "year", "age", "sex", bio_vars)]
     h$years <- NA
+    h$Tc <- NA
     draw_bjm(h, p$t_cut)
   }, numeric(n_sim))
   bjm_future <- vapply(seq_len(n_future), function(j) {
     donor <- enrolled[sample.int(nrow(enrolled), 1), ]   # covariates not known yet
     h <- data.frame(id = paste0("new", j), year = 0, age = donor$age, sex = donor$sex,
-                    serBilir = NA, albumin = NA, prothrombin = NA, years = NA)
+                    serBilir = NA, albumin = NA, prothrombin = NA, years = NA, Tc = NA)
     draw_bjm(h, 0)
   }, numeric(n_sim))
 
@@ -118,6 +125,8 @@ for (r in seq_len(n_reps)) {
   actual <- ev_dates[D]
 
   hv <- visits[visits$id %in% hist_ids, ]
+
+  hv$Tc <- pmin(hv$years, T_cap)
   fits <- list(
     surv = survivalSub(hist, Surv(years, status3) ~ age + sex, NULL),
     long = suppressWarnings(longitudinalSub(hv[hv$status3 == 1, ], long_fixed, long_random)),
