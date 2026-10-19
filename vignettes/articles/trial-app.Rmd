@@ -1,0 +1,150 @@
+---
+title: "Clinical trial toolkit"
+---
+
+```{=html}
+<style>
+/* the embedded app needs the full width: hide "On this page" */
+aside.col-md-3 { display: none; }
+main.col-md-9 { flex: 0 0 100%; width: 100%; max-width: 100%; }
+</style>
+```
+
+This interactive demo illustrates two uses of BJM in clinical trials on the
+`pbc3` data: forecasting when an event-driven trial will reach its target
+number of events, and enrolling the patients most likely to have an event
+(prognostic enrichment). It runs in the browser with no R needed, and the
+interface is available in English and Chinese.
+
+<iframe src="https://wenhaoli18.shinyapps.io/bjm-trial/"
+        style="width: 100%; height: 1500px; border: 1px solid #dee2e6; border-radius: 6px;"
+        title="BJM clinical trial toolkit" loading="lazy"></iframe>
+
+If the frame does not load, [open the demo in a new tab](https://wenhaoli18.shinyapps.io/bjm-trial/).
+On the free hosting plan the app goes to sleep when nobody is using it, so
+the first visit can take up to a minute to start.
+
+## Example trials
+
+`pbc3` is one cohort, not a trial, so each "example trial" splits it at
+random into two halves. The models are fit on one half, the historical
+data, as a sponsor would fit them on a natural-history cohort or on
+earlier trials. The other half is the trial: its patients are given entry
+dates spread uniformly over a 3-year accrual period. The outcomes of the
+trial half are known, so each forecast can be compared with what actually
+happened.
+
+The BJM models are those of [Digital twins](digital-twins.html) without the
+competing risk: a Cox model for death or transplantation (`status3`) with
+age and sex, and linear mixed models for log serum bilirubin, albumin and
+log prothrombin time.
+
+## Event forecast
+
+An event-driven trial is analysed once it has observed a target number of
+events, D. At a data cut, each method draws many futures of the trial and
+reads off the date at which each future reaches D events:
+
+- **BJM** draws each at-risk patient's event time with
+  `simulateTrajectory()`, given their biomarker history up to the cut.
+- **Weibull, historical data** draws the event times from a Weibull model
+  fit on the historical half, without biomarkers.
+- **Weibull, blinded trial data** fits the Weibull model on the trial's own
+  blinded data up to the cut. This is the usual practice.
+
+All three methods share the same model of dropout (exponential, from the
+losses observed in the trial so far) and of the patients still to enter.
+
+Over 50 example trials, with D set to 80% of the trial's events:
+
+| Data cut at | Method | Mean abs. error (months) | Bias (months) | 90% interval coverage | Interval width (months) |
+|---|---|---|---|---|---|
+| 30% of D | BJM | 13.4 | -13.0 | 0.32 | 14.5 |
+| | Weibull, historical | 8.4 | -1.5 | 0.80 | 27.2 |
+| | Weibull, blinded | 13.1 | -7.3 | 0.58 | 24.2 |
+| 50% of D | BJM | 11.8 | -11.2 | 0.34 | 13.8 |
+| | Weibull, historical | 7.4 | -2.8 | 0.78 | 24.0 |
+| | Weibull, blinded | 10.2 | -8.5 | 0.58 | 20.5 |
+| 70% of D | BJM | 8.7 | -8.2 | 0.46 | 12.8 |
+| | Weibull, historical | 5.0 | -2.1 | 0.86 | 20.5 |
+| | Weibull, blinded | 6.5 | -4.4 | 0.72 | 19.0 |
+
+On these data, BJM forecasts the D-th event too early, and its intervals
+are too narrow. The cause is calibration, not ranking. Fit on all of `pbc3`,
+BJM ranks patients well: the C-index of its 6-year risk from entry is 0.83.
+But it overestimates the absolute risk of the patients in the middle of the
+risk range:
+
+| Quintile of predicted 6-year risk | Mean predicted risk | Observed (Kaplan-Meier) |
+|---|---|---|
+| 1 (lowest) | 0.11 | 0.06 |
+| 2 | 0.27 | 0.10 |
+| 3 | 0.48 | 0.23 |
+| 4 | 0.71 | 0.65 |
+| 5 (highest) | 0.92 | 0.88 |
+
+A forecast of event dates adds up every patient's absolute risk, so it
+inherits this bias. For a patient with no biomarker measurement, BJM's risk
+equals that of its survival sub-model, which is well calibrated, so the
+bias comes from how the biomarker histories update the risk. Very sharp
+individual predictions also make the forecast of the total narrow, and the
+forecast does not include the uncertainty of the fitted models.
+
+## Enrichment
+
+Candidates are screened for S years. Those still event-free at S are
+ranked by their predicted risk of an event in the next 3 years, and only
+the highest-risk share is enrolled. A higher event rate among the enrolled
+means a trial needs fewer patients to observe the same number of events.
+The number of patients needed is Schoenfeld's number of events for the
+hazard ratio (two-sided 5% level, 1:1 allocation), divided by the pooled
+event rate of the two arms. The event rates are what actually happened to
+the enrolled candidates (Kaplan-Meier), so they do not depend on any
+model's calibration, only on how well it ranks the candidates.
+
+Three risk models are compared: a Cox model on the biomarkers at entry, a
+landmark Cox model on the last biomarker values up to S, and BJM, from the
+whole biomarker history up to S. Over 50 example trials, for a hazard ratio
+of 0.7 and 80% power:
+
+| Screening | Enrolled | Method | C-index | Event rate | Patients needed |
+|---|---|---|---|---|---|
+| 1 year | 50% | Cox, entry | 0.821 | 41% | 703 |
+| | | Cox, last values at S | 0.848 | 42% | 686 |
+| | | BJM | 0.847 | 42% | 684 |
+| | 25% | Cox, entry | 0.821 | 60% | 467 |
+| | | Cox, last values at S | 0.848 | 64% | 431 |
+| | | BJM | 0.847 | 65% | 427 |
+| 2 years | 50% | Cox, entry | 0.834 | 46% | 620 |
+| | | Cox, last values at S | 0.853 | 45% | 638 |
+| | | BJM | 0.869 | 47% | 605 |
+| | 25% | Cox, entry | 0.834 | 64% | 438 |
+| | | Cox, last values at S | 0.853 | 68% | 404 |
+| | | BJM | 0.869 | 72% | 383 |
+
+Without enrichment the same trial needs about 1,170 to 1,300 patients, so
+enrolling the highest-risk half or quarter cuts the number of patients by
+about half or two thirds, at the cost of screening more candidates. With
+2 years of screening, BJM ranks the candidates best of the three models and
+needs the fewest patients. With 1 year, about three visits, the history
+adds little over the last values.
+
+Enrichment narrows the population a trial's results apply to, and its
+screening visits have a cost of their own. These trade-offs are part of
+the design and are not shown here.
+
+## Running the app locally
+
+The app's source is in the
+[`shiny/bjm-trial`](https://github.com/wenhaoli18/BJM/tree/master/shiny/bjm-trial)
+folder of the repository, and the scripts for the backtests above are in
+its `backtests` folder. To run the app on your own computer, clone the
+repository and run:
+
+```r
+install.packages(c("shiny", "bslib"))
+shiny::runApp("shiny/bjm-trial")
+```
+
+The demo is for illustrating the methods only. Its models are fit on the
+PBC data set and must not be used to design or run real trials.
