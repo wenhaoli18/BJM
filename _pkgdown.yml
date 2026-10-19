@@ -80,10 +80,11 @@ articles:
   - articles/digital-twins
 
 - title: Interactive demos
-  desc: Try dynamic prediction and digital twins in the browser, without installing R.
+  desc: Try dynamic prediction, digital twins and clinical trial uses in the browser, without installing R.
   contents:
   - articles/demo-app
   - articles/twin-app
+  - articles/trial-app
 
 navbar:
   structure:
@@ -96,6 +97,8 @@ navbar:
         href: articles/demo-app.html
       - text: Digital twin
         href: articles/twin-app.html
+      - text: Clinical trial toolkit
+        href: articles/trial-app.html
     articles:
       text: Articles
       menu:
