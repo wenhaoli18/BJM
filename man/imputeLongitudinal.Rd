@@ -2,7 +2,7 @@
 % Please edit documentation in R/imputeLongitudinal.R
 \name{imputeLongitudinal}
 \alias{imputeLongitudinal}
-\title{Impute missing longitudinal biomarker values with a deep generative model}
+\title{Impute missing longitudinal biomarker values}
 \usage{
 imputeLongitudinal(
   data_fit_all,
@@ -15,8 +15,9 @@ imputeLongitudinal(
   epochs = 300,
   importance_samples = 20,
   diffusion_steps = 100,
-  method = c("miwae", "diffusion"),
+  method = c("mixed", "miwae", "diffusion"),
   impute = c("single", "multiple"),
+  history = FALSE,
   seed = NULL
 )
 }
@@ -64,8 +65,10 @@ both in the training objective and at imputation time. Only used when
 Only used when \code{method = "diffusion"}; more steps generally
 improve sample quality at proportionally higher training/sampling cost.}
 
-\item{method}{Which deep generative backend to fit: \code{"miwae"}
-(default) or \code{"diffusion"}. See Details.}
+\item{method}{\code{"mixed"} (default), \code{"miwae"} or
+\code{"diffusion"}; see Description. \code{latent_dim},
+\code{hidden_units}, \code{epochs}, \code{importance_samples} and
+\code{diffusion_steps} only apply to the deep generative methods.}
 
 \item{impute}{Either \code{"single"} (default; returns one completed
 \code{data_fit_all}, filling each missing cell with the mean of the
@@ -81,11 +84,15 @@ exactly known: its standard errors are too small, and its residual and
 random-effects variances -- including \code{Sigma_fit}, which
 \code{\link{predictRisk}} and \code{\link{predictLongitudinal}} use
 directly -- tend to be underestimated, more so the larger the share of
-imputed cells. Note also that each row (subject-visit) is imputed from
-that row's covariates and observed biomarkers only, not from the same
-subject's other visits, so imputed values do not carry a subject's own
-level or trend; this too pulls the estimated between-subject
-(random-effects) variation towards zero.}
+imputed cells.}
+
+\item{history}{For the deep generative methods: whether each visit's
+inputs include a summary of the same subject's other visits (see
+\code{history_features()}). Without it an imputed value does not carry
+the subject's own level, which shrinks the estimated variation between
+subjects; with it, that shrinkage is smaller when visits miss values at
+random, but in simulations it biased the event-time coefficients when
+subjects lacked a biomarker entirely. Defaults to \code{FALSE}.}
 
 \item{seed}{Optional integer seed for reproducibility. It seeds both
 \pkg{torch} and R's random number generator for the duration of the
@@ -106,33 +113,49 @@ the input are not carried over. Ready to pass straight to
 \item{data_fit_all_list}{When \code{impute = "multiple"}, a list of
 \code{n_imputations} completed versions of \code{data_fit_all}, each
 from its own draw; \code{NULL} when \code{impute = "single"}.}
-\item{diagnostics}{A named list, one element per biomarker, each with
+\item{diagnostics}{A named list, one element per biomarker (its
+\code{deep_generative} entry describes the completions of whichever
+\code{method} was used), each with
 the number of missing cells and observed-vs-imputed mean/sd for both
 the deep-generative and classical-baseline completions.}
 }
 }
 \description{
-\code{longitudinalSub()} fits each biomarker's mixed model on
-the complete cases for that biomarker, and then keeps only the subjects
-who have at least one non-missing observation of \emph{every} biomarker
-(see \code{\link{longitudinalSub}}). With interrupted/irregular follow-up this
-throws away information: a subject missing just one of several biomarkers
-at a visit -- or missing a biomarker's measurements entirely -- is dropped
-from every biomarker's fit, not just the one it is missing.
+Fills in missing biomarker values before
+\code{longitudinalSub()} is fit, assuming they are missing at random
+(MAR): whether a value is missing depends only on what is observed.
 
-\code{imputeLongitudinal()} is an optional preprocessing step that fills
-these gaps \emph{before} \code{longitudinalSub()} runs, assuming the
-missingness is at random (MAR) given the observed covariates and
-biomarkers. Two deep generative backends are available, selected with
-\code{method}:
+\strong{It is often not needed.} \code{longitudinalSub()} fits each
+biomarker's linear mixed model by maximum likelihood on all of that
+biomarker's observed values, which is already valid under MAR; only the
+joint covariance of the random effects across biomarkers,
+\code{Sigma_fit}, is estimated from the subjects with some value of
+every biomarker. In simulations on \code{pbc3} (see the "Missing data
+imputation" article on the package website), no imputation method made
+the predictions closer to those from the complete data than this
+complete-case analysis when visits were missing values at random; with
+half of the subjects never measured for a biomarker, multiple
+imputation with \code{method = "mixed"} was slightly closer. Imputation
+can also help when the missingness depends on variables outside the
+model, if they are added to the formulas used here.
+
+Three methods are available, selected with \code{method}:
 \itemize{
-\item \code{"miwae"} (default) fits a MIWAE (Missing data
-Importance-Weighted AutoEncoder; Mattei & Frellsen, 2019) -- a
-variational autoencoder whose training objective only scores
-reconstruction on the observed entries -- jointly across all supplied
-biomarkers, and uses self-normalized importance resampling from the
-fitted decoder to draw one or more plausible completions of the
-missing cells.
+\item \code{"mixed"} (default) draws each subject's missing values from
+the multivariate linear mixed model \code{longitudinalSub()} fits, given
+everything observed for that subject -- all visits and all biomarkers
+-- with the model's parameters drawn from an approximation to their
+posterior for each completion (proper multiple imputation; see
+\code{mixed_model_imputations()}). It needs no extra package, keeps the
+variation between subjects, and was the only method in the simulations
+that left the random-effects variances and the event-time coefficients
+unbiased.
+\item \code{"miwae"} fits a MIWAE (Missing data Importance-Weighted
+AutoEncoder; Mattei & Frellsen, 2019) -- a variational autoencoder
+whose training objective only scores reconstruction on the observed
+entries -- jointly across all supplied biomarkers, and uses
+self-normalized importance resampling from the fitted decoder to draw
+one or more plausible completions of the missing cells.
 \item \code{"diffusion"} fits a conditional denoising diffusion
 probabilistic model (DDPM; Ho, Jain & Abbeel, 2020) over the same
 per-row biomarker vector, trained as in CSDI (Tashiro et al., 2021):
@@ -144,9 +167,15 @@ Missing cells are then filled by running the reverse diffusion with
 the missing entries as targets and all observed ones as conditions;
 observed entries are returned unchanged.
 }
-Both backends draw one or more plausible completions of the missing
-cells, and the completed data.frame(s) can be passed directly to
-\code{longitudinalSub()} in place of the original \code{data_fit_all}.
+The two deep generative methods need the \pkg{torch} package. They
+complete each visit from that visit's covariates and observed biomarkers
+(and, with \code{history = TRUE}, a summary of the subject's other
+visits), and in the simulations they shrank the estimated variation
+between subjects, which every prediction uses; with \code{history = TRUE}
+they also biased the event-time coefficients when subjects lacked a
+biomarker entirely. The completed data.frame(s) of any method can be
+passed directly to \code{longitudinalSub()} in place of the original
+\code{data_fit_all}.
 }
 \details{
 Only the biomarker (response) columns named on the left-hand
@@ -155,14 +184,12 @@ side of \code{long_sub_fixed} are imputed, and they must be numeric
 and gives an error. Every covariate referenced on
 the right-hand side of \code{long_sub_fixed}/\code{long_sub_random} is
 assumed fully observed (an error is raised if any covariate has missing
-values). Each biomarker's own within-subject serial correlation continues
-to be modeled downstream by \code{nlme::lme()} inside
-\code{longitudinalSub()}, exactly as today; this function only models
+values). The deep generative methods model
 \code{p(biomarkers | covariates, missingness mask)} row by row (one row
 per subject-visit; the covariates include the visit time
-\code{time_variable} when \code{long_sub_fixed} uses it), so it does not
-need to know the random-effects
-structure in \code{long_sub_random} beyond the id variable it names.
+\code{time_variable} when \code{long_sub_fixed} uses it), and use
+\code{long_sub_random} only for the id variable; \code{"mixed"} uses the
+full random-effects structure.
 
 Rows are aligned across biomarkers by \code{(id, time_variable)}: when
 \code{data_fit_all} is a list of different data.frames with different
@@ -171,7 +198,7 @@ every biomarker), the union of every \code{(id, time_variable)} pair seen
 in any of them is used, so a visit at which one biomarker was measured
 but another was not still gets a value imputed for the missing one.
 
-Because this is a deep generative model, it needs enough data to fit
+Because the deep generative methods need enough data to fit
 reliably; the \code{diagnostics} element of the return value also reports
 a classical single regression imputation (each biomarker regressed on
 the covariates, fit on its observed rows) as a lightweight baseline, so
@@ -179,36 +206,34 @@ the two can be compared on a given dataset before trusting the deep
 model's completions.
 }
 \examples{
+data(pbc3)
+data_fit_all <- pbc3[pbc3$status3 == 1, ]
+
+# pbc3 has no missing serBilir/albumin values; delete some at random
+# (MCAR, a special case of MAR) to have something to impute
+set.seed(1)
+n <- nrow(data_fit_all)
+data_fit_all$serBilir[sample.int(n, floor(0.1 * n))] <- NA
+data_fit_all$albumin[sample.int(n, floor(0.1 * n))] <- NA
+
+long_sub_fixed <- list(
+  "long1" = serBilir ~ year + age + sex + years,
+  "long2" = albumin ~ year + age + sex + years)
+long_sub_random <- list("long1" = ~ year | id, "long2" = ~ year | id)
+
+# multiple imputation from the mixed model, pooled with Rubin's rules
+imputed <- imputeLongitudinal(data_fit_all, long_sub_fixed, long_sub_random,
+                              time_variable = "year", impute = "multiple", seed = 1)
+fits <- lapply(imputed$data_fit_all_list, longitudinalSub,
+               long_sub_fixed = long_sub_fixed, long_sub_random = long_sub_random)
+pooled <- poolLongitudinalSub(fits)
+
 \donttest{
+# a deep generative method instead (needs torch)
 if (requireNamespace("torch", quietly = TRUE) && torch::torch_is_installed()) {
-  data(pbc3)
-  data_fit_all <- pbc3[pbc3$status3 == 1, ]
-
-  # pbc3's complete-case subset has no missing serBilir/albumin values;
-  # artificially delete some at random (MCAR, a special case of MAR) to
-  # simulate the interrupted-follow-up gaps imputeLongitudinal() targets
-  set.seed(1)
-  n <- nrow(data_fit_all)
-  data_fit_all$serBilir[sample.int(n, floor(0.1 * n))] <- NA
-  data_fit_all$albumin[sample.int(n, floor(0.1 * n))] <- NA
-
-  long_sub_fixed <- list(
-    "long1" = serBilir ~ year + age + sex + years,
-    "long2" = albumin ~ year + age + sex + years)
-  long_sub_random <- list("long1" = ~ year | id, "long2" = ~ year | id)
-
-  imputed <- imputeLongitudinal(data_fit_all, long_sub_fixed,
-                                 long_sub_random, time_variable = "year",
-                                 epochs = 50, seed = 1)
-  long_fit_all <- longitudinalSub(imputed$data_fit_all, long_sub_fixed,
-                                   long_sub_random)
-
-  # the diffusion backend fills the same gaps via a conditional DDPM
-  # instead of a VAE -- same call shape, just a different `method`
-  imputed_diffusion <- imputeLongitudinal(data_fit_all, long_sub_fixed,
-                                           long_sub_random, time_variable = "year",
-                                           method = "diffusion", epochs = 50,
-                                           diffusion_steps = 30, seed = 1)
+  imputed_miwae <- imputeLongitudinal(data_fit_all, long_sub_fixed, long_sub_random,
+                                      time_variable = "year", method = "miwae",
+                                      epochs = 50, seed = 1)
 }
 }
 

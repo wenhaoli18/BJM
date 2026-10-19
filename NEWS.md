@@ -184,35 +184,31 @@
   group. It accepts long-format data and either a numeric censoring code or
   `censor_value = NA` (as in `pbc3$status4`).
 * New `imputeLongitudinal()` fills in missing longitudinal biomarker values
-  before `longitudinalSub()` runs, instead of relying on complete-case
-  analysis. `longitudinalSub()` drops rows missing a biomarker's own
-  covariates, and then keeps only subjects who have at least one
-  observation of *every* biomarker -- so with irregular/interrupted
-  follow-up (missing at random given the observed covariates and
-  biomarkers), a subject missing just one of several biomarkers at a visit,
-  or missing a biomarker's measurements entirely, is dropped from every
-  biomarker's fit, not just the one it is missing. `imputeLongitudinal()`
-  fits a MIWAE (Missing data Importance-Weighted AutoEncoder; Mattei &
-  Frellsen, 2019) jointly across the supplied biomarkers and draws one or
-  more plausible completions via self-normalized importance resampling; the
-  completed data can be passed straight into `longitudinalSub()` in place
-  of the original `data_fit_all`. A second backend, selected with
-  `method = "diffusion"`, fits a conditional denoising diffusion
-  probabilistic model (DDPM; Ho, Jain & Abbeel, 2020) instead of a VAE,
-  trained with the same observed-entries-only masking principle as the
-  MIWAE objective (matching MissDiff, Ouyang et al., 2023), and imputes
-  missing cells with a RePaint-style (Lugmayr et al., 2022) reverse-
-  diffusion sampler that reproduces observed values exactly and only
-  extrapolates the missing ones. Both backends share the same call shape,
-  return shape, and `diagnostics` output, so switching between them is a
-  one-argument change. Requires the optional `torch` package (listed in
-  `Suggests`, not `Imports`, so installing/using BJM without it is
-  unaffected); every call into `torch` is fully namespaced. The returned
-  `diagnostics` also report a classical single-regression-imputation
-  baseline alongside the deep-generative completions, so all of these can
-  be compared on a given dataset -- deep generative imputation needs
-  enough data to fit reliably, and is not automatically the better choice
-  at every sample size.
+  before `longitudinalSub()` runs, assuming they are missing at random. By
+  default (`method = "mixed"`) it draws each subject's missing values from
+  the multivariate linear mixed model `longitudinalSub()` fits, given all of
+  the subject's observed visits and biomarkers, with the model's parameters
+  drawn from their approximate posterior for each completion (proper
+  multiple imputation); it needs no extra package. `method = "miwae"` (a
+  MIWAE variational autoencoder; Mattei & Frellsen, 2019) and
+  `method = "diffusion"` (a conditional diffusion model as in CSDI; Tashiro
+  et al., 2021) use the optional `torch` package instead; `history = TRUE`
+  gives them a summary of the subject's other visits. The completed data go
+  straight into `longitudinalSub()`, and `diagnostics` compares the imputed
+  values with the observed ones and a regression baseline.
+
+  `longitudinalSub()` fits each biomarker's mixed model by maximum
+  likelihood on all of its observed values, which is already valid when
+  values are missing at random; only `Sigma_fit` is estimated from the
+  subjects with some value of every biomarker. In simulations on `pbc3`
+  (20 random deletions per setting, see the "Missing data imputation"
+  article), no method made the predictions closer to the complete-data ones
+  when visits were missing values at random; with half of the subjects
+  never measured for a biomarker, multiple imputation with `"mixed"` was
+  slightly closer (in 15 of 20 deletions). `"mixed"` was the only method
+  that kept the random-effects variances and the event-time coefficients
+  unbiased: the deep generative methods shrank the variation between
+  subjects, and with `history = TRUE` biased the event-time coefficients.
 * New `poolLongitudinalSub()` combines `longitudinalSub()` fits across the
   multiple completed datasets returned by `imputeLongitudinal(..., impute =
   "multiple")`, using Rubin's rules (Rubin, 1987) with the Barnard & Rubin

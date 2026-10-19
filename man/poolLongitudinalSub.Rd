@@ -45,8 +45,8 @@ Rubin's rules (Rubin, 1987) -- rather than averaging into one completed
 dataset up front -- is the standard way multiple imputation propagates
 the extra uncertainty from not knowing the true missing values into the
 final standard errors; \code{impute = "single"} does not do this (see
-the "Optional: imputing interrupted follow-up before fitting" vignette
-section). \code{poolLongitudinalSub()} performs that combination step.
+the "Missing data imputation" article on the package website).
+\code{poolLongitudinalSub()} performs that combination step.
 }
 \details{
 For each fixed-effect coefficient, across the \code{m} fits in

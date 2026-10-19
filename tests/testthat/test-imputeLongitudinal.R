@@ -145,7 +145,7 @@ test_that("imputeLongitudinal fills all missing biomarker cells and preserves ro
   imputed <- imputeLongitudinal(f$data_fit_all, f$long_sub_fixed, f$long_sub_random,
                                  f$time_variable, n_imputations = 2, latent_dim = 4,
                                  hidden_units = c(16, 8), epochs = 15,
-                                 importance_samples = 5, seed = 1)
+                                 importance_samples = 5, method = "miwae", seed = 1)
 
   expect_named(imputed, c("data_fit_all", "data_fit_all_list", "diagnostics"))
   expect_equal(nrow(imputed$data_fit_all[[1]]), nrow(f$data_fit_all))
@@ -187,7 +187,8 @@ test_that("imputeLongitudinal(impute = 'multiple') returns n_imputations distinc
   imputed <- imputeLongitudinal(f$data_fit_all, f$long_sub_fixed, f$long_sub_random,
                                  f$time_variable, n_imputations = 3, latent_dim = 4,
                                  hidden_units = c(16, 8), epochs = 15,
-                                 importance_samples = 5, impute = "multiple", seed = 2)
+                                 importance_samples = 5, impute = "multiple", method = "miwae",
+                                 seed = 2)
 
   expect_length(imputed$data_fit_all_list, 3)
   for (completion in imputed$data_fit_all_list) {
@@ -256,7 +257,7 @@ test_that("imputeLongitudinal(seed =) is reproducible and leaves the caller's RN
     imputeLongitudinal(f$data_fit_all, f$long_sub_fixed, f$long_sub_random,
                        f$time_variable, n_imputations = 2, latent_dim = 4,
                        hidden_units = c(16, 8), epochs = 10,
-                       importance_samples = 5, impute = "multiple", seed = 3)
+                       importance_samples = 5, impute = "multiple", method = "miwae", seed = 3)
   }
   # MIWAE's importance resampling draws with R's RNG; seeding torch alone
   # used to leave these completions different from run to run.
@@ -287,7 +288,8 @@ test_that("imputed values follow a biomarker's trend over visit time (requires t
   d$y <- 2 * d$year + 0.5 * d$age + stats::rnorm(nrow(d), sd = 0.3)
   missing <- sample(nrow(d), 40)
   d$y[missing] <- NA
-  out <- imputeLongitudinal(d, y ~ year + age, ~ 1 | id, time_variable = "year", epochs = 300, seed = 1)
+  out <- imputeLongitudinal(d, y ~ year + age, ~ 1 | id, time_variable = "year", epochs = 300,
+                            method = "miwae", seed = 1)
   filled <- out$data_fit_all[[1]]
   filled <- filled[order(filled$id, filled$year), ]
   ref <- d[order(d$id, d$year), ]
@@ -333,4 +335,54 @@ test_that("the diffusion backend imputes from the row's other biomarkers (requir
   # residual SD given y1 is 0.3; the earlier sampler, which barely used y1,
   # gave an RMSE of about 0.55
   expect_lt(sqrt(mean((filled$y2[is.na(ref$y2)] - truth[order(d$id, d$year)][is.na(ref$y2)])^2)), 0.42)
+})
+
+test_that("method = 'mixed' (the default) fills every missing cell from the mixed model, without torch", {
+  f <- setup_impute_fixture()
+  imputed <- imputeLongitudinal(f$data_fit_all, f$long_sub_fixed, f$long_sub_random, f$time_variable,
+                                n_imputations = 3, impute = "multiple", seed = 1)
+  expect_length(imputed$data_fit_all_list, 3)
+  observed <- !is.na(f$data_fit_all$serBilir)
+  for (completion in imputed$data_fit_all_list) {
+    expect_false(anyNA(completion[[1]]$serBilir))
+    expect_false(anyNA(completion[[2]]$albumin))
+    key <- match(paste(f$data_fit_all$id, f$data_fit_all$year), paste(completion[[1]]$id, completion[[1]]$year))
+    expect_equal(completion[[1]]$serBilir[key][observed], f$data_fit_all$serBilir[observed])
+  }
+  # draws differ between completions, and seed makes them reproducible
+  expect_false(isTRUE(all.equal(imputed$data_fit_all_list[[1]], imputed$data_fit_all_list[[2]])))
+  again <- imputeLongitudinal(f$data_fit_all, f$long_sub_fixed, f$long_sub_random, f$time_variable,
+                              n_imputations = 3, impute = "multiple", seed = 1)
+  expect_equal(again$data_fit_all_list, imputed$data_fit_all_list)
+})
+
+test_that("mixed-model imputation follows each subject's own level", {
+  # subjects differ in level (random intercept SD 2); a deleted value should
+  # come back near the subject's own other values, not the population mean
+  set.seed(4)
+  d <- expand.grid(year = 0:5, id = 1:60)
+  level <- stats::rnorm(60, 0, 2)
+  d$y <- level[d$id] + 0.5 * d$year + stats::rnorm(nrow(d), sd = 0.3)
+  truth <- d$y
+  missing <- sample(nrow(d), 60)
+  d$y[missing] <- NA
+  out <- imputeLongitudinal(d, y ~ year, ~ 1 | id, time_variable = "year", seed = 1)
+  filled <- out$data_fit_all[[1]]
+  key <- match(paste(d$id, d$year)[missing], paste(filled$id, filled$year))
+  error <- filled$y[key] - truth[missing]
+  # the subject's level explains most of the variance; the error is close to
+  # the residual SD (0.3), far below the spread of the levels (2)
+  expect_lt(sqrt(mean(error^2)), 0.6)
+})
+
+test_that("history_features summarises a subject's other visits, never the visit itself", {
+  aligned <- data.frame(id = c(1, 1, 1, 2), year = c(0, 1, 3, 0))
+  resp <- cbind(y = c(10, NA, 14, 5))
+  mask <- !is.na(resp)
+  h <- history_features(aligned, "id", "year", resp, mask)
+  expect_equal(unname(h[1, ]), c(14, log1p(1), 14, log1p(3)))     # visit 1: only visit 3 is "other"
+  expect_equal(unname(h[2, ]), c(12, log1p(2), 10, log1p(1)))     # nearest other: year 0
+  # subject 2 has no other visit: the overall mean, a count of 0, the largest distance
+  expect_equal(unname(h[4, 1:2]), c(mean(c(10, 14, 5)), 0))
+  expect_error(imputeLongitudinal(aligned, y ~ year, ~ 1 | id, "year", history = NA), "history")
 })
