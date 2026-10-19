@@ -189,7 +189,8 @@ test_that("poolLongitudinalSub(imputeLongitudinal(impute = 'multiple') completio
   imputed <- imputeLongitudinal(f$data_fit_all, f$long_sub_fixed, f$long_sub_random,
                                  f$time_variable, n_imputations = 3, latent_dim = 4,
                                  hidden_units = c(16, 8), epochs = 15,
-                                 importance_samples = 5, impute = "multiple", seed = 5)
+                                 importance_samples = 5, impute = "multiple", method = "miwae",
+                                 seed = 5)
 
   long_fit_all_list <- lapply(imputed$data_fit_all_list, function(d) {
     longitudinalSub(d, f$long_sub_fixed, f$long_sub_random)

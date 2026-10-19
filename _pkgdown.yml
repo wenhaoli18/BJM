@@ -71,9 +71,10 @@ articles:
   - nonlinear-terms
 
 - title: Extensions
-  desc: Categorical biomarkers, and events that are interval-censored or recur, and simulated digital twins.
+  desc: Categorical biomarkers, missing data, events that are interval-censored or recur, and simulated digital twins.
   contents:
   - articles/categorical-biomarkers
+  - articles/missing-data-imputation
   - articles/interval-censoring
   - articles/recurrent-events
   - articles/digital-twins
@@ -111,6 +112,8 @@ navbar:
       menu:
       - text: Categorical biomarkers
         href: articles/categorical-biomarkers.html
+      - text: Missing data imputation
+        href: articles/missing-data-imputation.html
       - text: Interval-censored events
         href: articles/interval-censoring.html
       - text: Recurrent events

@@ -1,26 +1,40 @@
-#' Impute missing longitudinal biomarker values with a deep generative model
+#' Impute missing longitudinal biomarker values
 #'
-#' @description \code{longitudinalSub()} fits each biomarker's mixed model on
-#' the complete cases for that biomarker, and then keeps only the subjects
-#' who have at least one non-missing observation of \emph{every} biomarker
-#' (see \code{\link{longitudinalSub}}). With interrupted/irregular follow-up this
-#' throws away information: a subject missing just one of several biomarkers
-#' at a visit -- or missing a biomarker's measurements entirely -- is dropped
-#' from every biomarker's fit, not just the one it is missing.
+#' @description Fills in missing biomarker values before
+#' \code{longitudinalSub()} is fit, assuming they are missing at random
+#' (MAR): whether a value is missing depends only on what is observed.
 #'
-#' \code{imputeLongitudinal()} is an optional preprocessing step that fills
-#' these gaps \emph{before} \code{longitudinalSub()} runs, assuming the
-#' missingness is at random (MAR) given the observed covariates and
-#' biomarkers. Two deep generative backends are available, selected with
-#' \code{method}:
+#' \strong{It is often not needed.} \code{longitudinalSub()} fits each
+#' biomarker's linear mixed model by maximum likelihood on all of that
+#' biomarker's observed values, which is already valid under MAR; only the
+#' joint covariance of the random effects across biomarkers,
+#' \code{Sigma_fit}, is estimated from the subjects with some value of
+#' every biomarker. In simulations on \code{pbc3} (see the "Missing data
+#' imputation" article on the package website), no imputation method made
+#' the predictions closer to those from the complete data than this
+#' complete-case analysis when visits were missing values at random; with
+#' half of the subjects never measured for a biomarker, multiple
+#' imputation with \code{method = "mixed"} was slightly closer. Imputation
+#' can also help when the missingness depends on variables outside the
+#' model, if they are added to the formulas used here.
+#'
+#' Three methods are available, selected with \code{method}:
 #' \itemize{
-#'   \item \code{"miwae"} (default) fits a MIWAE (Missing data
-#'   Importance-Weighted AutoEncoder; Mattei & Frellsen, 2019) -- a
-#'   variational autoencoder whose training objective only scores
-#'   reconstruction on the observed entries -- jointly across all supplied
-#'   biomarkers, and uses self-normalized importance resampling from the
-#'   fitted decoder to draw one or more plausible completions of the
-#'   missing cells.
+#'   \item \code{"mixed"} (default) draws each subject's missing values from
+#'   the multivariate linear mixed model \code{longitudinalSub()} fits, given
+#'   everything observed for that subject -- all visits and all biomarkers
+#'   -- with the model's parameters drawn from an approximation to their
+#'   posterior for each completion (proper multiple imputation; see
+#'   \code{mixed_model_imputations()}). It needs no extra package, keeps the
+#'   variation between subjects, and was the only method in the simulations
+#'   that left the random-effects variances and the event-time coefficients
+#'   unbiased.
+#'   \item \code{"miwae"} fits a MIWAE (Missing data Importance-Weighted
+#'   AutoEncoder; Mattei & Frellsen, 2019) -- a variational autoencoder
+#'   whose training objective only scores reconstruction on the observed
+#'   entries -- jointly across all supplied biomarkers, and uses
+#'   self-normalized importance resampling from the fitted decoder to draw
+#'   one or more plausible completions of the missing cells.
 #'   \item \code{"diffusion"} fits a conditional denoising diffusion
 #'   probabilistic model (DDPM; Ho, Jain & Abbeel, 2020) over the same
 #'   per-row biomarker vector, trained as in CSDI (Tashiro et al., 2021):
@@ -32,9 +46,15 @@
 #'   the missing entries as targets and all observed ones as conditions;
 #'   observed entries are returned unchanged.
 #' }
-#' Both backends draw one or more plausible completions of the missing
-#' cells, and the completed data.frame(s) can be passed directly to
-#' \code{longitudinalSub()} in place of the original \code{data_fit_all}.
+#' The two deep generative methods need the \pkg{torch} package. They
+#' complete each visit from that visit's covariates and observed biomarkers
+#' (and, with \code{history = TRUE}, a summary of the subject's other
+#' visits), and in the simulations they shrank the estimated variation
+#' between subjects, which every prediction uses; with \code{history = TRUE}
+#' they also biased the event-time coefficients when subjects lacked a
+#' biomarker entirely. The completed data.frame(s) of any method can be
+#' passed directly to \code{longitudinalSub()} in place of the original
+#' \code{data_fit_all}.
 #'
 #' @details Only the biomarker (response) columns named on the left-hand
 #' side of \code{long_sub_fixed} are imputed, and they must be numeric
@@ -42,14 +62,12 @@
 #' and gives an error. Every covariate referenced on
 #' the right-hand side of \code{long_sub_fixed}/\code{long_sub_random} is
 #' assumed fully observed (an error is raised if any covariate has missing
-#' values). Each biomarker's own within-subject serial correlation continues
-#' to be modeled downstream by \code{nlme::lme()} inside
-#' \code{longitudinalSub()}, exactly as today; this function only models
+#' values). The deep generative methods model
 #' \code{p(biomarkers | covariates, missingness mask)} row by row (one row
 #' per subject-visit; the covariates include the visit time
-#' \code{time_variable} when \code{long_sub_fixed} uses it), so it does not
-#' need to know the random-effects
-#' structure in \code{long_sub_random} beyond the id variable it names.
+#' \code{time_variable} when \code{long_sub_fixed} uses it), and use
+#' \code{long_sub_random} only for the id variable; \code{"mixed"} uses the
+#' full random-effects structure.
 #'
 #' Rows are aligned across biomarkers by \code{(id, time_variable)}: when
 #' \code{data_fit_all} is a list of different data.frames with different
@@ -58,7 +76,7 @@
 #' in any of them is used, so a visit at which one biomarker was measured
 #' but another was not still gets a value imputed for the missing one.
 #'
-#' Because this is a deep generative model, it needs enough data to fit
+#' Because the deep generative methods need enough data to fit
 #' reliably; the \code{diagnostics} element of the return value also reports
 #' a classical single regression imputation (each biomarker regressed on
 #' the covariates, fit on its observed rows) as a lightweight baseline, so
@@ -98,8 +116,10 @@
 #' @param diffusion_steps Number of forward/reverse diffusion timesteps.
 #' Only used when \code{method = "diffusion"}; more steps generally
 #' improve sample quality at proportionally higher training/sampling cost.
-#' @param method Which deep generative backend to fit: \code{"miwae"}
-#' (default) or \code{"diffusion"}. See Details.
+#' @param method \code{"mixed"} (default), \code{"miwae"} or
+#' \code{"diffusion"}; see Description. \code{latent_dim},
+#' \code{hidden_units}, \code{epochs}, \code{importance_samples} and
+#' \code{diffusion_steps} only apply to the deep generative methods.
 #' @param impute Either \code{"single"} (default; returns one completed
 #' \code{data_fit_all}, filling each missing cell with the mean of the
 #' \code{n_imputations} draws -- a drop-in replacement for the original
@@ -114,11 +134,14 @@
 #' random-effects variances -- including \code{Sigma_fit}, which
 #' \code{\link{predictRisk}} and \code{\link{predictLongitudinal}} use
 #' directly -- tend to be underestimated, more so the larger the share of
-#' imputed cells. Note also that each row (subject-visit) is imputed from
-#' that row's covariates and observed biomarkers only, not from the same
-#' subject's other visits, so imputed values do not carry a subject's own
-#' level or trend; this too pulls the estimated between-subject
-#' (random-effects) variation towards zero.
+#' imputed cells.
+#' @param history For the deep generative methods: whether each visit's
+#' inputs include a summary of the same subject's other visits (see
+#' \code{history_features()}). Without it an imputed value does not carry
+#' the subject's own level, which shrinks the estimated variation between
+#' subjects; with it, that shrinkage is smaller when visits miss values at
+#' random, but in simulations it biased the event-time coefficients when
+#' subjects lacked a biomarker entirely. Defaults to \code{FALSE}.
 #' @param seed Optional integer seed for reproducibility. It seeds both
 #' \pkg{torch} and R's random number generator for the duration of the
 #' call; R's random number state from before the call is restored
@@ -137,7 +160,9 @@
 #'   \item{data_fit_all_list}{When \code{impute = "multiple"}, a list of
 #'   \code{n_imputations} completed versions of \code{data_fit_all}, each
 #'   from its own draw; \code{NULL} when \code{impute = "single"}.}
-#'   \item{diagnostics}{A named list, one element per biomarker, each with
+#'   \item{diagnostics}{A named list, one element per biomarker (its
+#'   \code{deep_generative} entry describes the completions of whichever
+#'   \code{method} was used), each with
 #'   the number of missing cells and observed-vs-imputed mean/sd for both
 #'   the deep-generative and classical-baseline completions.}
 #' }
@@ -155,36 +180,34 @@
 #' 34:24804-24816.
 #'
 #' @examples
+#' data(pbc3)
+#' data_fit_all <- pbc3[pbc3$status3 == 1, ]
+#'
+#' # pbc3 has no missing serBilir/albumin values; delete some at random
+#' # (MCAR, a special case of MAR) to have something to impute
+#' set.seed(1)
+#' n <- nrow(data_fit_all)
+#' data_fit_all$serBilir[sample.int(n, floor(0.1 * n))] <- NA
+#' data_fit_all$albumin[sample.int(n, floor(0.1 * n))] <- NA
+#'
+#' long_sub_fixed <- list(
+#'   "long1" = serBilir ~ year + age + sex + years,
+#'   "long2" = albumin ~ year + age + sex + years)
+#' long_sub_random <- list("long1" = ~ year | id, "long2" = ~ year | id)
+#'
+#' # multiple imputation from the mixed model, pooled with Rubin's rules
+#' imputed <- imputeLongitudinal(data_fit_all, long_sub_fixed, long_sub_random,
+#'                               time_variable = "year", impute = "multiple", seed = 1)
+#' fits <- lapply(imputed$data_fit_all_list, longitudinalSub,
+#'                long_sub_fixed = long_sub_fixed, long_sub_random = long_sub_random)
+#' pooled <- poolLongitudinalSub(fits)
+#'
 #' \donttest{
+#' # a deep generative method instead (needs torch)
 #' if (requireNamespace("torch", quietly = TRUE) && torch::torch_is_installed()) {
-#'   data(pbc3)
-#'   data_fit_all <- pbc3[pbc3$status3 == 1, ]
-#'
-#'   # pbc3's complete-case subset has no missing serBilir/albumin values;
-#'   # artificially delete some at random (MCAR, a special case of MAR) to
-#'   # simulate the interrupted-follow-up gaps imputeLongitudinal() targets
-#'   set.seed(1)
-#'   n <- nrow(data_fit_all)
-#'   data_fit_all$serBilir[sample.int(n, floor(0.1 * n))] <- NA
-#'   data_fit_all$albumin[sample.int(n, floor(0.1 * n))] <- NA
-#'
-#'   long_sub_fixed <- list(
-#'     "long1" = serBilir ~ year + age + sex + years,
-#'     "long2" = albumin ~ year + age + sex + years)
-#'   long_sub_random <- list("long1" = ~ year | id, "long2" = ~ year | id)
-#'
-#'   imputed <- imputeLongitudinal(data_fit_all, long_sub_fixed,
-#'                                  long_sub_random, time_variable = "year",
-#'                                  epochs = 50, seed = 1)
-#'   long_fit_all <- longitudinalSub(imputed$data_fit_all, long_sub_fixed,
-#'                                    long_sub_random)
-#'
-#'   # the diffusion backend fills the same gaps via a conditional DDPM
-#'   # instead of a VAE -- same call shape, just a different `method`
-#'   imputed_diffusion <- imputeLongitudinal(data_fit_all, long_sub_fixed,
-#'                                            long_sub_random, time_variable = "year",
-#'                                            method = "diffusion", epochs = 50,
-#'                                            diffusion_steps = 30, seed = 1)
+#'   imputed_miwae <- imputeLongitudinal(data_fit_all, long_sub_fixed, long_sub_random,
+#'                                       time_variable = "year", method = "miwae",
+#'                                       epochs = 50, seed = 1)
 #' }
 #' }
 #'
@@ -194,9 +217,9 @@ imputeLongitudinal <- function(data_fit_all, long_sub_fixed, long_sub_random,
                                 latent_dim = 8, hidden_units = c(64, 32),
                                 epochs = 300, importance_samples = 20,
                                 diffusion_steps = 100,
-                                method = c("miwae", "diffusion"),
+                                method = c("mixed", "miwae", "diffusion"),
                                 impute = c("single", "multiple"),
-                                seed = NULL) {
+                                history = FALSE, seed = NULL) {
   method <- match.arg(method)
   impute <- match.arg(impute)
 
@@ -228,6 +251,9 @@ imputeLongitudinal <- function(data_fit_all, long_sub_fixed, long_sub_random,
   assert_positive_integer(importance_samples, "importance_samples")
   assert_positive_integer(diffusion_steps, "diffusion_steps")
   assert_scalar_numeric(latent_dim, "latent_dim", positive = TRUE)
+  if (!is.logical(history) || length(history) != 1 || is.na(history)) {
+    stop("`history` must be TRUE or FALSE.", call. = FALSE)
+  }
   if (!is.numeric(hidden_units) || length(hidden_units) == 0 ||
       any(hidden_units != round(hidden_units)) || any(hidden_units < 1)) {
     stop("`hidden_units` must be a non-empty vector of positive integers.", call. = FALSE)
@@ -354,6 +380,11 @@ imputeLongitudinal <- function(data_fit_all, long_sub_fixed, long_sub_random,
     }
   }
 
+  if (method == "mixed") {
+    if (!is.null(seed)) local_r_seed(seed)
+    imputations <- mixed_model_imputations(aligned, data_fit_all, long_sub_fixed, long_sub_random,
+                                           id, resp_mat, mask, n_imputations)
+  } else {
   ### every check above is cheap and needs no optional dependency; only now,
   ### once the arguments are known to be otherwise well-formed, do we require
   ### torch to actually fit the model
@@ -372,11 +403,18 @@ imputeLongitudinal <- function(data_fit_all, long_sub_fixed, long_sub_random,
     local_r_seed(seed)
   }
 
-  X_cov <- torch::torch_tensor(cov_std$z, dtype = torch::torch_float())
+  ### the network's inputs: the covariates and, with `history`, a summary of
+  ### the same subject's other visits (see history_features())
+  net_std <- if (history) {
+    standardize(cbind(cov_design, history_features(aligned, id, time_variable, resp_mat, mask)))
+  } else {
+    cov_std
+  }
+  X_cov <- torch::torch_tensor(net_std$z, dtype = torch::torch_float())
   X_resp <- torch::torch_tensor(resp_z, dtype = torch::torch_float())
   X_mask <- torch::torch_tensor(matrix(as.numeric(mask), nrow = nrow(mask)), dtype = torch::torch_float())
 
-  n_cov <- ncol(cov_std$z)
+  n_cov <- ncol(net_std$z)
   if (method == "miwae") {
     net <- build_miwae_module(n_cov, M, hidden_units, latent_dim)
     train_miwae(net, X_cov, X_resp, X_mask, epochs = epochs, K = importance_samples)
@@ -396,6 +434,7 @@ imputeLongitudinal <- function(data_fit_all, long_sub_fixed, long_sub_random,
     imputations <- diffusion_impute(net, X_cov, X_resp, X_mask, resp_mean, resp_sd,
                                      schedule = trained$schedule, diffusion_steps = diffusion_steps,
                                      time_emb_dim = time_emb_dim, n_imputations = n_imputations)
+  }
   }
 
   build_output_list <- function(resp_filled_mat) {
@@ -817,4 +856,122 @@ local_r_seed <- function(seed, frame = parent.frame()) {
   }
   do.call(on.exit, list(as.call(list(restore)), add = TRUE), envir = frame)
   set.seed(seed)
+}
+
+#' What a subject's other visits say about each biomarker
+#'
+#' @description Inputs for the deep imputation models (\code{history = TRUE}
+#' in \code{\link{imputeLongitudinal}}): without them each visit is
+#' completed from that visit alone, so an imputed value does not carry the
+#' subject's own level, which shrinks the estimated variation between
+#' subjects. For each visit and biomarker: the mean of the subject's
+#' \emph{other} observed values of the biomarker, how many there are
+#' (\code{log1p}), and the value at the nearest other observed visit and its
+#' distance in time (\code{log1p}). The visit's own value is left out, so
+#' the model cannot simply copy it while training. A subject with no other
+#' observed value gets the biomarker's overall mean, a count of 0 and the
+#' largest distance.
+#' @return A matrix with four columns per biomarker, one row per visit.
+#' @keywords internal
+history_features <- function(aligned, id, time_variable, resp_mat, mask) {
+  n <- nrow(aligned)
+  M <- ncol(resp_mat)
+  times <- aligned[[time_variable]]
+  overall <- vapply(seq_len(M), function(m) mean(resp_mat[mask[, m], m]), numeric(1))
+  far <- log1p(diff(range(times)) + 1)
+  out <- matrix(NA_real_, n, 4 * M)
+  colnames(out) <- paste0(rep(colnames(resp_mat), each = 4),
+                          c(".other_mean", ".other_count", ".nearest", ".nearest_distance"))
+  for (rows in split(seq_len(n), as.character(aligned[[id]]))) {
+    t <- times[rows]
+    for (m in seq_len(M)) {
+      observed <- mask[rows, m]
+      y <- resp_mat[rows, m]
+      for (j in seq_along(rows)) {
+        others <- observed
+        others[j] <- FALSE
+        cols <- 4 * (m - 1) + 1:4
+        if (!any(others)) {
+          out[rows[j], cols] <- c(overall[m], 0, overall[m], far)
+        } else {
+          k <- which(others)[which.min(abs(t[others] - t[j]))]
+          out[rows[j], cols] <- c(mean(y[others]), log1p(sum(others)), y[k], log1p(abs(t[k] - t[j])))
+        }
+      }
+    }
+  }
+  out
+}
+
+#' Multiple imputation from the multivariate linear mixed model
+#'
+#' @description \code{method = "mixed"} in \code{\link{imputeLongitudinal}}.
+#' Fits the model \code{\link{longitudinalSub}} fits -- each biomarker's
+#' linear mixed model, with the random effects of all biomarkers jointly
+#' normal with covariance \code{Sigma_fit} -- and draws each subject's
+#' missing values from their normal distribution given everything observed
+#' for that subject: all of its visits and all biomarkers. For each
+#' completion the model's parameters are first drawn from an approximation
+#' to their posterior, so that the completions also reflect the uncertainty
+#' in the fit (proper multiple imputation): the fixed effects from their
+#' estimated sampling distribution, each residual variance from a scaled
+#' inverse chi-squared distribution, and \code{Sigma_fit} from an inverse
+#' Wishart distribution with as many degrees of freedom as subjects.
+#' @return A list of \code{n_imputations} matrices like \code{resp_mat},
+#'   with the missing cells filled.
+#' @keywords internal
+mixed_model_imputations <- function(aligned, data_fit_all, long_sub_fixed, long_sub_random, id,
+                                    resp_mat, mask, n_imputations) {
+  M <- length(long_sub_fixed)
+  fit <- longitudinalSub(data_fit_all, long_sub_fixed, long_sub_random)
+  lfit <- fit$lfit
+  X <- lapply(seq_len(M), function(m) {
+    xlev <- if (!is.null(fit$xlevels)) fit$xlevels[[m]] else NULL
+    mf <- model.frame(lfit[[m]]$terms, aligned, xlev = xlev, na.action = stats::na.pass)
+    model.matrix(lfit[[m]]$terms, mf, contrasts.arg = lfit[[m]]$contrasts)
+  })
+  ### subjects the joint covariance was estimated from: some value of every biomarker
+  ids <- as.character(aligned[[id]])
+  n_subjects <- sum(tapply(seq_len(nrow(aligned)), ids, function(r) all(colSums(mask[r, , drop = FALSE]) > 0)))
+  Sigma_hat <- fit$Sigma_fit
+  rows_by_id <- split(seq_len(nrow(aligned)), ids)
+  Z_by_id <- lapply(rows_by_id, function(rows) {
+    random_effects_design(rep(list(aligned[rows, , drop = FALSE]), M), long_sub_random, Sigma_hat)
+  })
+
+  lapply(seq_len(n_imputations), function(k) {
+    beta <- lapply(lfit, function(f) {
+      as.vector(mvtnorm::rmvnorm(1, nlme::fixef(f), as.matrix(f$varFix)))
+    })
+    sigma2 <- vapply(seq_len(M), function(m) {
+      df <- lfit[[m]]$dims$N - length(beta[[m]])
+      lfit[[m]]$sigma^2 * df / stats::rchisq(1, df)
+    }, numeric(1))
+    Sigma <- solve(stats::rWishart(1, max(n_subjects, nrow(Sigma_hat) + 1),
+                                   solve(Sigma_hat) / max(n_subjects, nrow(Sigma_hat) + 1))[, , 1])
+    filled <- resp_mat
+    for (s in names(rows_by_id)) {
+      rows <- rows_by_id[[s]]
+      obs <- as.vector(mask[rows, , drop = FALSE])           # stacked by biomarker, then visit
+      if (all(obs)) next
+      mu <- unlist(lapply(seq_len(M), function(m) X[[m]][rows, , drop = FALSE] %*% beta[[m]]))
+      Z <- Z_by_id[[s]]
+      V <- Z %*% Sigma %*% t(Z) + diag(rep(sigma2, each = length(rows)), length(mu))
+      y <- as.vector(resp_mat[rows, , drop = FALSE])
+      mis <- !obs
+      if (any(obs)) {
+        gain <- V[mis, obs, drop = FALSE] %*% solve(V[obs, obs, drop = FALSE])
+        cond_mean <- mu[mis] + as.vector(gain %*% (y[obs] - mu[obs]))
+        cond_cov <- V[mis, mis, drop = FALSE] - gain %*% V[obs, mis, drop = FALSE]
+      } else {
+        cond_mean <- mu[mis]
+        cond_cov <- V[mis, mis, drop = FALSE]
+      }
+      cond_cov <- (cond_cov + t(cond_cov)) / 2
+      draw <- cond_mean + as.vector(t(chol(cond_cov + diag(1e-10, nrow(cond_cov)))) %*% stats::rnorm(sum(mis)))
+      y[mis] <- draw
+      filled[rows, ] <- matrix(y, length(rows), M)
+    }
+    filled
+  })
 }
