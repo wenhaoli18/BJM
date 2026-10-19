@@ -16,11 +16,13 @@ and write the longitudinal formulas.
 
 ### Extensions
 
-Categorical biomarkers, and events that are interval-censored or recur,
-and simulated digital twins.
+Categorical biomarkers, missing data, events that are interval-censored
+or recur, and simulated digital twins.
 
 - [Categorical
   biomarkers](https://wenhaoli18.github.io/BJM/articles/categorical-biomarkers.md):
+- [Missing data
+  imputation](https://wenhaoli18.github.io/BJM/articles/missing-data-imputation.md):
 - [Interval-censored
   events](https://wenhaoli18.github.io/BJM/articles/interval-censoring.md):
 - [Recurrent

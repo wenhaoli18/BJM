@@ -190,190 +190,17 @@ long_fit_all
 #> =================================================================
 ```
 
-## Optional: imputing interrupted follow-up before fitting
+## Missing biomarker values
 
-[`longitudinalSub()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md),
-as used above, does complete-case analysis: for each biomarker it drops
-rows missing that biomarker’s own covariates, and then keeps only the
-subjects who have at least one non-missing observation of *every*
-biomarker. With interrupted/irregular follow-up this throws away real
-information – a subject who has `serBilir` at every visit but never had
-`albumin` drawn is dropped from *both* models, not just the `albumin`
-one.
-
+[`longitudinalSub()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md)
+fits each biomarker’s mixed model on every visit at which that biomarker
+was measured, which is already valid when values are missing at random,
+so incomplete follow-up usually needs no special treatment.
 [`imputeLongitudinal()`](https://wenhaoli18.github.io/BJM/reference/imputeLongitudinal.md)
-is an optional preprocessing step that fills these gaps before
-[`longitudinalSub()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md)
-runs, assuming the missingness is at random (MAR) given the observed
-covariates and biomarkers. Two backends are available, selected with
-`method`:
-
-- `method = "miwae"` (default) fits a MIWAE (Missing data
-  Importance-Weighted AutoEncoder; Mattei & Frellsen, 2019) jointly
-  across the supplied biomarkers and draws plausible completions via
-  self-normalized importance resampling.
-- `method = "diffusion"` fits a conditional denoising diffusion
-  probabilistic model (DDPM; Ho, Jain & Abbeel, 2020) instead, trained
-  with a masked score-matching loss, and imputes with a RePaint-style
-  (Lugmayr et al., 2022) reverse-diffusion sampler that reproduces every
-  observed value exactly and only draws the missing ones.
-
-Both share the same call shape and return shape, so switching between
-them is a one-argument change; the completed data can be passed straight
-to
-[`longitudinalSub()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md)
-in place of the original `data_fit_all` either way. It requires the
-optional `torch` package (listed in `Suggests`, not `Imports`), so the
-rest of this section only runs if `torch` is installed.
-
-``` r
-
-torch_available <- requireNamespace("torch", quietly = TRUE) &&
-  isTRUE(tryCatch(torch::torch_is_installed(), error = function(e) FALSE))
-torch_available
-#> [1] FALSE
-```
-
-To see it in action, artificially delete 12% of the `serBilir` and
-`albumin` measurements in the fitting data at random – satisfying MAR by
-construction, and mimicking a subject whose visit happened but one
-biomarker wasn’t drawn that day:
-
-``` r
-
-set.seed(1)
-data_fit_masked <- data_fit_all[[1]]
-n <- nrow(data_fit_masked)
-data_fit_masked$serBilir[sample.int(n, floor(0.12 * n))] <- NA
-data_fit_masked$albumin[sample.int(n, floor(0.12 * n))] <- NA
-```
-
-``` r
-
-imputed <- imputeLongitudinal(
-  data_fit_masked, long_sub_fixed, long_sub_random,
-  time_variable = "year", epochs = 80, seed = 1
-)
-```
-
-`diagnostics` reports, per biomarker, the observed mean/sd alongside the
-deep-generative and classical-baseline imputed mean/sd – useful for
-judging whether the deep model’s completions look reasonable before
-trusting them on your own data, since a deep generative model needs
-enough data to fit reliably and is not automatically the better choice
-at every sample size:
-
-``` r
-
-imputed$diagnostics$serBilir
-```
-
-Feeding the completed data into
-[`longitudinalSub()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md)
-retains at least as many subjects as running it on the masked data
-directly, because a subject who was excluded only for missing one
-biomarker at one visit is no longer excluded once that cell is filled
-in:
-
-``` r
-
-count_retained <- function(data_fit_all, long_sub_fixed, id = "id") {
-  if (is.data.frame(data_fit_all)) {
-    data_fit_all <- rep(list(data_fit_all), length(long_sub_fixed))
-  }
-  ids_by_marker <- lapply(seq_along(long_sub_fixed), function(m) {
-    d <- data_fit_all[[m]]
-    complete <- d[rowSums(is.na(d[all.vars(long_sub_fixed[[m]])])) == 0, ]
-    unique(complete[[id]])
-  })
-  Reduce(intersect, ids_by_marker)
-}
-
-length(count_retained(data_fit_masked, long_sub_fixed))
-length(count_retained(imputed$data_fit_all, long_sub_fixed))
-```
-
-``` r
-
-long_fit_imputed <- longitudinalSub(imputed$data_fit_all, long_sub_fixed, long_sub_random)
-```
-
-### A diffusion-based alternative
-
-The same masked data can be completed with `method = "diffusion"`
-instead – same arguments, a different generative model underneath:
-
-``` r
-
-imputed_diffusion <- imputeLongitudinal(
-  data_fit_masked, long_sub_fixed, long_sub_random,
-  time_variable = "year", method = "diffusion",
-  epochs = 60, diffusion_steps = 40, seed = 1
-)
-imputed_diffusion$diagnostics$serBilir
-```
-
-``` r
-
-long_fit_imputed_diffusion <- longitudinalSub(imputed_diffusion$data_fit_all,
-                                               long_sub_fixed, long_sub_random)
-length(count_retained(imputed_diffusion$data_fit_all, long_sub_fixed))
-```
-
-Neither backend is automatically the better choice: compare the
-`diagnostics` above against the observed mean/sd, and, if in doubt,
-compare downstream fixed-effect estimates from `long_fit_imputed` and
-`long_fit_imputed_diffusion` against `long_fit_all` (the original
-complete-case fit) before relying on either for inference.
-
-### Propagating imputation uncertainty with `poolLongitudinalSub()`
-
-`imputed` above used the default `impute = "single"`: `data_fit_all` is
-filled with the *mean* of the completions drawn from the generative
-model, giving one completed dataset. That is convenient, but it
-understates uncertainty – fitting
-[`longitudinalSub()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md)
-on a single completed dataset treats the imputed values as if they were
-observed data, so the resulting standard errors do not reflect not
-actually knowing them.
-
-`impute = "multiple"` instead returns `n_imputations` separately
-completed datasets in `data_fit_all_list`, without averaging them
-together. Fitting
-[`longitudinalSub()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md)
-once per completion and combining the fixed-effect estimates with
-Rubin’s rules (Rubin, 1987) – implemented here by
-[`poolLongitudinalSub()`](https://wenhaoli18.github.io/BJM/reference/poolLongitudinalSub.md)
-– propagates the disagreement between completions into the final
-standard errors, instead of discarding it:
-
-``` r
-
-imputed_multiple <- imputeLongitudinal(
-  data_fit_masked, long_sub_fixed, long_sub_random,
-  time_variable = "year", n_imputations = 5, impute = "multiple",
-  epochs = 80, seed = 1
-)
-length(imputed_multiple$data_fit_all_list)
-```
-
-``` r
-
-long_fit_all_list <- lapply(imputed_multiple$data_fit_all_list, function(d) {
-  longitudinalSub(d, long_sub_fixed, long_sub_random)
-})
-pooled <- poolLongitudinalSub(long_fit_all_list)
-pooled
-```
-
-The printed table’s `FMI` (fraction of missing information) column
-reports, per coefficient, how much precision the missingness cost
-relative to having observed everything – a coefficient with a high FMI
-is one where the choice to impute (and how) matters more for that
-specific estimate, even if the biomarker’s overall missingness rate
-looks modest. `pooled$pooled` is a named list (one `data.frame` per
-biomarker) with the pooled `estimate`, `std_error`, `df`, `statistic`,
-`p_value`, `riv`, and `fmi` for programmatic use.
+can fill in missing biomarker values first, which helps mainly when many
+patients never had some biomarker measured; see the [Missing data
+imputation](https://wenhaoli18.github.io/BJM/articles/missing-data-imputation.html)
+article on the package website.
 
 ## Step 3: Predict event risk with `predictRisk()`
 
@@ -591,9 +418,9 @@ longitudinalSub(pbc3, serBilir ~ year + not_a_column, ~ year | id)
 
 - The articles on the [package
   website](https://wenhaoli18.github.io/BJM/) cover competing risks,
-  plotting, categorical (ordinal or binary) biomarkers,
-  interval-censored and recurrent events, and simulated futures in more
-  depth.
+  plotting, categorical (ordinal or binary) biomarkers, missing data
+  imputation, interval-censored and recurrent events, and simulated
+  futures in more depth.
 - [`?predictPlot`](https://wenhaoli18.github.io/BJM/reference/predictPlot.md)
   and
   [`?riskPlot`](https://wenhaoli18.github.io/BJM/reference/riskPlot.md)
@@ -615,17 +442,7 @@ longitudinalSub(pbc3, serBilir ~ year + not_a_column, ~ year | id)
   [`?calibrationPlot`](https://wenhaoli18.github.io/BJM/reference/calibrationPlot.md)
   compares the predicted with the observed risks.
 - [`?imputeLongitudinal`](https://wenhaoli18.github.io/BJM/reference/imputeLongitudinal.md)
-  fills in missing longitudinal biomarker values due to interrupted
-  follow-up before
-  [`longitudinalSub()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md)
-  runs, instead of relying on complete-case analysis (see “Optional:
-  imputing interrupted follow-up before fitting” above).
-- [`?poolLongitudinalSub`](https://wenhaoli18.github.io/BJM/reference/poolLongitudinalSub.md)
-  combines
-  [`longitudinalSub()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md)
-  fits across the multiple completed datasets from
-  `imputeLongitudinal(..., impute = "multiple")` with Rubin’s rules, so
-  imputation uncertainty is reflected in the reported standard errors
-  (see “Propagating imputation uncertainty with
-  [`poolLongitudinalSub()`](https://wenhaoli18.github.io/BJM/reference/poolLongitudinalSub.md)”
-  above).
+  and
+  [`?poolLongitudinalSub`](https://wenhaoli18.github.io/BJM/reference/poolLongitudinalSub.md)
+  impute missing biomarker values and pool the fits to several
+  completions (see “Missing biomarker values” above).

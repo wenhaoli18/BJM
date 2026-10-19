@@ -52,8 +52,7 @@ Impute missing longitudinal biomarker values and pool sub-model fits
 across imputations.
 
 - [`imputeLongitudinal()`](https://wenhaoli18.github.io/BJM/reference/imputeLongitudinal.md)
-  : Impute missing longitudinal biomarker values with a deep generative
-  model
+  : Impute missing longitudinal biomarker values
 - [`poolLongitudinalSub()`](https://wenhaoli18.github.io/BJM/reference/poolLongitudinalSub.md)
   : Pool longitudinal sub-model fits across multiple imputations with
   Rubin's rules

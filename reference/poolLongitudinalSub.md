@@ -12,9 +12,8 @@ with Rubin's rules (Rubin, 1987) – rather than averaging into one
 completed dataset up front – is the standard way multiple imputation
 propagates the extra uncertainty from not knowing the true missing
 values into the final standard errors; `impute = "single"` does not do
-this (see the "Optional: imputing interrupted follow-up before fitting"
-vignette section). `poolLongitudinalSub()` performs that combination
-step.
+this (see the "Missing data imputation" article on the package website).
+`poolLongitudinalSub()` performs that combination step.
 
 ## Usage
 
@@ -131,5 +130,42 @@ if (requireNamespace("torch", quietly = TRUE) && torch::torch_is_installed()) {
   pooled <- poolLongitudinalSub(long_fit_all_list)
   pooled
 }
+#> 
+#> Call:
+#> poolLongitudinalSub(m = 5 completed-data fits, M = 2 longitudinal outcomes)
+#> 
+#> =================================================================
+#>  Rubin's-Rules-Pooled Longitudinal Sub-model(s)
+#> -----------------------------------------------------------------
+#>  [1] long1
+#> 
+#>                Value       SE    DF       t  p-value    
+#> (Intercept)  2.63947  0.37760 697.3   6.990 6.43e-12 ***
+#> year         0.26795  0.01842 611.0  14.549  < 2e-16 ***
+#> age         -0.01296  0.00572 162.6  -2.265   0.0248 *  
+#> sex          0.04997  0.16523 162.8   0.302   0.7627    
+#> years       -0.22939  0.02095 161.5 -10.949  < 2e-16 ***
+#> ---
+#> Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+#> 
+#>   Fraction of missing information (FMI), by coefficient:
+#>   (Intercept) = 0.006,  year = 0.029,  age = 0.014,  sex = 0.013,  years = 0.019 
+#> 
+#> -----------------------------------------------------------------
+#>  [2] long2
+#> 
+#>                 Value        SE    DF       t p-value    
+#> (Intercept)  3.531148  0.151814 598.3  23.260 < 2e-16 ***
+#> year        -0.141220  0.010241 599.2 -13.789 < 2e-16 ***
+#> age         -0.006819  0.002334 146.5  -2.922 0.00403 ** 
+#> sex         -0.163901  0.066921 150.6  -2.449 0.01546 *  
+#> years        0.085807  0.008517 151.4  10.075 < 2e-16 ***
+#> ---
+#> Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+#> 
+#>   Fraction of missing information (FMI), by coefficient:
+#>   (Intercept) = 0.032,  year = 0.031,  age = 0.054,  sex = 0.047,  years = 0.045 
+#> 
+#> =================================================================
 # }
 ```

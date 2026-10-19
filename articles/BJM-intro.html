@@ -42,6 +42,7 @@
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-extensions" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Extensions</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-extensions">
 <li><a class="dropdown-item" href="../articles/categorical-biomarkers.html">Categorical biomarkers</a></li>
+    <li><a class="dropdown-item" href="../articles/missing-data-imputation.html">Missing data imputation</a></li>
     <li><a class="dropdown-item" href="../articles/interval-censoring.html">Interval-censored events</a></li>
     <li><a class="dropdown-item" href="../articles/recurrent-events.html">Recurrent events</a></li>
     <li><a class="dropdown-item" href="../articles/digital-twins.html">Digital twins</a></li>
@@ -272,162 +273,15 @@ complete-case subset.</p>
 <span><span class="co">#&gt; =================================================================</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="optional-imputing-interrupted-follow-up-before-fitting">Optional: imputing interrupted follow-up before fitting<a class="anchor" aria-label="anchor" href="#optional-imputing-interrupted-follow-up-before-fitting"></a>
+<h2 id="missing-biomarker-values">Missing biomarker values<a class="anchor" aria-label="anchor" href="#missing-biomarker-values"></a>
 </h2>
-<p><code><a href="../reference/longitudinalSub.html">longitudinalSub()</a></code>, as used above, does complete-case
-analysis: for each biomarker it drops rows missing that biomarker’s own
-covariates, and then keeps only the subjects who have at least one
-non-missing observation of <em>every</em> biomarker. With
-interrupted/irregular follow-up this throws away real information – a
-subject who has <code>serBilir</code> at every visit but never had
-<code>albumin</code> drawn is dropped from <em>both</em> models, not
-just the <code>albumin</code> one.</p>
-<p><code><a href="../reference/imputeLongitudinal.html">imputeLongitudinal()</a></code> is an optional preprocessing step
-that fills these gaps before <code><a href="../reference/longitudinalSub.html">longitudinalSub()</a></code> runs,
-assuming the missingness is at random (MAR) given the observed
-covariates and biomarkers. Two backends are available, selected with
-<code>method</code>:</p>
-<ul>
-<li>
-<code>method = "miwae"</code> (default) fits a MIWAE (Missing data
-Importance-Weighted AutoEncoder; Mattei &amp; Frellsen, 2019) jointly
-across the supplied biomarkers and draws plausible completions via
-self-normalized importance resampling.</li>
-<li>
-<code>method = "diffusion"</code> fits a conditional denoising
-diffusion probabilistic model (DDPM; Ho, Jain &amp; Abbeel, 2020)
-instead, trained with a masked score-matching loss, and imputes with a
-RePaint-style (Lugmayr et al., 2022) reverse-diffusion sampler that
-reproduces every observed value exactly and only draws the missing
-ones.</li>
-</ul>
-<p>Both share the same call shape and return shape, so switching between
-them is a one-argument change; the completed data can be passed straight
-to <code><a href="../reference/longitudinalSub.html">longitudinalSub()</a></code> in place of the original
-<code>data_fit_all</code> either way. It requires the optional
-<code>torch</code> package (listed in <code>Suggests</code>, not
-<code>Imports</code>), so the rest of this section only runs if
-<code>torch</code> is installed.</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">torch_available</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/ns-load.html" class="external-link">requireNamespace</a></span><span class="op">(</span><span class="st">"torch"</span>, quietly <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span> <span class="op">&amp;&amp;</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/Logic.html" class="external-link">isTRUE</a></span><span class="op">(</span><span class="kw"><a href="https://rdrr.io/r/base/conditions.html" class="external-link">tryCatch</a></span><span class="op">(</span><span class="fu">torch</span><span class="fu">::</span><span class="fu"><a href="https://torch.mlverse.org/docs/reference/torch_is_installed.html" class="external-link">torch_is_installed</a></span><span class="op">(</span><span class="op">)</span>, error <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">e</span><span class="op">)</span> <span class="cn">FALSE</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="va">torch_available</span></span>
-<span><span class="co">#&gt; [1] FALSE</span></span></code></pre></div>
-<p>To see it in action, artificially delete 12% of the
-<code>serBilir</code> and <code>albumin</code> measurements in the
-fitting data at random – satisfying MAR by construction, and mimicking a
-subject whose visit happened but one biomarker wasn’t drawn that
-day:</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span></span>
-<span><span class="va">data_fit_masked</span> <span class="op">&lt;-</span> <span class="va">data_fit_all</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span></span>
-<span><span class="va">n</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">data_fit_masked</span><span class="op">)</span></span>
-<span><span class="va">data_fit_masked</span><span class="op">$</span><span class="va">serBilir</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/sample.html" class="external-link">sample.int</a></span><span class="op">(</span><span class="va">n</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">floor</a></span><span class="op">(</span><span class="fl">0.12</span> <span class="op">*</span> <span class="va">n</span><span class="op">)</span><span class="op">)</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="cn">NA</span></span>
-<span><span class="va">data_fit_masked</span><span class="op">$</span><span class="va">albumin</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/sample.html" class="external-link">sample.int</a></span><span class="op">(</span><span class="va">n</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">floor</a></span><span class="op">(</span><span class="fl">0.12</span> <span class="op">*</span> <span class="va">n</span><span class="op">)</span><span class="op">)</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="cn">NA</span></span></code></pre></div>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">imputed</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/imputeLongitudinal.html">imputeLongitudinal</a></span><span class="op">(</span></span>
-<span>  <span class="va">data_fit_masked</span>, <span class="va">long_sub_fixed</span>, <span class="va">long_sub_random</span>,</span>
-<span>  time_variable <span class="op">=</span> <span class="st">"year"</span>, epochs <span class="op">=</span> <span class="fl">80</span>, seed <span class="op">=</span> <span class="fl">1</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-<p><code>diagnostics</code> reports, per biomarker, the observed mean/sd
-alongside the deep-generative and classical-baseline imputed mean/sd –
-useful for judging whether the deep model’s completions look reasonable
-before trusting them on your own data, since a deep generative model
-needs enough data to fit reliably and is not automatically the better
-choice at every sample size:</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">imputed</span><span class="op">$</span><span class="va">diagnostics</span><span class="op">$</span><span class="va">serBilir</span></span></code></pre></div>
-<p>Feeding the completed data into <code><a href="../reference/longitudinalSub.html">longitudinalSub()</a></code>
-retains at least as many subjects as running it on the masked data
-directly, because a subject who was excluded only for missing one
-biomarker at one visit is no longer excluded once that cell is filled
-in:</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">count_retained</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">data_fit_all</span>, <span class="va">long_sub_fixed</span>, <span class="va">id</span> <span class="op">=</span> <span class="st">"id"</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/as.data.frame.html" class="external-link">is.data.frame</a></span><span class="op">(</span><span class="va">data_fit_all</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
-<span>    <span class="va">data_fit_all</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">data_fit_all</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">long_sub_fixed</span><span class="op">)</span><span class="op">)</span></span>
-<span>  <span class="op">}</span></span>
-<span>  <span class="va">ids_by_marker</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_along</a></span><span class="op">(</span><span class="va">long_sub_fixed</span><span class="op">)</span>, <span class="kw">function</span><span class="op">(</span><span class="va">m</span><span class="op">)</span> <span class="op">{</span></span>
-<span>    <span class="va">d</span> <span class="op">&lt;-</span> <span class="va">data_fit_all</span><span class="op">[[</span><span class="va">m</span><span class="op">]</span><span class="op">]</span></span>
-<span>    <span class="va">complete</span> <span class="op">&lt;-</span> <span class="va">d</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/colSums.html" class="external-link">rowSums</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">d</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/allnames.html" class="external-link">all.vars</a></span><span class="op">(</span><span class="va">long_sub_fixed</span><span class="op">[[</span><span class="va">m</span><span class="op">]</span><span class="op">]</span><span class="op">)</span><span class="op">]</span><span class="op">)</span><span class="op">)</span> <span class="op">==</span> <span class="fl">0</span>, <span class="op">]</span></span>
-<span>    <span class="fu"><a href="https://rdrr.io/r/base/unique.html" class="external-link">unique</a></span><span class="op">(</span><span class="va">complete</span><span class="op">[[</span><span class="va">id</span><span class="op">]</span><span class="op">]</span><span class="op">)</span></span>
-<span>  <span class="op">}</span><span class="op">)</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/funprog.html" class="external-link">Reduce</a></span><span class="op">(</span><span class="va">intersect</span>, <span class="va">ids_by_marker</span><span class="op">)</span></span>
-<span><span class="op">}</span></span>
-<span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="fu">count_retained</span><span class="op">(</span><span class="va">data_fit_masked</span>, <span class="va">long_sub_fixed</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="fu">count_retained</span><span class="op">(</span><span class="va">imputed</span><span class="op">$</span><span class="va">data_fit_all</span>, <span class="va">long_sub_fixed</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">long_fit_imputed</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/longitudinalSub.html">longitudinalSub</a></span><span class="op">(</span><span class="va">imputed</span><span class="op">$</span><span class="va">data_fit_all</span>, <span class="va">long_sub_fixed</span>, <span class="va">long_sub_random</span><span class="op">)</span></span></code></pre></div>
-<div class="section level3">
-<h3 id="a-diffusion-based-alternative">A diffusion-based alternative<a class="anchor" aria-label="anchor" href="#a-diffusion-based-alternative"></a>
-</h3>
-<p>The same masked data can be completed with
-<code>method = "diffusion"</code> instead – same arguments, a different
-generative model underneath:</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">imputed_diffusion</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/imputeLongitudinal.html">imputeLongitudinal</a></span><span class="op">(</span></span>
-<span>  <span class="va">data_fit_masked</span>, <span class="va">long_sub_fixed</span>, <span class="va">long_sub_random</span>,</span>
-<span>  time_variable <span class="op">=</span> <span class="st">"year"</span>, method <span class="op">=</span> <span class="st">"diffusion"</span>,</span>
-<span>  epochs <span class="op">=</span> <span class="fl">60</span>, diffusion_steps <span class="op">=</span> <span class="fl">40</span>, seed <span class="op">=</span> <span class="fl">1</span></span>
-<span><span class="op">)</span></span>
-<span><span class="va">imputed_diffusion</span><span class="op">$</span><span class="va">diagnostics</span><span class="op">$</span><span class="va">serBilir</span></span></code></pre></div>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">long_fit_imputed_diffusion</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/longitudinalSub.html">longitudinalSub</a></span><span class="op">(</span><span class="va">imputed_diffusion</span><span class="op">$</span><span class="va">data_fit_all</span>,</span>
-<span>                                               <span class="va">long_sub_fixed</span>, <span class="va">long_sub_random</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="fu">count_retained</span><span class="op">(</span><span class="va">imputed_diffusion</span><span class="op">$</span><span class="va">data_fit_all</span>, <span class="va">long_sub_fixed</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
-<p>Neither backend is automatically the better choice: compare the
-<code>diagnostics</code> above against the observed mean/sd, and, if in
-doubt, compare downstream fixed-effect estimates from
-<code>long_fit_imputed</code> and
-<code>long_fit_imputed_diffusion</code> against
-<code>long_fit_all</code> (the original complete-case fit) before
-relying on either for inference.</p>
-</div>
-<div class="section level3">
-<h3 id="propagating-imputation-uncertainty-with-poollongitudinalsub">Propagating imputation uncertainty with
-<code>poolLongitudinalSub()</code><a class="anchor" aria-label="anchor" href="#propagating-imputation-uncertainty-with-poollongitudinalsub"></a>
-</h3>
-<p><code>imputed</code> above used the default
-<code>impute = "single"</code>: <code>data_fit_all</code> is filled with
-the <em>mean</em> of the completions drawn from the generative model,
-giving one completed dataset. That is convenient, but it understates
-uncertainty – fitting <code><a href="../reference/longitudinalSub.html">longitudinalSub()</a></code> on a single
-completed dataset treats the imputed values as if they were observed
-data, so the resulting standard errors do not reflect not actually
-knowing them.</p>
-<p><code>impute = "multiple"</code> instead returns
-<code>n_imputations</code> separately completed datasets in
-<code>data_fit_all_list</code>, without averaging them together. Fitting
-<code><a href="../reference/longitudinalSub.html">longitudinalSub()</a></code> once per completion and combining the
-fixed-effect estimates with Rubin’s rules (Rubin, 1987) – implemented
-here by <code><a href="../reference/poolLongitudinalSub.html">poolLongitudinalSub()</a></code> – propagates the disagreement
-between completions into the final standard errors, instead of
-discarding it:</p>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">imputed_multiple</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/imputeLongitudinal.html">imputeLongitudinal</a></span><span class="op">(</span></span>
-<span>  <span class="va">data_fit_masked</span>, <span class="va">long_sub_fixed</span>, <span class="va">long_sub_random</span>,</span>
-<span>  time_variable <span class="op">=</span> <span class="st">"year"</span>, n_imputations <span class="op">=</span> <span class="fl">5</span>, impute <span class="op">=</span> <span class="st">"multiple"</span>,</span>
-<span>  epochs <span class="op">=</span> <span class="fl">80</span>, seed <span class="op">=</span> <span class="fl">1</span></span>
-<span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">imputed_multiple</span><span class="op">$</span><span class="va">data_fit_all_list</span><span class="op">)</span></span></code></pre></div>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">long_fit_all_list</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="va">imputed_multiple</span><span class="op">$</span><span class="va">data_fit_all_list</span>, <span class="kw">function</span><span class="op">(</span><span class="va">d</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="fu"><a href="../reference/longitudinalSub.html">longitudinalSub</a></span><span class="op">(</span><span class="va">d</span>, <span class="va">long_sub_fixed</span>, <span class="va">long_sub_random</span><span class="op">)</span></span>
-<span><span class="op">}</span><span class="op">)</span></span>
-<span><span class="va">pooled</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/poolLongitudinalSub.html">poolLongitudinalSub</a></span><span class="op">(</span><span class="va">long_fit_all_list</span><span class="op">)</span></span>
-<span><span class="va">pooled</span></span></code></pre></div>
-<p>The printed table’s <code>FMI</code> (fraction of missing
-information) column reports, per coefficient, how much precision the
-missingness cost relative to having observed everything – a coefficient
-with a high FMI is one where the choice to impute (and how) matters more
-for that specific estimate, even if the biomarker’s overall missingness
-rate looks modest. <code>pooled$pooled</code> is a named list (one
-<code>data.frame</code> per biomarker) with the pooled
-<code>estimate</code>, <code>std_error</code>, <code>df</code>,
-<code>statistic</code>, <code>p_value</code>, <code>riv</code>, and
-<code>fmi</code> for programmatic use.</p>
-</div>
+<p><code><a href="../reference/longitudinalSub.html">longitudinalSub()</a></code> fits each biomarker’s mixed model on
+every visit at which that biomarker was measured, which is already valid
+when values are missing at random, so incomplete follow-up usually needs
+no special treatment. <code><a href="../reference/imputeLongitudinal.html">imputeLongitudinal()</a></code> can fill in
+missing biomarker values first, which helps mainly when many patients
+never had some biomarker measured; see the <a href="https://wenhaoli18.github.io/BJM/articles/missing-data-imputation.html">Missing
+data imputation</a> article on the package website.</p>
 </div>
 <div class="section level2">
 <h2 id="step-3-predict-event-risk-with-predictrisk">Step 3: Predict event risk with <code>predictRisk()</code><a class="anchor" aria-label="anchor" href="#step-3-predict-event-risk-with-predictrisk"></a>
@@ -442,7 +296,7 @@ within one year of <code>year = 5</code>.</p>
 <p><code>survival_variable_all</code>/<code>survival_trans_function</code>
 describe how the raw event-time variable is transformed for the
 integration grid; see <code><a href="../reference/predictRisk.html">?predictRisk</a></code> for details.</p>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">survival_variable_all</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="st">"Tyears1"</span>, <span class="st">"Tyears2"</span>, <span class="st">"Tyears3"</span>, <span class="st">"Tyears4"</span><span class="op">)</span></span>
 <span><span class="va">survival_trans_function</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
 <span>  fun1 <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">x</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs</a></span><span class="op">(</span><span class="va">x</span> <span class="op">-</span> <span class="fl">1</span><span class="op">)</span>,</span>
@@ -480,7 +334,7 @@ almost always follow the same convention shown above: variables named
 distance from a fixed cut point. <code><a href="../reference/survivalTrans.html">survivalTrans()</a></code> builds
 exactly that pair from a plain vector of cut points, so you do not have
 to hand-write two matching parallel lists:</p>
-<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">trans</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/survivalTrans.html">survivalTrans</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">3</span>, <span class="fl">5</span>, <span class="fl">7</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical</a></span><span class="op">(</span><span class="va">trans</span><span class="op">$</span><span class="va">survival_variable_all</span>, <span class="va">survival_variable_all</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] TRUE</span></span>
@@ -508,7 +362,7 @@ single result, while naming more than one (or leaving
 <code>bio_i = NULL</code> for every biomarker) returns a named list of
 results instead, computing the shared, bio_i-independent part of the
 pipeline only once and reusing it across every biomarker.</p>
-<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">bio_pred</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/predictLongitudinal.html">predictLongitudinal</a></span><span class="op">(</span></span>
 <span>  bio_i <span class="op">=</span> <span class="fl">1</span>, <span class="va">data_predict_all</span>, <span class="va">long_fit_all</span>, <span class="va">survival_fit_all</span>,</span>
 <span>  prediction_time <span class="op">=</span> <span class="fl">5</span>, horizon <span class="op">=</span> <span class="fl">1</span>, time_variable <span class="op">=</span> <span class="st">"year"</span>,</span>
@@ -562,7 +416,7 @@ change and on the length of follow-up in your data — so the practical
 approach is a <strong>convergence check</strong>: run the prediction
 once with the defaults, once with every <code>bandcount*</code> doubled,
 and confirm the results barely move.</p>
-<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">risk_default</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/predictRisk.html">predictRisk</a></span><span class="op">(</span></span>
 <span>  <span class="va">data_predict_all</span>, <span class="va">long_fit_all</span>, <span class="va">survival_fit_all</span>,</span>
 <span>  prediction_time <span class="op">=</span> <span class="fl">5</span>, horizon <span class="op">=</span> <span class="fl">1</span>, time_variable <span class="op">=</span> <span class="st">"year"</span>,</span>
@@ -598,7 +452,7 @@ with a message that names the offending argument — instead of a cryptic
 error from deep inside <code><a href="https://rdrr.io/r/stats/model.matrix.html" class="external-link">model.matrix()</a></code> or list indexing. For
 example, passing a single <code>data.frame</code> instead of a list to
 <code><a href="../reference/predictRisk.html">predictRisk()</a></code>:</p>
-<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/predictRisk.html">predictRisk</a></span><span class="op">(</span></span>
 <span>  <span class="va">data_predict_all</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span>, <span class="va">long_fit_all</span>, <span class="va">survival_fit_all</span>,</span>
 <span>  prediction_time <span class="op">=</span> <span class="fl">5</span>, horizon <span class="op">=</span> <span class="fl">1</span>, time_variable <span class="op">=</span> <span class="st">"year"</span>,</span>
@@ -618,7 +472,7 @@ example, passing a single <code>data.frame</code> instead of a list to
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; =================================================================</span></span></code></pre></div>
 <p>or a formula referencing a column that doesn’t exist:</p>
-<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/longitudinalSub.html">longitudinalSub</a></span><span class="op">(</span><span class="va">pbc3</span>, <span class="va">serBilir</span> <span class="op">~</span> <span class="va">year</span> <span class="op">+</span> <span class="va">not_a_column</span>, <span class="op">~</span> <span class="va">year</span> <span class="op">|</span> <span class="va">id</span><span class="op">)</span></span>
 <span><span class="co">#&gt; <span style="color: #BBBB00; font-weight: bold;">Error</span><span style="font-weight: bold;">:</span></span></span>
 <span><span class="co">#&gt; <span style="color: #BBBB00;">!</span> Variable(s) used in `long_sub_fixed[[1]]/long_sub_random[[1]]` not found in `data_fit_all[[1]]`: not_a_column.</span></span></code></pre></div>
@@ -629,8 +483,8 @@ example, passing a single <code>data.frame</code> instead of a list to
 <ul>
 <li>The articles on the <a href="https://wenhaoli18.github.io/BJM/">package website</a> cover
 competing risks, plotting, categorical (ordinal or binary) biomarkers,
-interval-censored and recurrent events, and simulated futures in more
-depth.</li>
+missing data imputation, interval-censored and recurrent events, and
+simulated futures in more depth.</li>
 <li>
 <code><a href="../reference/predictPlot.html">?predictPlot</a></code> and <code><a href="../reference/riskPlot.html">?riskPlot</a></code> visualize the
 outputs of <code><a href="../reference/predictLongitudinal.html">predictLongitudinal()</a></code>/<code><a href="../reference/predictRisk.html">predictRisk()</a></code>
@@ -650,18 +504,10 @@ event type.</li>
 held-out data, and <code><a href="../reference/calibrationPlot.html">?calibrationPlot</a></code> compares the predicted
 with the observed risks.</li>
 <li>
-<code><a href="../reference/imputeLongitudinal.html">?imputeLongitudinal</a></code> fills in missing longitudinal
-biomarker values due to interrupted follow-up before
-<code><a href="../reference/longitudinalSub.html">longitudinalSub()</a></code> runs, instead of relying on complete-case
-analysis (see “Optional: imputing interrupted follow-up before fitting”
+<code><a href="../reference/imputeLongitudinal.html">?imputeLongitudinal</a></code> and
+<code><a href="../reference/poolLongitudinalSub.html">?poolLongitudinalSub</a></code> impute missing biomarker values and
+pool the fits to several completions (see “Missing biomarker values”
 above).</li>
-<li>
-<code><a href="../reference/poolLongitudinalSub.html">?poolLongitudinalSub</a></code> combines
-<code><a href="../reference/longitudinalSub.html">longitudinalSub()</a></code> fits across the multiple completed
-datasets from <code>imputeLongitudinal(..., impute = "multiple")</code>
-with Rubin’s rules, so imputation uncertainty is reflected in the
-reported standard errors (see “Propagating imputation uncertainty with
-<code><a href="../reference/poolLongitudinalSub.html">poolLongitudinalSub()</a></code>” above).</li>
 </ul>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

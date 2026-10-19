@@ -191,8 +191,7 @@ Impute missing longitudinal biomarker values and pool sub-model fits
 across imputations.
 
 - [`imputeLongitudinal()`](https://wenhaoli18.github.io/BJM/reference/imputeLongitudinal.md)
-  : Impute missing longitudinal biomarker values with a deep generative
-  model
+  : Impute missing longitudinal biomarker values
 - [`poolLongitudinalSub()`](https://wenhaoli18.github.io/BJM/reference/poolLongitudinalSub.md)
   : Pool longitudinal sub-model fits across multiple imputations with
   Rubin's rules
@@ -248,11 +247,13 @@ and write the longitudinal formulas.
 
 ### Extensions
 
-Categorical biomarkers, and events that are interval-censored or recur,
-and simulated digital twins.
+Categorical biomarkers, missing data, events that are interval-censored
+or recur, and simulated digital twins.
 
 - [Categorical
   biomarkers](https://wenhaoli18.github.io/BJM/articles/categorical-biomarkers.md):
+- [Missing data
+  imputation](https://wenhaoli18.github.io/BJM/articles/missing-data-imputation.md):
 - [Interval-censored
   events](https://wenhaoli18.github.io/BJM/articles/interval-censoring.md):
 - [Recurrent

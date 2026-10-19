@@ -9,8 +9,8 @@ Rubin's rules (Rubin, 1987) – rather than averaging into one completed
 dataset up front – is the standard way multiple imputation propagates
 the extra uncertainty from not knowing the true missing values into the
 final standard errors; impute = &quot;single&quot; does not do this (see
-the &quot;Optional: imputing interrupted follow-up before fitting&quot; vignette
-section). poolLongitudinalSub() performs that combination step."><meta property="og:description" content="When imputeLongitudinal is run with
+the &quot;Missing data imputation&quot; article on the package website).
+poolLongitudinalSub() performs that combination step."><meta property="og:description" content="When imputeLongitudinal is run with
 impute = &quot;multiple&quot;, it returns n_imputations independently
 completed versions of data_fit_all in data_fit_all_list,
 instead of a single completed dataset filled with the across-draw mean
@@ -20,8 +20,8 @@ Rubin's rules (Rubin, 1987) – rather than averaging into one completed
 dataset up front – is the standard way multiple imputation propagates
 the extra uncertainty from not knowing the true missing values into the
 final standard errors; impute = &quot;single&quot; does not do this (see
-the &quot;Optional: imputing interrupted follow-up before fitting&quot; vignette
-section). poolLongitudinalSub() performs that combination step."></head><body>
+the &quot;Missing data imputation&quot; article on the package website).
+poolLongitudinalSub() performs that combination step."></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -47,6 +47,7 @@ section). poolLongitudinalSub() performs that combination step."></head><body>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-extensions" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Extensions</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-extensions"><li><a class="dropdown-item" href="../articles/categorical-biomarkers.html">Categorical biomarkers</a></li>
+    <li><a class="dropdown-item" href="../articles/missing-data-imputation.html">Missing data imputation</a></li>
     <li><a class="dropdown-item" href="../articles/interval-censoring.html">Interval-censored events</a></li>
     <li><a class="dropdown-item" href="../articles/recurrent-events.html">Recurrent events</a></li>
     <li><a class="dropdown-item" href="../articles/digital-twins.html">Digital twins</a></li>
@@ -85,8 +86,8 @@ Rubin's rules (Rubin, 1987) – rather than averaging into one completed
 dataset up front – is the standard way multiple imputation propagates
 the extra uncertainty from not knowing the true missing values into the
 final standard errors; <code>impute = "single"</code> does not do this (see
-the "Optional: imputing interrupted follow-up before fitting" vignette
-section). <code>poolLongitudinalSub()</code> performs that combination step.</p>
+the "Missing data imputation" article on the package website).
+<code>poolLongitudinalSub()</code> performs that combination step.</p>
     </div>
 
     <div class="section level2">
@@ -192,6 +193,43 @@ Freedom with Multiple Imputation. <em>Biometrika</em>, 86(4):948-955.</p>
 <span class="r-in"><span>  <span class="va">pooled</span> <span class="op">&lt;-</span> <span class="fu">poolLongitudinalSub</span><span class="op">(</span><span class="va">long_fit_all_list</span><span class="op">)</span></span></span>
 <span class="r-in"><span>  <span class="va">pooled</span></span></span>
 <span class="r-in"><span><span class="op">}</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Call:</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> poolLongitudinalSub(m = 5 completed-data fits, M = 2 longitudinal outcomes)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> =================================================================</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  Rubin's-Rules-Pooled Longitudinal Sub-model(s)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> -----------------------------------------------------------------</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  [1] long1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                Value       SE    DF       t  p-value    </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> (Intercept)  2.63947  0.37760 697.3   6.990 6.43e-12 ***</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> year         0.26795  0.01842 611.0  14.549  &lt; 2e-16 ***</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> age         -0.01296  0.00572 162.6  -2.265   0.0248 *  </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> sex          0.04997  0.16523 162.8   0.302   0.7627    </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> years       -0.22939  0.02095 161.5 -10.949  &lt; 2e-16 ***</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> ---</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   Fraction of missing information (FMI), by coefficient:</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   (Intercept) = 0.006,  year = 0.029,  age = 0.014,  sex = 0.013,  years = 0.019 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> -----------------------------------------------------------------</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  [2] long2</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                 Value        SE    DF       t p-value    </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> (Intercept)  3.531148  0.151814 598.3  23.260 &lt; 2e-16 ***</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> year        -0.141220  0.010241 599.2 -13.789 &lt; 2e-16 ***</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> age         -0.006819  0.002334 146.5  -2.922 0.00403 ** </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> sex         -0.163901  0.066921 150.6  -2.449 0.01546 *  </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> years        0.085807  0.008517 151.4  10.075 &lt; 2e-16 ***</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> ---</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   Fraction of missing information (FMI), by coefficient:</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   (Intercept) = 0.032,  year = 0.031,  age = 0.054,  sex = 0.047,  years = 0.045 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> =================================================================</span>
 <span class="r-in"><span><span class="co"># }</span></span></span>
 <span class="r-in"><span></span></span>
 </code></pre></div>
