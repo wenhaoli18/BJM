@@ -329,8 +329,10 @@ ggplot(dist, aes(n, p)) +
   episode belong in `labs`.
 * **Covariates that change by episode in the count prediction.** The episode
   number is advanced for you. If your survival model uses other
-  episode-specific covariates, such as the length of the previous gap, pass
-  `next_covariates = function(row, k)` to update them.
+  episode-specific covariates that you know in advance (age at the
+  discharge, say), pass `next_covariates = function(row, k)` to update them.
+  Covariates built from the patient's gap history, as in the section above,
+  are best left at their observed values, which the default does.
 * **Death, or the end of follow-up, during a stay.** Such a patient was not
   back at risk, so `buildRecurrentEpisodes()` ends their episodes at that
   readmission (with a message): record the stay's `discharge` as the time of
@@ -342,13 +344,70 @@ ggplot(dist, aes(n, p)) +
   from `buildRecurrentEpisodes()` they do (as `NA`); if you build it by hand,
   add them.
 
+## When patients differ in how often they recur
+
+Some patients are readmitted again and again, others rarely, for reasons
+the covariates do not capture: a *frailty*. The count prediction does not
+carry such a tendency from one episode to the next (see below), and it
+does more than widen the error. The patients who reach a 3rd or 4th
+discharge are mostly the frail ones, so the fitted effect of `episode`
+absorbs that selection and comes out too large, and when
+`predictRecurrentCount()` rolls a patient forward it raises the risk of each
+later episode too steeply. The expected counts come out too extreme: too
+high for the patients predicted to recur most, too low for those predicted
+to recur least.
+
+What the patient's own history says about their frailty can be put back
+as covariates of the survival sub-model: whether this is the first episode,
+and the mean log length of the earlier gaps (a patient with short gaps so
+far is probably frail). Record them on each row of `events` as their value
+at the start of that row's episode:
+
+```r
+add_gap_history <- function(ev) {   # one patient's rows of `events`, in time order
+  start <- c(0, head(ev$discharge, -1))         # each episode starts at the previous discharge
+  log_gap <- log(ev$time - start)
+  n <- nrow(ev)
+  ev$first <- as.numeric(seq_len(n) == 1)
+  ev$mean_log_gap <- c(0, cumsum(log_gap)[-n] / seq_len(n - 1))
+  ev
+}
+events <- do.call(rbind, lapply(split(events, events$id), add_gap_history))
+```
+
+then add `first + mean_log_gap` to both formulas of `survivalSub()`, and
+build the prediction data the same way (the last, open row gets the mean
+over all the patient's earlier gaps). In `predictRecurrentCount()` leave
+them at their observed values for the later episodes -- the default
+`next_covariates` changes only `episode`. Replacing them with the gaps
+simulated on each path was tried, and was no better: the observed gaps are
+what carries the information about the patient.
+
+In a simulation like the one above but with a stronger frailty (standard
+deviation 1 instead of 0.5; 500 patients to fit, 5 repetitions), predicting
+the number of readmissions in 6 months at the 2nd and 3rd discharges:
+
+| without → with the gap history | at the 2nd discharge | at the 3rd discharge |
+|---|---|---|
+| Calibration slope of the expected count (1 is ideal) | 0.75 → 0.83 | 0.68 → 0.90 |
+| AUC, 2 or more readmissions | 0.59 → 0.63 | 0.56 → 0.60 |
+| AUC, death | 0.68 → 0.72 | 0.66 → 0.73 |
+
+The fitted effect of `episode`, whose true value was 0.25, fell from 0.36
+to 0.31. The gap history helps, but recovers only part of what is lost: a prediction that knew
+each patient's true frailty reached an AUC for death of 0.82-0.86. With the
+milder frailty of the example data (standard deviation 0.5), the calibration
+slope without the gap history was already 0.95-1.04, and these covariates
+are not needed. At the first discharge there is no gap history to use.
+
 ## What this assumes, and what it has been checked against
 
 * Within an episode, the model is the backward joint model, and carries its
   assumptions. Across episodes, patients are linked only through their
   covariates and the episode number: **only the first step of the count
   prediction uses the patient's biomarkers**, and a patient-level tendency to
-  recur that is not in the covariates (a frailty) is not carried forward.
+  recur that is not in the covariates (a frailty) is not carried forward;
+  see the section above for what that does and how to recover part of it.
 * The stay length is resampled from the data, independently of everything
   else.
 * The survival sub-model treats a patient's episodes as independent. Its
