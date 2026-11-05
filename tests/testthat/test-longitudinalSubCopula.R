@@ -49,7 +49,9 @@ test_that("all-continuous input is completely unaffected by biomarker_type (hard
 
   fit_dispatch <- longitudinalSub(data.fit, serBilir ~ year + age + sex, ~ year | id)
   fit_direct   <- longitudinalSubGaussian(data.fit, serBilir ~ year + age + sex, ~ year | id)
-  expect_identical(fit_dispatch, fit_direct)
+  # expect_equal(), not expect_identical(): refitting the same lme() model can
+  # differ in the last digits under some BLAS/LAPACK builds (e.g. MKL)
+  expect_equal(fit_dispatch, fit_direct)
   # confirms the dispatcher doesn't tack on any new fields for the all-continuous path
   expect_equal(names(fit_dispatch), c("lfit", "Sigma_fit", "long_sub_fixed", "long_sub_random", "xlevels"))
 
@@ -57,12 +59,12 @@ test_that("all-continuous input is completely unaffected by biomarker_type (hard
   long_sub_random <- list("long1" = ~ year | id, "long2" = ~ year | id)
   fit_multi_dispatch <- longitudinalSub(list(data.fit, data.fit), long_sub_fixed, long_sub_random)
   fit_multi_direct   <- longitudinalSubGaussian(list(data.fit, data.fit), long_sub_fixed, long_sub_random)
-  expect_identical(fit_multi_dispatch, fit_multi_direct)
+  expect_equal(fit_multi_dispatch, fit_multi_direct)
 
   # explicit biomarker_type = all "continuous" must also route to the untouched path
   fit_explicit_cont <- longitudinalSub(data.fit, serBilir ~ year + age + sex, ~ year | id,
                                         biomarker_type = "continuous")
-  expect_identical(fit_explicit_cont, fit_direct)
+  expect_equal(fit_explicit_cont, fit_direct)
 })
 
 test_that("a mixed continuous/ordinal fit runs, auto-detects, and returns a sane joint model", {

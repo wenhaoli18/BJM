@@ -1,32 +1,31 @@
 # CRAN submission comments
 
-This is an update to the previously published version (0.2.0 on CRAN,
-published 2026-09-25) to version 0.3.0. See NEWS.md for the full list of
-changes, including the rename of `dynamicPrediction()` to `predictRisk()`,
-the new `predictLongitudinal()`, `imputeLongitudinal()` (optional `torch`
-backend, in `Suggests`), `poolLongitudinalSub()` and `fitIntervalBJM()`
-functions, support for ordinal biomarkers and interval-censored event
-times, and several bug fixes -- among them a correctness fix in the
-dynamic prediction functions: longitudinal measurements recorded after
-`prediction_time` were not removed from the prediction data, so a
-prediction could condition on future information. They are now dropped
-(with a warning) before predicting.
+This is a resubmission fixing the issue reported on the CRAN check page
+for BJM 0.3.0 (to be fixed before 2026-11-23): under the MKL additional
+check, two `expect_identical()` comparisons in
+`tests/testthat/test-longitudinalSubCopula.R` failed because refitting
+the same `nlme::lme()` model gave results differing in about the 12th
+significant digit. The tests that compare two fits of the same model now
+use `expect_equal()` (testthat's default numerical tolerance) instead.
+There is no change to the package code. I could not run an MKL build
+locally.
 
 ## R CMD check results
 
-win-builder, R-devel (2026-10-14 r90673 ucrt), Windows:
+win-builder, R-devel (2026-11-03 r90835 ucrt), Windows:
 
 0 errors | 0 warnings | 1 note
 
-* `checking CRAN incoming feasibility ... NOTE` -- "Possibly misspelled
-  words in DESCRIPTION: Shen, al, et". These are false positives from the
-  method references in the Description field, written in the requested
-  "authors (year) <doi:...>" form: "Shen" is an author's surname (Shen and
-  Li (2021)), and "et al." abbreviates the author list of Li et al. (2026).
+* `checking CRAN incoming feasibility ... NOTE` -- "Days since last
+  update: 4". This update fixes the issue reported on the CRAN check page
+  shortly after 0.3.0 was published.
 
 `R CMD check --as-cran` (R 4.4.1, macOS 14.4 aarch64, local) reports:
 
-0 errors | 0 warnings | 2 notes
+0 errors | 0 warnings | 3 notes
+
+* `checking CRAN incoming feasibility ... NOTE` -- "Days since last
+  update", as above.
 
 * `checking for future file timestamps ... NOTE` -- "unable to verify
   current time"; a network/clock-verification check with no bearing on
@@ -40,12 +39,12 @@ Examples, including those in `\donttest{}`, run without error. The `torch`
 examples run only when both the `torch` package and its LibTorch backend
 are installed (`torch::torch_is_installed()`).
 
-`testthat` (3rd edition), as run by `R CMD check`: 609 passed, 0 failed,
-0 warnings, 56 skipped on CRAN, in about 1 minute locally. The skipped
+`testthat` (3rd edition), as run by `R CMD check`: 801 passed, 0 failed,
+0 warnings, 59 skipped on CRAN, in about 1 minute locally. The skipped
 tests are long-running ones (reference results, plots, and repeated
 fits of ordinal biomarkers with `ordinal::clmm()`), skipped to keep the
 check time down; each model path still runs at least one test on CRAN,
-and all 891 tests pass with `NOT_CRAN=true`.
+and all 1098 tests pass with `NOT_CRAN=true`.
 
 ## Downstream dependencies
 

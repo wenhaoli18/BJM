@@ -1,3 +1,10 @@
+# BJM 0.3.1
+
+* Tests that refit the same model twice now compare the fits with a
+  numerical tolerance rather than requiring them to be identical, since
+  some BLAS/LAPACK builds (Intel MKL on CRAN's additional checks) give
+  results that differ in the last digits. No change to the package code.
+
 # BJM 0.3.0
 
 ## Breaking changes
