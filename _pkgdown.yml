@@ -36,6 +36,11 @@ reference:
   - buildRecurrentEpisodes
   - predictRecurrentCount
 
+- title: Transport to a new population (experimental)
+  desc: Adapt the survival sub-model to a population with different event rates, keeping the longitudinal sub-model, with or without target outcomes.
+  contents:
+  - transportBJM
+
 - title: Missing data imputation
   desc: Impute missing longitudinal biomarker values and pool sub-model fits across imputations.
   contents:
