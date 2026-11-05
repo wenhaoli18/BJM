@@ -1,3 +1,13 @@
+# BJM (development version)
+
+* Documentation: `predictRecurrentCount()`'s limitation under a
+  patient-level frailty is now described as simulations showed it -- the
+  fitted episode effect absorbs the selection of frail patients into later
+  episodes, and the expected counts come out too extreme, rather than too
+  narrow -- and the recurrent-events article has a new section on putting
+  the observed gap history (first-episode indicator, mean log gap) among the
+  survival sub-model's covariates, with simulation results.
+
 # BJM 0.3.1
 
 * Tests that refit the same model twice now compare the fits with a
