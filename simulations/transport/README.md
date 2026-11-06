@@ -10,3 +10,12 @@ Kept outside the package build (see `.Rbuildignore`).
   `OPENBLAS_NUM_THREADS=1` when running several processes in parallel.
 - `summarize.R` — tables (`sim/out/table_*.csv`) and figures from the
   per-replicate results in `sim/full/`.
+
+## Results (40 replicates, complete)
+
+- `results/replicates/rep_XXX.rds` — per-replicate results (rep_000 = pilot run, excluded).
+- `results/pilot/` — pilot study (k = 0.5, 1, 2; 10 replicates each).
+- `results/tables_figures/` — table_alpha.csv, table_prediction.csv, fig1_alpha.png,
+  fig2_rmse.png, summary.txt.
+
+Write-up of the simulation section: https://claude.ai/artifact/5tPtRiPuQqB8ZFW7FuLMiR

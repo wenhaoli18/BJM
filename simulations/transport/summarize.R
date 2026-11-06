@@ -28,7 +28,6 @@ x$calib_ratio <- x$predicted / x$oracle        # mean predicted / mean true risk
 tab_pred <- do.call(rbind, lapply(split(x, list(x$scenario, x$landmark, x$method), drop = TRUE), function(d) data.frame(
   scenario = d$scenario[1], landmark = d$landmark[1], method = d$method[1],
   rmse_vs_true_risk = mean(d$rmse_oracle), calib_ratio = mean(d$calib_ratio),
-  abs_log_calib = mean(abs(log(d$calib_ratio))),
   brier_excess = mean(d$brier - d$brier_oracle), auc = mean(d$auc, na.rm = TRUE))))
 tab_pred <- tab_pred[order(tab_pred$scenario, tab_pred$landmark, tab_pred$method), ]
 write.csv(tab_pred, "sim/out/table_prediction.csv", row.names = FALSE)
