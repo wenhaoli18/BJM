@@ -4,10 +4,21 @@
 \alias{history_features}
 \title{What a subject's other visits say about each biomarker}
 \usage{
-history_features(aligned, id, time_variable, resp_mat, mask)
+history_features(aligned, id, time_variable, resp_mat, mask, fill = NULL)
+}
+\arguments{
+\item{fill}{Optional \code{n x M} matrix of stand-in values for a visit
+with no other observed value of a biomarker, e.g. each visit's
+prediction from its covariates. \code{imputeLongitudinal()} passes that
+prediction, so a subject never measured for a biomarker is not given
+the overall mean as if it were the subject's own level.}
 }
 \value{
-A matrix with four columns per biomarker, one row per visit.
+A matrix with four columns per biomarker, one row per visit. Its
+\code{"unseen"} attribute holds the same features as if the subject had
+no other observed value of the biomarker (what a subject never measured
+for it gets); \code{imputeLongitudinal()} swaps them in at random while
+training (see \code{history_dropout_inputs()}).
 }
 \description{
 Inputs for the deep imputation models (\code{history = TRUE}
@@ -19,7 +30,8 @@ subjects. For each visit and biomarker: the mean of the subject's
 (\code{log1p}), and the value at the nearest other observed visit and its
 distance in time (\code{log1p}). The visit's own value is left out, so
 the model cannot simply copy it while training. A subject with no other
-observed value gets the biomarker's overall mean, a count of 0 and the
-largest distance.
+observed value gets \code{fill} (by default the biomarker's overall mean)
+in place of the mean and the nearest value, a count of 0 and the largest
+distance.
 }
 \keyword{internal}

@@ -386,3 +386,60 @@ test_that("history_features summarises a subject's other visits, never the visit
   expect_equal(unname(h[4, 1:2]), c(mean(c(10, 14, 5)), 0))
   expect_error(imputeLongitudinal(aligned, y ~ year, ~ 1 | id, "year", history = NA), "history")
 })
+
+test_that("history_features gives a never-measured subject the stand-in level, and an 'unseen' version of every row", {
+  aligned <- data.frame(id = c(1, 1, 2, 2), year = c(0, 1, 0, 1))
+  resp <- cbind(y = c(10, 12, NA, NA))
+  mask <- !is.na(resp)
+  fill <- cbind(y = c(9, 9.5, 4, 4.5))
+  h <- history_features(aligned, "id", "year", resp, mask, fill = fill)
+  far <- log1p(diff(range(aligned$year)) + 1)
+  # subject 2 was never measured: its own covariate prediction, not the overall mean (11)
+  expect_equal(unname(h[3, ]), c(4, 0, 4, far))
+  expect_equal(unname(h[1, ]), c(12, log1p(1), 12, log1p(1)))
+  unseen <- attr(h, "unseen")
+  expect_equal(dim(unseen), dim(h))
+  expect_equal(unname(unseen[1, ]), c(9, 0, 9, far))
+})
+
+test_that("history_dropout_rate swaps only biomarkers some subject was never measured for", {
+  ids <- rep(1:4, each = 2)
+  mask <- cbind(a = TRUE, b = c(TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, TRUE, TRUE))
+  # every subject has some `a`; subject 3 (2 of 8 rows) never has `b`
+  expect_equal(history_dropout_rate(as.character(ids), mask), c(0, 0.25))
+  expect_equal(history_dropout_rate(as.character(ids), mask, min_rate = 0.5), c(0, 0.5))
+})
+
+test_that("with history = TRUE, a subject never measured for a biomarker is imputed from the other biomarker (requires torch)", {
+  skip_on_cran()
+  skip_if_no_torch()
+  # the two biomarkers share a subject level; half the subjects never have y2.
+  # Their history features for y2 are ones the network never saw while
+  # training unless training swaps them in: it then took the stand-in for the
+  # subject's own level and imputed worse than a regression on the
+  # covariates alone, with too little spread
+  set.seed(3)
+  n <- 200
+  d <- expand.grid(year = 0:4, id = seq_len(n))
+  d$age <- stats::rnorm(n)[d$id]
+  level <- stats::rnorm(n, 0, 1)[d$id]
+  d$y1 <- 1 + 0.3 * d$year + 0.2 * d$age + level + stats::rnorm(nrow(d), 0, 0.3)
+  d$y2 <- 2 - 0.2 * d$year + 0.3 * d$age + 0.9 * level + stats::rnorm(nrow(d), 0, 0.3)
+  truth <- d$y2
+  never <- d$id %in% sample(n, n / 2)
+  d$y2[never] <- NA
+  covariate_only <- stats::predict(stats::lm(y2 ~ year + age, data = d), newdata = d)[never]
+  for (method in c("miwae", "diffusion")) {
+    out <- imputeLongitudinal(d, list(y1 ~ year + age, y2 ~ year + age), list(~ 1 | id, ~ 1 | id),
+                              time_variable = "year", method = method, history = TRUE,
+                              n_imputations = 5, impute = "multiple", seed = 1)
+    key <- match(paste(d$id, d$year)[never], paste(out$data_fit_all[[2]]$id, out$data_fit_all[[2]]$year))
+    draws <- sapply(out$data_fit_all_list, function(cmp) cmp[[2]]$y2[key])
+    rmse <- sqrt(mean((rowMeans(draws) - truth[never])^2))
+    # about 0.36 of the covariate-only error; 0.51 (MIWAE) and 0.58
+    # (diffusion) before training swapped in the never-measured features
+    expect_lt(rmse, 0.45 * sqrt(mean((covariate_only - truth[never])^2)))
+    # the draws spread about as much as the error they leave (about 0.8)
+    expect_gt(mean(apply(draws, 1, sd)), 0.65 * rmse)
+  }
+})

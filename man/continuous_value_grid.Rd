@@ -45,7 +45,7 @@ at least the biomarker's SD in the training data -- with a step of the
 biomarker's residual SD \eqn{\sigma}, at least 30 and at most 100
 points. A predicted future measurement includes its measurement error,
 so every predictive density has an SD of at least \eqn{\sigma}: within
-half a step of its mode it is still above 88\\% of its peak, far above
+half a step of its mode it is still above 88\% of its peak, far above
 \code{rel_tol}, so no patient's density falls between coarse points.
 \item \code{bandcount3} + 1 equally spaced points over the part of the
 coarse grid where some patient's density exceeds \code{rel_tol} times
@@ -53,7 +53,7 @@ that patient's maximum, widened by \eqn{2\sigma} (and at least one
 coarse step) on either side.
 }
 The wide range used to be the final grid, so most of the
-\code{bandcount3} points (about 90\\% in a simulated example) lay where
+\code{bandcount3} points (about 90\% in a simulated example) lay where
 every density was practically 0. If the coarse pass finds no usable
 density, the wide range is returned with \code{bandcount3} + 1 points,
 as before.

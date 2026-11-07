@@ -18,9 +18,9 @@ A \code{ggplot} object.
 }
 \description{
 \describe{
-\item{\code{"forest"}}{Forest plot of the hazard ratios (with 95\\%
+\item{\code{"forest"}}{Forest plot of the hazard ratios (with 95\%
 confidence intervals) of the Cox marginal survival model and, when the
-fit has competing risks, of the odds ratios (with 95\\% Wald confidence
+fit has competing risks, of the odds ratios (with 95\% Wald confidence
 intervals) of the logistic event-type model, on a log scale with a
 reference line at 1.}
 \item{\code{"basehaz"}}{The Cox model's baseline cumulative hazard

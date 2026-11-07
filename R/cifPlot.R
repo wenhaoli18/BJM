@@ -30,7 +30,7 @@
 #' @param group_variable Optional name of a subject-level variable to stratify
 #' the curves by, shown by line type (and also by color when there is a
 #' single event type). \code{NULL} (default) for no grouping.
-#' @param conf_int Logical; draw pointwise 95\% confidence bands. Default
+#' @param conf_int Logical; draw pointwise 95% confidence bands. Default
 #' \code{TRUE}.
 #'
 #' @return A \code{ggplot} object.
