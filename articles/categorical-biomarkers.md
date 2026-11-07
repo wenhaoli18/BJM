@@ -390,13 +390,13 @@ sims <- simulateTrajectory(list(patient, patient), long_fit, survival_fit,
                            survival_variable_all = list(), survival_trans_function = list(),
                            n_sim = 300, seed = 1)
 head(as.data.frame(sims)[, c("sim", "year", "serBilir", "edema")])
-#>   sim year  serBilir      edema
-#> 1   1  5.0 1.8500962 persistent
-#> 2   1  5.5 1.0121664 persistent
-#> 3   1  6.0 0.8941778 persistent
-#> 4   1  6.5 2.0523262       none
-#> 5   1  7.0 1.5222769 persistent
-#> 6   1  7.5        NA       <NA>
+#>   sim year serBilir      edema
+#> 1   1  5.0 1.336164 controlled
+#> 2   1  5.5 1.190082 controlled
+#> 3   1  6.0 1.941040 persistent
+#> 4   1  6.5 2.626985 persistent
+#> 5   1  7.0 2.095260 persistent
+#> 6   1  7.5       NA       <NA>
 ```
 
 [`plot()`](https://rdrr.io/r/graphics/plot.default.html) shows, at each

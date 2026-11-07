@@ -209,3 +209,56 @@ are resampled with replacement).
 [`buildRecurrentEpisodes`](https://wenhaoli18.github.io/BJM/reference/buildRecurrentEpisodes.md),
 [`predictRisk`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md),
 [`simulateTrajectory`](https://wenhaoli18.github.io/BJM/reference/simulateTrajectory.md)
+
+## Examples
+
+``` r
+## Simulated recurrent events and a biomarker. Subject 9999 is still at
+## risk in their 2nd episode, and is who we predict for.
+set.seed(1)
+n <- 60
+data_events <- do.call(rbind, lapply(seq_len(n), function(id) {
+  k <- sample(1:3, 1)
+  data.frame(
+    id = id, time = cumsum(rexp(k, rate = 1)),
+    status = c(rep(1, k - 1), sample(c(0, 2), 1, prob = c(0.6, 0.4))),
+    age = round(50 + rnorm(1, sd = 8)), sex = id %% 2
+  )
+}))
+data_events <- rbind(data_events, data.frame(
+  id = 9999, time = c(0.8, 1.6), status = c(1, 0), age = 55, sex = 1
+))
+data_long <- do.call(rbind, lapply(c(seq_len(n), 9999), function(id) {
+  tt <- seq(0, max(data_events$time[data_events$id == id]) + 0.2, by = 0.25)
+  data.frame(id = id, year = tt, biomarker = rnorm(length(tt)))
+}))
+built <- buildRecurrentEpisodes(data_events, data_long, time_variable_long = "year")
+#> buildRecurrentEpisodes(): dropped 50 row(s) of `data_long` whose year fell outside every modeled episode (before time 0 or the `lookback` window, inside a hospital stay not covered by `lookback`, or after the subject's recurrent-event process had already ended).
+
+survival_fit_recur <- survivalSub(
+  built$episode_data,
+  Surv(gap, event_any) ~ age + sex + episode,
+  event_type ~ gap + age + sex + episode
+)
+long_fit_recur <- longitudinalSub(
+  built$long_data[built$long_data$event_any == 1, ],
+  biomarker ~ time_in_episode + age + sex + gap + gap * time_in_episode,
+  ~ time_in_episode | episode_id
+)
+
+## The number of recurrences over the next 3 time units
+open <- built$long_data[built$long_data$id == 9999 & built$long_data$event_any == 0, ]
+counts <- predictRecurrentCount(
+  open, long_fit_recur, survival_fit_recur,
+  prediction_time = max(open$time_in_episode), horizon = 3,
+  time_variable = "time_in_episode", n_sim = 50, bandcount2 = 30, seed = 1
+)
+counts
+#> Predicted recurrences in (0.7, 3.7], 1 patient(s), 50 simulated paths each
+#> mean expected count 0.480; P(>=1) 0.380; P(>=2) 0.080; P(death) 0.880
+#> 
+#>  episode_id mean_count p_count_0 p_count_1 p_count_2 p_count_3plus p_ge1 p_ge2
+#>      9999:2       0.48      0.62       0.3      0.06          0.02  0.38  0.08
+#>  p_death
+#>     0.88
+```
