@@ -1,23 +1,44 @@
 # CRAN submission comments
 
-This is a resubmission fixing the issue reported on the CRAN check page
-for BJM 0.3.0 (to be fixed before 2026-11-23): under the MKL additional
-check, two `expect_identical()` comparisons in
-`tests/testthat/test-longitudinalSubCopula.R` failed because refitting
-the same `nlme::lme()` model gave results differing in about the 12th
-significant digit. The tests that compare two fits of the same model now
-use `expect_equal()` (testthat's default numerical tolerance) instead.
-There is no change to the package code. I could not run an MKL build
-locally.
+## Resubmission
+
+Thank you for checking the previous submission of 0.3.1 under MKL. It
+still failed there: switching from `expect_identical()` to
+`expect_equal()` was not enough, because the fits being compared contain
+`nlme::lme()`'s `apVar`, a finite-difference approximation to the
+covariance of the variance parameters. Last-digit differences in the fit
+change it by tens of percent. I also found that the second biomarker's
+`optim()` fit can stop at relative differences of a few 1e-8, just above
+`expect_equal()`'s default tolerance.
+
+In this version, the three comparisons in
+`tests/testthat/test-longitudinalSubCopula.R` drop `apVar` (which BJM does
+not use) and use a tolerance of 1e-6. I could not run an MKL build
+locally, so I reproduced the problem instead by refitting on data
+perturbed in the 10th to 14th significant digit: `apVar` changed by up to
+57% and the previous test failed, while the new comparison passed in all
+90 such refits. It still fails for a genuinely different fit (other fixed
+effects, other random effects, or data changed by 1e-4). There is no
+change to the package code.
+
+## Original submission
+
+This update fixes the issue reported on the CRAN check page for BJM 0.3.0
+(to be fixed before 2026-11-23): under the MKL additional check, tests
+that refit the same `nlme::lme()` model twice and required the two fits to
+be identical failed.
 
 ## R CMD check results
 
-win-builder, R-devel (2026-11-03 r90835 ucrt), Windows:
+TODO before submitting: rerun win-builder on the final tarball and fill
+in the result below.
+
+win-builder, R-devel (TODO: date and revision), Windows:
 
 0 errors | 0 warnings | 1 note
 
 * `checking CRAN incoming feasibility ... NOTE` -- "Days since last
-  update: 4". This update fixes the issue reported on the CRAN check page
+  update". This update fixes the issue reported on the CRAN check page
   shortly after 0.3.0 was published.
 
 `R CMD check --as-cran` (R 4.4.1, macOS 14.4 aarch64, local) reports:
