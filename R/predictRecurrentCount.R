@@ -33,12 +33,18 @@
 #' \strong{Limitation.} Only the first step uses the patient's biomarkers.
 #' Later episodes depend on the patient only through their covariates (and
 #' the episode counter), so any patient-level tendency to recur that is not
-#' in those covariates -- a frailty -- is not carried forward, and the
-#' predicted spread of the counts (e.g. the chance of two or more
-#' recurrences) will be too small when such a tendency is present. Putting
-#' the number of previous episodes, or the length of the previous gap, among
-#' the survival sub-model's covariates (and updating them in
-#' \code{next_covariates}) recovers some of it.
+#' in those covariates -- a frailty -- is not carried forward. The patients
+#' who reach later episodes are then mostly the frailer ones, the fitted
+#' effect of the episode counter absorbs that selection, and rolled forward
+#' it makes the expected counts too extreme: too high for the patients
+#' predicted to recur most, too low for those predicted to recur least (in
+#' simulations with a strong frailty the calibration slope of the expected
+#' count was 0.7-0.8). Putting the patient's observed gap history among
+#' the survival sub-model's covariates -- an indicator of the first episode
+#' and the mean log length of the earlier gaps, say -- recovers part of it
+#' (slope 0.83-0.9). Keep such covariates at their observed values
+#' for the later episodes: the default \code{next_covariates} changes only
+#' the episode counter. See the recurrent-events article.
 #'
 #' The stay length is not part of the backward joint model, so it has to be
 #' supplied. The default, \code{0}, means a recurrence takes no time (a
