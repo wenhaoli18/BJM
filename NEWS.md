@@ -1,3 +1,13 @@
+# BJM 0.3.1
+
+* Tests that refit the same model twice now compare the fits with a
+  numerical tolerance rather than requiring them to be identical, since
+  some BLAS/LAPACK builds (Intel MKL on CRAN's additional checks) give
+  results that differ in the last digits. The comparisons leave out
+  `nlme::lme()`'s `apVar` (a finite-difference approximation that BJM does
+  not use, and that such last-digit differences can change by tens of
+  percent). No change to the package code.
+
 # BJM 0.3.0
 
 ## Breaking changes

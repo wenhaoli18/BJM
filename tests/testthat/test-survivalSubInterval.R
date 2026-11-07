@@ -198,7 +198,7 @@ test_that("fitIntervalBJM imputes event times inside each interval and fits f(Y 
                          survival_variable_all = list("Tev_1"),
                          survival_trans_function = list(function(t) abs(t - 1)),
                          n_burnin = 2, n_imputations = 2, n_thin = 1, n_grid = 15, seed = 1))
-  expect_identical(fit2$imputed_T, fit$imputed_T)
+  expect_equal(fit2$imputed_T, fit$imputed_T)
 
   # n_thin: every n_thin-th iteration after the burn-in is saved
   fit3 <- suppressWarnings(fitIntervalBJM(surv, long, Surv(L, R, type = "interval2") ~ x, "Tev",

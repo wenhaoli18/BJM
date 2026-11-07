@@ -9,3 +9,4 @@
 ^\.Rd2pdf
 ^vignettes/articles$
 ^shiny$
+^docs$
