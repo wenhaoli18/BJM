@@ -11,7 +11,7 @@
 #' (horizontal axis) is plotted against the observed risk (vertical axis):
 #' one minus the Kaplan--Meier estimate at \code{s + horizon} or, with
 #' competing risks, the Aalen--Johansen cumulative incidence of that event
-#' type, both of which account for censoring, with 95\% confidence
+#' type, both of which account for censoring, with 95% confidence
 #' intervals. Points on the diagonal mean the predictions are well
 #' calibrated; points below it mean the model overestimates the risk, above
 #' it that it underestimates it.
@@ -126,7 +126,7 @@ calibrationPlot <- function(data_predict_all, long_fit_all, survival_fit_all, pr
 #' @return A \code{data.frame} with one row per group: \code{group},
 #' \code{predicted} (mean predicted risk), \code{observed},
 #' \code{lower}, \code{upper} (Kaplan--Meier/Aalen--Johansen estimate at
-#' \code{end} with 95\% confidence interval), \code{n}, \code{n_cases}.
+#' \code{end} with 95% confidence interval), \code{n}, \code{n_cases}.
 #' @keywords internal
 calibration_groups <- function(risk, time, status, cause, k, end, n_groups) {
   n <- length(risk)

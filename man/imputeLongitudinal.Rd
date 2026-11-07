@@ -54,7 +54,7 @@ rows for \code{method = "diffusion"}. The default suits data sets of a
 few hundred to a few thousand rows; many more epochs can overfit, which
 shows as imputations that vary too little between draws (and so pooled
 standard errors that are too small) -- in a simulation, MIWAE's spread
-between draws fell from about the true residual SD at 300 epochs to 80\\%
+between draws fell from about the true residual SD at 300 epochs to 80\%
 of it at 3000.}
 
 \item{importance_samples}{Number of importance samples (\code{K}) used
@@ -97,7 +97,7 @@ history features for it hold a stand-in (the covariate prediction, see
 swaps (\code{history_dropout_inputs()}); without that training, in
 simulations, the imputations for those subjects were worse than a
 regression on the covariates and biased the event-time coefficient by
-about 40\\%. Defaults to \code{FALSE}.}
+about 40\%. Defaults to \code{FALSE}.}
 
 \item{seed}{Optional integer seed for reproducibility. It seeds both
 \pkg{torch} and R's random number generator for the duration of the

@@ -23,7 +23,7 @@ when \code{cause} is all \code{NA}).}
 A \code{data.frame} with one row per group: \code{group},
 \code{predicted} (mean predicted risk), \code{observed},
 \code{lower}, \code{upper} (Kaplan--Meier/Aalen--Johansen estimate at
-\code{end} with 95\\% confidence interval), \code{n}, \code{n_cases}.
+\code{end} with 95\% confidence interval), \code{n}, \code{n_cases}.
 }
 \description{
 Predicted and observed risk per risk group at one landmark

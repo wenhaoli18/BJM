@@ -35,6 +35,10 @@
   history (first-episode indicator, mean log gap) among the survival
   sub-model's covariates, with simulation results.
 
+* Help pages that give a percentage (e.g. `cifPlot()`'s `conf_int`,
+  `calibrationPlot()`, `imputeLongitudinal()`) no longer lose the rest of
+  the line after the `%` sign.
+
 # BJM 0.3.1
 
 * Tests that refit the same model twice now compare the fits with a

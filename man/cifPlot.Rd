@@ -43,7 +43,7 @@ sorted order of the event type values. Default uses the values themselves.}
 the curves by, shown by line type (and also by color when there is a
 single event type). \code{NULL} (default) for no grouping.}
 
-\item{conf_int}{Logical; draw pointwise 95\\% confidence bands. Default
+\item{conf_int}{Logical; draw pointwise 95\% confidence bands. Default
 \code{TRUE}.}
 }
 \value{

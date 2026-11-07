@@ -109,7 +109,7 @@
 #' few hundred to a few thousand rows; many more epochs can overfit, which
 #' shows as imputations that vary too little between draws (and so pooled
 #' standard errors that are too small) -- in a simulation, MIWAE's spread
-#' between draws fell from about the true residual SD at 300 epochs to 80\%
+#' between draws fell from about the true residual SD at 300 epochs to 80%
 #' of it at 3000.
 #' @param importance_samples Number of importance samples (\code{K}) used
 #' both in the training objective and at imputation time. Only used when
@@ -147,7 +147,7 @@
 #' swaps (\code{history_dropout_inputs()}); without that training, in
 #' simulations, the imputations for those subjects were worse than a
 #' regression on the covariates and biased the event-time coefficient by
-#' about 40\%. Defaults to \code{FALSE}.
+#' about 40%. Defaults to \code{FALSE}.
 #' @param seed Optional integer seed for reproducibility. It seeds both
 #' \pkg{torch} and R's random number generator for the duration of the
 #' call; R's random number state from before the call is restored
@@ -962,13 +962,13 @@ history_features <- function(aligned, id, time_variable, resp_mat, mask, fill = 
 #' that biomarker observed comes from a subject who was measured. Faced with
 #' them at imputation it extrapolated: in simulations it took the stand-in
 #' for the subject's own level, imputed with too little spread, and biased
-#' the fitted coefficients (the event-time coefficient by about 40\%).
+#' the fitted coefficients (the event-time coefficient by about 40%).
 #' Training therefore swaps, at random, a row's history features for one
 #' biomarker with their \code{"unseen"} version (see
 #' \code{history_features()}), keeping the row's own values as targets, so
 #' the network learns to impute that biomarker from the covariates and the
 #' other biomarkers alone. Each biomarker's rate is the share of rows from
-#' subjects never measured for it, at least 10\%, and 0 (no swaps, as
+#' subjects never measured for it, at least 10%, and 0 (no swaps, as
 #' before) when every subject has some value of it.
 #' @param X_cov Network inputs (standardized), a torch tensor.
 #' @param X_unseen The same inputs with every biomarker's history replaced by
