@@ -25,7 +25,7 @@ made little use of the row's other biomarkers."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">BJM</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -95,7 +95,8 @@ made little use of the row's other biomarkers.</p>
 <span>  <span class="va">diffusion_steps</span>,</span>
 <span>  <span class="va">time_emb_dim</span>,</span>
 <span>  batch_size <span class="op">=</span> <span class="fl">128</span>,</span>
-<span>  learning_rate <span class="op">=</span> <span class="fl">0.001</span></span>
+<span>  learning_rate <span class="op">=</span> <span class="fl">0.001</span>,</span>
+<span>  train_inputs <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -130,6 +131,12 @@ missing) and the observation mask, as <code>torch</code> tensors.</p></dd>
 
 <dt id="arg-learning-rate">learning_rate<a class="anchor" aria-label="anchor" href="#arg-learning-rate"></a></dt>
 <dd><p>Adam learning rate.</p></dd>
+
+
+<dt id="arg-train-inputs">train_inputs<a class="anchor" aria-label="anchor" href="#arg-train-inputs"></a></dt>
+<dd><p>Optional function from <code><a href="history_dropout_inputs.html">history_dropout_inputs()</a></code>
+giving the mini-batch's inputs with random swaps of the history
+features; <code>NULL</code> uses <code>X_cov</code> as is.</p></dd>
 
 </dl></div>
     <div class="section level2">

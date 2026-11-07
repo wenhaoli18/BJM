@@ -9,14 +9,14 @@ at least the biomarker's SD in the training data – with a step of the
 biomarker's residual SD \(\sigma\), at least 30 and at most 100
 points. A predicted future measurement includes its measurement error,
 so every predictive density has an SD of at least \(\sigma\): within
-half a step of its mode it is still above 88\
+half a step of its mode it is still above 88% of its peak, far above
 rel_tol, so no patient's density falls between coarse points.
 bandcount3 + 1 equally spaced points over the part of the
 coarse grid where some patient's density exceeds rel_tol times
 that patient's maximum, widened by \(2\sigma\) (and at least one
 coarse step) on either side.
 The wide range used to be the final grid, so most of the
-bandcount3 points (about 90\
+bandcount3 points (about 90% in a simulated example) lay where
 every density was practically 0. If the coarse pass finds no usable
 density, the wide range is returned with bandcount3 + 1 points,
 as before."><meta property="og:description" content="Helper for compute_bio_marker_step(): the grid of
@@ -29,14 +29,14 @@ at least the biomarker's SD in the training data – with a step of the
 biomarker's residual SD \(\sigma\), at least 30 and at most 100
 points. A predicted future measurement includes its measurement error,
 so every predictive density has an SD of at least \(\sigma\): within
-half a step of its mode it is still above 88\
+half a step of its mode it is still above 88% of its peak, far above
 rel_tol, so no patient's density falls between coarse points.
 bandcount3 + 1 equally spaced points over the part of the
 coarse grid where some patient's density exceeds rel_tol times
 that patient's maximum, widened by \(2\sigma\) (and at least one
 coarse step) on either side.
 The wide range used to be the final grid, so most of the
-bandcount3 points (about 90\
+bandcount3 points (about 90% in a simulated example) lay where
 every density was practically 0. If the coarse pass finds no usable
 density, the wide range is returned with bandcount3 + 1 points,
 as before."></head><body>
@@ -47,7 +47,7 @@ as before."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">BJM</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -103,14 +103,14 @@ at least the biomarker's SD in the training data – with a step of the
 biomarker's residual SD \(\sigma\), at least 30 and at most 100
 points. A predicted future measurement includes its measurement error,
 so every predictive density has an SD of at least \(\sigma\): within
-half a step of its mode it is still above 88\<!-- % of its peak, far above -->
+half a step of its mode it is still above 88% of its peak, far above
 <code>rel_tol</code>, so no patient's density falls between coarse points.</p></li>
 <li><p><code>bandcount3</code> + 1 equally spaced points over the part of the
 coarse grid where some patient's density exceeds <code>rel_tol</code> times
 that patient's maximum, widened by \(2\sigma\) (and at least one
 coarse step) on either side.</p></li>
 </ol><p>The wide range used to be the final grid, so most of the
-<code>bandcount3</code> points (about 90\<!-- % in a simulated example) lay where -->
+<code>bandcount3</code> points (about 90% in a simulated example) lay where
 every density was practically 0. If the coarse pass finds no usable
 density, the wide range is returned with <code>bandcount3</code> + 1 points,
 as before.</p>

@@ -10,9 +10,10 @@ size by predicted risk, and for each group the mean predicted risk
 (horizontal axis) is plotted against the observed risk (vertical axis):
 one minus the Kaplan–Meier estimate at `s + horizon` or, with competing
 risks, the Aalen–Johansen cumulative incidence of that event type, both
-of which account for censoring, with 95\\ intervals. Points on the
-diagonal mean the predictions are well calibrated; points below it mean
-the model overestimates the risk, above it that it underestimates it.
+of which account for censoring, with 95% confidence intervals. Points on
+the diagonal mean the predictions are well calibrated; points below it
+mean the model overestimates the risk, above it that it underestimates
+it.
 
 Evaluating on the data the sub-models were fit on gives an optimistic
 (apparent) calibration; pass held-out validation data in

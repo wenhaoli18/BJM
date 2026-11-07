@@ -24,7 +24,8 @@ train_diffusion(
   diffusion_steps,
   time_emb_dim,
   batch_size = 128,
-  learning_rate = 0.001
+  learning_rate = 0.001,
+  train_inputs = NULL
 )
 ```
 
@@ -59,6 +60,13 @@ train_diffusion(
 - learning_rate:
 
   Adam learning rate.
+
+- train_inputs:
+
+  Optional function from
+  [`history_dropout_inputs()`](https://wenhaoli18.github.io/BJM/reference/history_dropout_inputs.md)
+  giving the mini-batch's inputs with random swaps of the history
+  features; `NULL` uses `X_cov` as is.
 
 ## Value
 

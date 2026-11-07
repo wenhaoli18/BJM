@@ -8,8 +8,9 @@ other observed values of the biomarker, how many there are
 (log1p), and the value at the nearest other observed visit and its
 distance in time (log1p). The visit's own value is left out, so
 the model cannot simply copy it while training. A subject with no other
-observed value gets the biomarker's overall mean, a count of 0 and the
-largest distance."><meta property="og:description" content="Inputs for the deep imputation models (history = TRUE
+observed value gets fill (by default the biomarker's overall mean)
+in place of the mean and the nearest value, a count of 0 and the largest
+distance."><meta property="og:description" content="Inputs for the deep imputation models (history = TRUE
 in imputeLongitudinal): without them each visit is
 completed from that visit alone, so an imputed value does not carry the
 subject's own level, which shrinks the estimated variation between
@@ -18,8 +19,9 @@ other observed values of the biomarker, how many there are
 (log1p), and the value at the nearest other observed visit and its
 distance in time (log1p). The visit's own value is left out, so
 the model cannot simply copy it while training. A subject with no other
-observed value gets the biomarker's overall mean, a count of 0 and the
-largest distance."></head><body>
+observed value gets fill (by default the biomarker's overall mean)
+in place of the mean and the nearest value, a count of 0 and the largest
+distance."></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -27,7 +29,7 @@ largest distance."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">BJM</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -83,18 +85,35 @@ subjects. For each visit and biomarker: the mean of the subject's
 (<code>log1p</code>), and the value at the nearest other observed visit and its
 distance in time (<code>log1p</code>). The visit's own value is left out, so
 the model cannot simply copy it while training. A subject with no other
-observed value gets the biomarker's overall mean, a count of 0 and the
-largest distance.</p>
+observed value gets <code>fill</code> (by default the biomarker's overall mean)
+in place of the mean and the nearest value, a count of 0 and the largest
+distance.</p>
     </div>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">history_features</span><span class="op">(</span><span class="va">aligned</span>, <span class="va">id</span>, <span class="va">time_variable</span>, <span class="va">resp_mat</span>, <span class="va">mask</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">history_features</span><span class="op">(</span><span class="va">aligned</span>, <span class="va">id</span>, <span class="va">time_variable</span>, <span class="va">resp_mat</span>, <span class="va">mask</span>, fill <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
+    <h2 id="arguments">Arguments<a class="anchor" aria-label="anchor" href="#arguments"></a></h2>
+
+
+<dl><dt id="arg-fill">fill<a class="anchor" aria-label="anchor" href="#arg-fill"></a></dt>
+<dd><p>Optional <code>n x M</code> matrix of stand-in values for a visit
+with no other observed value of a biomarker, e.g. each visit's
+prediction from its covariates. <code><a href="imputeLongitudinal.html">imputeLongitudinal()</a></code> passes that
+prediction, so a subject never measured for a biomarker is not given
+the overall mean as if it were the subject's own level.</p></dd>
+
+</dl></div>
+    <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A matrix with four columns per biomarker, one row per visit.</p>
+    <p>A matrix with four columns per biomarker, one row per visit. Its
+<code>"unseen"</code> attribute holds the same features as if the subject had
+no other observed value of the biomarker (what a subject never measured
+for it gets); <code><a href="imputeLongitudinal.html">imputeLongitudinal()</a></code> swaps them in at random while
+training (see <code><a href="history_dropout_inputs.html">history_dropout_inputs()</a></code>).</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

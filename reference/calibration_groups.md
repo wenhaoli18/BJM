@@ -37,4 +37,5 @@ calibration_groups(risk, time, status, cause, k, end, n_groups)
 
 A `data.frame` with one row per group: `group`, `predicted` (mean
 predicted risk), `observed`, `lower`, `upper`
-(Kaplan–Meier/Aalen–Johansen estimate at `end` with 95\\
+(Kaplan–Meier/Aalen–Johansen estimate at `end` with 95% confidence
+interval), `n`, `n_cases`.

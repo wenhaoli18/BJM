@@ -70,7 +70,7 @@ cifPlot(
 
 - conf_int:
 
-  Logical; draw pointwise 95\\ `TRUE`.
+  Logical; draw pointwise 95% confidence bands. Default `TRUE`.
 
 ## Value
 

@@ -19,7 +19,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">BJM</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -423,9 +423,12 @@ sub-model. Biomarkers that change within an episode belong in
 <li>
 <strong>Covariates that change by episode in the count
 prediction.</strong> The episode number is advanced for you. If your
-survival model uses other episode-specific covariates, such as the
-length of the previous gap, pass
-<code>next_covariates = function(row, k)</code> to update them.</li>
+survival model uses other episode-specific covariates that you know in
+advance (age at the discharge, say), pass
+<code>next_covariates = function(row, k)</code> to update them.
+Covariates built from the patient’s gap history, as in the section
+above, are best left at their observed values, which the default
+does.</li>
 <li>
 <strong>Death, or the end of follow-up, during a stay.</strong> Such
 a patient was not back at risk, so <code><a href="../reference/buildRecurrentEpisodes.html">buildRecurrentEpisodes()</a></code>
@@ -442,6 +445,84 @@ data. When it comes from <code><a href="../reference/buildRecurrentEpisodes.html
 </ul>
 </div>
 <div class="section level2">
+<h2 id="when-patients-differ-in-how-often-they-recur">When patients differ in how often they recur<a class="anchor" aria-label="anchor" href="#when-patients-differ-in-how-often-they-recur"></a>
+</h2>
+<p>Some patients are readmitted again and again, others rarely, for
+reasons the covariates do not capture: a <em>frailty</em>. The count
+prediction does not carry such a tendency from one episode to the next
+(see below), and it does more than widen the error. The patients who
+reach a 3rd or 4th discharge are mostly the frail ones, so the fitted
+effect of <code>episode</code> absorbs that selection and comes out too
+large, and when <code><a href="../reference/predictRecurrentCount.html">predictRecurrentCount()</a></code> rolls a patient
+forward it raises the risk of each later episode too steeply. The
+expected counts come out too extreme: too high for the patients
+predicted to recur most, too low for those predicted to recur least.</p>
+<p>What the patient’s own history says about their frailty can be put
+back as covariates of the survival sub-model: whether this is the first
+episode, and the mean log length of the earlier gaps (a patient with
+short gaps so far is probably frail). Record them on each row of
+<code>events</code> as their value at the start of that row’s
+episode:</p>
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">add_gap_history</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">ev</span><span class="op">)</span> <span class="op">{</span>   <span class="co"># one patient's rows of `events`, in time order</span></span>
+<span>  <span class="va">start</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">ev</span><span class="op">$</span><span class="va">discharge</span>, <span class="op">-</span><span class="fl">1</span><span class="op">)</span><span class="op">)</span>         <span class="co"># each episode starts at the previous discharge</span></span>
+<span>  <span class="va">log_gap</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/Log.html" class="external-link">log</a></span><span class="op">(</span><span class="va">ev</span><span class="op">$</span><span class="va">time</span> <span class="op">-</span> <span class="va">start</span><span class="op">)</span></span>
+<span>  <span class="va">n</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">ev</span><span class="op">)</span></span>
+<span>  <span class="va">ev</span><span class="op">$</span><span class="va">first</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="va">n</span><span class="op">)</span> <span class="op">==</span> <span class="fl">1</span><span class="op">)</span></span>
+<span>  <span class="va">ev</span><span class="op">$</span><span class="va">mean_log_gap</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fu"><a href="https://rdrr.io/r/base/cumsum.html" class="external-link">cumsum</a></span><span class="op">(</span><span class="va">log_gap</span><span class="op">)</span><span class="op">[</span><span class="op">-</span><span class="va">n</span><span class="op">]</span> <span class="op">/</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="va">n</span> <span class="op">-</span> <span class="fl">1</span><span class="op">)</span><span class="op">)</span></span>
+<span>  <span class="va">ev</span></span>
+<span><span class="op">}</span></span>
+<span><span class="va">events</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/do.call.html" class="external-link">do.call</a></span><span class="op">(</span><span class="va">rbind</span>, <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/split.html" class="external-link">split</a></span><span class="op">(</span><span class="va">events</span>, <span class="va">events</span><span class="op">$</span><span class="va">id</span><span class="op">)</span>, <span class="va">add_gap_history</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<p>then add <code>first + mean_log_gap</code> to both formulas of
+<code><a href="../reference/survivalSub.html">survivalSub()</a></code>, and build the prediction data the same way
+(the last, open row gets the mean over all the patient’s earlier gaps).
+In <code><a href="../reference/predictRecurrentCount.html">predictRecurrentCount()</a></code> leave them at their observed
+values for the later episodes – the default <code>next_covariates</code>
+changes only <code>episode</code>. Replacing them with the gaps
+simulated on each path was tried, and was no better: the observed gaps
+are what carries the information about the patient.</p>
+<p>In a simulation like the one above but with a stronger frailty
+(standard deviation 1 instead of 0.5; 500 patients to fit, 5
+repetitions), predicting the number of readmissions in 6 months at the
+2nd and 3rd discharges:</p>
+<table class="table">
+<colgroup>
+<col width="33%">
+<col width="33%">
+<col width="33%">
+</colgroup>
+<thead><tr class="header">
+<th>without → with the gap history</th>
+<th>at the 2nd discharge</th>
+<th>at the 3rd discharge</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td>Calibration slope of the expected count (1 is ideal)</td>
+<td>0.75 → 0.83</td>
+<td>0.68 → 0.90</td>
+</tr>
+<tr class="even">
+<td>AUC, 2 or more readmissions</td>
+<td>0.59 → 0.63</td>
+<td>0.56 → 0.60</td>
+</tr>
+<tr class="odd">
+<td>AUC, death</td>
+<td>0.68 → 0.72</td>
+<td>0.66 → 0.73</td>
+</tr>
+</tbody>
+</table>
+<p>The fitted effect of <code>episode</code>, whose true value was 0.25,
+fell from 0.36 to 0.31. The gap history helps, but recovers only part of
+what is lost: a prediction that knew each patient’s true frailty reached
+an AUC for death of 0.82-0.86. With the milder frailty of the example
+data (standard deviation 0.5), the calibration slope without the gap
+history was already 0.95-1.04, and these covariates are not needed. At
+the first discharge there is no gap history to use.</p>
+</div>
+<div class="section level2">
 <h2 id="what-this-assumes-and-what-it-has-been-checked-against">What this assumes, and what it has been checked against<a class="anchor" aria-label="anchor" href="#what-this-assumes-and-what-it-has-been-checked-against"></a>
 </h2>
 <ul>
@@ -450,7 +531,8 @@ carries its assumptions. Across episodes, patients are linked only
 through their covariates and the episode number: <strong>only the first
 step of the count prediction uses the patient’s biomarkers</strong>, and
 a patient-level tendency to recur that is not in the covariates (a
-frailty) is not carried forward.</li>
+frailty) is not carried forward; see the section above for what that
+does and how to recover part of it.</li>
 <li>The stay length is resampled from the data, independently of
 everything else.</li>
 <li>The survival sub-model treats a patient’s episodes as independent.

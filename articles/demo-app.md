@@ -6,10 +6,6 @@ or upload one patient’s follow-up visits as a CSV file. Then choose a
 prediction time and a window and press **Predict**. The interface is
 available in English and Chinese.
 
-### Please Wait
-
-![loading](/__static__/frontend/images/spinner.gif?v=ce6bcde20b2f6c562913c06be83f9e7c8a19b008017407a3094b76fa82bbd6b7f4048e032e07e534d4ab5442b9105294d612863735077ab13a47653a14c5866e)
-
 If the frame does not load, [open the demo in a new
 tab](https://wenhaoli18.shinyapps.io/bjm-demo/). On the free hosting
 plan the app goes to sleep when nobody is using it, so the first visit

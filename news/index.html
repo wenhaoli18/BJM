@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">BJM</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -52,6 +52,19 @@
       <small>Source: <a href="https://github.com/wenhaoli18/BJM/blob/master/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.3.2" id="bjm-032">BJM 0.3.2<a class="anchor" aria-label="anchor" href="#bjm-032"></a></h2>
+<div class="section level3">
+<h3 id="bug-fixes-0-3-2">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-0-3-2"></a></h3>
+<ul><li>
+<code>imputeLongitudinal(method = "miwae"/"diffusion", history = TRUE)</code> no longer breaks down when some subjects were never measured for a biomarker. Their history features for it (a count of 0 and the overall mean as the level) were inputs the network had almost never seen while training, so it took the overall mean for the subject’s own level: in a simulation with half of the subjects never measured, the imputations were worse than a regression on the covariates (RMSE 1.6 times the best possible), their 95% intervals covered 55-65% of the true values, and the pooled event-time coefficient was biased by about 40% (95% CI coverage 0). The stand-in level is now the covariate prediction, and training swaps each row’s history features for a biomarker with that “never measured” version at random (at the share of rows from never-measured subjects, at least 10%), so the network learns to impute it from the covariates and the other biomarkers. In the same simulation the RMSE fell to 1.06 (MIWAE) and 1.10 (diffusion) times the best possible, coverage rose to 92% and 91%, and the event-time coefficient’s bias to 0.3% and 7%. The between-subject variance of that biomarker is still underestimated (its completions are drawn visit by visit, without a shared subject level); <code>method = "mixed"</code> does not have this problem. When every subject has some value of every biomarker, training makes no swaps, and the only change is the stand-in level at a subject’s single measurement of a biomarker.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="documentation-0-3-2">Documentation<a class="anchor" aria-label="anchor" href="#documentation-0-3-2"></a></h3>
+<ul><li><p><code><a href="../reference/predictRecurrentCount.html">predictRecurrentCount()</a></code>’s limitation under a patient-level frailty is now described as simulations showed it – the fitted episode effect absorbs the selection of frail patients into later episodes, and the expected counts come out too extreme, rather than too narrow – and the recurrent-events article has a new section on putting the observed gap history (first-episode indicator, mean log gap) among the survival sub-model’s covariates, with simulation results.</p></li>
+<li><p>Help pages that give a percentage (e.g. <code><a href="../reference/cifPlot.html">cifPlot()</a></code>’s <code>conf_int</code>, <code><a href="../reference/calibrationPlot.html">calibrationPlot()</a></code>, <code><a href="../reference/imputeLongitudinal.html">imputeLongitudinal()</a></code>) no longer lose the rest of the line after the <code>%</code> sign.</p></li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.3.1" id="bjm-031">BJM 0.3.1<a class="anchor" aria-label="anchor" href="#bjm-031"></a></h2><p class="text-muted">CRAN release: 2026-11-07</p>
 <ul><li>Tests that refit the same model twice now compare the fits with a numerical tolerance rather than requiring them to be identical, since some BLAS/LAPACK builds (Intel MKL on CRAN’s additional checks) give results that differ in the last digits. The comparisons leave out <code><a href="https://rdrr.io/pkg/nlme/man/lme.html" class="external-link">nlme::lme()</a></code>’s <code>apVar</code> (a finite-difference approximation that BJM does not use, and that such last-digit differences can change by tens of percent). No change to the package code.</li>

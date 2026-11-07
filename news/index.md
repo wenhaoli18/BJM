@@ -1,5 +1,50 @@
 # Changelog
 
+## BJM 0.3.2
+
+### Bug fixes
+
+- `imputeLongitudinal(method = "miwae"/"diffusion", history = TRUE)` no
+  longer breaks down when some subjects were never measured for a
+  biomarker. Their history features for it (a count of 0 and the overall
+  mean as the level) were inputs the network had almost never seen while
+  training, so it took the overall mean for the subject’s own level: in
+  a simulation with half of the subjects never measured, the imputations
+  were worse than a regression on the covariates (RMSE 1.6 times the
+  best possible), their 95% intervals covered 55-65% of the true values,
+  and the pooled event-time coefficient was biased by about 40% (95% CI
+  coverage 0). The stand-in level is now the covariate prediction, and
+  training swaps each row’s history features for a biomarker with that
+  “never measured” version at random (at the share of rows from
+  never-measured subjects, at least 10%), so the network learns to
+  impute it from the covariates and the other biomarkers. In the same
+  simulation the RMSE fell to 1.06 (MIWAE) and 1.10 (diffusion) times
+  the best possible, coverage rose to 92% and 91%, and the event-time
+  coefficient’s bias to 0.3% and 7%. The between-subject variance of
+  that biomarker is still underestimated (its completions are drawn
+  visit by visit, without a shared subject level); `method = "mixed"`
+  does not have this problem. When every subject has some value of every
+  biomarker, training makes no swaps, and the only change is the
+  stand-in level at a subject’s single measurement of a biomarker.
+
+### Documentation
+
+- [`predictRecurrentCount()`](https://wenhaoli18.github.io/BJM/reference/predictRecurrentCount.md)’s
+  limitation under a patient-level frailty is now described as
+  simulations showed it – the fitted episode effect absorbs the
+  selection of frail patients into later episodes, and the expected
+  counts come out too extreme, rather than too narrow – and the
+  recurrent-events article has a new section on putting the observed gap
+  history (first-episode indicator, mean log gap) among the survival
+  sub-model’s covariates, with simulation results.
+
+- Help pages that give a percentage
+  (e.g. [`cifPlot()`](https://wenhaoli18.github.io/BJM/reference/cifPlot.md)’s
+  `conf_int`,
+  [`calibrationPlot()`](https://wenhaoli18.github.io/BJM/reference/calibrationPlot.md),
+  [`imputeLongitudinal()`](https://wenhaoli18.github.io/BJM/reference/imputeLongitudinal.md))
+  no longer lose the rest of the line after the `%` sign.
+
 ## BJM 0.3.1
 
 CRAN release: 2026-11-07

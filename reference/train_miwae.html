@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">BJM</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -59,11 +59,31 @@
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">train_miwae</span><span class="op">(</span><span class="va">net</span>, <span class="va">X_cov</span>, <span class="va">X_resp</span>, <span class="va">X_mask</span>, <span class="va">epochs</span>, <span class="va">K</span>, learning_rate <span class="op">=</span> <span class="fl">0.001</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">train_miwae</span><span class="op">(</span></span>
+<span>  <span class="va">net</span>,</span>
+<span>  <span class="va">X_cov</span>,</span>
+<span>  <span class="va">X_resp</span>,</span>
+<span>  <span class="va">X_mask</span>,</span>
+<span>  <span class="va">epochs</span>,</span>
+<span>  <span class="va">K</span>,</span>
+<span>  learning_rate <span class="op">=</span> <span class="fl">0.001</span>,</span>
+<span>  train_inputs <span class="op">=</span> <span class="cn">NULL</span></span>
+<span><span class="op">)</span></span></code></pre></div>
     </div>
 
+    <div class="section level2">
+    <h2 id="arguments">Arguments<a class="anchor" aria-label="anchor" href="#arguments"></a></h2>
 
-  </main></div>
+
+<dl><dt id="arg-train-inputs">train_inputs<a class="anchor" aria-label="anchor" href="#arg-train-inputs"></a></dt>
+<dd><p>Optional function from <code><a href="history_dropout_inputs.html">history_dropout_inputs()</a></code>
+giving the inputs with fresh random swaps of the history features each
+epoch; <code>NULL</code> uses <code>X_cov</code> as is.</p></dd>
+
+</dl></div>
+
+  </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
+    </nav></aside></div>
 
 
     <footer><div class="pkgdown-footer-left">

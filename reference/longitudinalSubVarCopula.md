@@ -26,12 +26,13 @@ computed by
 Both target the same maximum-likelihood estimate, but with the default
 number of iterations SAEM stopped short of it: for two ordinal
 biomarkers with a random intercept and slope each (four ordinal random
-effects), the random-effects variances were off by about 5\\ quadrature
-(\\5^4 = 625\\ nodes per subject) removes; hence the default
-`max_quadrature_dim = 4`. The earlier version plugged in the mean of
-each latent score given its category, which ignored the score's own
-variance and underestimated the ordinal biomarkers' random-effects
-variances (by about 40\\ for a random slope in simulations).
+effects), the random-effects variances were off by about 5% in
+simulations, which quadrature (\\5^4 = 625\\ nodes per subject) removes;
+hence the default `max_quadrature_dim = 4`. The earlier version plugged
+in the mean of each latent score given its category, which ignored the
+score's own variance and underestimated the ordinal biomarkers'
+random-effects variances (by about 40% for a random intercept and 75%
+for a random slope in simulations).
 
 ## Usage
 

@@ -144,7 +144,7 @@ long_fit
 #> 
 #>               Value       SE      z  p-value    
 #> year        0.68832  0.09263  7.431 1.08e-13 ***
-#> age         0.03636  0.01152  3.155  0.00160 ** 
+#> age         0.03636  0.01152  3.156  0.00160 ** 
 #> years      -0.31621  0.04716 -6.705 2.01e-11 ***
 #> year:years -0.03090  0.01030 -2.999  0.00271 ** 
 #> ---
@@ -390,13 +390,13 @@ sims <- simulateTrajectory(list(patient, patient), long_fit, survival_fit,
                            survival_variable_all = list(), survival_trans_function = list(),
                            n_sim = 300, seed = 1)
 head(as.data.frame(sims)[, c("sim", "year", "serBilir", "edema")])
-#>   sim year serBilir      edema
-#> 1   1  5.0 1.336164 controlled
-#> 2   1  5.5 1.190082 controlled
-#> 3   1  6.0 1.941040 persistent
-#> 4   1  6.5 2.626985 persistent
-#> 5   1  7.0 2.095260 persistent
-#> 6   1  7.5       NA       <NA>
+#>   sim year  serBilir      edema
+#> 1   1  5.0 0.4637836 controlled
+#> 2   1  5.5 0.6813476 controlled
+#> 3   1  6.0 1.6818980 controlled
+#> 4   1  6.5 0.9020192 controlled
+#> 5   1  7.0 0.9665502 controlled
+#> 6   1  7.5        NA       <NA>
 ```
 
 [`plot()`](https://rdrr.io/r/graphics/plot.default.html) shows, at each

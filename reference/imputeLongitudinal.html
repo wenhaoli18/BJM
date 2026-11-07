@@ -45,9 +45,10 @@ The two deep generative methods need the torch package. They
 complete each visit from that visit's covariates and observed biomarkers
 (and, with history = TRUE, a summary of the subject's other
 visits), and in the simulations they shrank the estimated variation
-between subjects, which every prediction uses; with history = TRUE
-they also biased the event-time coefficients when subjects lacked a
-biomarker entirely. The completed data.frame(s) of any method can be
+between subjects, which every prediction uses: each visit is completed on
+its own, so the completions of a subject never measured for a biomarker
+do not share a subject level, and that variation goes into the residual
+variance instead. The completed data.frame(s) of any method can be
 passed directly to longitudinalSub() in place of the original
 data_fit_all."><meta property="og:description" content="Fills in missing biomarker values before
 longitudinalSub() is fit, assuming they are missing at random
@@ -95,9 +96,10 @@ The two deep generative methods need the torch package. They
 complete each visit from that visit's covariates and observed biomarkers
 (and, with history = TRUE, a summary of the subject's other
 visits), and in the simulations they shrank the estimated variation
-between subjects, which every prediction uses; with history = TRUE
-they also biased the event-time coefficients when subjects lacked a
-biomarker entirely. The completed data.frame(s) of any method can be
+between subjects, which every prediction uses: each visit is completed on
+its own, so the completions of a subject never measured for a biomarker
+do not share a subject level, and that variation goes into the residual
+variance instead. The completed data.frame(s) of any method can be
 passed directly to longitudinalSub() in place of the original
 data_fit_all."></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -107,7 +109,7 @@ data_fit_all."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">BJM</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -199,9 +201,10 @@ observed entries are returned unchanged.</p></li>
 complete each visit from that visit's covariates and observed biomarkers
 (and, with <code>history = TRUE</code>, a summary of the subject's other
 visits), and in the simulations they shrank the estimated variation
-between subjects, which every prediction uses; with <code>history = TRUE</code>
-they also biased the event-time coefficients when subjects lacked a
-biomarker entirely. The completed data.frame(s) of any method can be
+between subjects, which every prediction uses: each visit is completed on
+its own, so the completions of a subject never measured for a biomarker
+do not share a subject level, and that variation goes into the residual
+variance instead. The completed data.frame(s) of any method can be
 passed directly to <code><a href="longitudinalSub.html">longitudinalSub()</a></code> in place of the original
 <code>data_fit_all</code>.</p>
     </div>
@@ -277,7 +280,7 @@ rows for <code>method = "diffusion"</code>. The default suits data sets of a
 few hundred to a few thousand rows; many more epochs can overfit, which
 shows as imputations that vary too little between draws (and so pooled
 standard errors that are too small) – in a simulation, MIWAE's spread
-between draws fell from about the true residual SD at 300 epochs to 80\<!-- % -->
+between draws fell from about the true residual SD at 300 epochs to 80%
 of it at 3000.</p></dd>
 
 
@@ -324,8 +327,13 @@ inputs include a summary of the same subject's other visits (see
 <code><a href="history_features.html">history_features()</a></code>). Without it an imputed value does not carry
 the subject's own level, which shrinks the estimated variation between
 subjects; with it, that shrinkage is smaller when visits miss values at
-random, but in simulations it biased the event-time coefficients when
-subjects lacked a biomarker entirely. Defaults to <code>FALSE</code>.</p></dd>
+random. When some subjects were never measured for a biomarker, their
+history features for it hold a stand-in (the covariate prediction, see
+<code><a href="history_features.html">history_features()</a></code>) that the network is trained on by random
+swaps (<code><a href="history_dropout_inputs.html">history_dropout_inputs()</a></code>); without that training, in
+simulations, the imputations for those subjects were worse than a
+regression on the covariates and biased the event-time coefficient by
+about 40%. Defaults to <code>FALSE</code>.</p></dd>
 
 
 <dt id="arg-seed">seed<a class="anchor" aria-label="anchor" href="#arg-seed"></a></dt>

@@ -2,10 +2,10 @@
 
 - `"forest"`:
 
-  Forest plot of the hazard ratios (with 95\\ confidence intervals) of
+  Forest plot of the hazard ratios (with 95% confidence intervals) of
   the Cox marginal survival model and, when the fit has competing risks,
-  of the odds ratios (with 95\\ intervals) of the logistic event-type
-  model, on a log scale with a reference line at 1.
+  of the odds ratios (with 95% Wald confidence intervals) of the
+  logistic event-type model, on a log scale with a reference line at 1.
 
 - `"basehaz"`:
 

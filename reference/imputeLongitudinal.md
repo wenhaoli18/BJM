@@ -56,9 +56,11 @@ The two deep generative methods need the torch package. They complete
 each visit from that visit's covariates and observed biomarkers (and,
 with `history = TRUE`, a summary of the subject's other visits), and in
 the simulations they shrank the estimated variation between subjects,
-which every prediction uses; with `history = TRUE` they also biased the
-event-time coefficients when subjects lacked a biomarker entirely. The
-completed data.frame(s) of any method can be passed directly to
+which every prediction uses: each visit is completed on its own, so the
+completions of a subject never measured for a biomarker do not share a
+subject level, and that variation goes into the residual variance
+instead. The completed data.frame(s) of any method can be passed
+directly to
 [`longitudinalSub()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md)
 in place of the original `data_fit_all`.
 
@@ -136,7 +138,7 @@ imputeLongitudinal(
   shows as imputations that vary too little between draws (and so pooled
   standard errors that are too small) – in a simulation, MIWAE's spread
   between draws fell from about the true residual SD at 300 epochs to
-  80\\ of it at 3000.
+  80% of it at 3000.
 
 - importance_samples:
 
@@ -183,9 +185,15 @@ imputeLongitudinal(
   [`history_features()`](https://wenhaoli18.github.io/BJM/reference/history_features.md)).
   Without it an imputed value does not carry the subject's own level,
   which shrinks the estimated variation between subjects; with it, that
-  shrinkage is smaller when visits miss values at random, but in
-  simulations it biased the event-time coefficients when subjects lacked
-  a biomarker entirely. Defaults to `FALSE`.
+  shrinkage is smaller when visits miss values at random. When some
+  subjects were never measured for a biomarker, their history features
+  for it hold a stand-in (the covariate prediction, see
+  [`history_features()`](https://wenhaoli18.github.io/BJM/reference/history_features.md))
+  that the network is trained on by random swaps
+  ([`history_dropout_inputs()`](https://wenhaoli18.github.io/BJM/reference/history_dropout_inputs.md));
+  without that training, in simulations, the imputations for those
+  subjects were worse than a regression on the covariates and biased the
+  event-time coefficient by about 40%. Defaults to `FALSE`.
 
 - seed:
 
