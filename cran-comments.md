@@ -30,24 +30,17 @@ be identical failed.
 
 ## R CMD check results
 
-TODO before submitting: rerun win-builder on the final tarball and fill
-in the result below.
+win-builder, R-devel (2026-11-06 r90845 ucrt), Windows:
 
-win-builder, R-devel (TODO: date and revision), Windows:
-
-0 errors | 0 warnings | 1 note
-
-* `checking CRAN incoming feasibility ... NOTE` -- "Days since last
-  update". This update fixes the issue reported on the CRAN check page
-  shortly after 0.3.0 was published.
+0 errors | 0 warnings | 0 notes
 
 `R CMD check --as-cran` (R 4.4.1, macOS 14.4 aarch64, local) reports:
 
 0 errors | 0 warnings | 3 notes
 
 * `checking CRAN incoming feasibility ... NOTE` -- "Days since last
-  update", as above.
-
+  update: 6" (run the day before the win-builder check above). This
+  update fixes the issue reported on the CRAN check page for 0.3.0.
 * `checking for future file timestamps ... NOTE` -- "unable to verify
   current time"; a network/clock-verification check with no bearing on
   the package itself.
