@@ -13,7 +13,8 @@ train_diffusion(
   diffusion_steps,
   time_emb_dim,
   batch_size = 128,
-  learning_rate = 0.001
+  learning_rate = 0.001,
+  train_inputs = NULL
 )
 }
 \arguments{
@@ -31,6 +32,10 @@ missing) and the observation mask, as \code{torch} tensors.}
 \item{batch_size}{Rows per mini-batch.}
 
 \item{learning_rate}{Adam learning rate.}
+
+\item{train_inputs}{Optional function from \code{history_dropout_inputs()}
+giving the mini-batch's inputs with random swaps of the history
+features; \code{NULL} uses \code{X_cov} as is.}
 }
 \value{
 A list with the trained \code{net} and its noise \code{schedule}.

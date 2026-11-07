@@ -4,7 +4,21 @@
 \alias{train_miwae}
 \title{Train the MIWAE network with a full-batch importance-weighted ELBO}
 \usage{
-train_miwae(net, X_cov, X_resp, X_mask, epochs, K, learning_rate = 0.001)
+train_miwae(
+  net,
+  X_cov,
+  X_resp,
+  X_mask,
+  epochs,
+  K,
+  learning_rate = 0.001,
+  train_inputs = NULL
+)
+}
+\arguments{
+\item{train_inputs}{Optional function from \code{history_dropout_inputs()}
+giving the inputs with fresh random swaps of the history features each
+epoch; \code{NULL} uses \code{X_cov} as is.}
 }
 \description{
 Internal helper for \code{\link{imputeLongitudinal}}.
