@@ -50,9 +50,10 @@
 #' complete each visit from that visit's covariates and observed biomarkers
 #' (and, with \code{history = TRUE}, a summary of the subject's other
 #' visits), and in the simulations they shrank the estimated variation
-#' between subjects, which every prediction uses; with \code{history = TRUE}
-#' they also biased the event-time coefficients when subjects lacked a
-#' biomarker entirely. The completed data.frame(s) of any method can be
+#' between subjects, which every prediction uses: each visit is completed on
+#' its own, so the completions of a subject never measured for a biomarker
+#' do not share a subject level, and that variation goes into the residual
+#' variance instead. The completed data.frame(s) of any method can be
 #' passed directly to \code{longitudinalSub()} in place of the original
 #' \code{data_fit_all}.
 #'
@@ -140,8 +141,13 @@
 #' \code{history_features()}). Without it an imputed value does not carry
 #' the subject's own level, which shrinks the estimated variation between
 #' subjects; with it, that shrinkage is smaller when visits miss values at
-#' random, but in simulations it biased the event-time coefficients when
-#' subjects lacked a biomarker entirely. Defaults to \code{FALSE}.
+#' random. When some subjects were never measured for a biomarker, their
+#' history features for it hold a stand-in (the covariate prediction, see
+#' \code{history_features()}) that the network is trained on by random
+#' swaps (\code{history_dropout_inputs()}); without that training, in
+#' simulations, the imputations for those subjects were worse than a
+#' regression on the covariates and biased the event-time coefficient by
+#' about 40\%. Defaults to \code{FALSE}.
 #' @param seed Optional integer seed for reproducibility. It seeds both
 #' \pkg{torch} and R's random number generator for the duration of the
 #' call; R's random number state from before the call is restored
@@ -366,18 +372,21 @@ imputeLongitudinal <- function(data_fit_all, long_sub_fixed, long_sub_random,
 
   ### classical single-regression-imputation baseline, for the diagnostics
   ### comparison below -- no new dependency, fit on the same covariates
+  ### (its prediction for every row is also the stand-in level of the
+  ### history features, see history_features())
   baseline_mat <- resp_mat
+  covariate_pred <- matrix(NA_real_, nrow(resp_mat), M)
   for (m in seq_len(M)) {
     obs_idx <- mask[, m]
-    if (all(obs_idx) || !any(obs_idx)) next
+    if (!any(obs_idx)) next
     if (ncol(cov_design) == 0) {
-      baseline_mat[!obs_idx, m] <- mean(resp_mat[obs_idx, m])
+      covariate_pred[, m] <- mean(resp_mat[obs_idx, m])
     } else {
       fit_df <- data.frame(y = resp_mat[obs_idx, m], cov_design[obs_idx, , drop = FALSE])
       fit <- lm(y ~ ., data = fit_df)
-      newdata <- data.frame(cov_design[!obs_idx, , drop = FALSE])
-      baseline_mat[!obs_idx, m] <- predict(fit, newdata = newdata)
+      covariate_pred[, m] <- predict(fit, newdata = data.frame(cov_design))
     }
+    baseline_mat[!obs_idx, m] <- covariate_pred[!obs_idx, m]
   }
 
   if (method == "mixed") {
@@ -405,19 +414,32 @@ imputeLongitudinal <- function(data_fit_all, long_sub_fixed, long_sub_random,
 
   ### the network's inputs: the covariates and, with `history`, a summary of
   ### the same subject's other visits (see history_features())
-  net_std <- if (history) {
-    standardize(cbind(cov_design, history_features(aligned, id, time_variable, resp_mat, mask)))
+  history_inputs <- NULL
+  if (history) {
+    hist <- history_features(aligned, id, time_variable, resp_mat, mask, fill = covariate_pred)
+    net_std <- standardize(cbind(cov_design, hist))
+    ### the same inputs with every biomarker's history "unseen", standardized
+    ### identically, for the random swaps while training
+    unseen_z <- sweep(sweep(cbind(cov_design, attr(hist, "unseen")), 2, net_std$mean, "-"),
+                      2, net_std$sd, "/")
+    history_inputs <- list(
+      unseen = torch::torch_tensor(unseen_z, dtype = torch::torch_float()),
+      columns = lapply(seq_len(M), function(m) ncol(cov_design) + 4 * (m - 1) + 1:4),
+      rate = history_dropout_rate(as.character(aligned[[id]]), mask))
   } else {
-    cov_std
+    net_std <- cov_std
   }
   X_cov <- torch::torch_tensor(net_std$z, dtype = torch::torch_float())
+  train_inputs <- if (is.null(history_inputs)) NULL else
+    history_dropout_inputs(X_cov, history_inputs$unseen, history_inputs$columns, history_inputs$rate)
   X_resp <- torch::torch_tensor(resp_z, dtype = torch::torch_float())
   X_mask <- torch::torch_tensor(matrix(as.numeric(mask), nrow = nrow(mask)), dtype = torch::torch_float())
 
   n_cov <- ncol(net_std$z)
   if (method == "miwae") {
     net <- build_miwae_module(n_cov, M, hidden_units, latent_dim)
-    train_miwae(net, X_cov, X_resp, X_mask, epochs = epochs, K = importance_samples)
+    train_miwae(net, X_cov, X_resp, X_mask, epochs = epochs, K = importance_samples,
+                train_inputs = train_inputs)
     imputations <- miwae_impute(net, X_cov, X_resp, X_mask, resp_mean, resp_sd,
                                  K = importance_samples, n_imputations = n_imputations)
   } else {
@@ -430,7 +452,8 @@ imputeLongitudinal <- function(data_fit_all, long_sub_fixed, long_sub_random,
     time_emb_dim <- 16L
     net <- build_diffusion_module(n_cov, M, hidden_units, time_emb_dim)
     trained <- train_diffusion(net, X_cov, X_resp, X_mask, epochs = epochs,
-                                diffusion_steps = diffusion_steps, time_emb_dim = time_emb_dim)
+                                diffusion_steps = diffusion_steps, time_emb_dim = time_emb_dim,
+                                train_inputs = train_inputs)
     imputations <- diffusion_impute(net, X_cov, X_resp, X_mask, resp_mean, resp_sd,
                                      schedule = trained$schedule, diffusion_steps = diffusion_steps,
                                      time_emb_dim = time_emb_dim, n_imputations = n_imputations)
@@ -585,12 +608,19 @@ miwae_forward <- function(net, X_cov, X_resp, X_mask, K) {
 #' Train the MIWAE network with a full-batch importance-weighted ELBO
 #'
 #' @description Internal helper for \code{\link{imputeLongitudinal}}.
+#' @param train_inputs Optional function from \code{history_dropout_inputs()}
+#'   giving the inputs with fresh random swaps of the history features each
+#'   epoch; \code{NULL} uses \code{X_cov} as is.
 #' @keywords internal
-train_miwae <- function(net, X_cov, X_resp, X_mask, epochs, K, learning_rate = 1e-3) {
+train_miwae <- function(net, X_cov, X_resp, X_mask, epochs, K, learning_rate = 1e-3,
+                        train_inputs = NULL) {
   optimizer <- torch::optim_adam(net$parameters, lr = learning_rate)
   for (epoch in seq_len(epochs)) {
     optimizer$zero_grad()
-    fwd <- miwae_forward(net, X_cov, X_resp, X_mask, K)
+    ### with `train_inputs` (history_dropout_inputs()), fresh random swaps
+    ### of the history features every epoch
+    X_in <- if (is.null(train_inputs)) X_cov else train_inputs()
+    fwd <- miwae_forward(net, X_in, X_resp, X_mask, K)
     iwae_bound <- torch::torch_logsumexp(fwd$log_w, dim = 2) - log(K)
     loss <- -iwae_bound$mean()
     loss$backward()
@@ -744,12 +774,16 @@ build_diffusion_module <- function(n_cov, M, hidden_units, time_emb_dim) {
 #' @param epochs Passes over the data.
 #' @param diffusion_steps Number of diffusion steps.
 #' @param time_emb_dim Width of the timestep embedding.
+#' @param train_inputs Optional function from \code{history_dropout_inputs()}
+#'   giving the mini-batch's inputs with random swaps of the history
+#'   features; \code{NULL} uses \code{X_cov} as is.
 #' @param batch_size Rows per mini-batch.
 #' @param learning_rate Adam learning rate.
 #' @return A list with the trained \code{net} and its noise \code{schedule}.
 #' @keywords internal
 train_diffusion <- function(net, X_cov, X_resp, X_mask, epochs, diffusion_steps,
-                            time_emb_dim, batch_size = 128, learning_rate = 1e-3) {
+                            time_emb_dim, batch_size = 128, learning_rate = 1e-3,
+                            train_inputs = NULL) {
   schedule <- diffusion_beta_schedule(diffusion_steps)
   alpha_bar <- torch::torch_tensor(schedule$alpha_bar, dtype = torch::torch_float())
   n <- X_resp$shape[1]
@@ -771,7 +805,8 @@ train_diffusion <- function(net, X_cov, X_resp, X_mask, epochs, diffusion_steps,
       eps <- torch::torch_randn_like(x0)
       x_t <- (torch::torch_sqrt(ab_t) * x0 + torch::torch_sqrt(1 - ab_t) * eps) * target
       t_emb <- sinusoidal_time_embedding(t_idx$to(dtype = torch::torch_float()), time_emb_dim)
-      eps_hat <- net(x_t, x0 * cond, cond, X_cov[idx, ], t_emb)
+      x_cov_b <- if (is.null(train_inputs)) X_cov[idx, ] else train_inputs(idx)
+      eps_hat <- net(x_t, x0 * cond, cond, x_cov_b, t_emb)
       loss <- ((eps_hat - eps)^2 * target)$sum() / torch::torch_clamp(target$sum(), min = 1)
       optimizer$zero_grad()
       loss$backward()
@@ -869,15 +904,26 @@ local_r_seed <- function(seed, frame = parent.frame()) {
 #' (\code{log1p}), and the value at the nearest other observed visit and its
 #' distance in time (\code{log1p}). The visit's own value is left out, so
 #' the model cannot simply copy it while training. A subject with no other
-#' observed value gets the biomarker's overall mean, a count of 0 and the
-#' largest distance.
-#' @return A matrix with four columns per biomarker, one row per visit.
+#' observed value gets \code{fill} (by default the biomarker's overall mean)
+#' in place of the mean and the nearest value, a count of 0 and the largest
+#' distance.
+#' @param fill Optional \code{n x M} matrix of stand-in values for a visit
+#'   with no other observed value of a biomarker, e.g. each visit's
+#'   prediction from its covariates. \code{imputeLongitudinal()} passes that
+#'   prediction, so a subject never measured for a biomarker is not given
+#'   the overall mean as if it were the subject's own level.
+#' @return A matrix with four columns per biomarker, one row per visit. Its
+#'   \code{"unseen"} attribute holds the same features as if the subject had
+#'   no other observed value of the biomarker (what a subject never measured
+#'   for it gets); \code{imputeLongitudinal()} swaps them in at random while
+#'   training (see \code{history_dropout_inputs()}).
 #' @keywords internal
-history_features <- function(aligned, id, time_variable, resp_mat, mask) {
+history_features <- function(aligned, id, time_variable, resp_mat, mask, fill = NULL) {
   n <- nrow(aligned)
   M <- ncol(resp_mat)
   times <- aligned[[time_variable]]
   overall <- vapply(seq_len(M), function(m) mean(resp_mat[mask[, m], m]), numeric(1))
+  if (is.null(fill)) fill <- matrix(overall, n, M, byrow = TRUE)
   far <- log1p(diff(range(times)) + 1)
   out <- matrix(NA_real_, n, 4 * M)
   colnames(out) <- paste0(rep(colnames(resp_mat), each = 4),
@@ -892,7 +938,7 @@ history_features <- function(aligned, id, time_variable, resp_mat, mask) {
         others[j] <- FALSE
         cols <- 4 * (m - 1) + 1:4
         if (!any(others)) {
-          out[rows[j], cols] <- c(overall[m], 0, overall[m], far)
+          out[rows[j], cols] <- c(fill[rows[j], m], 0, fill[rows[j], m], far)
         } else {
           k <- which(others)[which.min(abs(t[others] - t[j]))]
           out[rows[j], cols] <- c(mean(y[others]), log1p(sum(others)), y[k], log1p(abs(t[k] - t[j])))
@@ -900,7 +946,69 @@ history_features <- function(aligned, id, time_variable, resp_mat, mask) {
       }
     }
   }
+  unseen <- out
+  for (m in seq_len(M)) {
+    unseen[, 4 * (m - 1) + 1:4] <- cbind(fill[, m], 0, fill[, m], far)
+  }
+  attr(out, "unseen") <- unseen
   out
+}
+
+#' Random swaps of the history features while training
+#'
+#' @description With \code{history = TRUE}, a subject never measured for a
+#' biomarker has history features (count 0, a stand-in level) that the
+#' network almost never sees while training, since every training row with
+#' that biomarker observed comes from a subject who was measured. Faced with
+#' them at imputation it extrapolated: in simulations it took the stand-in
+#' for the subject's own level, imputed with too little spread, and biased
+#' the fitted coefficients (the event-time coefficient by about 40\%).
+#' Training therefore swaps, at random, a row's history features for one
+#' biomarker with their \code{"unseen"} version (see
+#' \code{history_features()}), keeping the row's own values as targets, so
+#' the network learns to impute that biomarker from the covariates and the
+#' other biomarkers alone. Each biomarker's rate is the share of rows from
+#' subjects never measured for it, at least 10\%, and 0 (no swaps, as
+#' before) when every subject has some value of it.
+#' @param X_cov Network inputs (standardized), a torch tensor.
+#' @param X_unseen The same inputs with every biomarker's history replaced by
+#'   its \code{"unseen"} version, standardized identically.
+#' @param columns List with, per biomarker, the columns of its history
+#'   features in \code{X_cov}.
+#' @param rate Per-biomarker swap probability.
+#' @return A function of a row index tensor (or \code{NULL} for every row)
+#'   returning the inputs with fresh random swaps, or \code{NULL} when every
+#'   rate is 0.
+#' @keywords internal
+history_dropout_inputs <- function(X_cov, X_unseen, columns, rate) {
+  if (all(rate <= 0)) return(NULL)
+  n_col <- X_cov$shape[2]
+  function(idx = NULL) {
+    x <- if (is.null(idx)) X_cov else X_cov[idx, ]
+    alt <- if (is.null(idx)) X_unseen else X_unseen[idx, ]
+    b <- x$shape[1]
+    swap <- matrix(0, b, n_col)
+    for (m in seq_along(columns)) {
+      if (rate[m] <= 0) next
+      swap[stats::runif(b) < rate[m], columns[[m]]] <- 1
+    }
+    swap <- torch::torch_tensor(swap, dtype = torch::torch_float())
+    x + swap * (alt - x)
+  }
+}
+
+#' Share of rows from subjects never measured for each biomarker
+#'
+#' @description The swap rate of \code{history_dropout_inputs()}: for each
+#' biomarker, the share of rows from subjects with no observed value of it,
+#' at least \code{min_rate}, or 0 when there is no such subject.
+#' @keywords internal
+history_dropout_rate <- function(ids, mask, min_rate = 0.1) {
+  vapply(seq_len(ncol(mask)), function(m) {
+    never <- !tapply(mask[, m], ids, any)
+    if (!any(never)) return(0)
+    max(min_rate, mean(ids %in% names(never)[never]))
+  }, numeric(1))
 }
 
 #' Multiple imputation from the multivariate linear mixed model

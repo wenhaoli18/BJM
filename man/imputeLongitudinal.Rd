@@ -91,8 +91,13 @@ inputs include a summary of the same subject's other visits (see
 \code{history_features()}). Without it an imputed value does not carry
 the subject's own level, which shrinks the estimated variation between
 subjects; with it, that shrinkage is smaller when visits miss values at
-random, but in simulations it biased the event-time coefficients when
-subjects lacked a biomarker entirely. Defaults to \code{FALSE}.}
+random. When some subjects were never measured for a biomarker, their
+history features for it hold a stand-in (the covariate prediction, see
+\code{history_features()}) that the network is trained on by random
+swaps (\code{history_dropout_inputs()}); without that training, in
+simulations, the imputations for those subjects were worse than a
+regression on the covariates and biased the event-time coefficient by
+about 40\\%. Defaults to \code{FALSE}.}
 
 \item{seed}{Optional integer seed for reproducibility. It seeds both
 \pkg{torch} and R's random number generator for the duration of the
@@ -171,9 +176,10 @@ The two deep generative methods need the \pkg{torch} package. They
 complete each visit from that visit's covariates and observed biomarkers
 (and, with \code{history = TRUE}, a summary of the subject's other
 visits), and in the simulations they shrank the estimated variation
-between subjects, which every prediction uses; with \code{history = TRUE}
-they also biased the event-time coefficients when subjects lacked a
-biomarker entirely. The completed data.frame(s) of any method can be
+between subjects, which every prediction uses: each visit is completed on
+its own, so the completions of a subject never measured for a biomarker
+do not share a subject level, and that variation goes into the residual
+variance instead. The completed data.frame(s) of any method can be
 passed directly to \code{longitudinalSub()} in place of the original
 \code{data_fit_all}.
 }

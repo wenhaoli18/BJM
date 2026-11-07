@@ -403,6 +403,29 @@
 
 ## Bug fixes
 
+* `imputeLongitudinal(method = "miwae"/"diffusion", history = TRUE)` no
+  longer breaks down when some subjects were never measured for a
+  biomarker. Their history features for it (a count of 0 and the overall
+  mean as the level) were inputs the network had almost never seen while
+  training, so it took the overall mean for the subject's own level: in a
+  simulation with half of the subjects never measured, the imputations were
+  worse than a regression on the covariates (RMSE 1.6 times the best
+  possible), their 95% intervals covered 55-65% of the true values, and the
+  pooled event-time coefficient was biased by about 40% (95% CI coverage
+  0). The stand-in level is now the covariate prediction, and training
+  swaps each row's history features for a biomarker with that "never
+  measured" version at random (at the share of rows from never-measured
+  subjects, at least 10%), so the network learns to impute it from the
+  covariates and the other biomarkers. In the same simulation the RMSE fell
+  to 1.06 (MIWAE) and 1.10 (diffusion) times the best possible, coverage
+  rose to 92% and 91%, and the event-time coefficient's bias to 0.3% and 7%.
+  The between-subject variance of that biomarker is still underestimated
+  (its completions are drawn visit by visit, without a shared subject
+  level); `method = "mixed"` does not have this problem. When every subject
+  has some value of every biomarker, training makes no swaps, and the only
+  change is the stand-in level at a subject's single measurement of a
+  biomarker.
+
 * `print()` of a `survivalSub()` fit with competing risks counted the event
   type coded 1 as "cause 1", the opposite of `predictRisk()`, whose
   `risk_prob_1` ("Cause 1 Risk") is the type coded 0. Cause 1 is now the
