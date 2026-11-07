@@ -131,8 +131,9 @@ measurement, and little from patients with only one.
 \examples{
 data(pbc3)
 first <- pbc3[!duplicated(pbc3$id), ]
-source <- first[first$id \%\% 2 == 0, ]
-target <- first[first$id \%\% 2 == 1, ]
+odd <- seq_len(nrow(first)) \%\% 2 == 1
+source <- first[!odd, ]
+target <- first[odd, ]
 fit_src <- survivalSub(source, Surv(years, status3) ~ age + sex, NULL)
 fit_tgt <- transportBJM(fit_src, "baseline", data_target = target)
 fit_tgt
