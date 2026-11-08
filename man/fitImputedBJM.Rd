@@ -14,6 +14,7 @@ fitImputedBJM(
   form_conditional_cr = NULL,
   survival_variable_all = NULL,
   survival_trans_function = NULL,
+  biomarker_type = NULL,
   n_burnin = 5,
   n_imputations = 5,
   n_thin = 2,
@@ -41,7 +42,9 @@ column, event-type column and the columns named in
 the optional event-type model. The event-time variable of
 \code{form_marginal_surv} must be the one used in \code{long_sub_fixed}.}
 
-\item{long_sub_fixed, long_sub_random}{As in \code{\link{longitudinalSub}}.}
+\item{long_sub_fixed, long_sub_random, biomarker_type}{As in
+\code{\link{longitudinalSub}} (\code{biomarker_type} for ordinal
+biomarkers).}
 
 \item{time_variable}{Name of the visit-time column.}
 
@@ -133,6 +136,15 @@ comparing \code{\link{observedLongLogLik}} across candidate fits. On
 overestimates the cumulative incidence of death by 8-32\\% in 5-fold
 cross-validation and this fit with \code{exp(-years / 5)} by -1 to 7\\%,
 with the same AUC.
+
+\strong{Beyond the last follow-up} this fit is no better than its survival
+sub-model's tail. With the default (linearly extrapolated) baseline hazard
+it can \emph{underestimate} long-term risk substantially: in simulations
+with 3-5 years of follow-up, risks at 8-12 years were too low by 0.14-0.60
+(the usual fit's overestimation partly hides the same tail problem).
+Predicting there calls for a tail borrowed from an external cohort with
+longer follow-up (\code{\link{survivalSubExternal}}), with which the same
+simulations were unbiased to within 0.02.
 }
 \examples{
 \donttest{

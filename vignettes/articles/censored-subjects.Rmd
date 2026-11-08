@@ -91,7 +91,11 @@ a linear term is extrapolated.
 
 The draws of $T$ beyond the last follow-up, and any prediction reaching
 there, rest on the survival sub-model's baseline hazard, which
-`survivalSub()` can only extrapolate. When an external cohort with longer
+`survivalSub()` can only extrapolate. This matters: in simulations with
+3-5 years of follow-up, `fitImputedBJM()` with the default tail
+*underestimated* 8-12-year risks by 0.14-0.60 (the usual fit's
+overestimation hides part of the same problem), and was unbiased to within
+0.02 with an external tail. When an external cohort with longer
 follow-up is available (an earlier generation of a device, a registry),
 `survivalSubExternal()` fits one Cox model to both with a generation
 indicator, so the study's hazard there is the external one scaled by a

@@ -49,6 +49,15 @@
 #' cross-validation and this fit with \code{exp(-years / 5)} by -1 to 7\%,
 #' with the same AUC.
 #'
+#' \strong{Beyond the last follow-up} this fit is no better than its survival
+#' sub-model's tail. With the default (linearly extrapolated) baseline hazard
+#' it can \emph{underestimate} long-term risk substantially: in simulations
+#' with 3-5 years of follow-up, risks at 8-12 years were too low by 0.14-0.60
+#' (the usual fit's overestimation partly hides the same tail problem).
+#' Predicting there calls for a tail borrowed from an external cohort with
+#' longer follow-up (\code{\link{survivalSubExternal}}), with which the same
+#' simulations were unbiased to within 0.02.
+#'
 #' @param data_survival One row per subject: event or censoring time, event
 #'   indicator, the survival covariates and the subject id.
 #' @param data_fit_all As in \code{\link{longitudinalSub}}: one data frame
@@ -61,7 +70,9 @@
 #'   \code{\link{survivalSub}}: \code{Surv(time, status) ~ covariates} and
 #'   the optional event-type model. The event-time variable of
 #'   \code{form_marginal_surv} must be the one used in \code{long_sub_fixed}.
-#' @param long_sub_fixed,long_sub_random As in \code{\link{longitudinalSub}}.
+#' @param long_sub_fixed,long_sub_random,biomarker_type As in
+#'   \code{\link{longitudinalSub}} (\code{biomarker_type} for ordinal
+#'   biomarkers).
 #' @param time_variable Name of the visit-time column.
 #' @param survival_variable_all,survival_trans_function Transformed event-time
 #'   columns, as in \code{\link{predictRisk}} (\code{NULL} if none).
@@ -124,7 +135,7 @@ fitImputedBJM <- function(data_survival, data_fit_all, form_marginal_surv,
                           long_sub_fixed, long_sub_random, time_variable,
                           form_conditional_cr = NULL,
                           survival_variable_all = NULL, survival_trans_function = NULL,
-                          n_burnin = 5, n_imputations = 5, n_thin = 2, n_grid = 40,
+                          biomarker_type = NULL, n_burnin = 5, n_imputations = 5, n_thin = 2, n_grid = 40,
                           baseline = c("spline", "piecewise"), df = NULL,
                           survival_fit_all = NULL, refit_event_type = TRUE, seed = NULL) {
   assert_positive_integer(n_thin, "n_thin")
@@ -184,12 +195,32 @@ fitImputedBJM <- function(data_survival, data_fit_all, form_marginal_surv,
   # burn-in fits are thrown away, so their Sigma_fit EM convergence
   # warnings are muffled; the saved fits keep theirs
   fit_long <- function(data, quiet) {
-    withCallingHandlers(longitudinalSub(data, long_sub_fixed, long_sub_random),
+    withCallingHandlers(longitudinalSub(data, long_sub_fixed, long_sub_random, biomarker_type),
                         warning = function(w) {
                           if (quiet && grepl("Sigma_fit", conditionMessage(w))) invokeRestart("muffleWarning")
                         })
   }
-  long_fit_all <- fit_long(data_event, quiet = TRUE)
+  # start from the usual fit on the events; with few events it can be
+  # singular, so then start from everyone, the censored placed one median
+  # event time past their censoring time (jittered on retries)
+  long_fit_all <- tryCatch(fit_long(data_event, quiet = TRUE), error = function(e) e)
+  if (inherits(long_fit_all, "error")) {
+    first_error <- conditionMessage(long_fit_all)
+    gap <- stats::median(y[keep & status == 1, "time"])
+    for (attempt in seq_len(5)) {
+      T_start <- stats::setNames(bounds$L + gap * (if (attempt == 1) 1 else stats::runif(nrow(bounds), 0.5, 1.5)),
+                                 bounds$id)
+      D_start <- if (has_cr) stats::setNames(stats::rbinom(nrow(bounds), 1, 0.5), bounds$id)
+      long_fit_all <- tryCatch(fit_long(fill_cens(T_start, D_start), quiet = TRUE), error = function(e) e)
+      if (!inherits(long_fit_all, "error")) break
+    }
+    if (inherits(long_fit_all, "error")) {
+      stop(sprintf("longitudinalSub() failed on the subjects with an event (%s) and on 5 starts using everyone: %s",
+                   first_error, conditionMessage(long_fit_all)), call. = FALSE)
+    }
+    message(sprintf(paste0("The longitudinal fit on the %d subjects with an event failed (%s); ",
+                           "the chain starts from everyone instead."), length(event_ids), first_error))
+  }
 
   n_iter <- n_burnin + n_imputations * n_thin
   saved_index <- function(it) {
@@ -242,7 +273,7 @@ fitImputedBJM <- function(data_survival, data_fit_all, form_marginal_surv,
     }
     long_fit_all <- new_fit
     if (refit_event_type) survival_fit_all <- refit_glm(T_new, D_new)
-    trace[[it]] <- c(unlist(lapply(long_fit_all$lfit, nlme::fixef)),
+    trace[[it]] <- c(unlist(lapply(long_fit_all$lfit, function(f) marker_estimates(f)$estimate)),
                      if (refit_event_type) stats::setNames(stats::coef(survival_fit_all$glm_fit),
                                                            paste0("cr.", names(stats::coef(survival_fit_all$glm_fit)))))
     k <- saved_index(it)
@@ -325,6 +356,9 @@ observedLongLogLik <- function(fit, data_survival, data_fit_all, time_variable,
       d[[event_type]][is.na(d[[event_type]])] <- 0
       d
     })
+    use_copula <- !is.null(long_fit_all$biomarker_type) && any(long_fit_all$biomarker_type == "ordinal")
+    yt_fun <- if (use_copula) conditionalYTCopula else conditionalYT
+    ydt_fun <- if (use_copula) conditionalYDTCopula else conditionalYDT
     data_all <- align_ordinal_levels(data_all, long_fit_all)
     data_all <- suppressWarnings(drop_missing_longitudinal(data_all, long_fit_all, event_time,
                                                            survival_variable_all))
@@ -335,18 +369,18 @@ observedLongLogLik <- function(fit, data_survival, data_fit_all, time_variable,
       if (!all(vapply(data_j, nrow, integer(1)) > 0)) next
       if (y[j, "status"] == 1) {
         log_f <- if (has_cr) {
-          conditionalYDT(data_j, long_fit_all, survival_fit_all, l_i = y[j, "time"], event_time,
-                         time_variable, survival_variable_all,
-                         survival_trans_function)[[data_survival[[event_type]][j] + 1]][1, 1]
+          ydt_fun(data_j, long_fit_all, survival_fit_all, l_i = y[j, "time"], event_time,
+                  time_variable, survival_variable_all,
+                  survival_trans_function)[[data_survival[[event_type]][j] + 1]][1, 1]
         } else {
-          conditionalYT(data_j, long_fit_all, l_i = y[j, "time"], event_time, time_variable,
-                        survival_variable_all, survival_trans_function)[[1]][1, 1]
+          yt_fun(data_j, long_fit_all, l_i = y[j, "time"], event_time, time_variable,
+                 survival_variable_all, survival_trans_function)[[1]][1, 1]
         }
         ll <- ll + log_f
       } else {
         tw <- subject_time_weights(data_j, TRUE, long_fit_all, survival_fit_all, y[j, "time"], Inf,
                                    NA, time_variable, survival_variable_all, survival_trans_function,
-                                   n_grid)
+                                   n_grid, yt_fun, ydt_fun)
         mx <- max(tw$log_w[is.finite(tw$log_w)])
         ll <- ll + mx + log(sum(exp(tw$log_w - mx))) - log(sum(pmax(tw$mass, 0)))
       }
@@ -381,13 +415,37 @@ print.fitImputedBJM <- function(x, digits = 4, ...) {
     }
   } else {
     cat("\nLongitudinal sub-model (one imputation), fixed effects:\n")
-    for (k in seq_along(x$long_fit_all$lfit)) print(signif(nlme::fixef(x$long_fit_all$lfit[[k]]), digits))
+    for (k in seq_along(x$long_fit_all$lfit)) print(signif(marker_estimates(x$long_fit_all$lfit[[k]])$estimate, digits))
   }
   cat("\nUse x$long_fit_all and x$survival_fit_all for prediction; x$trace to check the chain has settled.\n")
   invisible(x)
 }
 
 bjm_state <- new.env(parent = emptyenv())
+
+#' Warn once when a prediction reaches beyond the survival model's follow-up
+#'
+#' @description Called by \code{predictRisk()} and \code{predictEventTime()}:
+#' past the last follow-up time of the survival sub-model its baseline hazard
+#' is extrapolated, and risks there can be far off (see
+#' \code{\link{fitImputedBJM}}). Warns once per session; set
+#' \code{options(BJM.check_extrapolation = FALSE)} to silence it.
+#' @param end The last time predicted (\code{prediction_time + horizon}).
+#' @keywords internal
+check_beyond_followup <- function(survival_fit_all, end) {
+  if (!isTRUE(getOption("BJM.check_extrapolation", TRUE)) || isTRUE(bjm_state$warned_extrapolation) ||
+      is_interval_censored(survival_fit_all)) return(invisible())
+  last <- survival_max_followup(survival_fit_all)
+  if (end > last * 1.0001) {
+    bjm_state$warned_extrapolation <- TRUE
+    warning(sprintf(paste0(
+      "Predicting up to %g, beyond the survival sub-model's last follow-up time (%g): there its baseline ",
+      "hazard is extrapolated, and long-term risks can be far off. A tail borrowed from an external cohort ",
+      "with longer follow-up (survivalSubExternal()) is more reliable. (Shown once per session; ",
+      "options(BJM.check_extrapolation = FALSE) turns it off.)"), end, signif(last, 4)), call. = FALSE)
+  }
+  invisible()
+}
 
 #' Warn once when the longitudinal sub-model ignores many censored subjects
 #'

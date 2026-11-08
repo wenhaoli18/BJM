@@ -20,6 +20,21 @@
   `T > C`, to compare longitudinal fits -- for instance the scale of a
   bounded event-time effect such as `I(exp(-years / 5))`.
 
+* `fitImputedBJM()` no longer stops when the starting fit on the subjects
+  with an event is singular (few events): the chain then starts from
+  everyone. Its help page now says plainly that beyond the last follow-up
+  it is only as good as the survival tail -- in simulations it
+  underestimated 8-12-year risks by 0.14-0.60 with the default tail and was
+  unbiased with `survivalSubExternal()`.
+
+* `predictRisk()` and `predictEventTime()` warn, once per session, when the
+  prediction reaches beyond the survival sub-model's last follow-up time.
+  `options(BJM.check_extrapolation = FALSE)` turns it off.
+
+* `fitImputedBJM()` takes `biomarker_type`, so ordinal biomarkers are fit
+  with `ordinal::clmm()` as in `longitudinalSub()` (they were fit as
+  continuous), and `observedLongLogLik()` uses the copula densities for them.
+
 * `fitImputedBJM()` refits the competing-risks event-type model on every
   draw (`refit_event_type = TRUE`), accepts a ready survival sub-model
   (`survival_fit_all`, e.g. from `survivalSubExternal()`), and reports the
