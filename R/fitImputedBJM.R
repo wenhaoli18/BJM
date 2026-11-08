@@ -29,9 +29,14 @@
 #'   \code{n_imputations} are saved, and pool them for prediction (see
 #'   \code{\link{poolLongitudinalSub}}).
 #' }
-#' The survival sub-model, including the event-type model, is the usual one
-#' and is not refit. The draws of \eqn{T} beyond the last follow-up rely on
-#' the survival model's extrapolated tail.
+#' The marginal survival model is the usual one (or the one passed in
+#' \code{survival_fit_all}) and is fit once. With competing risks the
+#' event-type model \eqn{P(D \mid T)} is by default refit on every draw, on
+#' the subjects with an event and the censored subjects with their drawn
+#' \eqn{(T, D)}, and averaged over the imputations. The draws of \eqn{T}
+#' beyond the last follow-up rely on the survival model's tail: the
+#' extrapolated one by default, or one borrowed from an external cohort with
+#' longer follow-up (\code{\link{survivalSubExternal}}).
 #'
 #' Using the censored subjects makes the event-time effect matter where it
 #' was never observed, so a term linear in \eqn{T} can drift over the long
@@ -66,10 +71,21 @@
 #' @param n_grid Grid points per subject for the draws.
 #' @param baseline,df Baseline hazard of the survival model (see
 #'   \code{\link{survivalSub}}).
+#' @param survival_fit_all Optional right-censored survival sub-model to use
+#'   instead of fitting one from \code{form_marginal_surv} and
+#'   \code{form_conditional_cr}, e.g. from \code{\link{survivalSubExternal}}.
+#'   \code{form_marginal_surv} is still used to read each subject's time and
+#'   status in \code{data_survival}.
+#' @param refit_event_type With competing risks, refit the event-type model
+#'   on every draw (see Description); \code{FALSE} keeps the one fit on the
+#'   subjects with an event.
 #' @param seed Optional integer seed (the global RNG state is restored).
 #'
 #' @return An object of class \code{"fitImputedBJM"}, a list with
-#'   \code{survival_fit_all}; \code{long_fit_all} (the imputations combined,
+#'   \code{survival_fit_all} (with competing risks and
+#'   \code{refit_event_type}, its event-type coefficients averaged over the
+#'   imputations; \code{survival_fit_all_list} has one per imputation);
+#'   \code{long_fit_all} (the imputations combined,
 #'   for \code{predictRisk()} and friends); \code{long_fit_all_list} (one fit
 #'   per imputation); \code{pooled} (\code{\link{poolLongitudinalSub}} of the
 #'   fits, when \code{n_imputations > 1}); \code{imputed_T} (and, with
@@ -109,7 +125,8 @@ fitImputedBJM <- function(data_survival, data_fit_all, form_marginal_surv,
                           form_conditional_cr = NULL,
                           survival_variable_all = NULL, survival_trans_function = NULL,
                           n_burnin = 5, n_imputations = 5, n_thin = 2, n_grid = 40,
-                          baseline = c("spline", "piecewise"), df = NULL, seed = NULL) {
+                          baseline = c("spline", "piecewise"), df = NULL,
+                          survival_fit_all = NULL, refit_event_type = TRUE, seed = NULL) {
   assert_positive_integer(n_thin, "n_thin")
   assert_positive_integer(n_imputations, "n_imputations")
   if (!is.null(seed)) local_r_seed(seed)
@@ -124,11 +141,21 @@ fitImputedBJM <- function(data_survival, data_fit_all, form_marginal_surv,
     stop("`form_marginal_surv` must be Surv(time, status) ~ ... (right-censored); for interval censoring use fitIntervalBJM().",
          call. = FALSE)
   }
-  survival_fit_all <- survivalSub(data_survival, form_marginal_surv, form_conditional_cr,
-                                  baseline = baseline, df = df)
+  if (is.null(survival_fit_all)) {
+    survival_fit_all <- survivalSub(data_survival, form_marginal_surv, form_conditional_cr,
+                                    baseline = baseline, df = df)
+  } else {
+    assert_class(survival_fit_all, "survivalSub.BJM", "survival_fit_all", "survivalSub")
+    if (is_interval_censored(survival_fit_all)) {
+      stop("`survival_fit_all` must be a right-censored fit; for interval censoring use fitIntervalBJM().",
+           call. = FALSE)
+    }
+    form_conditional_cr <- survival_fit_all$form_conditional_cr
+  }
   event_time <- survival_time_variable(survival_fit_all)
   has_cr <- length(form_conditional_cr) != 0
   event_type <- if (has_cr) all.vars(form_conditional_cr[[2]])[1] else NULL
+  refit_event_type <- has_cr && isTRUE(refit_event_type)
   ids <- as.character(data_survival[[id]])
   status <- y[, "status"]
   keep <- !is.na(status) & !is.na(ids)
@@ -173,12 +200,37 @@ fitImputedBJM <- function(data_survival, data_fit_all, form_marginal_surv,
   imputed_T <- matrix(NA_real_, nrow(bounds), n_imputations, dimnames = list(bounds$id, NULL))
   imputed_D <- if (has_cr) imputed_T
   long_fit_all_list <- vector("list", n_imputations)
+  survival_fit_all_list <- rep(list(survival_fit_all), n_imputations)
+  # the event-type model on the events and the censored with their drawn (T, D)
+  refit_glm <- function(T_values, D_values) {
+    d <- data_survival[keep, , drop = FALSE]
+    cens <- match(bounds$id, ids[keep])
+    d[[event_time]][cens] <- unname(T_values[bounds$id])
+    d[[event_type]][cens] <- unname(D_values[bounds$id])
+    out <- survival_fit_all
+    out$glm_fit <- stats::glm(form_conditional_cr, data = d, family = stats::binomial)
+    out
+  }
+  # the survival model's tail warning would repeat for every censored subject
+  # on every draw: collect it and report it once
+  tail_mass <- 0
+  draw <- function() {
+    withCallingHandlers(
+      imputeEventTime(data_cens, long_fit_all, survival_fit_all, bounds, time_variable,
+                      survival_variable_all, survival_trans_function, n_grid = n_grid),
+      warning = function(w) {
+        msg <- conditionMessage(w)
+        if (grepl("extrapolated baseline hazard is so flat", msg)) {
+          tail_mass <<- max(tail_mass, as.numeric(sub(".*up to ([0-9.]+)%.*", "\\1", msg)), na.rm = TRUE)
+          invokeRestart("muffleWarning")
+        }
+      })
+  }
   for (it in seq_len(n_iter)) {
     # an unlucky draw occasionally makes nlme::lme() fail (e.g. "Singularity
     # in backsolve"); draw again from the same fit rather than abort the chain
     for (attempt in seq_len(5)) {
-      T_new <- imputeEventTime(data_cens, long_fit_all, survival_fit_all, bounds, time_variable,
-                               survival_variable_all, survival_trans_function, n_grid = n_grid)
+      T_new <- draw()
       D_new <- attr(T_new, "event_type")
       new_fit <- tryCatch(fit_long(fill_cens(T_new, D_new), quiet = is.na(saved_index(it))),
                           error = function(e) e)
@@ -189,23 +241,36 @@ fitImputedBJM <- function(data_survival, data_fit_all, form_marginal_surv,
                    it, conditionMessage(new_fit)), call. = FALSE)
     }
     long_fit_all <- new_fit
-    trace[[it]] <- unlist(lapply(long_fit_all$lfit, nlme::fixef))
+    if (refit_event_type) survival_fit_all <- refit_glm(T_new, D_new)
+    trace[[it]] <- c(unlist(lapply(long_fit_all$lfit, nlme::fixef)),
+                     if (refit_event_type) stats::setNames(stats::coef(survival_fit_all$glm_fit),
+                                                           paste0("cr.", names(stats::coef(survival_fit_all$glm_fit)))))
     k <- saved_index(it)
     if (!is.na(k)) {
       imputed_T[, k] <- T_new[bounds$id]
       if (has_cr) imputed_D[, k] <- D_new[bounds$id]
       long_fit_all_list[[k]] <- long_fit_all
+      survival_fit_all_list[[k]] <- survival_fit_all
     }
   }
 
+  if (tail_mass > 0) {
+    warning(sprintf(paste0(
+      "The survival sub-model's extrapolated baseline hazard is so flat that up to %.1f%% of a censored ",
+      "subject's conditional survival probability lies beyond the integration cap (20 x the last follow-up); ",
+      "the imputed event times ignore it. An external tail (survivalSubExternal()) can help."), tail_mass),
+      call. = FALSE)
+  }
   pooled <- if (n_imputations > 1) poolLongitudinalSub(long_fit_all_list)
   combined <- if (n_imputations > 1) pooled$long_fit_all else long_fit_all_list[[1]]
   combined$imputed_censored <- TRUE
-  out <- list(survival_fit_all = survival_fit_all, long_fit_all = combined,
-              long_fit_all_list = long_fit_all_list, pooled = pooled,
+  out <- list(survival_fit_all = pool_event_type_fit(survival_fit_all_list), long_fit_all = combined,
+              long_fit_all_list = long_fit_all_list, survival_fit_all_list = survival_fit_all_list,
+              pooled = pooled,
               imputed_T = imputed_T, imputed_D = imputed_D, trace = do.call(rbind, trace),
               settings = list(n_burnin = n_burnin, n_imputations = n_imputations, n_thin = n_thin,
-                              n_events = length(event_ids), n_censored = nrow(bounds)))
+                              n_events = length(event_ids), n_censored = nrow(bounds),
+                              refit_event_type = refit_event_type))
   class(out) <- "fitImputedBJM"
   out
 }

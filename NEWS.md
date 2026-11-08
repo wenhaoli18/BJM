@@ -20,6 +20,25 @@
   `T > C`, to compare longitudinal fits -- for instance the scale of a
   bounded event-time effect such as `I(exp(-years / 5))`.
 
+* `fitImputedBJM()` refits the competing-risks event-type model on every
+  draw (`refit_event_type = TRUE`), accepts a ready survival sub-model
+  (`survival_fit_all`, e.g. from `survivalSubExternal()`), and reports the
+  survival tail's truncation warning once instead of once per subject and
+  draw.
+
+* New `survivalSubExternal()` -- **experimental** -- fits the survival
+  sub-model to the study and an external cohort with longer follow-up (an
+  earlier device generation, a registry) with a generation indicator, so
+  the baseline hazard beyond the study's follow-up is borrowed from the
+  external cohort under proportional hazards instead of extrapolated. It
+  tests proportionality on the overlap (`cox.zph`); prediction data without
+  the generation column are taken as the study.
+
+* New `predictEventTime()` -- **experimental** -- returns each patient's
+  predictive distribution of the event time in one pass: the CDF at several
+  horizons (equal to `predictRisk()`'s risk, summed over event types) and
+  its quantiles, e.g. a time the patient outlives with probability 0.9.
+
 * `predictRisk()` now warns, once per session, when the longitudinal
   sub-model has no more subjects than the survival sub-model has events
   while at least 30% of the subjects are censored, pointing to

@@ -17,8 +17,13 @@ subject_time_weights(
   survival_trans_function,
   n_grid,
   conditionalYT_fun = conditionalYT,
-  conditionalYDT_fun = conditionalYDT
+  conditionalYDT_fun = conditionalYDT,
+  edges = NULL
 )
+}
+\arguments{
+\item{edges}{Optional cell edges for a finite \eqn{(L, R]}, in place of
+\code{n_grid} equal cells.}
 }
 \value{
 A list with \code{edges}, \code{mass} (the survival model's cell

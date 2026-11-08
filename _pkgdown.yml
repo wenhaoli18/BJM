@@ -26,11 +26,13 @@ reference:
   - survivalTrans
   - backwardTimeBasis
 
-- title: Censored subjects in the longitudinal sub-model (experimental)
-  desc: Impute the censored subjects' event times so that the longitudinal sub-model is not fit on the events only, and compare longitudinal fits.
+- title: Censored subjects and long-term prediction (experimental)
+  desc: Impute the censored subjects' event times so that the longitudinal sub-model is not fit on the events only, compare longitudinal fits, borrow the survival tail from an external cohort, and predict the whole distribution of the event time.
   contents:
   - fitImputedBJM
   - observedLongLogLik
+  - survivalSubExternal
+  - predictEventTime
 
 - title: Interval-censored events
   desc: Fit the backward joint model when the event time is only known to lie between two visits.

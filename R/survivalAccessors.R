@@ -34,6 +34,8 @@ survival_time_variable <- function(survival_fit_all) {
 #'   a patient with a missing covariate.
 survival_lp <- function(survival_fit_all, newdata) {
   if (is_interval_censored(survival_fit_all)) return(icph_lp(survival_fit_all$ic_fit, newdata))
+  ### a fit from survivalSubExternal() predicts for the study (generation 1)
+  newdata <- with_generation(survival_fit_all, newdata)
   lp <- c(stats::predict(survival_fit_all$coxph_fit, newdata = newdata, type = "lp",
                          reference = "zero", na.action = stats::na.pass))
   ### a fit transported with transportBJM(method = "recalibrate") rescales it
@@ -58,6 +60,7 @@ survival_patient_strata <- function(survival_fit_all, newdata) {
   coxph_fit <- survival_fit_all$coxph_fit
   strata_vars <- survival::untangle.specials(stats::terms(coxph_fit), "strata")$vars
   if (length(strata_vars) == 0) return(NULL)
+  newdata <- with_generation(survival_fit_all, newdata)
   rhs_terms <- stats::delete.response(stats::terms(coxph_fit))
   mf_surv <- model.frame(rhs_terms, newdata, na.action = stats::na.pass, xlev = coxph_fit$xlevels)
   as.character(mf_surv[[strata_vars]])

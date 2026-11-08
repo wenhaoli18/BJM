@@ -416,16 +416,18 @@ imputeEventTime <- function(data_fit_all, long_fit_all, survival_fit_all, bounds
 #' event type in \code{types} -- the known one, or both when \code{D} is
 #' \code{NA}. Shared by \code{imputeEventTime()} and
 #' \code{observedLongLogLik()}.
+#' @param edges Optional cell edges for a finite \eqn{(L, R]}, in place of
+#'   \code{n_grid} equal cells.
 #' @return A list with \code{edges}, \code{mass} (the survival model's cell
 #'   probabilities), \code{log_w} (cells x types) and \code{types}.
 #' @keywords internal
 subject_time_weights <- function(data_j, use_y, long_fit_all, survival_fit_all, L, R, D,
                                  time_variable, survival_variable_all, survival_trans_function,
                                  n_grid, conditionalYT_fun = conditionalYT,
-                                 conditionalYDT_fun = conditionalYDT) {
+                                 conditionalYDT_fun = conditionalYDT, edges = NULL) {
   survival_variable <- survival_time_variable(survival_fit_all)
   if (is.finite(R)) {
-    edges <- seq(L, R, length.out = n_grid + 1)
+    if (is.null(edges)) edges <- seq(L, R, length.out = n_grid + 1)
     mass <- marginalT(data_j, long_fit_all, survival_fit_all, l_i = edges)[, 1]
   } else {
     upper <- integration_upper_bound(data_j, long_fit_all, survival_fit_all, L, min_upper = L)

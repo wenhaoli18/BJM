@@ -20,6 +20,8 @@ fitImputedBJM(
   n_grid = 40,
   baseline = c("spline", "piecewise"),
   df = NULL,
+  survival_fit_all = NULL,
+  refit_event_type = TRUE,
   seed = NULL
 )
 }
@@ -57,11 +59,24 @@ columns, as in \code{\link{predictRisk}} (\code{NULL} if none).}
 \item{baseline, df}{Baseline hazard of the survival model (see
 \code{\link{survivalSub}}).}
 
+\item{survival_fit_all}{Optional right-censored survival sub-model to use
+instead of fitting one from \code{form_marginal_surv} and
+\code{form_conditional_cr}, e.g. from \code{\link{survivalSubExternal}}.
+\code{form_marginal_surv} is still used to read each subject's time and
+status in \code{data_survival}.}
+
+\item{refit_event_type}{With competing risks, refit the event-type model
+on every draw (see Description); \code{FALSE} keeps the one fit on the
+subjects with an event.}
+
 \item{seed}{Optional integer seed (the global RNG state is restored).}
 }
 \value{
 An object of class \code{"fitImputedBJM"}, a list with
-\code{survival_fit_all}; \code{long_fit_all} (the imputations combined,
+\code{survival_fit_all} (with competing risks and
+\code{refit_event_type}, its event-type coefficients averaged over the
+imputations; \code{survival_fit_all_list} has one per imputation);
+\code{long_fit_all} (the imputations combined,
 for \code{predictRisk()} and friends); \code{long_fit_all_list} (one fit
 per imputation); \code{pooled} (\code{\link{poolLongitudinalSub}} of the
 fits, when \code{n_imputations > 1}); \code{imputed_T} (and, with
@@ -99,9 +114,14 @@ longitudinal sub-model on the subjects with an event (the usual fit);
 \code{n_imputations} are saved, and pool them for prediction (see
 \code{\link{poolLongitudinalSub}}).
 }
-The survival sub-model, including the event-type model, is the usual one
-and is not refit. The draws of \eqn{T} beyond the last follow-up rely on
-the survival model's extrapolated tail.
+The marginal survival model is the usual one (or the one passed in
+\code{survival_fit_all}) and is fit once. With competing risks the
+event-type model \eqn{P(D \mid T)} is by default refit on every draw, on
+the subjects with an event and the censored subjects with their drawn
+\eqn{(T, D)}, and averaged over the imputations. The draws of \eqn{T}
+beyond the last follow-up rely on the survival model's tail: the
+extrapolated one by default, or one borrowed from an external cohort with
+longer follow-up (\code{\link{survivalSubExternal}}).
 
 Using the censored subjects makes the event-time effect matter where it
 was never observed, so a term linear in \eqn{T} can drift over the long

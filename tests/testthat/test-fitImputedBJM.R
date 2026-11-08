@@ -92,3 +92,23 @@ test_that("predictRisk warns once when the longitudinal fit ignores many censore
   expect_warning(call_predict(), "fitImputedBJM")
   expect_no_warning(call_predict())
 })
+
+test_that("fitImputedBJM refits the event-type model on the draws and accepts a survival fit", {
+  skip_on_cran()
+  data(pbc3, envir = environment())
+  ds <- pbc3[!duplicated(pbc3$id), ]
+  sf <- survivalSub(ds, Surv(years, status3) ~ age + sex, status4 ~ years + age + sex)
+  fit <- suppressWarnings(fitImputedBJM(
+    ds, pbc3, Surv(years, status3) ~ age + sex,
+    serBilir ~ year + age + I(exp(-years / 5)) + status4, ~ year | id, "year",
+    survival_fit_all = sf, n_burnin = 1, n_imputations = 2, n_thin = 1, n_grid = 10, seed = 3))
+  expect_true(fit$settings$refit_event_type)
+  expect_length(fit$survival_fit_all_list, 2)
+  # the event-type model now uses the censored subjects' drawn (T, D) too
+  expect_equal(nobs(fit$survival_fit_all_list[[1]]$glm_fit), nrow(ds))
+  expect_equal(stats::coef(fit$survival_fit_all$glm_fit),
+               rowMeans(sapply(fit$survival_fit_all_list, function(f) stats::coef(f$glm_fit))))
+  expect_true(any(grepl("^cr\\.", colnames(fit$trace))))
+  # the marginal model is the one passed in
+  expect_identical(fit$survival_fit_all$coxph_fit, sf$coxph_fit)
+})
