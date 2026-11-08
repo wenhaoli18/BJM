@@ -328,7 +328,10 @@ pool_event_type_fit <- function(survival_fit_all_list) {
 #' \eqn{T} uniformly within it. A right-censored subject (\eqn{R = \infty})
 #' uses the same equal-probability grid from \eqn{L} out to the survival
 #' model's tail as \code{predictRisk()}. A subject with \eqn{L = R} keeps
-#' \eqn{T = L}. Used by \code{\link{fitIntervalBJM}}.
+#' \eqn{T = L}. With competing risks, a subject whose event type \code{D}
+#' is \code{NA} (right-censored) has \eqn{(T, D)} drawn jointly from
+#' \eqn{f(Y \mid T, D) P(D \mid T) f(T)}. Used by
+#' \code{\link{fitIntervalBJM}} and \code{\link{fitImputedBJM}}.
 #'
 #' @param data_fit_all Longitudinal data, one data frame per biomarker.
 #' @param long_fit_all Output of \code{longitudinalSub()}.
@@ -341,7 +344,9 @@ pool_event_type_fit <- function(survival_fit_all_list) {
 #' @param n_draws Independent draws per subject (the weights are computed
 #'   once and reused).
 #' @return A named numeric vector of draws, one per row of \code{bounds};
-#'   with \code{n_draws > 1}, a matrix with one column per draw.
+#'   with \code{n_draws > 1}, a matrix with one column per draw. With
+#'   competing risks the event types (observed or drawn) are in its
+#'   \code{"event_type"} attribute, in the same shape.
 #' @keywords internal
 imputeEventTime <- function(data_fit_all, long_fit_all, survival_fit_all, bounds, time_variable,
                             survival_variable_all = NULL, survival_trans_function = NULL,
@@ -361,6 +366,9 @@ imputeEventTime <- function(data_fit_all, long_fit_all, survival_fit_all, bounds
   data_fit_all <- suppressWarnings(drop_missing_longitudinal(data_fit_all, long_fit_all, survival_variable,
                                                              survival_variable_all))
   out <- matrix(NA_real_, nrow(bounds), n_draws, dimnames = list(bounds$id, NULL))
+  out_D <- if (has_cr) {
+    matrix(rep(bounds$D, n_draws), nrow(bounds), n_draws, dimnames = list(bounds$id, NULL))
+  }
   for (j in seq_len(nrow(bounds))) {
     L <- bounds$L[j]
     R <- bounds$R[j]
@@ -378,40 +386,75 @@ imputeEventTime <- function(data_fit_all, long_fit_all, survival_fit_all, bounds
     # a biomarker without usable rows: f(Y | T) is left out, so T is drawn
     # from the survival model alone (covariates read from another biomarker)
     if (!all(has_rows)) data_j <- rep(data_j[which(has_rows)[1]], length(data_j))
-    if (is.finite(R)) {
-      edges <- seq(L, R, length.out = n_grid + 1)
-      mass <- marginalT(data_j, long_fit_all, survival_fit_all, l_i = edges)[, 1]
-    } else {
-      upper <- integration_upper_bound(data_j, long_fit_all, survival_fit_all, L, min_upper = L)
-      grid <- prepare_infinity_grid(data_j, long_fit_all, survival_fit_all, L, upper, n_grid - 1)
-      edges <- grid$predict.time.infinity.1
-      mass <- grid$S_T_all_infinity[, 1]
-    }
-    mids <- (edges[-1] + edges[-length(edges)]) / 2
-    if (has_cr) {
-      # the event type is known: weight by P(D = d | T) and use f(Y | T, D = d)
-      k <- bounds$D[j] + 1
-      mass <- mass * conditionalDT(data_j, long_fit_all, survival_fit_all, l_i = mids)[[k]][, 1]
-      log_f <- if (all(has_rows)) {
-        conditionalYDT_fun(data_j, long_fit_all, survival_fit_all, l_i = mids, survival_variable,
-                           time_variable, survival_variable_all, survival_trans_function)[[k]][, 1]
-      } else rep(0, length(mids))
-    } else {
-      log_f <- if (all(has_rows)) {
-        conditionalYT_fun(data_j, long_fit_all, l_i = mids, survival_variable, time_variable,
-                          survival_variable_all, survival_trans_function)[[1]][, 1]
-      } else rep(0, length(mids))
-    }
-    w <- exp(log_f - max(log_f[is.finite(log_f)])) * pmax(mass, 0)
+    tw <- subject_time_weights(data_j, all(has_rows), long_fit_all, survival_fit_all, L, R,
+                               if (has_cr) bounds$D[j], time_variable, survival_variable_all,
+                               survival_trans_function, n_grid, conditionalYT_fun, conditionalYDT_fun)
+    # one column per event type the draw may take (both for a right-censored
+    # subject under competing risks, whose event type is unknown)
+    w <- exp(tw$log_w - max(tw$log_w[is.finite(tw$log_w)]))
     w[!is.finite(w)] <- 0
     k <- if (sum(w) > 0) {
       sample.int(length(w), n_draws, replace = TRUE, prob = w)
     } else {
       sample.int(length(w), n_draws, replace = TRUE)
     }
-    out[j, ] <- stats::runif(n_draws, edges[k], edges[k + 1])
+    cell <- (k - 1) %% nrow(tw$log_w) + 1
+    if (has_cr) out_D[j, ] <- tw$types[(k - 1) %/% nrow(tw$log_w) + 1]
+    out[j, ] <- stats::runif(n_draws, tw$edges[cell], tw$edges[cell + 1])
   }
-  if (n_draws == 1) stats::setNames(out[, 1], bounds$id) else out
+  res <- if (n_draws == 1) stats::setNames(out[, 1], bounds$id) else out
+  if (has_cr) attr(res, "event_type") <- if (n_draws == 1) stats::setNames(out_D[, 1], bounds$id) else out_D
+  res
+}
+
+#' Grid weights of a subject's event time (and event type)
+#'
+#' @description \eqn{\log [f(Y \mid T, D) P(D \mid T) P(T \in \text{cell})]}
+#' on a grid of cells tiling \eqn{(L, R]}, or \eqn{(L, \infty)} for
+#' \eqn{R = \infty} (the equal-probability grid of \code{predictRisk()}).
+#' Without competing risks there is one column; with them one column per
+#' event type in \code{types} -- the known one, or both when \code{D} is
+#' \code{NA}. Shared by \code{imputeEventTime()} and
+#' \code{observedLongLogLik()}.
+#' @param edges Optional cell edges for a finite \eqn{(L, R]}, in place of
+#'   \code{n_grid} equal cells.
+#' @return A list with \code{edges}, \code{mass} (the survival model's cell
+#'   probabilities), \code{log_w} (cells x types) and \code{types}.
+#' @keywords internal
+subject_time_weights <- function(data_j, use_y, long_fit_all, survival_fit_all, L, R, D,
+                                 time_variable, survival_variable_all, survival_trans_function,
+                                 n_grid, conditionalYT_fun = conditionalYT,
+                                 conditionalYDT_fun = conditionalYDT, edges = NULL) {
+  survival_variable <- survival_time_variable(survival_fit_all)
+  if (is.finite(R)) {
+    if (is.null(edges)) edges <- seq(L, R, length.out = n_grid + 1)
+    mass <- marginalT(data_j, long_fit_all, survival_fit_all, l_i = edges)[, 1]
+  } else {
+    upper <- integration_upper_bound(data_j, long_fit_all, survival_fit_all, L, min_upper = L)
+    grid <- prepare_infinity_grid(data_j, long_fit_all, survival_fit_all, L, upper, n_grid - 1)
+    edges <- grid$predict.time.infinity.1
+    mass <- grid$S_T_all_infinity[, 1]
+  }
+  mids <- (edges[-1] + edges[-length(edges)]) / 2
+  log_mass <- log(pmax(mass, 0))
+  if (is.null(survival_fit_all$glm_fit)) {
+    log_f <- if (use_y) {
+      conditionalYT_fun(data_j, long_fit_all, l_i = mids, survival_variable, time_variable,
+                        survival_variable_all, survival_trans_function)[[1]][, 1]
+    } else rep(0, length(mids))
+    return(list(edges = edges, mass = mass, log_w = cbind(log_f + log_mass), types = NA))
+  }
+  # weight by P(D = d | T) and use f(Y | T, D = d)
+  types <- if (is.null(D) || is.na(D)) c(0, 1) else D
+  p_D <- conditionalDT(data_j, long_fit_all, survival_fit_all, l_i = mids)
+  f_YD <- if (use_y) {
+    conditionalYDT_fun(data_j, long_fit_all, survival_fit_all, l_i = mids, survival_variable,
+                       time_variable, survival_variable_all, survival_trans_function)
+  }
+  log_w <- vapply(types, function(d) {
+    (if (use_y) f_YD[[d + 1]][, 1] else 0) + log(pmax(p_D[[d + 1]][, 1], 0)) + log_mass
+  }, numeric(length(mids)))
+  list(edges = edges, mass = mass, log_w = matrix(log_w, length(mids)), types = types)
 }
 
 #' Interval endpoints per subject
