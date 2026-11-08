@@ -36,7 +36,9 @@ once and reused).}
 }
 \value{
 A named numeric vector of draws, one per row of \code{bounds};
-with \code{n_draws > 1}, a matrix with one column per draw.
+with \code{n_draws > 1}, a matrix with one column per draw. With
+competing risks the event types (observed or drawn) are in its
+\code{"event_type"} attribute, in the same shape.
 }
 \description{
 \strong{Experimental.} One draw of each subject's event time
@@ -48,6 +50,9 @@ times the survival model's probability of each grid interval
 \eqn{T} uniformly within it. A right-censored subject (\eqn{R = \infty})
 uses the same equal-probability grid from \eqn{L} out to the survival
 model's tail as \code{predictRisk()}. A subject with \eqn{L = R} keeps
-\eqn{T = L}. Used by \code{\link{fitIntervalBJM}}.
+\eqn{T = L}. With competing risks, a subject whose event type \code{D}
+is \code{NA} (right-censored) has \eqn{(T, D)} drawn jointly from
+\eqn{f(Y \mid T, D) P(D \mid T) f(T)}. Used by
+\code{\link{fitIntervalBJM}} and \code{\link{fitImputedBJM}}.
 }
 \keyword{internal}

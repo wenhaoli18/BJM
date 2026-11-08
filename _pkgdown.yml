@@ -26,6 +26,12 @@ reference:
   - survivalTrans
   - backwardTimeBasis
 
+- title: Censored subjects in the longitudinal sub-model (experimental)
+  desc: Impute the censored subjects' event times so that the longitudinal sub-model is not fit on the events only, and compare longitudinal fits.
+  contents:
+  - fitImputedBJM
+  - observedLongLogLik
+
 - title: Interval-censored events
   desc: Fit the backward joint model when the event time is only known to lie between two visits.
   contents:
@@ -77,10 +83,11 @@ articles:
   - nonlinear-terms
 
 - title: Extensions
-  desc: Categorical biomarkers, missing data, events that are interval-censored or recur, and simulated digital twins.
+  desc: Categorical biomarkers, missing data, many censored subjects, events that are interval-censored or recur, and simulated digital twins.
   contents:
   - articles/categorical-biomarkers
   - articles/missing-data-imputation
+  - articles/censored-subjects
   - articles/interval-censoring
   - articles/recurrent-events
   - articles/digital-twins
@@ -120,6 +127,8 @@ navbar:
         href: articles/categorical-biomarkers.html
       - text: Missing data imputation
         href: articles/missing-data-imputation.html
+      - text: Many censored subjects
+        href: articles/censored-subjects.html
       - text: Interval-censored events
         href: articles/interval-censoring.html
       - text: Recurrent events

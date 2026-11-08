@@ -1,3 +1,33 @@
+# BJM 0.3.3
+
+## New features
+
+* New `fitImputedBJM()` -- **experimental** -- also uses the censored
+  subjects in the longitudinal sub-model. The usual fit estimates
+  `f(Y | T)` on the subjects with an event, which with many censored
+  subjects are the early events, so prediction extrapolates the event-time
+  effect to long event times and tends to overestimate risk, more so at
+  later landmarks. `fitImputedBJM()` draws each censored subject's `T > C`
+  from `f(Y | T) f(T)` (with competing risks, `T` and the event type
+  jointly), refits on everyone by stochastic EM and pools the imputations,
+  as `fitIntervalBJM()` does for interval censoring. On `pbc3` (landmarks
+  1-3 years, 3-year window, 5-fold cross-validation) predicted over observed
+  cumulative incidence of death goes from 1.08-1.32 to 0.99-1.07, with the
+  same AUC (see the "Many censored subjects" article on the package website).
+
+* New `observedLongLogLik()` gives the observed-data log-likelihood of the
+  longitudinal sub-model, with the censored subjects contributing through
+  `T > C`, to compare longitudinal fits -- for instance the scale of a
+  bounded event-time effect such as `I(exp(-years / 5))`.
+
+* `predictRisk()` now warns, once per session, when the longitudinal
+  sub-model has no more subjects than the survival sub-model has events
+  while at least 30% of the subjects are censored, pointing to
+  `fitImputedBJM()`. `options(BJM.check_complete_case = FALSE)` turns it off.
+
+* Internal: `imputeEventTime()` draws the event type of a right-censored
+  subject under competing risks (returned in the `"event_type"` attribute).
+
 # BJM 0.3.2
 
 ## New features
