@@ -34,8 +34,11 @@ survival_time_variable <- function(survival_fit_all) {
 #'   a patient with a missing covariate.
 survival_lp <- function(survival_fit_all, newdata) {
   if (is_interval_censored(survival_fit_all)) return(icph_lp(survival_fit_all$ic_fit, newdata))
-  c(stats::predict(survival_fit_all$coxph_fit, newdata = newdata, type = "lp",
-                   reference = "zero", na.action = stats::na.pass))
+  lp <- c(stats::predict(survival_fit_all$coxph_fit, newdata = newdata, type = "lp",
+                         reference = "zero", na.action = stats::na.pass))
+  ### a fit transported with transportBJM(method = "recalibrate") rescales it
+  if (!is.null(survival_fit_all$transport)) lp <- survival_fit_all$transport$lp_slope * lp
+  lp
 }
 
 #' @describeIn survival_accessors Baseline cumulative hazard: a data frame
@@ -43,6 +46,8 @@ survival_lp <- function(survival_fit_all, newdata) {
 #'   stratified Cox model).
 survival_cum_basehaz <- function(survival_fit_all) {
   if (is_interval_censored(survival_fit_all)) return(survival_fit_all$ic_fit$cum_basehaz)
+  ### the target population's baseline, for a fit from transportBJM()
+  if (!is.null(survival_fit_all$transport)) return(survival_fit_all$transport$cum_basehaz)
   basehaz(survival_fit_all$coxph_fit, centered = FALSE)
 }
 
@@ -63,6 +68,7 @@ survival_patient_strata <- function(survival_fit_all, newdata) {
 #'   finite interval endpoint).
 survival_max_followup <- function(survival_fit_all) {
   if (is_interval_censored(survival_fit_all)) return(survival_fit_all$ic_fit$max_followup)
+  if (!is.null(survival_fit_all$transport)) return(survival_fit_all$transport$max_followup)
   surv_y <- survival_fit_all$coxph_fit$y
   max(surv_y[, ncol(surv_y) - 1])
 }

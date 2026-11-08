@@ -10,3 +10,4 @@
 ^vignettes/articles$
 ^shiny$
 ^docs$
+^simulations$

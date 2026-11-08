@@ -14,6 +14,21 @@
   `survival_variable_all`/`survival_trans_function` entries
   (`vignette("nonlinear-terms")`).
 
+* New `transportBJM()` -- **experimental** -- adapts a fitted survival
+  sub-model to a new population (e.g. a new hospital) whose event rates
+  differ, keeping the longitudinal sub-model. The backward factorization
+  `f(T) f(Y | T)` makes this a *label shift* problem: if how a biomarker
+  evolves before an event is the same in both populations, only `f(T)`
+  needs to change. `method = "baseline"` re-estimates the baseline hazard
+  on target outcomes with the source hazard ratios as an offset;
+  `"recalibrate"` also fits a calibration slope; `"unlabeled"` needs no
+  target outcomes at all, only biomarker histories, and estimates a
+  proportional shift of the baseline hazard by maximizing their marginal
+  likelihood `prod_i int f(Y_i | T) f_alpha(T) dT` (the denominator of
+  `predictRisk()`), optionally relative to the same estimate on source
+  histories (`data_source`), which cancels misfit common to both. The
+  result replaces `survival_fit_all` everywhere in the package.
+
 ## Bug fixes
 
 * `imputeLongitudinal(method = "miwae"/"diffusion", history = TRUE)` no
