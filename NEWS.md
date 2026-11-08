@@ -1,4 +1,4 @@
-# BJM 0.3.3
+# BJM 0.3.2
 
 ## New features
 
@@ -27,10 +27,6 @@
 
 * Internal: `imputeEventTime()` draws the event type of a right-censored
   subject under competing risks (returned in the `"event_type"` attribute).
-
-# BJM 0.3.2
-
-## New features
 
 * New `backwardTimeBasis()` adds a piecewise-linear basis in the backward
   time `u = T - s` (event time minus visit time) to `long_sub_fixed`, as
