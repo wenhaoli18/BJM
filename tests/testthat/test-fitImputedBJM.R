@@ -112,3 +112,43 @@ test_that("fitImputedBJM refits the event-type model on the draws and accepts a 
   # the marginal model is the one passed in
   expect_identical(fit$survival_fit_all$coxph_fit, sf$coxph_fit)
 })
+
+test_that("fitImputedBJM handles an ordinal biomarker", {
+  skip_on_cran()
+  skip_if_not_installed("ordinal")
+  data(pbc3, envir = environment())
+  ds <- pbc3[!duplicated(pbc3$id), ]
+  pbc3$hep <- factor(pbc3$hepatomegaly, ordered = TRUE)
+  fit <- suppressWarnings(fitImputedBJM(
+    ds, pbc3, Surv(years, status3) ~ age,
+    list(serBilir ~ year + I(exp(-years / 5)), hep ~ year + I(exp(-years / 5))),
+    list(~ year | id, ~ 1 | id), "year", biomarker_type = c("continuous", "ordinal"),
+    n_burnin = 1, n_imputations = 2, n_thin = 1, n_grid = 10, seed = 1))
+  expect_equal(fit$long_fit_all$biomarker_type, c("continuous", "ordinal"))
+  expect_s3_class(fit$long_fit_all$lfit[[2]], "clmm")
+  expect_equal(nrow(fit$trace), 3)
+  history <- pbc3[pbc3$id == 2 & pbc3$year <= 3, ]
+  history$years <- NA
+  r <- predictRisk(history, fit$long_fit_all, fit$survival_fit_all, 3, 3, "year", NULL, NULL, 10, 10)
+  e <- predictEventTime(history, fit$long_fit_all, fit$survival_fit_all, 3, 3, "year")
+  expect_equal(unname(e$cdf[1, 1]), unname(r$risk_prob_1), tolerance = 0.02)
+  expect_true(is.finite(observedLongLogLik(fit, ds, pbc3, "year", n_grid = 10)))
+})
+
+test_that("predictions beyond the survival model's follow-up warn once", {
+  fx <- setup_dp_fixture()
+  old_opt <- options(BJM.check_extrapolation = TRUE)
+  old <- isTRUE(BJM:::bjm_state$warned_extrapolation)
+  on.exit({
+    options(old_opt)
+    assign("warned_extrapolation", old, envir = BJM:::bjm_state)
+  }, add = TRUE)
+  assign("warned_extrapolation", FALSE, envir = BJM:::bjm_state)
+  call_predict <- function(h) {
+    predictRisk(fx$data_predict_all, fx$long_fit_all, fx$survival_fit_all, 5, h, "year",
+                fx$survival_variable_all, fx$survival_trans_function, bandcount1 = 10, bandcount2 = 10)
+  }
+  expect_no_warning(call_predict(2))
+  expect_warning(call_predict(12), "beyond the survival sub-model's last follow-up")
+  expect_no_warning(call_predict(12))
+})

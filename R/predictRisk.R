@@ -276,6 +276,7 @@ predictRisk = function(data_predict_all, long_fit_all, survival_fit_all,
   check_survival_trans_training(long_fit_all, survival_fit_all, survival_variable_all,
                                 survival_trans_function)
   check_complete_case_fit(long_fit_all, survival_fit_all)
+  check_beyond_followup(survival_fit_all, prediction_time + horizon)
   # also keeps one row per patient without any measurement up to
   # prediction_time, who is predicted from the survival sub-model alone (see
   # prepare_risk_data())

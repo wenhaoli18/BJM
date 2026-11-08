@@ -66,6 +66,7 @@ predictEventTime <- function(data_predict_all, long_fit_all, survival_fit_all, p
   }
   assert_string(time_variable, "time_variable")
   horizons <- sort(unique(horizons))
+  check_beyond_followup(survival_fit_all, prediction_time + max(horizons))
   if (!is.list(data_predict_all) || is.data.frame(data_predict_all)) {
     data_predict_all <- rep(list(data_predict_all), length(long_fit_all$lfit))
   }
