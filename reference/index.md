@@ -48,6 +48,14 @@ joint model, and predict the number of recurrences.
   : Predict the number of recurrent events in a window, by rolling
   episodes forward
 
+## Transport to a new population (experimental)
+
+Adapt the survival sub-model to a population with different event rates,
+keeping the longitudinal sub-model, with or without target outcomes.
+
+- [`transportBJM()`](https://wenhaoli18.github.io/BJM/reference/transportBJM.md)
+  : Transport a fitted backward joint model to a new population
+
 ## Missing data imputation
 
 Impute missing longitudinal biomarker values and pool sub-model fits

@@ -41,6 +41,7 @@
 <url><loc>https://wenhaoli18.github.io/BJM/reference/bandcount_auto_start.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/barnard_rubin_df.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/box_prob_quadrature.html</loc></url>
+<url><loc>https://wenhaoli18.github.io/BJM/reference/breslow_basehaz.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/buildRecurrentEpisodes.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/build_conditional_design.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/build_conditional_design_copula.html</loc></url>
@@ -180,6 +181,7 @@
 <url><loc>https://wenhaoli18.github.io/BJM/reference/probit_box_derivs.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/process_variance.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/random_effects_design.html</loc></url>
+<url><loc>https://wenhaoli18.github.io/BJM/reference/refit_event_type.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/resolve_biomarker_type.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/riskPlot.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/risk_axis_scale.html</loc></url>
@@ -209,10 +211,15 @@
 <url><loc>https://wenhaoli18.github.io/BJM/reference/survival_accessors.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/symmetric_sqrt.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/tail_time.html</loc></url>
+<url><loc>https://wenhaoli18.github.io/BJM/reference/target_surv.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/train_diffusion.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/train_miwae.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/training_episode_max.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/training_xlevels.html</loc></url>
+<url><loc>https://wenhaoli18.github.io/BJM/reference/transportBJM.html</loc></url>
+<url><loc>https://wenhaoli18.github.io/BJM/reference/transport_labeled.html</loc></url>
+<url><loc>https://wenhaoli18.github.io/BJM/reference/transport_unlabeled.html</loc></url>
+<url><loc>https://wenhaoli18.github.io/BJM/reference/unlabeled_alpha.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/unsafe_formula_calls.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/warn_unsafe_formula_terms.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/window_status_probs.html</loc></url>
