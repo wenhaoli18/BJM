@@ -42,7 +42,15 @@ comparing observedLongLogLik across candidate fits. On
 pbc3 (landmarks 1-3 years, 3-year window), the usual fit
 overestimates the cumulative incidence of death by 8-32\
 cross-validation and this fit with exp(-years / 5) by -1 to 7\
-with the same AUC."><meta property="og:description" content="Experimental. The usual right-censored fit estimates
+with the same AUC.
+Beyond the last follow-up this fit is no better than its survival
+sub-model's tail. With the default (linearly extrapolated) baseline hazard
+it can underestimate long-term risk substantially: in simulations
+with 3-5 years of follow-up, risks at 8-12 years were too low by 0.14-0.60
+(the usual fit's overestimation partly hides the same tail problem).
+Predicting there calls for a tail borrowed from an external cohort with
+longer follow-up (survivalSubExternal), with which the same
+simulations were unbiased to within 0.02."><meta property="og:description" content="Experimental. The usual right-censored fit estimates
 the longitudinal sub-model \(f(Y \mid T)\) on the subjects with an
 observed event only. That is valid when censoring is independent of
 \((T, Y)\), but \(f(Y \mid T)\) is then learned only over the event
@@ -85,7 +93,15 @@ comparing observedLongLogLik across candidate fits. On
 pbc3 (landmarks 1-3 years, 3-year window), the usual fit
 overestimates the cumulative incidence of death by 8-32\
 cross-validation and this fit with exp(-years / 5) by -1 to 7\
-with the same AUC."></head><body>
+with the same AUC.
+Beyond the last follow-up this fit is no better than its survival
+sub-model's tail. With the default (linearly extrapolated) baseline hazard
+it can underestimate long-term risk substantially: in simulations
+with 3-5 years of follow-up, risks at 8-12 years were too low by 0.14-0.60
+(the usual fit's overestimation partly hides the same tail problem).
+Predicting there calls for a tail borrowed from an external cohort with
+longer follow-up (survivalSubExternal), with which the same
+simulations were unbiased to within 0.02."></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -184,6 +200,14 @@ comparing <code><a href="observedLongLogLik.html">observedLongLogLik</a></code> 
 overestimates the cumulative incidence of death by 8-32\<!-- % in 5-fold -->
 cross-validation and this fit with <code>exp(-years / 5)</code> by -1 to 7\<!-- %, -->
 with the same AUC.</p>
+<p><strong>Beyond the last follow-up</strong> this fit is no better than its survival
+sub-model's tail. With the default (linearly extrapolated) baseline hazard
+it can <em>underestimate</em> long-term risk substantially: in simulations
+with 3-5 years of follow-up, risks at 8-12 years were too low by 0.14-0.60
+(the usual fit's overestimation partly hides the same tail problem).
+Predicting there calls for a tail borrowed from an external cohort with
+longer follow-up (<code><a href="survivalSubExternal.html">survivalSubExternal</a></code>), with which the same
+simulations were unbiased to within 0.02.</p>
     </div>
 
     <div class="section level2">
@@ -198,6 +222,7 @@ with the same AUC.</p>
 <span>  form_conditional_cr <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  survival_variable_all <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  survival_trans_function <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  biomarker_type <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  n_burnin <span class="op">=</span> <span class="fl">5</span>,</span>
 <span>  n_imputations <span class="op">=</span> <span class="fl">5</span>,</span>
 <span>  n_thin <span class="op">=</span> <span class="fl">2</span>,</span>
@@ -235,8 +260,10 @@ the optional event-type model. The event-time variable of
 <code>form_marginal_surv</code> must be the one used in <code>long_sub_fixed</code>.</p></dd>
 
 
-<dt id="arg-long-sub-fixed-long-sub-random">long_sub_fixed, long_sub_random<a class="anchor" aria-label="anchor" href="#arg-long-sub-fixed-long-sub-random"></a></dt>
-<dd><p>As in <code><a href="longitudinalSub.html">longitudinalSub</a></code>.</p></dd>
+<dt id="arg-long-sub-fixed-long-sub-random-biomarker-type">long_sub_fixed, long_sub_random, biomarker_type<a class="anchor" aria-label="anchor" href="#arg-long-sub-fixed-long-sub-random-biomarker-type"></a></dt>
+<dd><p>As in
+<code><a href="longitudinalSub.html">longitudinalSub</a></code> (<code>biomarker_type</code> for ordinal
+biomarkers).</p></dd>
 
 
 <dt id="arg-time-variable">time_variable<a class="anchor" aria-label="anchor" href="#arg-time-variable"></a></dt>

@@ -218,15 +218,19 @@ how far a linear term is extrapolated.</p>
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>T</mi><annotation encoding="application/x-tex">T</annotation></semantics></math>
 beyond the last follow-up, and any prediction reaching there, rest on
 the survival sub-model’s baseline hazard, which
-<code><a href="../reference/survivalSub.html">survivalSub()</a></code> can only extrapolate. When an external cohort
-with longer follow-up is available (an earlier generation of a device, a
-registry), <code><a href="../reference/survivalSubExternal.html">survivalSubExternal()</a></code> fits one Cox model to both
-with a generation indicator, so the study’s hazard there is the external
-one scaled by a hazard ratio. It needs proportional hazards between the
-cohorts, also where only the external cohort is observed; the
-<code>cox.zph</code> test it runs on the overlap has little power with
-short follow-up, so treat the borrowed tail as an assumption to vary in
-a sensitivity analysis.</p>
+<code><a href="../reference/survivalSub.html">survivalSub()</a></code> can only extrapolate. This matters: in
+simulations with 3-5 years of follow-up, <code><a href="../reference/fitImputedBJM.html">fitImputedBJM()</a></code>
+with the default tail <em>underestimated</em> 8-12-year risks by
+0.14-0.60 (the usual fit’s overestimation hides part of the same
+problem), and was unbiased to within 0.02 with an external tail. When an
+external cohort with longer follow-up is available (an earlier
+generation of a device, a registry), <code><a href="../reference/survivalSubExternal.html">survivalSubExternal()</a></code>
+fits one Cox model to both with a generation indicator, so the study’s
+hazard there is the external one scaled by a hazard ratio. It needs
+proportional hazards between the cohorts, also where only the external
+cohort is observed; the <code>cox.zph</code> test it runs on the overlap
+has little power with short follow-up, so treat the borrowed tail as an
+assumption to vary in a sensitivity analysis.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># sketch: study_surv / study_long are the study (one row per subject / long format),</span></span>
 <span><span class="co"># external_surv the external cohort (one row per subject, no biomarkers needed);</span></span>

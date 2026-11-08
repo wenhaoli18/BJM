@@ -192,7 +192,7 @@ fit_tgt
 #>  Marginal Survival Sub-model  [Cox PH]
 #> -----------------------------------------------------------------
 #>  Formula: Surv(years, status3) ~ age + sex
-#> <environment: 0x590495208160>
+#> <environment: 0x5bc099739f38>
 #> 
 #>         Coef exp(Coef)       SE      z p-value  
 #> age  0.01835   1.01852  0.01050  1.748  0.0804 .

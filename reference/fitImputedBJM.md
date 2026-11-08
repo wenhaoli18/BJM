@@ -57,6 +57,16 @@ the usual fit overestimates the cumulative incidence of death by 8-32\\
 cross-validation and this fit with `exp(-years / 5)` by -1 to 7\\ with
 the same AUC.
 
+**Beyond the last follow-up** this fit is no better than its survival
+sub-model's tail. With the default (linearly extrapolated) baseline
+hazard it can *underestimate* long-term risk substantially: in
+simulations with 3-5 years of follow-up, risks at 8-12 years were too
+low by 0.14-0.60 (the usual fit's overestimation partly hides the same
+tail problem). Predicting there calls for a tail borrowed from an
+external cohort with longer follow-up
+([`survivalSubExternal`](https://wenhaoli18.github.io/BJM/reference/survivalSubExternal.md)),
+with which the same simulations were unbiased to within 0.02.
+
 ## Usage
 
 ``` r
@@ -70,6 +80,7 @@ fitImputedBJM(
   form_conditional_cr = NULL,
   survival_variable_all = NULL,
   survival_trans_function = NULL,
+  biomarker_type = NULL,
   n_burnin = 5,
   n_imputations = 5,
   n_thin = 2,
@@ -107,10 +118,11 @@ fitImputedBJM(
   The event-time variable of `form_marginal_surv` must be the one used
   in `long_sub_fixed`.
 
-- long_sub_fixed, long_sub_random:
+- long_sub_fixed, long_sub_random, biomarker_type:
 
   As in
-  [`longitudinalSub`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md).
+  [`longitudinalSub`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md)
+  (`biomarker_type` for ordinal biomarkers).
 
 - time_variable:
 

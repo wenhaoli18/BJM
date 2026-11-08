@@ -30,6 +30,29 @@
   effect such as `I(exp(-years / 5))`.
 
 - [`fitImputedBJM()`](https://wenhaoli18.github.io/BJM/reference/fitImputedBJM.md)
+  no longer stops when the starting fit on the subjects with an event is
+  singular (few events): the chain then starts from everyone. Its help
+  page now says plainly that beyond the last follow-up it is only as
+  good as the survival tail – in simulations it underestimated 8-12-year
+  risks by 0.14-0.60 with the default tail and was unbiased with
+  [`survivalSubExternal()`](https://wenhaoli18.github.io/BJM/reference/survivalSubExternal.md).
+
+- [`predictRisk()`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md)
+  and
+  [`predictEventTime()`](https://wenhaoli18.github.io/BJM/reference/predictEventTime.md)
+  warn, once per session, when the prediction reaches beyond the
+  survival sub-model’s last follow-up time.
+  `options(BJM.check_extrapolation = FALSE)` turns it off.
+
+- [`fitImputedBJM()`](https://wenhaoli18.github.io/BJM/reference/fitImputedBJM.md)
+  takes `biomarker_type`, so ordinal biomarkers are fit with
+  [`ordinal::clmm()`](https://rdrr.io/pkg/ordinal/man/clmm.html) as in
+  [`longitudinalSub()`](https://wenhaoli18.github.io/BJM/reference/longitudinalSub.md)
+  (they were fit as continuous), and
+  [`observedLongLogLik()`](https://wenhaoli18.github.io/BJM/reference/observedLongLogLik.md)
+  uses the copula densities for them.
+
+- [`fitImputedBJM()`](https://wenhaoli18.github.io/BJM/reference/fitImputedBJM.md)
   refits the competing-risks event-type model on every draw
   (`refit_event_type = TRUE`), accepts a ready survival sub-model
   (`survival_fit_all`, e.g. from

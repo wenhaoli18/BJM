@@ -79,7 +79,7 @@ for a basis in the event time itself;
 backwardTimeBasis(serBilir ~ year + age + sex + years, c(1, 3))
 #> serBilir ~ year + age + sex + years + I(abs(years - year - 1)) + 
 #>     I(abs(years - year - 3))
-#> <environment: 0x5904883ea4e8>
+#> <environment: 0x5bc08e1f2938>
 
 long_sub_fixed <- backwardTimeBasis(
   list("serBilir" = serBilir ~ year + age + sex + years,
@@ -90,12 +90,12 @@ long_sub_fixed
 #> $serBilir
 #> serBilir ~ year + age + sex + years + I(abs(years - year - 1)) + 
 #>     I(abs(years - year - 3)) + I(abs(years - year - 5))
-#> <environment: 0x5904883ea4e8>
+#> <environment: 0x5bc08e1f2938>
 #> 
 #> $albumin
 #> albumin ~ year + age + sex + years + I(abs(years - year - 1)) + 
 #>     I(abs(years - year - 3)) + I(abs(years - year - 5))
-#> <environment: 0x5904883ea4e8>
+#> <environment: 0x5bc08e1f2938>
 #> 
 
 # \donttest{
