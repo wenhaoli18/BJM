@@ -101,7 +101,9 @@ overlap has little power with short follow-up, so treat the borrowed tail
 as an assumption to vary in a sensitivity analysis.
 
 ```{r}
-# study: the first 4 years of follow-up; external: longer follow-up, no biomarkers needed
+# sketch: study_surv / study_long are the study (one row per subject / long format),
+# external_surv the external cohort (one row per subject, no biomarkers needed);
+# fx, rd as above
 surv_ext <- survivalSubExternal(study_surv, external_surv, Surv(years, status3) ~ age + sex)
 surv_ext$external$ph_test
 fit <- fitImputedBJM(study_surv, study_long, Surv(years, status3) ~ age + sex, fx, rd, "year",
