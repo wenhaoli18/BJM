@@ -232,6 +232,12 @@ that random effect, so the results are exact and the same on every run.
 risk <- predictRisk(list(patient, patient), long_fit, survival_fit,
                     prediction_time = 5, horizon = 3, time_variable = "year",
                     survival_variable_all = list(), survival_trans_function = list())
+#> Warning: The longitudinal sub-model has 169 subjects, no more than the 169 with
+#> an event, while 46% of the 312 subjects in the survival sub-model are censored.
+#> Fitted on the events only, f(Y | T) extrapolates the event-time effect to the
+#> long event times of the censored, which can overestimate risk. fitImputedBJM()
+#> uses the censored subjects too. (Shown once per session;
+#> options(BJM.check_complete_case = FALSE) turns it off.)
 risk
 #> 
 #> =================================================================

@@ -60,6 +60,7 @@ time."></head><body>
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-extensions" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Extensions</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-extensions"><li><a class="dropdown-item" href="../articles/categorical-biomarkers.html">Categorical biomarkers</a></li>
     <li><a class="dropdown-item" href="../articles/missing-data-imputation.html">Missing data imputation</a></li>
+    <li><a class="dropdown-item" href="../articles/censored-subjects.html">Many censored subjects</a></li>
     <li><a class="dropdown-item" href="../articles/interval-censoring.html">Interval-censored events</a></li>
     <li><a class="dropdown-item" href="../articles/recurrent-events.html">Recurrent events</a></li>
     <li><a class="dropdown-item" href="../articles/digital-twins.html">Digital twins</a></li>
@@ -165,7 +166,7 @@ itself; <code><a href="../articles/nonlinear-terms.html">vignette("nonlinear-ter
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="fu">backwardTimeBasis</span><span class="op">(</span><span class="va">serBilir</span> <span class="op">~</span> <span class="va">year</span> <span class="op">+</span> <span class="va">age</span> <span class="op">+</span> <span class="va">sex</span> <span class="op">+</span> <span class="va">years</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">3</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> serBilir ~ year + age + sex + years + I(abs(years - year - 1)) + </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>     I(abs(years - year - 3))</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x62611b6048f0&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x5904883ea4e8&gt;</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="va">long_sub_fixed</span> <span class="op">&lt;-</span> <span class="fu">backwardTimeBasis</span><span class="op">(</span></span></span>
 <span class="r-in"><span>  <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="st">"serBilir"</span> <span class="op">=</span> <span class="va">serBilir</span> <span class="op">~</span> <span class="va">year</span> <span class="op">+</span> <span class="va">age</span> <span class="op">+</span> <span class="va">sex</span> <span class="op">+</span> <span class="va">years</span>,</span></span>
@@ -176,12 +177,12 @@ itself; <code><a href="../articles/nonlinear-terms.html">vignette("nonlinear-ter
 <span class="r-out co"><span class="r-pr">#&gt;</span> $serBilir</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> serBilir ~ year + age + sex + years + I(abs(years - year - 1)) + </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>     I(abs(years - year - 3)) + I(abs(years - year - 5))</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x62611b6048f0&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x5904883ea4e8&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $albumin</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> albumin ~ year + age + sex + years + I(abs(years - year - 1)) + </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>     I(abs(years - year - 3)) + I(abs(years - year - 5))</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x62611b6048f0&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x5904883ea4e8&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># \donttest{</span></span></span>

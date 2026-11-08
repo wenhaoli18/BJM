@@ -28,6 +28,24 @@ sub-models.
 - [`backwardTimeBasis()`](https://wenhaoli18.github.io/BJM/reference/backwardTimeBasis.md)
   : Add a backward-time basis to longitudinal sub-model formulas
 
+## Censored subjects and long-term prediction (experimental)
+
+Impute the censored subjects’ event times so that the longitudinal
+sub-model is not fit on the events only, compare longitudinal fits,
+borrow the survival tail from an external cohort, and predict the whole
+distribution of the event time.
+
+- [`fitImputedBJM()`](https://wenhaoli18.github.io/BJM/reference/fitImputedBJM.md)
+  : Fit the backward joint model with censored subjects in the
+  longitudinal sub-model
+- [`observedLongLogLik()`](https://wenhaoli18.github.io/BJM/reference/observedLongLogLik.md)
+  : Observed-data log-likelihood of the longitudinal sub-model
+- [`survivalSubExternal()`](https://wenhaoli18.github.io/BJM/reference/survivalSubExternal.md)
+  : Survival sub-model that borrows a long-term tail from an external
+  cohort
+- [`predictEventTime()`](https://wenhaoli18.github.io/BJM/reference/predictEventTime.md)
+  : Predictive distribution of the event time
+
 ## Interval-censored events
 
 Fit the backward joint model when the event time is only known to lie

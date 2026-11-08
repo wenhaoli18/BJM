@@ -5,6 +5,69 @@
 ### New features
 
 - New
+  [`fitImputedBJM()`](https://wenhaoli18.github.io/BJM/reference/fitImputedBJM.md)
+  – **experimental** – also uses the censored subjects in the
+  longitudinal sub-model. The usual fit estimates `f(Y | T)` on the
+  subjects with an event, which with many censored subjects are the
+  early events, so prediction extrapolates the event-time effect to long
+  event times and tends to overestimate risk, more so at later
+  landmarks.
+  [`fitImputedBJM()`](https://wenhaoli18.github.io/BJM/reference/fitImputedBJM.md)
+  draws each censored subject’s `T > C` from `f(Y | T) f(T)` (with
+  competing risks, `T` and the event type jointly), refits on everyone
+  by stochastic EM and pools the imputations, as
+  [`fitIntervalBJM()`](https://wenhaoli18.github.io/BJM/reference/fitIntervalBJM.md)
+  does for interval censoring. On `pbc3` (landmarks 1-3 years, 3-year
+  window, 5-fold cross-validation) predicted over observed cumulative
+  incidence of death goes from 1.08-1.32 to 0.99-1.07, with the same AUC
+  (see the “Many censored subjects” article on the package website).
+
+- New
+  [`observedLongLogLik()`](https://wenhaoli18.github.io/BJM/reference/observedLongLogLik.md)
+  gives the observed-data log-likelihood of the longitudinal sub-model,
+  with the censored subjects contributing through `T > C`, to compare
+  longitudinal fits – for instance the scale of a bounded event-time
+  effect such as `I(exp(-years / 5))`.
+
+- [`fitImputedBJM()`](https://wenhaoli18.github.io/BJM/reference/fitImputedBJM.md)
+  refits the competing-risks event-type model on every draw
+  (`refit_event_type = TRUE`), accepts a ready survival sub-model
+  (`survival_fit_all`, e.g. from
+  [`survivalSubExternal()`](https://wenhaoli18.github.io/BJM/reference/survivalSubExternal.md)),
+  and reports the survival tail’s truncation warning once instead of
+  once per subject and draw.
+
+- New
+  [`survivalSubExternal()`](https://wenhaoli18.github.io/BJM/reference/survivalSubExternal.md)
+  – **experimental** – fits the survival sub-model to the study and an
+  external cohort with longer follow-up (an earlier device generation, a
+  registry) with a generation indicator, so the baseline hazard beyond
+  the study’s follow-up is borrowed from the external cohort under
+  proportional hazards instead of extrapolated. It tests proportionality
+  on the overlap (`cox.zph`); prediction data without the generation
+  column are taken as the study.
+
+- New
+  [`predictEventTime()`](https://wenhaoli18.github.io/BJM/reference/predictEventTime.md)
+  – **experimental** – returns each patient’s predictive distribution of
+  the event time in one pass: the CDF at several horizons (equal to
+  [`predictRisk()`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md)’s
+  risk, summed over event types) and its quantiles, e.g. a time the
+  patient outlives with probability 0.9.
+
+- [`predictRisk()`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md)
+  now warns, once per session, when the longitudinal sub-model has no
+  more subjects than the survival sub-model has events while at least
+  30% of the subjects are censored, pointing to
+  [`fitImputedBJM()`](https://wenhaoli18.github.io/BJM/reference/fitImputedBJM.md).
+  `options(BJM.check_complete_case = FALSE)` turns it off.
+
+- Internal:
+  [`imputeEventTime()`](https://wenhaoli18.github.io/BJM/reference/imputeEventTime.md)
+  draws the event type of a right-censored subject under competing risks
+  (returned in the `"event_type"` attribute).
+
+- New
   [`backwardTimeBasis()`](https://wenhaoli18.github.io/BJM/reference/backwardTimeBasis.md)
   adds a piecewise-linear basis in the backward time `u = T - s` (event
   time minus visit time) to `long_sub_fixed`, as terms

@@ -8,23 +8,9 @@ runs in the browser with no R needed. Pick a patient from the `pbc3`
 data, or upload one patient’s follow-up visits as a CSV file. The
 interface is available in English and Chinese.
 
-- [](_w_b822bc6cfdb14004a3cb4f7be9f90c6e/#tab-2599-1)
-- [](_w_b822bc6cfdb14004a3cb4f7be9f90c6e/#tab-2599-2)
-- [](_w_b822bc6cfdb14004a3cb4f7be9f90c6e/#tab-2599-3)
+### Please Wait
 
-log(serum bilirubin) Albumin log(prothrombin time)
-
-above below
-
-Biomarker at year X
-
-Death or transplant within X years
-
-log(serum bilirubin) Albumin log(prothrombin time)
-
-0.05 0.025 0.01
-
-80% 90%
+![loading](/__static__/frontend/images/spinner.gif?v=ce6bcde20b2f6c562913c06be83f9e7c8a19b008017407a3094b76fa82bbd6b7f4048e032e07e534d4ab5442b9105294d612863735077ab13a47653a14c5866e)
 
 If the frame does not load, [open the demo in a new
 tab](https://wenhaoli18.shinyapps.io/bjm-twin/). On the free hosting
@@ -108,21 +94,3 @@ shiny::runApp("shiny/bjm-twin")
 
 The demo is for illustrating the method only. Its models are fit on the
 PBC data set and must not be used for clinical decisions.
-
-- [](_w_b822bc6cfdb14004a3cb4f7be9f90c6e/#tab-2599-1)
-- [](_w_b822bc6cfdb14004a3cb4f7be9f90c6e/#tab-2599-2)
-- [](_w_b822bc6cfdb14004a3cb4f7be9f90c6e/#tab-2599-3)
-
-log(serum bilirubin) Albumin log(prothrombin time)
-
-above below
-
-Biomarker at year X
-
-Death or transplant within X years
-
-log(serum bilirubin) Albumin log(prothrombin time)
-
-0.05 0.025 0.01
-
-80% 90%

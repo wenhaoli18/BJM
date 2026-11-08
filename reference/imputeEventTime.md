@@ -11,8 +11,12 @@ an interval is drawn with those weights and \\T\\ uniformly within it. A
 right-censored subject (\\R = \infty\\) uses the same equal-probability
 grid from \\L\\ out to the survival model's tail as
 [`predictRisk()`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md).
-A subject with \\L = R\\ keeps \\T = L\\. Used by
-[`fitIntervalBJM`](https://wenhaoli18.github.io/BJM/reference/fitIntervalBJM.md).
+A subject with \\L = R\\ keeps \\T = L\\. With competing risks, a
+subject whose event type `D` is `NA` (right-censored) has \\(T, D)\\
+drawn jointly from \\f(Y \mid T, D) P(D \mid T) f(T)\\. Used by
+[`fitIntervalBJM`](https://wenhaoli18.github.io/BJM/reference/fitIntervalBJM.md)
+and
+[`fitImputedBJM`](https://wenhaoli18.github.io/BJM/reference/fitImputedBJM.md).
 
 ## Usage
 
@@ -68,4 +72,6 @@ imputeEventTime(
 ## Value
 
 A named numeric vector of draws, one per row of `bounds`; with
-`n_draws > 1`, a matrix with one column per draw.
+`n_draws > 1`, a matrix with one column per draw. With competing risks
+the event types (observed or drawn) are in its `"event_type"` attribute,
+in the same shape.

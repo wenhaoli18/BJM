@@ -26,6 +26,7 @@
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-extensions" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Extensions</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-extensions"><li><a class="dropdown-item" href="../articles/categorical-biomarkers.html">Categorical biomarkers</a></li>
     <li><a class="dropdown-item" href="../articles/missing-data-imputation.html">Missing data imputation</a></li>
+    <li><a class="dropdown-item" href="../articles/censored-subjects.html">Many censored subjects</a></li>
     <li><a class="dropdown-item" href="../articles/interval-censoring.html">Interval-censored events</a></li>
     <li><a class="dropdown-item" href="../articles/recurrent-events.html">Recurrent events</a></li>
     <li><a class="dropdown-item" href="../articles/digital-twins.html">Digital twins</a></li>
@@ -125,6 +126,43 @@
 
         </dt>
         <dd>Add a backward-time basis to longitudinal sub-model formulas</dd>
+      </dl></div><div class="section level2">
+      <h2 id="censored-subjects-and-long-term-prediction-experimental-">Censored subjects and long-term prediction (experimental)<a class="anchor" aria-label="anchor" href="#censored-subjects-and-long-term-prediction-experimental-"></a></h2>
+
+      <div class="section-desc"><p>Impute the censored subjects’ event times so that the longitudinal sub-model is not fit on the events only, compare longitudinal fits, borrow the survival tail from an external cohort, and predict the whole distribution of the event time.</p></div>
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="fitImputedBJM.html">fitImputedBJM()</a></code>
+
+        </dt>
+        <dd>Fit the backward joint model with censored subjects in the longitudinal sub-model</dd>
+
+        <dt>
+
+          <code><a href="observedLongLogLik.html">observedLongLogLik()</a></code>
+
+        </dt>
+        <dd>Observed-data log-likelihood of the longitudinal sub-model</dd>
+
+        <dt>
+
+          <code><a href="survivalSubExternal.html">survivalSubExternal()</a></code>
+
+        </dt>
+        <dd>Survival sub-model that borrows a long-term tail from an external cohort</dd>
+
+        <dt>
+
+          <code><a href="predictEventTime.html">predictEventTime()</a></code>
+
+        </dt>
+        <dd>Predictive distribution of the event time</dd>
       </dl></div><div class="section level2">
       <h2 id="interval-censored-events">Interval-censored events<a class="anchor" aria-label="anchor" href="#interval-censored-events"></a></h2>
 

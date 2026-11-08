@@ -8,7 +8,10 @@ times the survival model's probability of each grid interval
 \(T\) uniformly within it. A right-censored subject (\(R = \infty\))
 uses the same equal-probability grid from \(L\) out to the survival
 model's tail as predictRisk(). A subject with \(L = R\) keeps
-\(T = L\). Used by fitIntervalBJM."><meta property="og:description" content="Experimental. One draw of each subject's event time
+\(T = L\). With competing risks, a subject whose event type D
+is NA (right-censored) has \((T, D)\) drawn jointly from
+\(f(Y \mid T, D) P(D \mid T) f(T)\). Used by
+fitIntervalBJM and fitImputedBJM."><meta property="og:description" content="Experimental. One draw of each subject's event time
 from \(f(T \mid L &amp;lt; T \le R, Y, X) \propto f(Y \mid T, X) f(T \mid
 X)\): \(f(Y \mid T)\) from the longitudinal sub-model on a grid of
 n_grid intervals tiling \((L, R]\) (conditionalYT()),
@@ -17,7 +20,10 @@ times the survival model's probability of each grid interval
 \(T\) uniformly within it. A right-censored subject (\(R = \infty\))
 uses the same equal-probability grid from \(L\) out to the survival
 model's tail as predictRisk(). A subject with \(L = R\) keeps
-\(T = L\). Used by fitIntervalBJM."></head><body>
+\(T = L\). With competing risks, a subject whose event type D
+is NA (right-censored) has \((T, D)\) drawn jointly from
+\(f(Y \mid T, D) P(D \mid T) f(T)\). Used by
+fitIntervalBJM and fitImputedBJM."></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -44,6 +50,7 @@ model's tail as predictRisk(). A subject with \(L = R\) keeps
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-extensions" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Extensions</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-extensions"><li><a class="dropdown-item" href="../articles/categorical-biomarkers.html">Categorical biomarkers</a></li>
     <li><a class="dropdown-item" href="../articles/missing-data-imputation.html">Missing data imputation</a></li>
+    <li><a class="dropdown-item" href="../articles/censored-subjects.html">Many censored subjects</a></li>
     <li><a class="dropdown-item" href="../articles/interval-censoring.html">Interval-censored events</a></li>
     <li><a class="dropdown-item" href="../articles/recurrent-events.html">Recurrent events</a></li>
     <li><a class="dropdown-item" href="../articles/digital-twins.html">Digital twins</a></li>
@@ -81,7 +88,10 @@ times the survival model's probability of each grid interval
 \(T\) uniformly within it. A right-censored subject (\(R = \infty\))
 uses the same equal-probability grid from \(L\) out to the survival
 model's tail as <code><a href="predictRisk.html">predictRisk()</a></code>. A subject with \(L = R\) keeps
-\(T = L\). Used by <code><a href="fitIntervalBJM.html">fitIntervalBJM</a></code>.</p>
+\(T = L\). With competing risks, a subject whose event type <code>D</code>
+is <code>NA</code> (right-censored) has \((T, D)\) drawn jointly from
+\(f(Y \mid T, D) P(D \mid T) f(T)\). Used by
+<code><a href="fitIntervalBJM.html">fitIntervalBJM</a></code> and <code><a href="fitImputedBJM.html">fitImputedBJM</a></code>.</p>
     </div>
 
     <div class="section level2">
@@ -137,7 +147,9 @@ once and reused).</p></dd>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A named numeric vector of draws, one per row of <code>bounds</code>;
-with <code>n_draws &gt; 1</code>, a matrix with one column per draw.</p>
+with <code>n_draws &gt; 1</code>, a matrix with one column per draw. With
+competing risks the event types (observed or drawn) are in its
+<code>"event_type"</code> attribute, in the same shape.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

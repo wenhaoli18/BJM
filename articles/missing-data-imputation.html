@@ -42,6 +42,7 @@
   <ul class="dropdown-menu" aria-labelledby="dropdown-extensions">
 <li><a class="dropdown-item" href="../articles/categorical-biomarkers.html">Categorical biomarkers</a></li>
     <li><a class="dropdown-item" href="../articles/missing-data-imputation.html">Missing data imputation</a></li>
+    <li><a class="dropdown-item" href="../articles/censored-subjects.html">Many censored subjects</a></li>
     <li><a class="dropdown-item" href="../articles/interval-censoring.html">Interval-censored events</a></li>
     <li><a class="dropdown-item" href="../articles/recurrent-events.html">Recurrent events</a></li>
     <li><a class="dropdown-item" href="../articles/digital-twins.html">Digital twins</a></li>
@@ -396,6 +397,12 @@ missing value and keeps the rest of the visit):</p>
 <span><span class="fu"><a href="../reference/predictRisk.html">predictRisk</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">patient</span>, <span class="va">patient</span><span class="op">)</span>, <span class="va">pooled</span><span class="op">$</span><span class="va">long_fit_all</span>, <span class="va">survival_fit</span>,</span>
 <span>            prediction_time <span class="op">=</span> <span class="fl">5</span>, horizon <span class="op">=</span> <span class="fl">2</span>, time_variable <span class="op">=</span> <span class="st">"year"</span>,</span>
 <span>            survival_variable_all <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>, survival_trans_function <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Warning: The longitudinal sub-model has 169 subjects, no more than the 169 with</span></span>
+<span><span class="co">#&gt; an event, while 46% of the 312 subjects in the survival sub-model are censored.</span></span>
+<span><span class="co">#&gt; Fitted on the events only, f(Y | T) extrapolates the event-time effect to the</span></span>
+<span><span class="co">#&gt; long event times of the censored, which can overestimate risk. fitImputedBJM()</span></span>
+<span><span class="co">#&gt; uses the censored subjects too. (Shown once per session;</span></span>
+<span><span class="co">#&gt; options(BJM.check_complete_case = FALSE) turns it off.)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; =================================================================</span></span>
 <span><span class="co">#&gt;  Dynamic Prediction - Event Risk</span></span>
