@@ -157,6 +157,42 @@ fit_trans <- longitudinalSub(
 )
 ```
 
+## Backward-time terms with `backwardTimeBasis()`
+
+[`survivalTrans()`](https://wenhaoli18.github.io/BJM/reference/survivalTrans.md)
+terms are functions of the event time `years` alone, so they take the
+same value at every visit of a patient. Biomarkers often change with the
+*backward time* instead: the time left until the event,
+`u = years - year`. One example is a marker that stays flat for years
+and then accelerates in the last year or two before the event. With only
+`year`, `years` and `year:years`, the mean has to be linear in `u`.
+
+[`backwardTimeBasis()`](https://wenhaoli18.github.io/BJM/reference/backwardTimeBasis.md)
+adds the piecewise-linear basis `|u - c|`, one term
+`I(abs(years - year - c))` per cut point `c`:
+
+``` r
+
+long_sub_fixed_u <- backwardTimeBasis(
+  serBilir ~ year + age + sex + years,
+  cut_points = c(1, 3)
+)
+long_sub_fixed_u
+#> serBilir ~ year + age + sex + years + I(abs(years - year - 1)) + 
+#>     I(abs(years - year - 3))
+
+fit_u <- longitudinalSub(data_fit, long_sub_fixed_u, ~ year | id)
+```
+
+These terms are stateless, like `I(x^2)`, so they are safe. They also
+need no `survival_variable_all`/`survival_trans_function` entries. At
+each integration grid point of the event time, the prediction functions
+set `years` to the grid value and rebuild the fixed-effects design from
+the formula, so each row’s `abs(years - year - c)` uses that row’s own
+visit time. Use these terms in `long_sub_fixed` only. In
+`long_sub_random`, the design is built from the patient’s rows without
+the grid value of `years`.
+
 ## Putting it together: a spline term through to prediction
 
 The cached-basis guarantee above means a spline fixed effect is not just

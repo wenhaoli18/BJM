@@ -164,6 +164,8 @@ sub-models.
   : Check whether bandcount1/bandcount2/bandcount3 are large enough
 - [`survivalTrans()`](https://wenhaoli18.github.io/BJM/reference/survivalTrans.md)
   : Build a survival-time transform basis from cut points
+- [`backwardTimeBasis()`](https://wenhaoli18.github.io/BJM/reference/backwardTimeBasis.md)
+  : Add a backward-time basis to longitudinal sub-model formulas
 
 ## Interval-censored events
 

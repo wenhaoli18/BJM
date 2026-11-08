@@ -2,6 +2,27 @@
 
 ## BJM 0.3.2
 
+### New features
+
+- New
+  [`backwardTimeBasis()`](https://wenhaoli18.github.io/BJM/reference/backwardTimeBasis.md)
+  adds a piecewise-linear basis in the backward time `u = T - s` (event
+  time minus visit time) to `long_sub_fixed`, as terms
+  `I(abs(years - year - c))`, one per cut point `c`. Use it when a
+  biomarker changes with the time left until the event, for example when
+  it accelerates shortly before the event. A term in `T`, `s` and
+  `T * s` can only describe such a change as linear in `u`.
+  [`survivalTrans()`](https://wenhaoli18.github.io/BJM/reference/survivalTrans.md)
+  terms are functions of `T` alone and do not help here. The new terms
+  are evaluated at every integration grid point from the formula, so
+  [`predictRisk()`](https://wenhaoli18.github.io/BJM/reference/predictRisk.md),
+  [`predictLongitudinal()`](https://wenhaoli18.github.io/BJM/reference/predictLongitudinal.md)
+  and
+  [`simulateTrajectory()`](https://wenhaoli18.github.io/BJM/reference/simulateTrajectory.md)
+  support them without `survival_variable_all`/`survival_trans_function`
+  entries
+  ([`vignette("nonlinear-terms")`](https://wenhaoli18.github.io/BJM/articles/nonlinear-terms.md)).
+
 ### Bug fixes
 
 - `imputeLongitudinal(method = "miwae"/"diffusion", history = TRUE)` no

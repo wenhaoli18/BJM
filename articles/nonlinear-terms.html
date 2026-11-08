@@ -262,6 +262,41 @@ ordinary numeric column by the time <code>long_sub_fixed</code> sees it
 <span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
+<h2 id="backward-time-terms-with-backwardtimebasis">Backward-time terms with <code>backwardTimeBasis()</code><a class="anchor" aria-label="anchor" href="#backward-time-terms-with-backwardtimebasis"></a>
+</h2>
+<p><code><a href="../reference/survivalTrans.html">survivalTrans()</a></code> terms are functions of the event time
+<code>years</code> alone, so they take the same value at every visit of
+a patient. Biomarkers often change with the <em>backward time</em>
+instead: the time left until the event, <code>u = years - year</code>.
+One example is a marker that stays flat for years and then accelerates
+in the last year or two before the event. With only <code>year</code>,
+<code>years</code> and <code>year:years</code>, the mean has to be
+linear in <code>u</code>.</p>
+<p><code><a href="../reference/backwardTimeBasis.html">backwardTimeBasis()</a></code> adds the piecewise-linear basis
+<code>|u - c|</code>, one term <code>I(abs(years - year - c))</code> per
+cut point <code>c</code>:</p>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">long_sub_fixed_u</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/backwardTimeBasis.html">backwardTimeBasis</a></span><span class="op">(</span></span>
+<span>  <span class="va">serBilir</span> <span class="op">~</span> <span class="va">year</span> <span class="op">+</span> <span class="va">age</span> <span class="op">+</span> <span class="va">sex</span> <span class="op">+</span> <span class="va">years</span>,</span>
+<span>  cut_points <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">3</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span><span class="va">long_sub_fixed_u</span></span>
+<span><span class="co">#&gt; serBilir ~ year + age + sex + years + I(abs(years - year - 1)) + </span></span>
+<span><span class="co">#&gt;     I(abs(years - year - 3))</span></span>
+<span></span>
+<span><span class="va">fit_u</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/longitudinalSub.html">longitudinalSub</a></span><span class="op">(</span><span class="va">data_fit</span>, <span class="va">long_sub_fixed_u</span>, <span class="op">~</span> <span class="va">year</span> <span class="op">|</span> <span class="va">id</span><span class="op">)</span></span></code></pre></div>
+<p>These terms are stateless, like <code>I(x^2)</code>, so they are
+safe. They also need no
+<code>survival_variable_all</code>/<code>survival_trans_function</code>
+entries. At each integration grid point of the event time, the
+prediction functions set <code>years</code> to the grid value and
+rebuild the fixed-effects design from the formula, so each row’s
+<code>abs(years - year - c)</code> uses that row’s own visit time. Use
+these terms in <code>long_sub_fixed</code> only. In
+<code>long_sub_random</code>, the design is built from the patient’s
+rows without the grid value of <code>years</code>.</p>
+</div>
+<div class="section level2">
 <h2 id="putting-it-together-a-spline-term-through-to-prediction">Putting it together: a spline term through to prediction<a class="anchor" aria-label="anchor" href="#putting-it-together-a-spline-term-through-to-prediction"></a>
 </h2>
 <p>The cached-basis guarantee above means a spline fixed effect is not
@@ -271,7 +306,7 @@ as with a linear term. <code>years</code> has to appear in
 follows, so the model can be evaluated at the grid of
 remaining-survival-time values <code><a href="../reference/predictRisk.html">predictRisk()</a></code> integrates
 over):</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit_spline</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/longitudinalSub.html">longitudinalSub</a></span><span class="op">(</span></span>
 <span>  <span class="va">data_fit</span>, <span class="va">serBilir</span> <span class="op">~</span> <span class="fu">splines</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/splines/ns.html" class="external-link">ns</a></span><span class="op">(</span><span class="va">year</span>, df <span class="op">=</span> <span class="fl">3</span><span class="op">)</span> <span class="op">+</span> <span class="va">age</span> <span class="op">+</span> <span class="va">sex</span> <span class="op">+</span> <span class="va">years</span>, <span class="op">~</span> <span class="va">year</span> <span class="op">|</span> <span class="va">id</span></span>
 <span><span class="op">)</span></span>
