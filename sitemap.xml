@@ -27,7 +27,6 @@
 <url><loc>https://wenhaoli18.github.io/BJM/reference/assert_data_frame.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/assert_data_list.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/assert_index.html</loc></url>
-<url><loc>https://wenhaoli18.github.io/BJM/reference/assert_linear_time_term.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/assert_package_installed.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/assert_poolable_longitudinal_fits.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/assert_positive_integer.html</loc></url>
@@ -222,6 +221,7 @@
 <url><loc>https://wenhaoli18.github.io/BJM/reference/symmetric_sqrt.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/tail_time.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/target_surv.html</loc></url>
+<url><loc>https://wenhaoli18.github.io/BJM/reference/time_enters_linearly.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/train_diffusion.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/train_miwae.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/training_episode_max.html</loc></url>

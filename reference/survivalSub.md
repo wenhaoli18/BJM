@@ -51,7 +51,12 @@ survivalSub(
   `event_type ~ covariates`, passed to
   [`glm`](https://rdrr.io/r/stats/glm.html) with `family = binomial`.
   Set to `NULL` when there is only a single event type (no competing
-  risks).
+  risks). The survival time may enter through a transformation or an
+  interaction. Prediction integrates over event times beyond the last
+  follow-up, where a linear time effect extrapolates the event-type
+  probabilities on the logit scale; with short follow-up, holding it
+  constant beyond a time \\\tau\\, e.g. `status ~ pmin(time, 5) + age`,
+  is often safer.
 
 - event_time:
 

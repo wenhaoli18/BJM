@@ -258,7 +258,7 @@ imputed_miwae <- imputeLongitudinal(whole, fixed, random, time_variable = "year"
 fits_miwae <- lapply(imputed_miwae$data_fit_all_list, function(d) longitudinalSub(d, fixed, random))
 round(summarise(poolLongitudinalSub(fits_miwae)$long_fit_all), 3)
 #> albumin_intercept_var         albumin_years        cor_intercepts 
-#>                 0.063                 0.081                -0.270
+#>                 0.064                 0.081                -0.274
 ```
 
 ## Things to watch for
