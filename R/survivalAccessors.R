@@ -50,6 +50,8 @@ survival_cum_basehaz <- function(survival_fit_all) {
   if (is_interval_censored(survival_fit_all)) return(survival_fit_all$ic_fit$cum_basehaz)
   ### the target population's baseline, for a fit from transportBJM()
   if (!is.null(survival_fit_all$transport)) return(survival_fit_all$transport$cum_basehaz)
+  ### the study's own baseline within its follow-up, for survivalSubExternal(splice = TRUE)
+  if (!is.null(survival_fit_all$external$cum_basehaz)) return(survival_fit_all$external$cum_basehaz)
   basehaz(survival_fit_all$coxph_fit, centered = FALSE)
 }
 
