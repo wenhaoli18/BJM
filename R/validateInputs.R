@@ -465,37 +465,25 @@ assert_poolable_longitudinal_fits <- function(long_fit_all_list, arg_name = "lon
   invisible(TRUE)
 }
 
-#' Check that the survival time enters the event-type model linearly
+#' Does the survival time enter the event-type model only as a main effect?
 #'
-#' @description Used by \code{survivalSub()}: at prediction time the
-#' event-type model \code{form_conditional_cr} is evaluated at every point of
-#' the survival-time integration grid by multiplying the survival time's
-#' coefficient by the grid value. That is only correct when the survival
-#' time appears as a plain main effect (\code{status ~ time + ...}); a
-#' transformation (\code{log(time)}, \code{I(time^2)}) or an interaction
-#' (\code{time:age}) would silently be evaluated at the wrong value, so it is
-#' rejected here. Leaving the survival time out entirely is allowed (event
-#' type then does not depend on event time).
+#' @description Used by \code{conditionalDT()}: when the survival time
+#' appears in \code{form_conditional_cr} only as a plain main effect
+#' (\code{status ~ time + ...}), or not at all, its effect at each point of
+#' the integration grid is its coefficient times the grid value. Otherwise
+#' (a transformation such as \code{pmin(time, 5)} or \code{log(time)}, or an
+#' interaction) the model matrix has to be rebuilt at every grid point.
 #'
-#' @param form_conditional_cr The event-type formula.
+#' @param tt The terms of the event-type model (right-hand side).
 #' @param survival_variable Name of the survival-time variable.
+#' @return \code{TRUE} or \code{FALSE}.
 #' @keywords internal
-assert_linear_time_term <- function(form_conditional_cr, survival_variable) {
-  tt <- stats::terms(form_conditional_cr)
+time_enters_linearly <- function(tt, survival_variable) {
   factors <- attr(tt, "factors")
-  if (length(factors) == 0) return(invisible(TRUE))
+  if (length(factors) == 0) return(TRUE)
   uses_time <- vapply(rownames(factors),
                       function(r) survival_variable %in% all.vars(str2lang(r)), logical(1))
-  uses_time[1] <- FALSE  # the response row
-  if (!any(uses_time)) return(invisible(TRUE))
+  if (!any(uses_time)) return(TRUE)
   time_terms <- colnames(factors)[colSums(factors[uses_time, , drop = FALSE] > 0) > 0]
-  bad <- setdiff(time_terms, survival_variable)
-  if (length(bad) > 0) {
-    stop(sprintf(paste0(
-      "`form_conditional_cr` uses the survival time `%s` in %s. It may only enter as a ",
-      "plain main effect (e.g. status ~ %s + age), since prediction evaluates it ",
-      "linearly at each point of the integration grid."),
-      survival_variable, paste(sprintf("`%s`", bad), collapse = ", "), survival_variable), call. = FALSE)
-  }
-  invisible(TRUE)
+  identical(time_terms, survival_variable)
 }
