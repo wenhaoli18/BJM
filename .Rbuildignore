@@ -11,3 +11,4 @@
 ^shiny$
 ^docs$
 ^simulations$
+^\.git$
