@@ -10,7 +10,8 @@ survivalSubExternal(
   form_marginal_surv,
   form_conditional_cr = NULL,
   generation = "generation",
-  tail_hr = NULL
+  tail_hr = NULL,
+  splice = TRUE
 )
 }
 \arguments{
@@ -26,6 +27,10 @@ must not already exist).}
 
 \item{tail_hr}{\code{NULL} (default) to estimate the hazard ratio of the
 study against the external cohort, or a positive number to fix it.}
+
+\item{splice}{If \code{TRUE} (default), use the study's own baseline up to
+its last follow-up and the external shape only beyond it (see Details).
+Not available for a stratified Cox model.}
 }
 \value{
 A \code{survivalSub.BJM} fit, usable wherever \code{survivalSub()}'s
@@ -62,6 +67,17 @@ assumption carries that noise to the whole tail. \code{tail_hr} fixes it
 instead (the other coefficients are then re-estimated given it), for a
 sensitivity analysis over plausible values, e.g. \code{c(0.8, 1, 1.25)},
 or to use prior knowledge, e.g. that the generations are equivalent.
+
+With \code{splice = TRUE} (the default) the external cohort only supplies
+the tail: up to the study's last follow-up \eqn{\tau} the baseline
+cumulative hazard is the Breslow estimate from the study alone (at the
+coefficients of the joint fit), and beyond \eqn{\tau} it continues with the
+increments of the joint fit's baseline, i.e. the external shape scaled by
+\eqn{e^\gamma}. Within the study's follow-up predictions then rest on the
+study's own events. With \code{splice = FALSE} the joint fit's baseline is
+used throughout, so the external cohort (scaled by \eqn{e^\gamma}) also
+shapes the study's hazard within its follow-up, which matters when the
+cohorts are not proportional there.
 
 Predictions are for the study population: when the prediction data have
 no \code{generation} column it is taken as 1.

@@ -2,6 +2,15 @@
 
 ## New features
 
+* `survivalSubExternal()` now splices the baseline (`splice = TRUE`, the
+  default): the study's own Breslow estimate up to its last follow-up, and
+  the external cohort's shape only beyond it. Before, the joint fit's
+  baseline was used throughout, so the external cohort also shaped the
+  study's hazard within its follow-up; in the `pbc2`/`prothro` hold-outs
+  this pulled within-follow-up predicted/observed down to 0.65-0.88 in
+  `prothro` (non-proportional arms), against 0.95-0.97 spliced, whatever
+  the hazard ratio. `splice = FALSE` gives the old behaviour.
+
 * `survivalSubExternal()` gains `tail_hr`, which fixes the hazard ratio
   of the study against the external cohort instead of estimating it from
   the overlap, for a sensitivity analysis of the borrowed tail or to use

@@ -27,6 +27,17 @@
 #' sensitivity analysis over plausible values, e.g. \code{c(0.8, 1, 1.25)},
 #' or to use prior knowledge, e.g. that the generations are equivalent.
 #'
+#' With \code{splice = TRUE} (the default) the external cohort only supplies
+#' the tail: up to the study's last follow-up \eqn{\tau} the baseline
+#' cumulative hazard is the Breslow estimate from the study alone (at the
+#' coefficients of the joint fit), and beyond \eqn{\tau} it continues with the
+#' increments of the joint fit's baseline, i.e. the external shape scaled by
+#' \eqn{e^\gamma}. Within the study's follow-up predictions then rest on the
+#' study's own events. With \code{splice = FALSE} the joint fit's baseline is
+#' used throughout, so the external cohort (scaled by \eqn{e^\gamma}) also
+#' shapes the study's hazard within its follow-up, which matters when the
+#' cohorts are not proportional there.
+#'
 #' Predictions are for the study population: when the prediction data have
 #' no \code{generation} column it is taken as 1.
 #'
@@ -39,6 +50,9 @@
 #'   must not already exist).
 #' @param tail_hr \code{NULL} (default) to estimate the hazard ratio of the
 #'   study against the external cohort, or a positive number to fix it.
+#' @param splice If \code{TRUE} (default), use the study's own baseline up to
+#'   its last follow-up and the external shape only beyond it (see Details).
+#'   Not available for a stratified Cox model.
 #' @return A \code{survivalSub.BJM} fit, usable wherever \code{survivalSub()}'s
 #'   is (e.g. \code{predictRisk()}, \code{fitImputedBJM(survival_fit_all = )}),
 #'   with an \code{external} element: the generation variable, the cohort
@@ -64,12 +78,15 @@
 #' @export
 survivalSubExternal <- function(data_internal, data_external, form_marginal_surv,
                                 form_conditional_cr = NULL, generation = "generation",
-                                tail_hr = NULL) {
+                                tail_hr = NULL, splice = TRUE) {
   assert_data_frame(data_internal, "data_internal")
   assert_data_frame(data_external, "data_external")
   assert_string(generation, "generation")
   if (!is.null(tail_hr) && !(is.numeric(tail_hr) && length(tail_hr) == 1 && is.finite(tail_hr) && tail_hr > 0)) {
     stop("`tail_hr` must be NULL or a single positive number.", call. = FALSE)
+  }
+  if (!is.logical(splice) || length(splice) != 1 || is.na(splice)) {
+    stop("`splice` must be TRUE or FALSE.", call. = FALSE)
   }
   if (generation %in% c(names(data_internal), names(data_external))) {
     stop(sprintf("`generation` (\"%s\") is already a column; choose another name.", generation),
@@ -111,13 +128,46 @@ survivalSubExternal <- function(data_internal, data_external, form_marginal_surv
       "The hazards of the study and the external cohort do not look proportional within the study's ",
       "follow-up (cox.zph p = %.3g), so the borrowed tail may be off."), ph_test[["p"]]), call. = FALSE)
   }
+  spliced <- NULL
+  if (splice) {
+    if (length(survival::untangle.specials(stats::terms(fit$coxph_fit), "strata")$vars) > 0) {
+      stop("`splice = TRUE` is not available for a stratified Cox model.", call. = FALSE)
+    }
+    fit$external <- list(generation = generation)
+    spliced <- splice_baseline(fit, data_internal, y_int, tau)
+  }
   fit$external <- list(generation = generation,
                        n_internal = nrow(data_internal), n_external = nrow(data_external),
                        max_followup_internal = tau, max_followup_external = max(y_ext[, "time"]),
                        hazard_ratio = unname(exp(stats::coef(fit$coxph_fit)[generation])),
                        hazard_ratio_estimated = hr_estimated, tail_hr_fixed = !is.null(tail_hr),
-                       ph_test = ph_test)
+                       ph_test = ph_test, splice = splice, cum_basehaz = spliced)
   fit
+}
+
+#' Baseline cumulative hazard spliced at the study's last follow-up
+#'
+#' @description For \code{survivalSubExternal(splice = TRUE)}: the Breslow
+#' estimate from the study alone, at the joint fit's coefficients (with the
+#' study's generation term), up to \code{tau}; beyond it, the joint fit's
+#' baseline increments. Both are on the scale of the joint fit's uncentered
+#' linear predictor, so \code{survival_lp()} applies unchanged.
+#' @keywords internal
+splice_baseline <- function(fit, data_internal, y_int, tau) {
+  lp <- survival_lp(fit, data_internal)
+  time <- y_int[, "time"]
+  status <- y_int[, "status"]
+  ok <- !is.na(lp) & !is.na(time) & !is.na(status)
+  time <- time[ok]; status <- status[ok]; w <- exp(lp[ok])
+  times <- sort(unique(time))
+  d <- vapply(times, function(t) sum(status[time == t]), numeric(1))
+  at_risk <- vapply(times, function(t) sum(w[time >= t]), numeric(1))
+  internal <- data.frame(hazard = cumsum(d / at_risk), time = times)
+  joint <- survival::basehaz(fit$coxph_fit, centered = FALSE)[, c("hazard", "time")]
+  h_tau <- stats::approx(c(0, joint$time), c(0, joint$hazard), xout = tau, method = "constant", rule = 2)$y
+  beyond <- joint[joint$time > tau, , drop = FALSE]
+  beyond$hazard <- internal$hazard[nrow(internal)] + beyond$hazard - h_tau
+  rbind(internal, beyond)
 }
 
 #' Cox model with the generation coefficient fixed

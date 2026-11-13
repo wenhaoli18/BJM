@@ -139,19 +139,19 @@ test_that("full pipeline output matches pre-refactor baseline", {
                  horizon = 1, time_variable = "year",
                  survival_variable_all, survival_trans_function,
                  bandcount1 = 10, bandcount2 = 20)
-  expect_equal(sapply(rp$layers, function(l) class(l$geom)[1]), baseline$riskPlot_layer_classes)
+  expect_equal(unname(sapply(rp$layers, function(l) class(l$geom)[1])), baseline$riskPlot_layer_classes)
 
   pp <- predictPlot(data_predict_all, long_fit_all, survival_fit_all,
                      prediction_time = 5, horizon = seq(0.5, 1, 0.5), time_variable = "year",
                      survival_variable_all, survival_trans_function,
                      bandcount1 = 10, bandcount2 = 10, bandcount3 = 50,
                      bio_his = 1, bio_pred = 1, density = 1)
-  expect_equal(sapply(pp$layers, function(l) class(l$geom)[1]), baseline$predictPlot_layer_classes)
+  expect_equal(unname(sapply(pp$layers, function(l) class(l$geom)[1])), baseline$predictPlot_layer_classes)
 
   cp <- cmtPlot(data_plot_all = pbc3, condi_time2event = 5,
                 event_type_variable = NULL, event_type = NULL,
                 bio_variable = "serBilir", time_variable = "year",
                 survival_variable = "years",
                 interval_time = 1/12, status_variable = "status3")
-  expect_equal(sapply(cp$layers, function(l) class(l$geom)[1]), baseline$cmtPlot_layer_classes)
+  expect_equal(unname(sapply(cp$layers, function(l) class(l$geom)[1])), baseline$cmtPlot_layer_classes)
 })
