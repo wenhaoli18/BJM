@@ -18,6 +18,22 @@ overlap it is tested with cox.zph (stored in
 $external$ph_test, with a warning when \(p &amp;lt; 0.05\)); the test has
 little power with short study follow-up, so a non-significant result is
 weak reassurance, and a sensitivity analysis on the tail is advisable.
+The hazard ratio itself, estimated from the overlap only, can be noisy
+when the study is short and has few events, and the proportional hazards
+assumption carries that noise to the whole tail. tail_hr fixes it
+instead (the other coefficients are then re-estimated given it), for a
+sensitivity analysis over plausible values, e.g. c(0.8, 1, 1.25),
+or to use prior knowledge, e.g. that the generations are equivalent.
+With splice = TRUE (the default) the external cohort only supplies
+the tail: up to the study's last follow-up \(\tau\) the baseline
+cumulative hazard is the Breslow estimate from the study alone (at the
+coefficients of the joint fit), and beyond \(\tau\) it continues with the
+increments of the joint fit's baseline, i.e. the external shape scaled by
+\(e^\gamma\). Within the study's follow-up predictions then rest on the
+study's own events. With splice = FALSE the joint fit's baseline is
+used throughout, so the external cohort (scaled by \(e^\gamma\)) also
+shapes the study's hazard within its follow-up, which matters when the
+cohorts are not proportional there.
 Predictions are for the study population: when the prediction data have
 no generation column it is taken as 1."><meta property="og:description" content="Experimental. Predicting beyond the last follow-up
 of the study needs the baseline hazard there, which survivalSub()
@@ -38,6 +54,22 @@ overlap it is tested with cox.zph (stored in
 $external$ph_test, with a warning when \(p &amp;lt; 0.05\)); the test has
 little power with short study follow-up, so a non-significant result is
 weak reassurance, and a sensitivity analysis on the tail is advisable.
+The hazard ratio itself, estimated from the overlap only, can be noisy
+when the study is short and has few events, and the proportional hazards
+assumption carries that noise to the whole tail. tail_hr fixes it
+instead (the other coefficients are then re-estimated given it), for a
+sensitivity analysis over plausible values, e.g. c(0.8, 1, 1.25),
+or to use prior knowledge, e.g. that the generations are equivalent.
+With splice = TRUE (the default) the external cohort only supplies
+the tail: up to the study's last follow-up \(\tau\) the baseline
+cumulative hazard is the Breslow estimate from the study alone (at the
+coefficients of the joint fit), and beyond \(\tau\) it continues with the
+increments of the joint fit's baseline, i.e. the external shape scaled by
+\(e^\gamma\). Within the study's follow-up predictions then rest on the
+study's own events. With splice = FALSE the joint fit's baseline is
+used throughout, so the external cohort (scaled by \(e^\gamma\)) also
+shapes the study's hazard within its follow-up, which matters when the
+cohorts are not proportional there.
 Predictions are for the study population: when the prediction data have
 no generation column it is taken as 1."></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -113,7 +145,23 @@ beyond the study's follow-up, where it cannot be checked. Within the
 overlap it is tested with <code><a href="https://rdrr.io/pkg/survival/man/cox.zph.html" class="external-link">cox.zph</a></code> (stored in
 <code>$external$ph_test</code>, with a warning when \(p &lt; 0.05\)); the test has
 little power with short study follow-up, so a non-significant result is
-weak reassurance, and a sensitivity analysis on the tail is advisable.</p>
+weak reassurance, and a sensitivity analysis on the tail is advisable.
+The hazard ratio itself, estimated from the overlap only, can be noisy
+when the study is short and has few events, and the proportional hazards
+assumption carries that noise to the whole tail. <code>tail_hr</code> fixes it
+instead (the other coefficients are then re-estimated given it), for a
+sensitivity analysis over plausible values, e.g. <code>c(0.8, 1, 1.25)</code>,
+or to use prior knowledge, e.g. that the generations are equivalent.</p>
+<p>With <code>splice = TRUE</code> (the default) the external cohort only supplies
+the tail: up to the study's last follow-up \(\tau\) the baseline
+cumulative hazard is the Breslow estimate from the study alone (at the
+coefficients of the joint fit), and beyond \(\tau\) it continues with the
+increments of the joint fit's baseline, i.e. the external shape scaled by
+\(e^\gamma\). Within the study's follow-up predictions then rest on the
+study's own events. With <code>splice = FALSE</code> the joint fit's baseline is
+used throughout, so the external cohort (scaled by \(e^\gamma\)) also
+shapes the study's hazard within its follow-up, which matters when the
+cohorts are not proportional there.</p>
 <p>Predictions are for the study population: when the prediction data have
 no <code>generation</code> column it is taken as 1.</p>
     </div>
@@ -125,7 +173,9 @@ no <code>generation</code> column it is taken as 1.</p>
 <span>  <span class="va">data_external</span>,</span>
 <span>  <span class="va">form_marginal_surv</span>,</span>
 <span>  form_conditional_cr <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  generation <span class="op">=</span> <span class="st">"generation"</span></span>
+<span>  generation <span class="op">=</span> <span class="st">"generation"</span>,</span>
+<span>  tail_hr <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  splice <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -148,6 +198,17 @@ for the external cohort. Both need the variables of
 <dd><p>Name of the generation indicator column to create (it
 must not already exist).</p></dd>
 
+
+<dt id="arg-tail-hr">tail_hr<a class="anchor" aria-label="anchor" href="#arg-tail-hr"></a></dt>
+<dd><p><code>NULL</code> (default) to estimate the hazard ratio of the
+study against the external cohort, or a positive number to fix it.</p></dd>
+
+
+<dt id="arg-splice">splice<a class="anchor" aria-label="anchor" href="#arg-splice"></a></dt>
+<dd><p>If <code>TRUE</code> (default), use the study's own baseline up to
+its last follow-up and the external shape only beyond it (see Details).
+Not available for a stratified Cox model.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
@@ -155,7 +216,8 @@ must not already exist).</p></dd>
 is (e.g. <code><a href="predictRisk.html">predictRisk()</a></code>, <code>fitImputedBJM(survival_fit_all = )</code>),
 with an <code>external</code> element: the generation variable, the cohort
 sizes and follow-up, the hazard ratio of the study against the external
-cohort and the PH test.</p>
+cohort (<code>hazard_ratio</code>, the one used; <code>hazard_ratio_estimated</code>,
+from the data; <code>tail_hr_fixed</code>) and the PH test.</p>
     </div>
 
     <div class="section level2">
@@ -189,10 +251,169 @@ cohort and the PH test.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $hazard_ratio</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.6608038</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $hazard_ratio_estimated</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.6608038</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $tail_hr_fixed</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] FALSE</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $ph_test</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>     chisq        df         p </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 0.5637548 1.0000000 0.4527513 </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $splice</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] TRUE</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $cum_basehaz</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>          hazard       time</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1   0.004250954  0.1396342</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2   0.008542223  0.1943927</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 3   0.012859635  0.3614062</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 4   0.017204817  0.3833096</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 5   0.021617442  0.5092542</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 6   0.026062732  0.5667506</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 7   0.030540659  0.7556675</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 8   0.035041742  0.8323294</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 9   0.039577085  0.8788742</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 10  0.044135043  1.0650531</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 11  0.048746879  1.5031212</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 12  0.053384210  1.5113350</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 13  0.058071195  1.6345417</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 14  0.062785369  1.8426240</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 15  0.067534613  2.0178513</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 16  0.072307761  2.0534443</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 17  0.077114863  2.2560508</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 18  0.081956141  2.3354507</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 19  0.086837337  2.4367539</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 20  0.091799793  2.4750849</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 21  0.096806167  2.5873398</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 22  0.101848459  2.6667397</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 23  0.106916274  2.8392290</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 24  0.112012732  2.9213668</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 25  0.117143509  3.1540905</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 26  0.122369900  3.2608696</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 27  0.127638515  3.3320556</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 28  0.132979213  3.3813383</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 29  0.138373792  3.5510897</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 30  0.143835322  3.7126273</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 31  0.149348387  3.8632132</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 32  0.154897293  3.9070200</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 33  0.160472464  3.9261855</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 34  0.166080082  3.9289234</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 35  0.171715916  3.9535648</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 36  0.177397016  3.9617786</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 37  0.177397016  3.9891578</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 38  0.177397016  4.0000000</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 88  0.181779033  4.1205782</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 89  0.181779033  4.1287920</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 90  0.186220522  4.2054539</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 91  0.186220522  4.2492608</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 92  0.190773693  4.3724674</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 93  0.195382145  4.5148396</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 94  0.195382145  4.5531705</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 95  0.200086060  4.6106670</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 96  0.204888132  4.7667287</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 97  0.204888132  4.9775490</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 98  0.204888132  5.1609900</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 99  0.209812247  5.1965831</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 100 0.214780643  5.3307414</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 101 0.214780643  5.3718103</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 102 0.214780643  5.3909758</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 103 0.214780643  5.4457343</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 104 0.214780643  5.5306100</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 105 0.220005629  5.6264374</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 106 0.220005629  5.6675063</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 107 0.225344509  5.6976235</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 108 0.225344509  5.7359544</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 109 0.225344509  5.7551199</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 110 0.225344509  5.7633337</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 111 0.225344509  5.9933195</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 112 0.231003646  6.0891469</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 113 0.231003646  6.1274778</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 114 0.236783062  6.1356916</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 115 0.236783062  6.2506845</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 116 0.236783062  6.2534224</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 117 0.242794894  6.2890154</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 118 0.248891777  6.3027051</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 119 0.248891777  6.3163947</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 120 0.248891777  6.4286497</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 121 0.255217218  6.4341255</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 122 0.261609224  6.4532910</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 123 0.268079175  6.5710218</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 124 0.268079175  6.5847114</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 125 0.268079175  6.6641113</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 126 0.268079175  6.7133939</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 127 0.268079175  6.7325594</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 128 0.275170064  6.7572007</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 129 0.275170064  6.8475523</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 130 0.282480338  6.9543314</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 131 0.282480338  7.1213449</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 132 0.282480338  7.3677582</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 133 0.282480338  7.4444201</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 134 0.290272442  7.5813164</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 135 0.298194292  7.6552404</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 136 0.298194292  7.7373782</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 137 0.298194292  7.7757091</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 138 0.306780176  7.7948746</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 139 0.306780176  7.8441573</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 140 0.315683836  7.8907020</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 141 0.315683836  7.9071296</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 142 0.315683836  7.9126054</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 143 0.315683836  8.1124740</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 144 0.315683836  8.1891359</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 145 0.315683836  8.2110393</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 146 0.315683836  8.3068667</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 147 0.325645581  8.4656664</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 148 0.325645581  8.5560180</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 149 0.335962592  8.6792246</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 150 0.335962592  8.6874384</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 151 0.335962592  8.8298105</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 152 0.335962592  8.8763553</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 153 0.335962592  8.8790932</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 154 0.335962592  8.8845691</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 155 0.335962592  8.9749206</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 156 0.347996417  8.9858723</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 157 0.347996417  9.0159895</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 158 0.347996417  9.1063410</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 159 0.360905413  9.1939547</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 160 0.374139949  9.2596649</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 161 0.374139949  9.4896506</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 162 0.374139949  9.5936918</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 163 0.374139949  9.6265469</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 164 0.374139949  9.6703537</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 165 0.374139949  9.6895192</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 166 0.390247037  9.8127259</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 167 0.390247037  9.9797393</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 168 0.407764232 10.0125945</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 169 0.407764232 10.0180703</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 170 0.407764232 10.1823459</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 171 0.428722393 10.3000767</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 172 0.428722393 10.4561384</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 173 0.451571363 10.5108969</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 174 0.475322450 10.5492279</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 175 0.475322450 10.6998138</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 176 0.475322450 10.7436206</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 177 0.475322450 11.1105027</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 178 0.475322450 11.2008542</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 179 0.475322450 11.6279706</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 180 0.475322450 11.6361844</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 181 0.475322450 11.9811631</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 182 0.475322450 12.2905487</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 183 0.475322450 12.5479137</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 184 0.475322450 12.8518235</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 185 0.475322450 12.9202716</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 186 0.475322450 13.1310919</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 187 0.475322450 13.2570365</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 188 0.475322450 13.3035812</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 189 0.475322450 13.3200088</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 190 0.475322450 13.4185741</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 191 0.475322450 13.4842843</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 192 0.682366432 13.8922352</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 193 0.682366432 14.3056620</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-in"><span><span class="co"># sensitivity to the hazard ratio between the cohorts</span></span></span>
+<span class="r-in"><span><span class="va">fits</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.8</span>, <span class="fl">1</span>, <span class="fl">1.25</span><span class="op">)</span>, <span class="kw">function</span><span class="op">(</span><span class="va">hr</span><span class="op">)</span></span></span>
+<span class="r-in"><span>  <span class="fu">survivalSubExternal</span><span class="op">(</span><span class="va">study</span>, <span class="va">external</span>, <span class="fu"><a href="https://rdrr.io/pkg/survival/man/Surv.html" class="external-link">Surv</a></span><span class="op">(</span><span class="va">years</span>, <span class="va">status3</span><span class="op">)</span> <span class="op">~</span> <span class="va">age</span> <span class="op">+</span> <span class="va">sex</span>, <span class="cn">NULL</span>, tail_hr <span class="op">=</span> <span class="va">hr</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="co"># }</span></span></span>
 </code></pre></div>
     </div>

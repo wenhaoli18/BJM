@@ -4,6 +4,29 @@
 
 ### New features
 
+- [`survivalSubExternal()`](https://wenhaoli18.github.io/BJM/reference/survivalSubExternal.md)
+  now splices the baseline (`splice = TRUE`, the default): the study’s
+  own Breslow estimate up to its last follow-up, and the external
+  cohort’s shape only beyond it. Before, the joint fit’s baseline was
+  used throughout, so the external cohort also shaped the study’s hazard
+  within its follow-up; in the `pbc2`/`prothro` hold-outs this pulled
+  within-follow-up predicted/observed down to 0.65-0.88 in `prothro`
+  (non-proportional arms), against 0.95-0.97 spliced, whatever the
+  hazard ratio. `splice = FALSE` gives the old behaviour.
+
+- [`survivalSubExternal()`](https://wenhaoli18.github.io/BJM/reference/survivalSubExternal.md)
+  gains `tail_hr`, which fixes the hazard ratio of the study against the
+  external cohort instead of estimating it from the overlap, for a
+  sensitivity analysis of the borrowed tail or to use prior knowledge.
+  With short follow-up the estimate can be noisy, and the proportional
+  hazards assumption carries the noise to the whole tail: in a temporal
+  hold-out on `pbc2` (D-penicillamine arm as the study, cut at 3 years;
+  placebo arm as the external cohort) the estimate was 0.66 against 0.86
+  on the full data, and 5-10-year risks came out at 0.68 of the
+  observed; `tail_hr = 1` gave 0.90, and `tail_hr` from 0.8 to 1.25 gave
+  0.77-1.04. `$external` now also reports `hazard_ratio_estimated` and
+  `tail_hr_fixed`.
+
 - The survival time may now enter the competing-risks event-type model
   (`form_conditional_cr`) through a transformation or an interaction,
   e.g. `status4 ~ pmin(years, 5) + age`; it used to be restricted to a

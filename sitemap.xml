@@ -84,6 +84,7 @@
 <url><loc>https://wenhaoli18.github.io/BJM/reference/cov_factor.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/cov_logdens.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/cov_logdens_grid.html</loc></url>
+<url><loc>https://wenhaoli18.github.io/BJM/reference/cox_fixed_generation.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/cumulative_baseline_at.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/default_next_covariates.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/density_mode.html</loc></url>
@@ -203,6 +204,7 @@
 <url><loc>https://wenhaoli18.github.io/BJM/reference/simulateTrajectory.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/sinusoidal_time_embedding.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/spaghettiPlot.html</loc></url>
+<url><loc>https://wenhaoli18.github.io/BJM/reference/splice_baseline.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/split_no_measurement.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/stacked_mean_on_grid.html</loc></url>
 <url><loc>https://wenhaoli18.github.io/BJM/reference/stacked_random_design.html</loc></url>
