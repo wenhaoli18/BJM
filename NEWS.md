@@ -2,6 +2,21 @@
 
 ## New features
 
+* The survival time may now enter the competing-risks event-type model
+  (`form_conditional_cr`) through a transformation or an interaction, e.g.
+  `status4 ~ pmin(years, 5) + age`; it used to be restricted to a plain
+  main effect. Prediction integrates over event times beyond the last
+  follow-up, where a linear effect extrapolates the event-type
+  probabilities on the logit scale. In a temporal hold-out on `pbc2`
+  (follow-up cut at 5 years, death vs transplantation), the linear
+  `years` coefficient was +0.53 against -0.08 on the full data, and the
+  8-10-year cumulative incidence of transplantation was overestimated
+  1.5-fold and that of death underestimated by about 30%, with the
+  all-cause risk right. Holding the effect constant beyond the follow-up,
+  `status ~ pmin(years, 5) + ...`, brought these to 1.1 and 0.87. No form
+  of the event-type model helps when the follow-up holds too few events of
+  one type (8 transplants with a 3-year cut).
+
 * New `fitImputedBJM()` -- **experimental** -- also uses the censored
   subjects in the longitudinal sub-model. The usual fit estimates
   `f(Y | T)` on the subjects with an event, which with many censored

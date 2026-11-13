@@ -36,41 +36,47 @@ conditionalDT = function(data_predict_all, long_fit_all, survival_fit_all, l_i){
   ### side is used below. It used to be read from the data and its missing
   ### values set to 999, which failed when the column was absent (as it is
   ### for a new patient) and warned when it was a factor.
-  rhs_cr = stats::delete.response(stats::terms(survival_fit_all$form_conditional_cr))
-  ## data matrix used to calculate the probability
-  ### the survival-time column only contributes through l_i below, so its
-  ### value here is irrelevant -- but it may be NA for a new patient, and an
-  ### all-NA column is logical, which model.matrix() would treat as a factor
-  ### (so the survival-time coefficient could no longer be matched by name).
-  data.surv[[survival_variable]] <- 0
-  ### na.pass keeps one row per patient: a missing covariate should give
-  ### that patient NA rather than drop the row and misalign every later
-  ### patient.
-  mf_cr = model.frame(rhs_cr, data.surv,
-                      na.action = stats::na.pass, xlev = survival_fit_all$glm_fit$xlevels)
-  data_matrix_probability = model.matrix(rhs_cr, mf_cr)
-  
-  ## fit glm vertical model
+  ### the terms of the glm fit keep the data-dependent bases (e.g. ns()) it
+  ### was fit with
   glm_fit = survival_fit_all$glm_fit
+  rhs_cr = stats::delete.response(stats::terms(glm_fit))
+  n_patients <- nrow(data.surv)
+  design_at <- function(d) {
+    ### na.pass keeps one row per patient: a missing covariate should give
+    ### that patient NA rather than drop the row and misalign every later
+    ### patient.
+    mf <- model.frame(rhs_cr, d, na.action = stats::na.pass, xlev = glm_fit$xlevels)
+    model.matrix(rhs_cr, mf)
+  }
 
-  ### the survival time enters the event-type model linearly (checked by
-  ### survivalSub()); its effect is evaluated at each l_i below. If it is
-  ### not in the model at all, event type does not depend on the event
-  ### time: its coefficient is taken as 0 (previously this indexed with an
-  ### empty vector and returned NA for every patient).
-  is_time_column <- colnames(data_matrix_probability) == survival_variable
-  beta_time <- if (any(is_time_column)) glm_fit$coefficients[is_time_column] else 0
-
-  ## covariates * parameter matrix
-  covariate_para_matrix = c(data_matrix_probability[, !is_time_column, drop = FALSE] %*%
-                              glm_fit$coefficients[!is_time_column])
-  n_patients <- dim(data_matrix_probability)[1]
+  if (time_enters_linearly(rhs_cr, survival_variable)) {
+    ### the survival time enters the event-type model linearly or not at
+    ### all: its effect is its coefficient times each l_i. The column's
+    ### value here is irrelevant -- but it may be NA for a new patient, and
+    ### an all-NA column is logical, which model.matrix() would treat as a
+    ### factor (so the coefficient could no longer be matched by name).
+    data.surv[[survival_variable]] <- 0
+    data_matrix_probability = design_at(data.surv)
+    ### if the survival time is not in the model, event type does not
+    ### depend on event time: its coefficient is taken as 0
+    is_time_column <- colnames(data_matrix_probability) == survival_variable
+    beta_time <- if (any(is_time_column)) glm_fit$coefficients[is_time_column] else 0
+    covariate_para_matrix = c(data_matrix_probability[, !is_time_column, drop = FALSE] %*%
+                                glm_fit$coefficients[!is_time_column])
+    eta = matrix(beta_time * l_i, length(l_i), n_patients) +
+      t(matrix(covariate_para_matrix, n_patients, length(l_i)))
+  } else {
+    ### a transformation or interaction of the survival time: rebuild the
+    ### model matrix with every patient at every l_i (rows ordered by l_i
+    ### within patient)
+    d <- data.surv[rep(seq_len(n_patients), each = length(l_i)), , drop = FALSE]
+    d[[survival_variable]] <- rep(l_i, n_patients)
+    eta = matrix(c(design_at(d) %*% glm_fit$coefficients), length(l_i), n_patients)
+  }
 
   ### conditional probability
   ### plogis() rather than 1 / (1 + exp(eta)) and exp(eta) * that, which
   ### gave Inf * 0 = NaN once exp(eta) overflowed
-  eta = matrix(beta_time * l_i, length(l_i), n_patients) +
-    t(matrix(covariate_para_matrix, n_patients, length(l_i)))
   surv_med_w1 = stats::plogis(-eta)
   surv_med_w2 = stats::plogis(eta)
 

@@ -25,7 +25,12 @@
 #'   (event-type) model, e.g. \code{event_type ~ covariates}, passed to
 #'   \code{\link[stats]{glm}} with \code{family = binomial}. Set to
 #'   \code{NULL} when there is only a single event type (no competing
-#'   risks).
+#'   risks). The survival time may enter through a transformation or an
+#'   interaction. Prediction integrates over event times beyond the last
+#'   follow-up, where a linear time effect extrapolates the event-type
+#'   probabilities on the logit scale; with short follow-up, holding it
+#'   constant beyond a time \eqn{\tau}, e.g. \code{status ~ pmin(time, 5) + age},
+#'   is often safer.
 #' @param event_time Only for an interval-censored outcome: the name of the
 #'   event-time column that the longitudinal sub-model's formulas use (the
 #'   exact time is unknown, so it is not part of \code{form_marginal_surv}).
@@ -103,7 +108,6 @@ survivalSub = function(data_survival_fitting, form_marginal_surv, form_condition
     }
     assert_vars_in_data(all.vars(form_conditional_cr), data_survival_fitting,
                          "form_conditional_cr", "data_survival_fitting")
-    assert_linear_time_term(form_conditional_cr, all.vars(form_marginal_surv[[2]])[1])
   }
 
   ### fit cox weibull model
@@ -182,7 +186,6 @@ fit_event_type_interval <- function(data, form_marginal_surv, form_conditional_c
   }
   assert_vars_in_data(setdiff(all.vars(form_conditional_cr), event_time), data,
                       "form_conditional_cr", "data_survival_fitting")
-  assert_linear_time_term(form_conditional_cr, event_time)
   y <- eval(form_marginal_surv[[2]], data, environment(form_marginal_surv))
   b <- interval_bounds(y)
   event_rows <- !is.na(b$L) & is.finite(b$R)

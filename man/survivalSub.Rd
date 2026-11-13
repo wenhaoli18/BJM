@@ -27,7 +27,12 @@ covariates referenced in \code{form_marginal_surv} or
 (event-type) model, e.g. \code{event_type ~ covariates}, passed to
 \code{\link[stats]{glm}} with \code{family = binomial}. Set to
 \code{NULL} when there is only a single event type (no competing
-risks).}
+risks). The survival time may enter through a transformation or an
+interaction. Prediction integrates over event times beyond the last
+follow-up, where a linear time effect extrapolates the event-type
+probabilities on the logit scale; with short follow-up, holding it
+constant beyond a time \eqn{\tau}, e.g. \code{status ~ pmin(time, 5) + age},
+is often safer.}
 
 \item{event_time}{Only for an interval-censored outcome: the name of the
 event-time column that the longitudinal sub-model's formulas use (the

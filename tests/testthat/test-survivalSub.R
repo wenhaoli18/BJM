@@ -50,15 +50,36 @@ test_that("print and summary methods run without error", {
   expect_output(summary(fit), "Baseline cumulative hazard")
 })
 
-test_that("the survival time may only enter the event-type model as a main effect", {
+test_that("the survival time may enter the event-type model through a transformation", {
   data(pbc3, envir = environment())
   d <- pbc3[!duplicated(pbc3$id), ]
-  expect_error(survivalSub(d, Surv(years, status3) ~ age + sex, status4 ~ log(years) + age),
-               "`log\\(years\\)`")
-  expect_error(survivalSub(d, Surv(years, status3) ~ age + sex, status4 ~ years * age),
-               "`years:age`")
-  expect_no_error(survivalSub(d, Surv(years, status3) ~ age + sex, status4 ~ years + age))
-  expect_no_error(survivalSub(d, Surv(years, status3) ~ age + sex, status4 ~ age + sex))
+  new <- pbc3[pbc3$id %in% c(2, 4, 7) & pbc3$year <= 3, ]
+  new$years <- NA
+  l_i <- c(1, 4, 6, 12, 30)
+  first <- new[!duplicated(new$id), ]
+  # conditionalDT() reads only the subject id from the longitudinal fit
+  long <- list(long_sub_random = list(~ year | id))
+  for (form in list(status4 ~ pmin(years, 5) + age, status4 ~ log(years) * age,
+                    status4 ~ splines::ns(years, df = 2) + sex)) {
+    fit <- survivalSub(d, Surv(years, status3) ~ age + sex, form)
+    p <- conditionalDT(list(new), long, fit, l_i = l_i)
+    expected <- sapply(seq_len(nrow(first)), function(j) {
+      nd <- first[rep(j, length(l_i)), ]
+      nd$years <- l_i
+      stats::predict(fit$glm_fit, nd, type = "response")
+    })
+    expect_equal(unname(p[[2]]), unname(expected))
+    expect_equal(p[[1]] + p[[2]], matrix(1, length(l_i), nrow(first)))
+  }
+  # held constant beyond 5 years
+  fit <- survivalSub(d, Surv(years, status3) ~ age + sex, status4 ~ pmin(years, 5) + age)
+  p <- conditionalDT(list(new), long, fit, l_i = c(5, 12, 30))
+  expect_equal(p[[2]][1, ], p[[2]][3, ])
+  # the linear and the general path agree
+  lin <- survivalSub(d, Surv(years, status3) ~ age + sex, status4 ~ years + age)
+  gen <- survivalSub(d, Surv(years, status3) ~ age + sex, status4 ~ I(years + 0) + age)
+  expect_equal(unname(conditionalDT(list(new), long, lin, l_i = l_i)[[2]]),
+               unname(conditionalDT(list(new), long, gen, l_i = l_i)[[2]]))
 })
 
 test_that("the event rows come from the Surv() status, whatever its form", {
