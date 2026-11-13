@@ -9,7 +9,8 @@ survivalSubExternal(
   data_external,
   form_marginal_surv,
   form_conditional_cr = NULL,
-  generation = "generation"
+  generation = "generation",
+  tail_hr = NULL
 )
 }
 \arguments{
@@ -22,13 +23,17 @@ for the external cohort. Both need the variables of
 
 \item{generation}{Name of the generation indicator column to create (it
 must not already exist).}
+
+\item{tail_hr}{\code{NULL} (default) to estimate the hazard ratio of the
+study against the external cohort, or a positive number to fix it.}
 }
 \value{
 A \code{survivalSub.BJM} fit, usable wherever \code{survivalSub()}'s
 is (e.g. \code{predictRisk()}, \code{fitImputedBJM(survival_fit_all = )}),
 with an \code{external} element: the generation variable, the cohort
 sizes and follow-up, the hazard ratio of the study against the external
-cohort and the PH test.
+cohort (\code{hazard_ratio}, the one used; \code{hazard_ratio_estimated},
+from the data; \code{tail_hr_fixed}) and the PH test.
 }
 \description{
 \strong{Experimental.} Predicting beyond the last follow-up
@@ -51,6 +56,12 @@ overlap it is tested with \code{\link[survival]{cox.zph}} (stored in
 \code{$external$ph_test}, with a warning when \eqn{p < 0.05}); the test has
 little power with short study follow-up, so a non-significant result is
 weak reassurance, and a sensitivity analysis on the tail is advisable.
+The hazard ratio itself, estimated from the overlap only, can be noisy
+when the study is short and has few events, and the proportional hazards
+assumption carries that noise to the whole tail. \code{tail_hr} fixes it
+instead (the other coefficients are then re-estimated given it), for a
+sensitivity analysis over plausible values, e.g. \code{c(0.8, 1, 1.25)},
+or to use prior knowledge, e.g. that the generations are equivalent.
 
 Predictions are for the study population: when the prediction data have
 no \code{generation} column it is taken as 1.
@@ -67,5 +78,8 @@ study$years <- pmin(study$years, 4)
 external <- surv[id \%\% 2 == 1, ]
 fit <- survivalSubExternal(study, external, Surv(years, status3) ~ age + sex, NULL)
 fit$external
+# sensitivity to the hazard ratio between the cohorts
+fits <- lapply(c(0.8, 1, 1.25), function(hr)
+  survivalSubExternal(study, external, Surv(years, status3) ~ age + sex, NULL, tail_hr = hr))
 }
 }

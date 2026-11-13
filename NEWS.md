@@ -2,6 +2,18 @@
 
 ## New features
 
+* `survivalSubExternal()` gains `tail_hr`, which fixes the hazard ratio
+  of the study against the external cohort instead of estimating it from
+  the overlap, for a sensitivity analysis of the borrowed tail or to use
+  prior knowledge. With short follow-up the estimate can be noisy, and the
+  proportional hazards assumption carries the noise to the whole tail: in a
+  temporal hold-out on `pbc2` (D-penicillamine arm as the study, cut at 3
+  years; placebo arm as the external cohort) the estimate was 0.66 against
+  0.86 on the full data, and 5-10-year risks came out at 0.68 of the
+  observed; `tail_hr = 1` gave 0.90, and `tail_hr` from 0.8 to 1.25 gave
+  0.77-1.04. `$external` now also reports `hazard_ratio_estimated` and
+  `tail_hr_fixed`.
+
 * The survival time may now enter the competing-risks event-type model
   (`form_conditional_cr`) through a transformation or an interaction, e.g.
   `status4 ~ pmin(years, 5) + age`; it used to be restricted to a plain

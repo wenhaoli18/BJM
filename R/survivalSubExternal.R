@@ -20,6 +20,12 @@
 #' \code{$external$ph_test}, with a warning when \eqn{p < 0.05}); the test has
 #' little power with short study follow-up, so a non-significant result is
 #' weak reassurance, and a sensitivity analysis on the tail is advisable.
+#' The hazard ratio itself, estimated from the overlap only, can be noisy
+#' when the study is short and has few events, and the proportional hazards
+#' assumption carries that noise to the whole tail. \code{tail_hr} fixes it
+#' instead (the other coefficients are then re-estimated given it), for a
+#' sensitivity analysis over plausible values, e.g. \code{c(0.8, 1, 1.25)},
+#' or to use prior knowledge, e.g. that the generations are equivalent.
 #'
 #' Predictions are for the study population: when the prediction data have
 #' no \code{generation} column it is taken as 1.
@@ -31,11 +37,14 @@
 #'   \code{\link{survivalSub}}, without the generation term, which is added.
 #' @param generation Name of the generation indicator column to create (it
 #'   must not already exist).
+#' @param tail_hr \code{NULL} (default) to estimate the hazard ratio of the
+#'   study against the external cohort, or a positive number to fix it.
 #' @return A \code{survivalSub.BJM} fit, usable wherever \code{survivalSub()}'s
 #'   is (e.g. \code{predictRisk()}, \code{fitImputedBJM(survival_fit_all = )}),
 #'   with an \code{external} element: the generation variable, the cohort
 #'   sizes and follow-up, the hazard ratio of the study against the external
-#'   cohort and the PH test.
+#'   cohort (\code{hazard_ratio}, the one used; \code{hazard_ratio_estimated},
+#'   from the data; \code{tail_hr_fixed}) and the PH test.
 #' @examples
 #' \donttest{
 #' data(pbc3)
@@ -48,13 +57,20 @@
 #' external <- surv[id %% 2 == 1, ]
 #' fit <- survivalSubExternal(study, external, Surv(years, status3) ~ age + sex, NULL)
 #' fit$external
+#' # sensitivity to the hazard ratio between the cohorts
+#' fits <- lapply(c(0.8, 1, 1.25), function(hr)
+#'   survivalSubExternal(study, external, Surv(years, status3) ~ age + sex, NULL, tail_hr = hr))
 #' }
 #' @export
 survivalSubExternal <- function(data_internal, data_external, form_marginal_surv,
-                                form_conditional_cr = NULL, generation = "generation") {
+                                form_conditional_cr = NULL, generation = "generation",
+                                tail_hr = NULL) {
   assert_data_frame(data_internal, "data_internal")
   assert_data_frame(data_external, "data_external")
   assert_string(generation, "generation")
+  if (!is.null(tail_hr) && !(is.numeric(tail_hr) && length(tail_hr) == 1 && is.finite(tail_hr) && tail_hr > 0)) {
+    stop("`tail_hr` must be NULL or a single positive number.", call. = FALSE)
+  }
   if (generation %in% c(names(data_internal), names(data_external))) {
     stop(sprintf("`generation` (\"%s\") is already a column; choose another name.", generation),
          call. = FALSE)
@@ -73,6 +89,8 @@ survivalSubExternal <- function(data_internal, data_external, form_marginal_surv
   form <- stats::update(form_marginal_surv, stats::as.formula(paste(". ~ . +", generation)))
   environment(form) <- environment(form_marginal_surv)
   fit <- survivalSub(stacked, form, form_conditional_cr)
+  hr_estimated <- unname(exp(stats::coef(fit$coxph_fit)[generation]))
+  if (!is.null(tail_hr)) fit$coxph_fit <- cox_fixed_generation(fit$coxph_fit, stacked, form, generation, tail_hr)
 
   y_int <- eval(form_marginal_surv[[2]], data_internal, environment(form_marginal_surv))
   y_ext <- eval(form_marginal_surv[[2]], data_external, environment(form_marginal_surv))
@@ -97,8 +115,33 @@ survivalSubExternal <- function(data_internal, data_external, form_marginal_surv
                        n_internal = nrow(data_internal), n_external = nrow(data_external),
                        max_followup_internal = tau, max_followup_external = max(y_ext[, "time"]),
                        hazard_ratio = unname(exp(stats::coef(fit$coxph_fit)[generation])),
+                       hazard_ratio_estimated = hr_estimated, tail_hr_fixed = !is.null(tail_hr),
                        ph_test = ph_test)
   fit
+}
+
+#' Cox model with the generation coefficient fixed
+#'
+#' @description For \code{survivalSubExternal(tail_hr = )}: the other
+#' coefficients are estimated with the generation term as an offset, then
+#' the model is refit at all coefficients with no iterations, so that the
+#' result is an ordinary \code{coxph} fit (its prediction and Breslow
+#' baseline then need no special handling of the offset).
+#' @keywords internal
+cox_fixed_generation <- function(free_fit, stacked, form, generation, tail_hr) {
+  rhs <- attr(stats::terms(form), "term.labels")
+  others <- setdiff(rhs, generation)
+  off <- sprintf("offset(%.17g * %s)", log(tail_hr), generation)
+  form_off <- stats::reformulate(c(others, off), response = form[[2]], env = environment(form))
+  beta <- stats::coef(free_fit)
+  beta[] <- 0
+  beta[generation] <- log(tail_hr)
+  if (length(others) > 0) {
+    off_fit <- coxph(form_off, data = stacked, ties = "breslow")
+    beta[names(stats::coef(off_fit))] <- stats::coef(off_fit)
+  }
+  suppressWarnings(coxph(form, data = stacked, ties = "breslow", x = TRUE, y = TRUE, init = beta,
+                         control = survival::coxph.control(iter.max = 0)))
 }
 
 #' Prediction data for an external-tail fit
