@@ -76,9 +76,19 @@
 #' @param time_variable Name of the visit-time column.
 #' @param survival_variable_all,survival_trans_function Transformed event-time
 #'   columns, as in \code{\link{predictRisk}} (\code{NULL} if none).
-#' @param n_burnin Stochastic-EM iterations before fits are saved.
-#' @param n_imputations Number of saved fits.
-#' @param n_thin Iterations between saved fits.
+#' @param n_burnin Stochastic-EM iterations before fits are saved. The chain
+#'   starts from the fit on the subjects with an event, the one that
+#'   overestimates risk, and with short follow-up needs a few iterations to
+#'   leave it: in temporal hold-outs on \code{pbc2} cut at 3 years,
+#'   predicted/observed was 1.15 after 1 iteration and settled at 1.06 after
+#'   5; with 5 years of follow-up or on \code{prothro} 1 was enough.
+#' @param n_imputations Number of saved fits. Predictions use their pooled
+#'   coefficients; with enough burn-in, 1 and 3 imputations gave the same
+#'   predictions on average, 3 with less Monte Carlo noise.
+#' @param n_thin Iterations between saved fits. Consecutive fits are
+#'   correlated, so for the pooled standard errors of the coefficients (Rubin's
+#'   rules) a larger \code{n_thin} and more imputations are advisable; for
+#'   prediction 1 is enough.
 #' @param n_grid Grid points per subject for the draws.
 #' @param baseline,df Baseline hazard of the survival model (see
 #'   \code{\link{survivalSub}}).
@@ -135,7 +145,7 @@ fitImputedBJM <- function(data_survival, data_fit_all, form_marginal_surv,
                           long_sub_fixed, long_sub_random, time_variable,
                           form_conditional_cr = NULL,
                           survival_variable_all = NULL, survival_trans_function = NULL,
-                          biomarker_type = NULL, n_burnin = 5, n_imputations = 5, n_thin = 2, n_grid = 40,
+                          biomarker_type = NULL, n_burnin = 5, n_imputations = 3, n_thin = 1, n_grid = 40,
                           baseline = c("spline", "piecewise"), df = NULL,
                           survival_fit_all = NULL, refit_event_type = TRUE, seed = NULL) {
   assert_positive_integer(n_thin, "n_thin")

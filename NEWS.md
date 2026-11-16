@@ -2,6 +2,15 @@
 
 ## New features
 
+* `fitImputedBJM()` now defaults to `n_imputations = 3, n_thin = 1` (was
+  5 and 2): 8 stochastic-EM iterations instead of 14, about 1.5 times
+  faster. In temporal hold-outs on `pbc2` and `prothro` (burn-in 1-10,
+  imputations 1-5, three seeds each) predictions did not change beyond
+  Monte Carlo noise (about 0.01 in predicted/observed) once the burn-in was
+  at least 5, which is kept: with 3 years of follow-up on `pbc2` fewer
+  burn-in iterations left part of the overestimation of the starting fit.
+  For pooled standard errors of the coefficients, use a larger `n_thin`.
+
 * `survivalSubExternal()` now splices the baseline (`splice = TRUE`, the
   default): the study's own Breslow estimate up to its last follow-up, and
   the external cohort's shape only beyond it. Before, the joint fit's
