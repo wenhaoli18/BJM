@@ -224,8 +224,8 @@ simulations were unbiased to within 0.02.</p>
 <span>  survival_trans_function <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  biomarker_type <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  n_burnin <span class="op">=</span> <span class="fl">5</span>,</span>
-<span>  n_imputations <span class="op">=</span> <span class="fl">5</span>,</span>
-<span>  n_thin <span class="op">=</span> <span class="fl">2</span>,</span>
+<span>  n_imputations <span class="op">=</span> <span class="fl">3</span>,</span>
+<span>  n_thin <span class="op">=</span> <span class="fl">1</span>,</span>
 <span>  n_grid <span class="op">=</span> <span class="fl">40</span>,</span>
 <span>  baseline <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"spline"</span>, <span class="st">"piecewise"</span><span class="op">)</span>,</span>
 <span>  df <span class="op">=</span> <span class="cn">NULL</span>,</span>
@@ -276,15 +276,25 @@ columns, as in <code><a href="predictRisk.html">predictRisk</a></code> (<code>NU
 
 
 <dt id="arg-n-burnin">n_burnin<a class="anchor" aria-label="anchor" href="#arg-n-burnin"></a></dt>
-<dd><p>Stochastic-EM iterations before fits are saved.</p></dd>
+<dd><p>Stochastic-EM iterations before fits are saved. The chain
+starts from the fit on the subjects with an event, the one that
+overestimates risk, and with short follow-up needs a few iterations to
+leave it: in temporal hold-outs on <code>pbc2</code> cut at 3 years,
+predicted/observed was 1.15 after 1 iteration and settled at 1.06 after
+5; with 5 years of follow-up or on <code>prothro</code> 1 was enough.</p></dd>
 
 
 <dt id="arg-n-imputations">n_imputations<a class="anchor" aria-label="anchor" href="#arg-n-imputations"></a></dt>
-<dd><p>Number of saved fits.</p></dd>
+<dd><p>Number of saved fits. Predictions use their pooled
+coefficients; with enough burn-in, 1 and 3 imputations gave the same
+predictions on average, 3 with less Monte Carlo noise.</p></dd>
 
 
 <dt id="arg-n-thin">n_thin<a class="anchor" aria-label="anchor" href="#arg-n-thin"></a></dt>
-<dd><p>Iterations between saved fits.</p></dd>
+<dd><p>Iterations between saved fits. Consecutive fits are
+correlated, so for the pooled standard errors of the coefficients (Rubin's
+rules) a larger <code>n_thin</code> and more imputations are advisable; for
+prediction 1 is enough.</p></dd>
 
 
 <dt id="arg-n-grid">n_grid<a class="anchor" aria-label="anchor" href="#arg-n-grid"></a></dt>
